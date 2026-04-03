@@ -66,6 +66,19 @@ func update_path(target: Vector2i) -> void:
 		queue_redraw()
 
 
+func get_path_to_cell(target: Vector2i) -> Array[Vector2i]:
+	var path: Array[Vector2i] = []
+	if not has_cell(target):
+		return path
+	var current := target
+	while current != origin:
+		path.append(current)
+		current = _parents[current]
+	path.append(origin)
+	path.reverse()
+	return path
+
+
 func clear_path() -> void:
 	if _current_path.size() > 0:
 		_current_path.clear()

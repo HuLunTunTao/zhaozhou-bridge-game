@@ -46,6 +46,9 @@ func _create_tilemap() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if player.is_moving:
+		return
+
 	if event is InputEventMouseMotion:
 		if player_selected:
 			var hover_cell := tilemap.local_to_map(tilemap.get_local_mouse_position())
@@ -61,10 +64,15 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event.button_index == MOUSE_BUTTON_RIGHT:
 		if player_selected:
 			if move_overlay.has_cell(clicked_cell):
-				player.set_cell(clicked_cell, tilemap)
+				var path: Array[Vector2i] = move_overlay.get_path_to_cell(clicked_cell)
+				move_overlay.clear_range()
+				player_selected = false
+				player.move_along_path(path, tilemap)
+				await player.move_finished
 				_update_status_bar()
-			player_selected = false
-			move_overlay.clear_range()
+			else:
+				player_selected = false
+				move_overlay.clear_range()
 		elif clicked_cell == player.cell:
 			player_selected = true
 			move_overlay.show_range(tilemap, player.cell, player.move_range)
