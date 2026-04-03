@@ -1,25 +1,27 @@
-extends Node2D
-## Debug scene for testing battle logic on a procedurally generated flat tilemap.
+extends BaseLevel
+## Debug level: procedurally generates a flat 10x10 tilemap for testing.
 
-@onready var player: Node2D = $Player
-@onready var move_overlay: Node2D = $MoveOverlay
-@onready var debug_label: Label = $CanvasLayer/DebugLabel
-@onready var status_bar: HBoxContainer = $StatusBarLayer/PanelContainer/MarginContainer/StatusBar
-var tilemap: TileMapLayer
-var player_selected := false
+@onready var debug_label: Label = $GUI/DebugLabel
 
 const GRID_SIZE := 10
 
 
-func _ready() -> void:
-	_create_tilemap()
+func get_player_start_cell() -> Vector2i:
 	@warning_ignore("integer_division")
-	player.set_cell(Vector2i(GRID_SIZE / 2, GRID_SIZE / 2), tilemap)
+	return Vector2i(GRID_SIZE / 2, GRID_SIZE / 2)
+
+
+func _ready() -> void:
+	_create_debug_tilemap()
+	super._ready()
+
+
+func _on_level_ready() -> void:
 	_update_status_bar()
 	_update_debug_label()
 
 
-func _create_tilemap() -> void:
+func _create_debug_tilemap() -> void:
 	var ts := TileSet.new()
 	ts.tile_shape = TileSet.TILE_SHAPE_ISOMETRIC
 	ts.tile_layout = TileSet.TILE_LAYOUT_DIAMOND_DOWN
@@ -34,50 +36,24 @@ func _create_tilemap() -> void:
 	source.create_tile(Vector2i(0, 0))
 	ts.add_source(source, 0)
 
-	tilemap = TileMapLayer.new()
-	tilemap.tile_set = ts
-	tilemap.name = "DebugTileMap"
-	add_child(tilemap)
-	move_child(tilemap, 0)
+	var tm := TileMapLayer.new()
+	tm.tile_set = ts
+	tm.name = "WalkableMap"
+	tilemap_container.add_child(tm)
 
 	for x in range(GRID_SIZE):
 		for y in range(GRID_SIZE):
-			tilemap.set_cell(Vector2i(x, y), 0, Vector2i(0, 0))
+			tm.set_cell(Vector2i(x, y), 0, Vector2i(0, 0))
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if player.is_moving:
-		return
-
-	if event is InputEventMouseMotion:
-		if player_selected:
-			var hover_cell := tilemap.local_to_map(tilemap.get_local_mouse_position())
-			move_overlay.update_path(hover_cell)
+	super._unhandled_input(event)
+	if event is InputEventMouseMotion or event is InputEventMouseButton:
 		_update_debug_label()
-		return
 
-	if not event is InputEventMouseButton or not event.pressed:
-		return
 
-	var clicked_cell := tilemap.local_to_map(tilemap.get_local_mouse_position())
-
-	if event.button_index == MOUSE_BUTTON_RIGHT:
-		if player_selected:
-			if move_overlay.has_cell(clicked_cell):
-				var path: Array[Vector2i] = move_overlay.get_path_to_cell(clicked_cell)
-				move_overlay.clear_range()
-				player_selected = false
-				player.move_along_path(path, tilemap)
-				await player.move_finished
-				_update_status_bar()
-			else:
-				player_selected = false
-				move_overlay.clear_range()
-		elif clicked_cell == player.cell:
-			player_selected = true
-			move_overlay.show_range(tilemap, player.cell, player.move_range)
-
-	_update_debug_label()
+func _on_player_moved() -> void:
+	_update_status_bar()
 
 
 func _update_status_bar() -> void:
@@ -86,8 +62,11 @@ func _update_status_bar() -> void:
 
 
 func _update_debug_label() -> void:
+	if tilemap == null:
+		return
 	var mouse_cell := tilemap.local_to_map(tilemap.get_local_mouse_position())
 	var on_grid := mouse_cell.x >= 0 and mouse_cell.x < GRID_SIZE and mouse_cell.y >= 0 and mouse_cell.y < GRID_SIZE
 	debug_label.text = "Player: %s | Mouse: %s %s | Selected: %s" % [
-		player.cell, mouse_cell, "(on grid)" if on_grid else "(off grid)", player_selected
+		player.cell if player else "null", mouse_cell,
+		"(on grid)" if on_grid else "(off grid)", player_selected
 	]

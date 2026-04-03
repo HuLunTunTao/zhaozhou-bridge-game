@@ -10,7 +10,8 @@
       "Read(//home/ffcrazy/.config/**)",
       "mcp__godot__run_project",
       "mcp__godot__get_debug_output",
-      "mcp__godot__stop_project"
+      "mcp__godot__stop_project",
+      "Bash(timeout 5 godot --headless --editor --quit --path /home/ffcrazy/proj/game)"
     ]
   }
 }

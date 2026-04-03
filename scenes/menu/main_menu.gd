@@ -33,7 +33,9 @@ func _on_quit_pressed() -> void:
 # Level select
 func _on_level_selected(level: int) -> void:
 	GameState.selected_level = level
-	get_tree().change_scene_to_file("res://scenes/battle/battle.tscn")
+	var path := GameState.get_level_scene_path(level)
+	if path != "":
+		get_tree().change_scene_to_file(path)
 	# TODO: 关卡锁定机制——未通关的关卡按钮置灰
 	# TODO: 已通关关卡显示评价（星级或其他标记）
 
