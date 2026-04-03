@@ -1,0 +1,177 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scenes/menu/main_menu.gd" id="1_script"]
+
+[node name="MainMenu" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_script")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.12, 0.15, 0.2, 1)
+
+;; ============ Main Page ============
+
+[node name="MainPage" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -80.0
+offset_top = -60.0
+offset_right = 80.0
+offset_bottom = 60.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 12
+
+[node name="Title" type="Label" parent="MainPage"]
+layout_mode = 2
+text = "安济桥成"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Spacer" type="Control" parent="MainPage"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 16)
+
+[node name="StartButton" type="Button" parent="MainPage"]
+layout_mode = 2
+text = "开始游戏"
+
+[node name="SettingsButton" type="Button" parent="MainPage"]
+layout_mode = 2
+text = "设置"
+
+[node name="QuitButton" type="Button" parent="MainPage"]
+layout_mode = 2
+text = "退出游戏"
+
+;; ============ Level Select Page ============
+
+[node name="LevelSelectPage" type="VBoxContainer" parent="."]
+visible = false
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -100.0
+offset_top = -100.0
+offset_right = 100.0
+offset_bottom = 100.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 8
+
+[node name="LevelTitle" type="Label" parent="LevelSelectPage"]
+layout_mode = 2
+text = "选择关卡"
+horizontal_alignment = 1
+
+[node name="Spacer" type="Control" parent="LevelSelectPage"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 8)
+
+[node name="LevelGrid" type="GridContainer" parent="LevelSelectPage"]
+layout_mode = 2
+theme_override_constants/h_separation = 8
+theme_override_constants/v_separation = 8
+columns = 3
+
+[node name="Level1" type="Button" parent="LevelSelectPage/LevelGrid"]
+layout_mode = 2
+custom_minimum_size = Vector2(56, 32)
+text = "第一关"
+
+[node name="Level2" type="Button" parent="LevelSelectPage/LevelGrid"]
+layout_mode = 2
+custom_minimum_size = Vector2(56, 32)
+text = "第二关"
+
+[node name="Level3" type="Button" parent="LevelSelectPage/LevelGrid"]
+layout_mode = 2
+custom_minimum_size = Vector2(56, 32)
+text = "第三关"
+
+[node name="Level4" type="Button" parent="LevelSelectPage/LevelGrid"]
+layout_mode = 2
+custom_minimum_size = Vector2(56, 32)
+text = "第四关"
+
+[node name="Level5" type="Button" parent="LevelSelectPage/LevelGrid"]
+layout_mode = 2
+custom_minimum_size = Vector2(56, 32)
+text = "第五关"
+
+[node name="Level6" type="Button" parent="LevelSelectPage/LevelGrid"]
+layout_mode = 2
+custom_minimum_size = Vector2(56, 32)
+text = "第六关"
+
+[node name="BackButton" type="Button" parent="LevelSelectPage"]
+layout_mode = 2
+text = "返回"
+
+;; ============ Settings Page ============
+
+[node name="SettingsPage" type="VBoxContainer" parent="."]
+visible = false
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -100.0
+offset_top = -60.0
+offset_right = 100.0
+offset_bottom = 60.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 12
+
+[node name="SettingsTitle" type="Label" parent="SettingsPage"]
+layout_mode = 2
+text = "设置"
+horizontal_alignment = 1
+
+[node name="Spacer" type="Control" parent="SettingsPage"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 8)
+
+[node name="Placeholder" type="Label" parent="SettingsPage"]
+layout_mode = 2
+text = "（暂无设置项）"
+horizontal_alignment = 1
+
+[node name="BackButton" type="Button" parent="SettingsPage"]
+layout_mode = 2
+text = "返回"
+
+;; ============ Connections ============
+
+[connection signal="pressed" from="MainPage/StartButton" to="." method="_on_start_pressed"]
+[connection signal="pressed" from="MainPage/SettingsButton" to="." method="_on_settings_pressed"]
+[connection signal="pressed" from="MainPage/QuitButton" to="." method="_on_quit_pressed"]
+[connection signal="pressed" from="LevelSelectPage/LevelGrid/Level1" to="." method="_on_level_selected" binds= [1]]
+[connection signal="pressed" from="LevelSelectPage/LevelGrid/Level2" to="." method="_on_level_selected" binds= [2]]
+[connection signal="pressed" from="LevelSelectPage/LevelGrid/Level3" to="." method="_on_level_selected" binds= [3]]
+[connection signal="pressed" from="LevelSelectPage/LevelGrid/Level4" to="." method="_on_level_selected" binds= [4]]
+[connection signal="pressed" from="LevelSelectPage/LevelGrid/Level5" to="." method="_on_level_selected" binds= [5]]
+[connection signal="pressed" from="LevelSelectPage/LevelGrid/Level6" to="." method="_on_level_selected" binds= [6]]
+[connection signal="pressed" from="LevelSelectPage/BackButton" to="." method="_on_level_back_pressed"]
+[connection signal="pressed" from="SettingsPage/BackButton" to="." method="_on_settings_back_pressed"]
