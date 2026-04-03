@@ -1,0 +1,7 @@
+[gd_scene format=3 uid="uid://dib44mkpko1xj"]
+
+[ext_resource type="PackedScene" uid="uid://bi68j6rnhqnao" path="res://scenes/highlight/highlight_line_2d.tscn" id="1_n7fl8"]
+[ext_resource type="Script" uid="uid://b1m87mrbvdvj6" path="res://scenes/highlight/hightlightselecter/highlight_selecter.gd" id="2_jb5b2"]
+
+[node name="HighlightSelecter" unique_id=1701323330 instance=ExtResource("1_n7fl8")]
+script = ExtResource("2_jb5b2")

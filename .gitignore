@@ -1,0 +1,19 @@
+# Godot
+.godot/
+
+# Export
+/android/
+/build/
+*.apk
+*.aab
+*.ipa
+
+# OS
+.DS_Store
+Thumbs.db
+*~
+
+# IDE
+.vscode/
+.idea/
+*.swp

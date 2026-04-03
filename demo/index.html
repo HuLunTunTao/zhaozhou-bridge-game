@@ -1,0 +1,969 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>安济桥成 - 第一关：踏勘洨河</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #1a1a2e; overflow: hidden; font-family: monospace; }
+canvas { display: block; image-rendering: pixelated; image-rendering: crisp-edges; }
+#ui-overlay {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  pointer-events: none; z-index: 10;
+}
+#turn-info {
+  position: fixed; top: 16px; left: 16px;
+  color: #e8d5b7; font-size: 14px; z-index: 11;
+  background: rgba(20,20,40,0.85); padding: 8px 14px; border: 1px solid #5a4a3a;
+  pointer-events: none;
+}
+#objective {
+  position: fixed; top: 16px; right: 16px;
+  color: #c8b89a; font-size: 12px; z-index: 11;
+  background: rgba(20,20,40,0.85); padding: 8px 14px; border: 1px solid #5a4a3a;
+  max-width: 260px; pointer-events: none;
+}
+#action-bar {
+  position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
+  display: flex; gap: 8px; z-index: 11; pointer-events: auto;
+}
+#action-bar button {
+  background: #2a2a3e; color: #e8d5b7; border: 1px solid #5a4a3a;
+  padding: 6px 16px; font-family: monospace; font-size: 13px; cursor: pointer;
+}
+#action-bar button:hover { background: #3a3a5e; }
+#action-bar button:disabled { opacity: 0.4; cursor: default; }
+#unit-info {
+  position: fixed; bottom: 60px; left: 16px;
+  color: #e8d5b7; font-size: 12px; z-index: 11;
+  background: rgba(20,20,40,0.85); padding: 8px 14px; border: 1px solid #5a4a3a;
+  min-width: 180px; pointer-events: none; display: none;
+}
+#msg-box {
+  position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%);
+  color: #ffe8c0; font-size: 18px; z-index: 20;
+  background: rgba(10,10,30,0.92); padding: 20px 32px; border: 2px solid #8a7a5a;
+  text-align: center; display: none; pointer-events: auto; max-width: 500px; line-height: 1.6;
+}
+#msg-box button {
+  margin-top: 12px; background: #2a2a3e; color: #e8d5b7; border: 1px solid #5a4a3a;
+  padding: 6px 24px; font-family: monospace; font-size: 13px; cursor: pointer;
+}
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="turn-info"></div>
+<div id="objective"></div>
+<div id="unit-info"></div>
+<div id="action-bar">
+  <button id="btn-move">移动</button>
+  <button id="btn-attack">攻击</button>
+  <button id="btn-survey">勘测</button>
+  <button id="btn-wait">待机</button>
+  <button id="btn-end-turn">结束回合</button>
+</div>
+<div id="msg-box"><span id="msg-text"></span><br><button id="msg-ok">确定</button></div>
+
+<script>
+// ============================================================
+// 安济桥成 - 第一关：踏勘洨河 Demo
+// 2.5D 等距视角 像素风战棋
+// ============================================================
+
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+
+// --- Constants ---
+const TILE_W = 64;   // isometric tile width
+const TILE_H = 32;   // isometric tile height
+const MAP_COLS = 14;
+const MAP_ROWS = 12;
+
+// Tile types
+const T = {
+  GROUND: 0,    // 稳固地面
+  SHOAL: 1,     // 浅滩（可能被淹）
+  RIVER: 2,     // 河水（不可通行）
+  MUD: 3,       // 泥地（减速）
+  ROCK: 4,      // 碎石岸
+  FERRY: 5,     // 旧渡口
+  SURVEY: 6,    // 勘测点
+  FLOODED: 7,   // 被淹没（不可通行）
+  BRIDGE_SITE: 8, // 候选桥址
+};
+
+const TILE_COLORS = {
+  [T.GROUND]:  { top: '#6b7a3a', side: '#4a5a2a', outline: '#3a4a1a' },
+  [T.SHOAL]:   { top: '#8a9a6a', side: '#6a7a4a', outline: '#4a5a3a' },
+  [T.RIVER]:   { top: '#2a4a6a', side: '#1a3a5a', outline: '#0a2a4a' },
+  [T.MUD]:     { top: '#7a6a4a', side: '#5a4a2a', outline: '#4a3a1a' },
+  [T.ROCK]:    { top: '#8a8a7a', side: '#6a6a5a', outline: '#4a4a3a' },
+  [T.FERRY]:   { top: '#6a5a3a', side: '#4a3a2a', outline: '#3a2a1a' },
+  [T.SURVEY]:  { top: '#aa8a4a', side: '#8a6a3a', outline: '#6a4a2a' },
+  [T.FLOODED]: { top: '#1a3a5a', side: '#0a2a4a', outline: '#001a3a' },
+  [T.BRIDGE_SITE]: { top: '#ba9a5a', side: '#9a7a3a', outline: '#7a5a2a' },
+};
+
+const PASSABLE = new Set([T.GROUND, T.SHOAL, T.MUD, T.ROCK, T.FERRY, T.SURVEY, T.BRIDGE_SITE]);
+
+// Map data - 第一关：河滩、浅洲、碎石岸、旧渡口
+let mapData = [
+  [0,0,0,4,4,1,1,2,2,1,1,4,0,0],
+  [0,0,4,4,1,1,2,2,2,1,1,4,4,0],
+  [0,4,4,1,1,1,2,2,2,2,1,1,4,0],
+  [4,4,1,1,3,1,2,2,2,1,1,1,4,4],
+  [4,1,1,3,3,1,1,2,2,1,3,1,1,4],
+  [4,1,5,3,1,1,1,2,1,1,3,3,1,4],
+  [4,1,1,1,1,3,1,2,1,1,1,3,1,4],
+  [4,4,1,1,1,1,1,2,2,1,1,1,4,4],
+  [0,4,4,1,1,1,2,2,2,1,1,4,4,0],
+  [0,0,4,4,1,2,2,2,1,1,4,4,0,0],
+  [0,0,0,4,4,1,2,1,1,4,4,0,0,0],
+  [0,0,0,0,4,4,1,1,4,4,0,0,0,0],
+];
+
+// Survey points (3 locations for 测流桩)
+const surveyPoints = [
+  { col: 5, row: 2, done: false },
+  { col: 4, row: 5, done: false },
+  { col: 5, row: 8, done: false },
+];
+
+// Bridge site candidates (appear in phase 4)
+const bridgeSites = [
+  { col: 6, row: 3, correct: false },
+  { col: 7, row: 5, correct: true },   // 正确桥址
+  { col: 6, row: 8, correct: false },
+];
+
+// Place survey markers on map
+surveyPoints.forEach(s => { if (PASSABLE.has(mapData[s.row][s.col])) mapData[s.row][s.col] = T.SURVEY; });
+
+// --- Game State ---
+let state = {
+  turn: 1,
+  phase: 'player',   // player | enemy | event
+  gamePhase: 1,       // 1-5 story phases
+  selectedUnit: null,
+  mode: 'select',     // select | move | attack | survey
+  moveRange: [],
+  attackRange: [],
+  surveysDone: 0,
+  bridgeSitesRevealed: false,
+  chosenSite: null,
+  gameOver: false,
+  message: null,
+  floodTimer: 0,
+};
+
+// --- Units ---
+class Unit {
+  constructor(name, col, row, team, hp, atk, def, mov, type) {
+    this.name = name;
+    this.col = col; this.row = row;
+    this.team = team; // 'player' | 'enemy'
+    this.hp = hp; this.maxHp = hp;
+    this.atk = atk; this.def = def;
+    this.mov = mov;
+    this.type = type;
+    this.acted = false;
+    this.alive = true;
+  }
+}
+
+let units = [];
+
+function initUnits() {
+  units = [
+    // Player units
+    new Unit('李春', 2, 5, 'player', 30, 8, 6, 4, 'lichun'),
+    new Unit('背桩工·甲', 1, 4, 'player', 18, 3, 3, 3, 'worker'),
+    new Unit('背桩工·乙', 1, 6, 'player', 18, 3, 3, 3, 'worker'),
+    new Unit('护卫·张', 2, 3, 'player', 22, 6, 5, 3, 'guard'),
+    new Unit('护卫·王', 2, 7, 'player', 22, 6, 5, 3, 'guard'),
+    // Enemy units (phase 1)
+    new Unit('暗涌', 8, 3, 'enemy', 12, 5, 2, 3, 'anying'),
+    new Unit('暗涌', 9, 6, 'enemy', 12, 5, 2, 3, 'anying'),
+    new Unit('水旋', 7, 1, 'enemy', 10, 4, 1, 4, 'shuixuan'),
+    new Unit('坍岸泥鬼', 10, 4, 'enemy', 16, 6, 4, 2, 'tangui'),
+    new Unit('浮木群', 6, 0, 'enemy', 14, 7, 3, 2, 'fumu'),
+  ];
+}
+
+// --- Camera ---
+let camera = { x: 0, y: 0, zoom: 1 };
+
+function isoToScreen(col, row) {
+  const x = (col - row) * (TILE_W / 2) * camera.zoom + camera.x;
+  const y = (col + row) * (TILE_H / 2) * camera.zoom + camera.y;
+  return { x, y };
+}
+
+function screenToIso(sx, sy) {
+  const rx = (sx - camera.x) / camera.zoom;
+  const ry = (sy - camera.y) / camera.zoom;
+  const col = Math.round(rx / TILE_W + ry / TILE_H - 0.5);
+  const row = Math.round(ry / TILE_H - rx / TILE_W - 0.5);
+  return { col, row };
+}
+
+function centerCamera() {
+  const centerCol = MAP_COLS / 2;
+  const centerRow = MAP_ROWS / 2;
+  camera.x = canvas.width / 2 - (centerCol - centerRow) * (TILE_W / 2) * camera.zoom;
+  camera.y = canvas.height / 2 - (centerCol + centerRow) * (TILE_H / 2) * camera.zoom + 20;
+}
+
+// --- Drawing ---
+function resize() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  centerCamera();
+}
+
+function drawTile(col, row, type, highlight) {
+  const { x, y } = isoToScreen(col, row);
+  const w = TILE_W * camera.zoom;
+  const h = TILE_H * camera.zoom;
+  const tileH = 8 * camera.zoom; // tile thickness
+
+  const colors = TILE_COLORS[type] || TILE_COLORS[T.GROUND];
+
+  // Side face
+  ctx.fillStyle = colors.side;
+  ctx.beginPath();
+  ctx.moveTo(x, y + h / 2);
+  ctx.lineTo(x, y + h / 2 + tileH);
+  ctx.lineTo(x + w / 2, y + h + tileH);
+  ctx.lineTo(x + w, y + h / 2 + tileH);
+  ctx.lineTo(x + w, y + h / 2);
+  ctx.lineTo(x + w / 2, y + h);
+  ctx.closePath();
+  ctx.fill();
+
+  // Top face
+  ctx.fillStyle = colors.top;
+  if (highlight === 'move') ctx.fillStyle = 'rgba(80,180,80,0.6)';
+  else if (highlight === 'attack') ctx.fillStyle = 'rgba(180,60,60,0.6)';
+  else if (highlight === 'survey') ctx.fillStyle = 'rgba(180,160,60,0.7)';
+  else if (highlight === 'select') ctx.fillStyle = 'rgba(100,160,220,0.6)';
+
+  ctx.beginPath();
+  ctx.moveTo(x + w / 2, y);
+  ctx.lineTo(x + w, y + h / 2);
+  ctx.lineTo(x + w / 2, y + h);
+  ctx.lineTo(x, y + h / 2);
+  ctx.closePath();
+  ctx.fill();
+
+  // Outline
+  ctx.strokeStyle = colors.outline;
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // Water animation for river/flooded
+  if (type === T.RIVER || type === T.FLOODED) {
+    const t = Date.now() / 800;
+    ctx.fillStyle = 'rgba(100,180,255,0.15)';
+    for (let i = 0; i < 3; i++) {
+      const ox = Math.sin(t + i * 2 + col) * 4 * camera.zoom;
+      const oy = Math.cos(t + i * 1.5 + row) * 2 * camera.zoom;
+      ctx.beginPath();
+      ctx.arc(x + w / 2 + ox, y + h / 2 + oy, 3 * camera.zoom, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  // Survey marker
+  if (type === T.SURVEY) {
+    const sp = surveyPoints.find(s => s.col === col && s.row === row);
+    if (sp && !sp.done) {
+      ctx.fillStyle = '#ffcc44';
+      ctx.beginPath();
+      ctx.arc(x + w / 2, y + h / 2 - 6 * camera.zoom, 3 * camera.zoom, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.font = `${8 * camera.zoom}px monospace`;
+      ctx.textAlign = 'center';
+      ctx.fillText('桩', x + w / 2, y + h / 2 - 10 * camera.zoom);
+    } else if (sp && sp.done) {
+      ctx.fillStyle = '#88ff88';
+      ctx.font = `${8 * camera.zoom}px monospace`;
+      ctx.textAlign = 'center';
+      ctx.fillText('✓', x + w / 2, y + h / 2 - 6 * camera.zoom);
+    }
+  }
+
+  // Bridge site marker
+  if (type === T.BRIDGE_SITE) {
+    ctx.fillStyle = '#ffe088';
+    ctx.font = `${9 * camera.zoom}px monospace`;
+    ctx.textAlign = 'center';
+    ctx.fillText('桥址', x + w / 2, y + h / 2 - 6 * camera.zoom);
+  }
+}
+
+function drawPixelUnit(unit) {
+  if (!unit.alive) return;
+  const { x, y } = isoToScreen(unit.col, unit.row);
+  const w = TILE_W * camera.zoom;
+  const h = TILE_H * camera.zoom;
+  const cx = x + w / 2;
+  const cy = y + h / 2 - 16 * camera.zoom;
+  const s = camera.zoom;
+
+  const bobY = Math.sin(Date.now() / 400 + unit.col * 3 + unit.row * 7) * 1.5 * s;
+
+  ctx.save();
+  ctx.translate(cx, cy + bobY);
+
+  if (unit.team === 'player') {
+    if (unit.type === 'lichun') {
+      // 李春 - 青灰工匠服，束发
+      // Shadow
+      ctx.fillStyle = 'rgba(0,0,0,0.3)';
+      ctx.fillRect(-6*s, 14*s, 12*s, 4*s);
+      // Body
+      ctx.fillStyle = '#5a6a5a'; // 青灰袍
+      ctx.fillRect(-5*s, 0, 10*s, 12*s);
+      // Belt
+      ctx.fillStyle = '#4a3a2a';
+      ctx.fillRect(-5*s, 5*s, 10*s, 2*s);
+      // Head
+      ctx.fillStyle = '#d4a574';
+      ctx.fillRect(-3*s, -8*s, 6*s, 8*s);
+      // Hair bun
+      ctx.fillStyle = '#2a2a2a';
+      ctx.fillRect(-3*s, -10*s, 6*s, 3*s);
+      ctx.fillRect(-1*s, -12*s, 2*s, 3*s);
+      // Eyes
+      ctx.fillStyle = '#1a1a1a';
+      ctx.fillRect(-2*s, -5*s, 1.5*s, 1*s);
+      ctx.fillRect(0.5*s, -5*s, 1.5*s, 1*s);
+      // Mustache
+      ctx.fillStyle = '#3a3a3a';
+      ctx.fillRect(-2*s, -2*s, 4*s, 1*s);
+      // Scroll in hand
+      ctx.fillStyle = '#c8b078';
+      ctx.fillRect(5*s, 2*s, 3*s, 8*s);
+      ctx.fillStyle = '#a89058';
+      ctx.fillRect(5*s, 1*s, 3*s, 1.5*s);
+      ctx.fillRect(5*s, 9.5*s, 3*s, 1.5*s);
+    } else if (unit.type === 'worker') {
+      // 背桩工
+      ctx.fillStyle = 'rgba(0,0,0,0.3)';
+      ctx.fillRect(-5*s, 12*s, 10*s, 3*s);
+      ctx.fillStyle = '#8a7a5a'; // 土褐服
+      ctx.fillRect(-4*s, 0, 8*s, 10*s);
+      ctx.fillStyle = '#d4a574';
+      ctx.fillRect(-3*s, -7*s, 6*s, 7*s);
+      ctx.fillStyle = '#3a3a2a';
+      ctx.fillRect(-3*s, -8*s, 6*s, 2*s);
+      // Carrying stake on back
+      ctx.fillStyle = '#6a5a3a';
+      ctx.fillRect(-6*s, -6*s, 2*s, 16*s);
+    } else if (unit.type === 'guard') {
+      // 护卫
+      ctx.fillStyle = 'rgba(0,0,0,0.3)';
+      ctx.fillRect(-5*s, 12*s, 10*s, 3*s);
+      ctx.fillStyle = '#5a4a3a'; // 深褐甲
+      ctx.fillRect(-5*s, 0, 10*s, 11*s);
+      ctx.fillStyle = '#4a3a2a';
+      ctx.fillRect(-5*s, 4*s, 10*s, 2*s);
+      ctx.fillStyle = '#d4a574';
+      ctx.fillRect(-3*s, -7*s, 6*s, 7*s);
+      ctx.fillStyle = '#3a2a1a';
+      ctx.fillRect(-3*s, -9*s, 6*s, 3*s);
+      // Spear
+      ctx.fillStyle = '#8a7a5a';
+      ctx.fillRect(5*s, -12*s, 1.5*s, 22*s);
+      ctx.fillStyle = '#aaa';
+      ctx.fillRect(4.5*s, -14*s, 2.5*s, 3*s);
+    }
+  } else {
+    // Enemies
+    if (unit.type === 'anying') {
+      // 暗涌 - 深蓝水影
+      ctx.fillStyle = 'rgba(0,0,0,0.3)';
+      ctx.fillRect(-6*s, 8*s, 12*s, 3*s);
+      const t = Date.now() / 300;
+      ctx.fillStyle = '#1a3a6a';
+      ctx.beginPath();
+      ctx.arc(0, 2*s, 7*s + Math.sin(t)*s, 0, Math.PI*2);
+      ctx.fill();
+      ctx.fillStyle = '#0a1a3a';
+      ctx.beginPath();
+      ctx.arc(0, 2*s, 3*s, 0, Math.PI*2);
+      ctx.fill();
+      // Eye
+      ctx.fillStyle = '#6ac0ff';
+      ctx.beginPath();
+      ctx.arc(0, 1*s, 1.5*s, 0, Math.PI*2);
+      ctx.fill();
+    } else if (unit.type === 'shuixuan') {
+      // 水旋 - 旋涡
+      const t = Date.now() / 200;
+      ctx.fillStyle = 'rgba(0,0,0,0.3)';
+      ctx.fillRect(-5*s, 8*s, 10*s, 3*s);
+      for (let i = 0; i < 3; i++) {
+        ctx.fillStyle = `rgba(40,${100+i*40},${180+i*20},${0.7-i*0.15})`;
+        ctx.beginPath();
+        ctx.arc(Math.cos(t+i*2)*2*s, 2*s+Math.sin(t+i*2)*2*s, (6-i*1.5)*s, 0, Math.PI*2);
+        ctx.fill();
+      }
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.arc(0, 2*s, 1*s, 0, Math.PI*2);
+      ctx.fill();
+    } else if (unit.type === 'tangui') {
+      // 坍岸泥鬼
+      ctx.fillStyle = 'rgba(0,0,0,0.3)';
+      ctx.fillRect(-6*s, 10*s, 12*s, 3*s);
+      ctx.fillStyle = '#5a4a2a';
+      ctx.fillRect(-6*s, -2*s, 12*s, 12*s);
+      ctx.fillRect(-4*s, -6*s, 8*s, 5*s);
+      // Debris on body
+      ctx.fillStyle = '#7a6a4a';
+      ctx.fillRect(-3*s, 0, 2*s, 2*s);
+      ctx.fillRect(2*s, 2*s, 2*s, 2*s);
+      // Eyes
+      ctx.fillStyle = '#cc8800';
+      ctx.fillRect(-3*s, -4*s, 2*s, 2*s);
+      ctx.fillRect(1*s, -4*s, 2*s, 2*s);
+    } else if (unit.type === 'fumu') {
+      // 浮木群
+      ctx.fillStyle = 'rgba(0,0,0,0.3)';
+      ctx.fillRect(-8*s, 8*s, 16*s, 3*s);
+      const t = Date.now() / 500;
+      for (let i = 0; i < 4; i++) {
+        ctx.fillStyle = i % 2 === 0 ? '#5a4a2a' : '#6a5a3a';
+        const ox = Math.sin(t + i) * 2 * s;
+        ctx.save();
+        ctx.translate(ox + (i-2)*3*s, (i%2)*3*s);
+        ctx.rotate(0.2 * Math.sin(t + i));
+        ctx.fillRect(-1*s, -4*s, 2*s, 8*s);
+        ctx.restore();
+      }
+      // Grass/rope
+      ctx.fillStyle = '#3a5a2a';
+      ctx.fillRect(-4*s, 0, 8*s, 1.5*s);
+    }
+  }
+
+  // HP bar
+  const barW = 14 * s;
+  const barH = 2 * s;
+  const barY = -16 * s;
+  ctx.fillStyle = '#333';
+  ctx.fillRect(-barW/2, barY, barW, barH);
+  const hpRatio = unit.hp / unit.maxHp;
+  ctx.fillStyle = unit.team === 'player' ? '#4a8' : '#a44';
+  ctx.fillRect(-barW/2, barY, barW * hpRatio, barH);
+
+  // Selected indicator
+  if (state.selectedUnit === unit) {
+    ctx.strokeStyle = '#ffe080';
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(-7*s, -18*s, 14*s, 32*s);
+  }
+
+  // Acted overlay
+  if (unit.acted && unit.team === 'player') {
+    ctx.fillStyle = 'rgba(0,0,0,0.35)';
+    ctx.fillRect(-7*s, -14*s, 14*s, 28*s);
+  }
+
+  ctx.restore();
+}
+
+function drawMap() {
+  // Sort tiles by row+col for proper depth
+  for (let row = 0; row < MAP_ROWS; row++) {
+    for (let col = 0; col < MAP_COLS; col++) {
+      if (mapData[row] === undefined || mapData[row][col] === undefined) continue;
+      let highlight = null;
+      if (state.moveRange.some(p => p.col === col && p.row === row)) highlight = 'move';
+      if (state.attackRange.some(p => p.col === col && p.row === row)) highlight = 'attack';
+      if (state.mode === 'survey') {
+        const sp = surveyPoints.find(s => s.col === col && s.row === row && !s.done);
+        if (sp && isAdjacent(state.selectedUnit, col, row)) highlight = 'survey';
+      }
+      drawTile(col, row, mapData[row][col], highlight);
+    }
+  }
+}
+
+function drawUnits() {
+  // Sort for depth
+  const sorted = [...units].filter(u => u.alive).sort((a, b) => (a.row + a.col) - (b.row + b.col));
+  sorted.forEach(u => drawPixelUnit(u));
+}
+
+// --- Pathfinding / Range ---
+function getMovementRange(unit) {
+  const range = [];
+  const visited = {};
+  const queue = [{ col: unit.col, row: unit.row, steps: 0 }];
+  visited[`${unit.col},${unit.row}`] = true;
+
+  while (queue.length > 0) {
+    const { col, row, steps } = queue.shift();
+    if (steps > 0) range.push({ col, row });
+    if (steps >= unit.mov) continue;
+
+    for (const [dc, dr] of [[0,-1],[0,1],[-1,0],[1,0]]) {
+      const nc = col + dc, nr = row + dr;
+      const key = `${nc},${nr}`;
+      if (nc < 0 || nc >= MAP_COLS || nr < 0 || nr >= MAP_ROWS) continue;
+      if (visited[key]) continue;
+      if (!PASSABLE.has(mapData[nr][nc])) continue;
+      if (units.some(u => u.alive && u.col === nc && u.row === nr)) continue;
+      visited[key] = true;
+      const cost = mapData[nr][nc] === T.MUD ? 2 : 1;
+      if (steps + cost <= unit.mov) {
+        queue.push({ col: nc, row: nr, steps: steps + cost });
+      }
+    }
+  }
+  return range;
+}
+
+function getAttackRange(unit) {
+  const range = [];
+  for (const [dc, dr] of [[0,-1],[0,1],[-1,0],[1,0],[1,1],[-1,-1],[1,-1],[-1,1]]) {
+    const nc = unit.col + dc, nr = unit.row + dr;
+    if (nc < 0 || nc >= MAP_COLS || nr < 0 || nr >= MAP_ROWS) continue;
+    const target = units.find(u => u.alive && u.col === nc && u.row === nr && u.team !== unit.team);
+    if (target) range.push({ col: nc, row: nr });
+  }
+  return range;
+}
+
+function isAdjacent(unit, col, row) {
+  if (!unit) return false;
+  const dc = Math.abs(unit.col - col);
+  const dr = Math.abs(unit.row - row);
+  return (dc + dr === 1) || (dc === 1 && dr === 1);
+}
+
+// --- Combat ---
+function doCombat(attacker, defender) {
+  const dmg = Math.max(1, attacker.atk - defender.def + Math.floor(Math.random() * 3));
+  defender.hp -= dmg;
+  showFloatingText(defender.col, defender.row, `-${dmg}`, '#ff4444');
+  if (defender.hp <= 0) {
+    defender.hp = 0;
+    defender.alive = false;
+    showFloatingText(defender.col, defender.row, '击破', '#ffaa44');
+  }
+}
+
+// --- Floating text ---
+let floatingTexts = [];
+function showFloatingText(col, row, text, color) {
+  const { x, y } = isoToScreen(col, row);
+  floatingTexts.push({ x: x + TILE_W * camera.zoom / 2, y, text, color, life: 60 });
+}
+
+function drawFloatingTexts() {
+  floatingTexts = floatingTexts.filter(ft => ft.life > 0);
+  floatingTexts.forEach(ft => {
+    ctx.globalAlpha = ft.life / 60;
+    ctx.fillStyle = ft.color;
+    ctx.font = `bold ${14 * camera.zoom}px monospace`;
+    ctx.textAlign = 'center';
+    ctx.fillText(ft.text, ft.x, ft.y - (60 - ft.life) * 0.8);
+    ctx.globalAlpha = 1;
+    ft.life--;
+  });
+}
+
+// --- Enemy AI ---
+function doEnemyTurn() {
+  state.phase = 'enemy';
+  const enemies = units.filter(u => u.team === 'enemy' && u.alive);
+  let delay = 0;
+
+  enemies.forEach(enemy => {
+    delay += 400;
+    setTimeout(() => {
+      if (!enemy.alive) return;
+      // Find nearest player unit
+      let nearest = null, minDist = Infinity;
+      units.filter(u => u.team === 'player' && u.alive).forEach(p => {
+        const d = Math.abs(p.col - enemy.col) + Math.abs(p.row - enemy.row);
+        if (d < minDist) { minDist = d; nearest = p; }
+      });
+
+      if (!nearest) return;
+
+      // Attack if adjacent
+      if (minDist <= 1.5) {
+        doCombat(enemy, nearest);
+      } else {
+        // Move toward player
+        const range = getMovementRange(enemy);
+        if (range.length > 0) {
+          let bestPos = null, bestDist = Infinity;
+          range.forEach(p => {
+            const d = Math.abs(p.col - nearest.col) + Math.abs(p.row - nearest.row);
+            if (d < bestDist) { bestDist = d; bestPos = p; }
+          });
+          if (bestPos) {
+            enemy.col = bestPos.col;
+            enemy.row = bestPos.row;
+          }
+          // Attack after move if adjacent
+          const newDist = Math.abs(enemy.col - nearest.col) + Math.abs(enemy.row - nearest.row);
+          if (newDist <= 1.5) {
+            doCombat(enemy, nearest);
+          }
+        }
+      }
+    }, delay);
+  });
+
+  setTimeout(() => {
+    state.phase = 'player';
+    units.filter(u => u.team === 'player' && u.alive).forEach(u => u.acted = false);
+    state.turn++;
+    triggerFlood();
+    checkPhaseProgress();
+    updateUI();
+  }, delay + 500);
+}
+
+// --- Flooding mechanic ---
+function triggerFlood() {
+  if (state.turn >= 4 && state.turn % 2 === 0) {
+    // Flood some shoal tiles
+    const shoals = [];
+    for (let r = 0; r < MAP_ROWS; r++) {
+      for (let c = 0; c < MAP_COLS; c++) {
+        if (mapData[r][c] === T.SHOAL) {
+          // Tiles adjacent to river are more likely to flood
+          let adjRiver = false;
+          for (const [dc, dr] of [[0,-1],[0,1],[-1,0],[1,0]]) {
+            const nr = r+dr, nc = c+dc;
+            if (nr >= 0 && nr < MAP_ROWS && nc >= 0 && nc < MAP_COLS) {
+              if (mapData[nr][nc] === T.RIVER || mapData[nr][nc] === T.FLOODED) adjRiver = true;
+            }
+          }
+          if (adjRiver && Math.random() < 0.3) shoals.push({ c, r });
+        }
+      }
+    }
+    if (shoals.length > 0) {
+      const flood = shoals[Math.floor(Math.random() * shoals.length)];
+      mapData[flood.r][flood.c] = T.FLOODED;
+      showFloatingText(flood.c, flood.r, '水淹!', '#4488ff');
+      // Push units off flooded tiles
+      units.filter(u => u.alive && u.col === flood.c && u.row === flood.r).forEach(u => {
+        for (const [dc, dr] of [[0,-1],[0,1],[-1,0],[1,0]]) {
+          const nc = u.col + dc, nr = u.row + dr;
+          if (nc >= 0 && nc < MAP_COLS && nr >= 0 && nr < MAP_ROWS && PASSABLE.has(mapData[nr][nc])) {
+            if (!units.some(o => o.alive && o.col === nc && o.row === nr)) {
+              u.col = nc; u.row = nr;
+              u.hp -= 3;
+              showFloatingText(u.col, u.row, '冲退!', '#66aaff');
+              break;
+            }
+          }
+        }
+      });
+    }
+  }
+}
+
+// --- Phase progression ---
+function checkPhaseProgress() {
+  if (state.gamePhase === 1 && state.surveysDone >= 1) {
+    state.gamePhase = 2;
+    showMessage('上游来水！浅滩开始被淹没，注意调整站位！\n\n继续完成剩余勘测点。');
+  } else if (state.gamePhase === 2 && state.surveysDone >= 3) {
+    state.gamePhase = 3;
+    showMessage('三处测流桩全部完成！\n\n李春已收集到足够的土层与水势信息。');
+  } else if (state.gamePhase === 3 && state.turn > state.gamePhase * 2 + 2) {
+    state.gamePhase = 4;
+    revealBridgeSites();
+    showMessage('三处候选桥址已亮起！\n\n将李春移动到正确的桥址上确认最终位置。\n提示：选择水势平直、地基最稳之处。');
+  }
+}
+
+function revealBridgeSites() {
+  state.bridgeSitesRevealed = true;
+  bridgeSites.forEach(bs => {
+    mapData[bs.row][bs.col] = T.BRIDGE_SITE;
+  });
+}
+
+function checkBridgeSiteChoice() {
+  const lichun = units.find(u => u.type === 'lichun' && u.alive);
+  if (!lichun) return;
+  const bs = bridgeSites.find(s => s.col === lichun.col && s.row === lichun.row);
+  if (bs) {
+    if (bs.correct) {
+      state.gamePhase = 5;
+      state.gameOver = true;
+      showMessage(
+        '【踏勘洨河 - 通关】\n\n' +
+        '李春最终确定桥位，拒绝沿旧渡口盲目起桥。\n\n' +
+        '他选择了水势平直、土层坚实的天然地基，\n' +
+        '这一决定奠定了赵州桥千年不倒的基础。\n\n' +
+        '「桥不在最窄处，在最稳处。」'
+      );
+    } else {
+      showMessage('此处水势回旋、地基不稳，不宜建桥。\n请重新选择桥址。');
+    }
+  }
+}
+
+// --- UI ---
+function showMessage(text) {
+  document.getElementById('msg-text').innerText = text;
+  document.getElementById('msg-box').style.display = 'block';
+}
+
+document.getElementById('msg-ok').onclick = () => {
+  document.getElementById('msg-box').style.display = 'none';
+};
+
+function updateUI() {
+  const turnInfo = document.getElementById('turn-info');
+  turnInfo.innerHTML = `回合 ${state.turn} | ${state.phase === 'player' ? '玩家行动' : '敌方行动'}<br>阶段 ${state.gamePhase}/5 | 勘测 ${state.surveysDone}/3`;
+
+  const obj = document.getElementById('objective');
+  const objectives = {
+    1: '护送背桩工进入河滩<br>放置测流桩 (0/3)',
+    2: '注意水位上涨！<br>继续完成勘测 (' + state.surveysDone + '/3)',
+    3: '收集土层与水势信息<br>等待桥址显现',
+    4: '将李春移至正确桥址<br>确认最终建桥位置',
+    5: '通关！',
+  };
+  obj.innerHTML = `<b>目标</b><br>${objectives[state.gamePhase] || ''}`;
+
+  const unitInfo = document.getElementById('unit-info');
+  if (state.selectedUnit) {
+    const u = state.selectedUnit;
+    unitInfo.style.display = 'block';
+    unitInfo.innerHTML = `<b>${u.name}</b><br>HP: ${u.hp}/${u.maxHp}<br>攻:${u.atk} 防:${u.def} 移:${u.mov}`;
+  } else {
+    unitInfo.style.display = 'none';
+  }
+
+  // Button states
+  const hasSelection = state.selectedUnit && state.selectedUnit.team === 'player' && !state.selectedUnit.acted;
+  document.getElementById('btn-move').disabled = !hasSelection || state.phase !== 'player';
+  document.getElementById('btn-attack').disabled = !hasSelection || state.phase !== 'player';
+  document.getElementById('btn-survey').disabled = !hasSelection || state.phase !== 'player' ||
+    (state.selectedUnit && state.selectedUnit.type !== 'worker' && state.selectedUnit.type !== 'lichun');
+  document.getElementById('btn-wait').disabled = !hasSelection || state.phase !== 'player';
+  document.getElementById('btn-end-turn').disabled = state.phase !== 'player';
+}
+
+// --- Input ---
+let dragStart = null;
+let isDragging = false;
+
+canvas.addEventListener('mousedown', (e) => {
+  dragStart = { x: e.clientX, y: e.clientY, cx: camera.x, cy: camera.y };
+  isDragging = false;
+});
+
+canvas.addEventListener('mousemove', (e) => {
+  if (dragStart) {
+    const dx = e.clientX - dragStart.x;
+    const dy = e.clientY - dragStart.y;
+    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) isDragging = true;
+    if (isDragging) {
+      camera.x = dragStart.cx + dx;
+      camera.y = dragStart.cy + dy;
+    }
+  }
+});
+
+canvas.addEventListener('mouseup', (e) => {
+  if (!isDragging) {
+    handleClick(e.clientX, e.clientY);
+  }
+  dragStart = null;
+  isDragging = false;
+});
+
+canvas.addEventListener('wheel', (e) => {
+  const oldZoom = camera.zoom;
+  camera.zoom = Math.max(0.5, Math.min(2.5, camera.zoom - e.deltaY * 0.001));
+  // Zoom toward mouse
+  const ratio = camera.zoom / oldZoom;
+  camera.x = e.clientX - (e.clientX - camera.x) * ratio;
+  camera.y = e.clientY - (e.clientY - camera.y) * ratio;
+});
+
+function handleClick(sx, sy) {
+  if (state.phase !== 'player' || state.gameOver) return;
+
+  const { col, row } = screenToIso(sx, sy);
+  if (col < 0 || col >= MAP_COLS || row < 0 || row >= MAP_ROWS) return;
+
+  if (state.mode === 'move' && state.selectedUnit) {
+    const inRange = state.moveRange.some(p => p.col === col && p.row === row);
+    if (inRange) {
+      state.selectedUnit.col = col;
+      state.selectedUnit.row = row;
+      state.moveRange = [];
+      state.mode = 'select';
+      // Check bridge site
+      if (state.gamePhase === 4 && state.selectedUnit.type === 'lichun') {
+        checkBridgeSiteChoice();
+      }
+      state.selectedUnit.acted = true;
+      state.selectedUnit = null;
+      updateUI();
+      return;
+    }
+    state.mode = 'select';
+    state.moveRange = [];
+  }
+
+  if (state.mode === 'attack' && state.selectedUnit) {
+    const inRange = state.attackRange.some(p => p.col === col && p.row === row);
+    if (inRange) {
+      const target = units.find(u => u.alive && u.col === col && u.row === row && u.team !== state.selectedUnit.team);
+      if (target) {
+        doCombat(state.selectedUnit, target);
+        state.selectedUnit.acted = true;
+        state.selectedUnit = null;
+      }
+    }
+    state.attackRange = [];
+    state.mode = 'select';
+    updateUI();
+    return;
+  }
+
+  if (state.mode === 'survey' && state.selectedUnit) {
+    const sp = surveyPoints.find(s => s.col === col && s.row === row && !s.done);
+    if (sp && isAdjacent(state.selectedUnit, col, row)) {
+      sp.done = true;
+      state.surveysDone++;
+      showFloatingText(col, row, '测流桩已立!', '#ffcc44');
+      state.selectedUnit.acted = true;
+      state.selectedUnit = null;
+      state.mode = 'select';
+      checkPhaseProgress();
+      updateUI();
+      return;
+    }
+    state.mode = 'select';
+  }
+
+  // Select unit
+  const clicked = units.find(u => u.alive && u.col === col && u.row === row);
+  state.selectedUnit = clicked || null;
+  state.moveRange = [];
+  state.attackRange = [];
+  state.mode = 'select';
+  updateUI();
+}
+
+// Action buttons
+document.getElementById('btn-move').onclick = () => {
+  if (!state.selectedUnit || state.selectedUnit.acted) return;
+  state.mode = 'move';
+  state.moveRange = getMovementRange(state.selectedUnit);
+  state.attackRange = [];
+  updateUI();
+};
+
+document.getElementById('btn-attack').onclick = () => {
+  if (!state.selectedUnit || state.selectedUnit.acted) return;
+  state.mode = 'attack';
+  state.attackRange = getAttackRange(state.selectedUnit);
+  state.moveRange = [];
+  updateUI();
+};
+
+document.getElementById('btn-survey').onclick = () => {
+  if (!state.selectedUnit || state.selectedUnit.acted) return;
+  if (state.selectedUnit.type !== 'worker' && state.selectedUnit.type !== 'lichun') return;
+  state.mode = 'survey';
+  state.moveRange = [];
+  state.attackRange = [];
+  updateUI();
+};
+
+document.getElementById('btn-wait').onclick = () => {
+  if (!state.selectedUnit || state.selectedUnit.acted) return;
+  state.selectedUnit.acted = true;
+  state.selectedUnit = null;
+  state.mode = 'select';
+  updateUI();
+};
+
+document.getElementById('btn-end-turn').onclick = () => {
+  if (state.phase !== 'player') return;
+  state.selectedUnit = null;
+  state.moveRange = [];
+  state.attackRange = [];
+  state.mode = 'select';
+  units.filter(u => u.team === 'player' && u.alive).forEach(u => u.acted = true);
+  updateUI();
+  doEnemyTurn();
+};
+
+// --- Spawn more enemies in later phases ---
+function maybeSpawnEnemies() {
+  if (state.turn === 5 && state.gamePhase >= 2) {
+    units.push(new Unit('暗涌', 10, 7, 'enemy', 12, 5, 2, 3, 'anying'));
+    units.push(new Unit('水旋', 8, 9, 'enemy', 10, 4, 1, 4, 'shuixuan'));
+    showFloatingText(10, 7, '增援!', '#ff6644');
+  }
+  if (state.turn === 8 && state.gamePhase >= 3) {
+    units.push(new Unit('浮木群', 7, 10, 'enemy', 14, 7, 3, 2, 'fumu'));
+    units.push(new Unit('坍岸泥鬼', 11, 5, 'enemy', 16, 6, 4, 2, 'tangui'));
+    showFloatingText(7, 10, '增援!', '#ff6644');
+  }
+}
+
+// Hook spawn check into phase transitions
+const origCheck = checkPhaseProgress;
+checkPhaseProgress = function() {
+  maybeSpawnEnemies();
+  origCheck();
+};
+
+// --- Main Loop ---
+function gameLoop() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Background
+  ctx.fillStyle = '#1a1a2e';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  drawMap();
+  drawUnits();
+  drawFloatingTexts();
+
+  requestAnimationFrame(gameLoop);
+}
+
+// --- Init ---
+window.addEventListener('resize', resize);
+resize();
+initUnits();
+updateUI();
+
+showMessage(
+  '【第一关：踏勘洨河】\n\n' +
+  '李春受命前往洨河定桥址。\n' +
+  '护送测量队伍，放置三处测流桩，\n' +
+  '在变化的河滩中找到最稳的建桥位置。\n\n' +
+  '操作：点击单位选中，再点按钮行动\n' +
+  '拖拽移动视角，滚轮缩放'
+);
+
+gameLoop();
+</script>
+</body>
+</html>
