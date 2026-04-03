@@ -44,9 +44,14 @@ func _create_tilemap() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventMouseMotion:
+		if player_selected:
+			var hover_cell := tilemap.local_to_map(tilemap.get_local_mouse_position())
+			move_overlay.update_path(hover_cell)
+		_update_debug_label()
+		return
+
 	if not event is InputEventMouseButton or not event.pressed:
-		if event is InputEventMouseMotion:
-			_update_debug_label()
 		return
 
 	var clicked_cell := tilemap.local_to_map(tilemap.get_local_mouse_position())

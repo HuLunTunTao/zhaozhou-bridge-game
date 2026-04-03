@@ -69,6 +69,10 @@ func _find_walkable_tilemap(root: Node) -> TileMapLayer:
 func _unhandled_input(event: InputEvent) -> void:
 	if tilemap == null:
 		return
+	if event is InputEventMouseMotion and player_selected:
+		var hover_cell := tilemap.local_to_map(tilemap.get_local_mouse_position())
+		move_overlay.update_path(hover_cell)
+		return
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
 		var clicked_cell := tilemap.local_to_map(tilemap.get_local_mouse_position())
 
