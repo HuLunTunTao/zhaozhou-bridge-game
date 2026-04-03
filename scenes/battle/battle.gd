@@ -69,14 +69,14 @@ func _find_walkable_tilemap(root: Node) -> TileMapLayer:
 func _unhandled_input(event: InputEvent) -> void:
 	if tilemap == null:
 		return
-	if event is InputEventMouseButton and event.pressed:
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
 		var clicked_cell := tilemap.local_to_map(tilemap.get_local_mouse_position())
 
 		if player_selected:
-			if event.button_index == MOUSE_BUTTON_RIGHT and move_overlay.has_cell(clicked_cell):
+			if move_overlay.has_cell(clicked_cell):
 				player.set_cell(clicked_cell, tilemap)
 			player_selected = false
 			move_overlay.clear_range()
-		elif event.button_index == MOUSE_BUTTON_RIGHT and clicked_cell == player.cell:
+		elif clicked_cell == player.cell:
 			player_selected = true
 			move_overlay.show_range(tilemap, player.cell, player.move_range)

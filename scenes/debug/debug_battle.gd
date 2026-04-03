@@ -4,8 +4,6 @@ extends Node2D
 @onready var player: Node2D = $Player
 @onready var move_overlay: Node2D = $MoveOverlay
 @onready var debug_label: Label = $CanvasLayer/DebugLabel
-@onready var action_panel: PanelContainer = $CanvasLayer/ActionPanel
-
 var tilemap: TileMapLayer
 var player_selected := false
 
@@ -16,7 +14,6 @@ func _ready() -> void:
 	_create_tilemap()
 	@warning_ignore("integer_division")
 	player.set_cell(Vector2i(GRID_SIZE / 2, GRID_SIZE / 2), tilemap)
-	action_panel.action_selected.connect(_on_action_selected)
 	_update_debug_label()
 
 
@@ -54,7 +51,6 @@ func _unhandled_input(event: InputEvent) -> void:
 
 	var clicked_cell := tilemap.local_to_map(tilemap.get_local_mouse_position())
 
-	# Right click: movement
 	if event.button_index == MOUSE_BUTTON_RIGHT:
 		if player_selected:
 			if move_overlay.has_cell(clicked_cell):
@@ -65,21 +61,6 @@ func _unhandled_input(event: InputEvent) -> void:
 			player_selected = true
 			move_overlay.show_range(tilemap, player.cell, player.move_range)
 
-	# Left click: action panel
-	elif event.button_index == MOUSE_BUTTON_LEFT:
-		if player_selected:
-			# Cancel movement selection
-			player_selected = false
-			move_overlay.clear_range()
-		elif clicked_cell == player.cell and not action_panel.visible:
-			var screen_pos := get_viewport().get_canvas_transform() * player.position
-			action_panel.open(player.actions, screen_pos)
-
-	_update_debug_label()
-
-
-func _on_action_selected(action_id: String) -> void:
-	print("Action: ", action_id)
 	_update_debug_label()
 
 
