@@ -1,8 +1,9 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene load_steps=5 format=3]
 
 [ext_resource type="Script" path="res://scenes/debug/debug_battle.gd" id="1_debug"]
 [ext_resource type="PackedScene" path="res://scenes/player/player.tscn" id="2_player"]
 [ext_resource type="Script" path="res://scenes/battle/move_overlay.gd" id="3_overlay"]
+[ext_resource type="PackedScene" path="res://scenes/ui/status_bar.tscn" id="4_status_bar"]
 
 [node name="DebugBattle" type="Node2D"]
 script = ExtResource("1_debug")
@@ -21,3 +22,5 @@ position = Vector2(160, 40)
 offset_right = 640.0
 offset_bottom = 20.0
 text = "Debug"
+
+[node name="StatusBarLayer" parent="." instance=ExtResource("4_status_bar")]

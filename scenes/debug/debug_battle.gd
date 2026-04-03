@@ -4,6 +4,7 @@ extends Node2D
 @onready var player: Node2D = $Player
 @onready var move_overlay: Node2D = $MoveOverlay
 @onready var debug_label: Label = $CanvasLayer/DebugLabel
+@onready var status_bar: HBoxContainer = $StatusBarLayer/PanelContainer/MarginContainer/StatusBar
 var tilemap: TileMapLayer
 var player_selected := false
 
@@ -14,6 +15,7 @@ func _ready() -> void:
 	_create_tilemap()
 	@warning_ignore("integer_division")
 	player.set_cell(Vector2i(GRID_SIZE / 2, GRID_SIZE / 2), tilemap)
+	_update_status_bar()
 	_update_debug_label()
 
 
@@ -60,6 +62,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		if player_selected:
 			if move_overlay.has_cell(clicked_cell):
 				player.set_cell(clicked_cell, tilemap)
+				_update_status_bar()
 			player_selected = false
 			move_overlay.clear_range()
 		elif clicked_cell == player.cell:
@@ -67,6 +70,11 @@ func _unhandled_input(event: InputEvent) -> void:
 			move_overlay.show_range(tilemap, player.cell, player.move_range)
 
 	_update_debug_label()
+
+
+func _update_status_bar() -> void:
+	status_bar.set_status("状态1", str(player.cell))
+	status_bar.set_status("状态2", "待机")
 
 
 func _update_debug_label() -> void:
