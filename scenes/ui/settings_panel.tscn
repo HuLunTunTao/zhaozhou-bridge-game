@@ -98,22 +98,9 @@ value = 80.0
 layout_mode = 2
 
 ;; ---- Save Section ----
-[node name="SaveSection" type="HBoxContainer" parent="Backdrop/Panel/Content"]
+[node name="SaveManagerButton" type="Button" parent="Backdrop/Panel/Content"]
 layout_mode = 2
-theme_override_constants/separation = 8
-alignment = 1
-
-[node name="SaveButton" type="Button" parent="Backdrop/Panel/Content/SaveSection"]
-layout_mode = 2
-text = "存档"
-
-[node name="LoadButton" type="Button" parent="Backdrop/Panel/Content/SaveSection"]
-layout_mode = 2
-text = "读档"
-
-[node name="DeleteButton" type="Button" parent="Backdrop/Panel/Content/SaveSection"]
-layout_mode = 2
-text = "删档"
+text = "存档管理"
 
 [node name="Separator3" type="HSeparator" parent="Backdrop/Panel/Content"]
 layout_mode = 2
@@ -133,8 +120,6 @@ text = "关闭"
 ;; ============ Connections ============
 [connection signal="value_changed" from="Backdrop/Panel/Content/AudioSection/MusicRow/MusicSlider" to="." method="_on_music_slider_value_changed"]
 [connection signal="value_changed" from="Backdrop/Panel/Content/AudioSection/SfxRow/SfxSlider" to="." method="_on_sfx_slider_value_changed"]
-[connection signal="pressed" from="Backdrop/Panel/Content/SaveSection/SaveButton" to="." method="_on_save_pressed"]
-[connection signal="pressed" from="Backdrop/Panel/Content/SaveSection/LoadButton" to="." method="_on_load_pressed"]
-[connection signal="pressed" from="Backdrop/Panel/Content/SaveSection/DeleteButton" to="." method="_on_delete_pressed"]
+[connection signal="pressed" from="Backdrop/Panel/Content/SaveManagerButton" to="." method="_on_save_manager_pressed"]
 [connection signal="pressed" from="Backdrop/Panel/Content/BackToMenuButton" to="." method="_on_back_to_menu_pressed"]
 [connection signal="pressed" from="Backdrop/Panel/Content/CloseButton" to="." method="_on_close_pressed"]

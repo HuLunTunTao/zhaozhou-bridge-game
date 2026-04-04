@@ -37,19 +37,11 @@ func _on_sfx_slider_value_changed(_value: float) -> void:
 
 
 # Save Management
-func _on_save_pressed() -> void:
-	# TODO: 将 GameState 序列化写入 user://save.dat
-	pass
+const SaveManagerScene := preload("res://scenes/ui/save_manager.tscn")
 
-
-func _on_load_pressed() -> void:
-	# TODO: 从 user://save.dat 读取并恢复 GameState
-	pass
-
-
-func _on_delete_pressed() -> void:
-	# TODO: 删除 user://save.dat，弹出确认对话框
-	pass
+func _on_save_manager_pressed() -> void:
+	var manager: SaveManager = SaveManagerScene.instantiate()
+	add_child(manager)
 
 
 func _on_back_to_menu_pressed() -> void:
