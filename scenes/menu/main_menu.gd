@@ -50,9 +50,32 @@ func _on_level_back_pressed() -> void:
 	_show_page(main_page)
 
 
-# Settings
-# TODO: 添加音量调节（主音量/音效/音乐）
-# TODO: 添加全屏/窗口切换
-# TODO: 存档管理（存档/读档/删档）
+# Settings — Audio
+func _on_music_slider_value_changed(_value: float) -> void:
+	# TODO: AudioServer.set_bus_volume_db(AudioServer.get_bus_index("Music"), linear_to_db(value / 100.0))
+	pass
+
+
+func _on_sfx_slider_value_changed(_value: float) -> void:
+	# TODO: AudioServer.set_bus_volume_db(AudioServer.get_bus_index("SFX"), linear_to_db(value / 100.0))
+	pass
+
+
+# Settings — Save Management
+func _on_save_pressed() -> void:
+	# TODO: 将 GameState 序列化写入 user://save.dat
+	pass
+
+
+func _on_load_pressed() -> void:
+	# TODO: 从 user://save.dat 读取并恢复 GameState
+	pass
+
+
+func _on_delete_pressed() -> void:
+	# TODO: 删除 user://save.dat，弹出确认对话框
+	pass
+
+
 func _on_settings_back_pressed() -> void:
 	_show_page(main_page)
