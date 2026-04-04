@@ -25,7 +25,7 @@ const WALKABLE_LAYER_NAMES: Array[String] = [
 
 
 func _ready() -> void:
-	# 加载地图
+	# 若子类场景已直接内嵌 TileMapLayer，则跳过动态加载
 	if map_scene:
 		var map_instance: Node = map_scene.instantiate()
 		map_instance.name = "MapData"
