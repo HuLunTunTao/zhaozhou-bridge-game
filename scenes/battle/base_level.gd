@@ -38,6 +38,8 @@ func _ready() -> void:
 	player = _find_player()
 	if player:
 		player.set_cell(get_player_start_cell(), tilemap)
+	if camera and camera is LevelCamera:
+		(camera as LevelCamera).set_level_bounds(get_tilemap_bounds())
 	_on_level_ready()
 
 
@@ -104,3 +106,21 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif clicked_cell == player.cell:
 		player_selected = true
 		move_overlay.show_range(tilemap, player.cell, player.move_range)
+
+func get_tilemap_bounds() -> Rect2:
+	var has_bounds := false
+	var res_bounds := Rect2()
+
+	for child in tilemap_container.get_children():
+		if child is TileMapLayer:
+			var bounds := Utils.get_tilemap_layer_bounds(child)
+			if bounds.size == Vector2.ZERO:
+				continue
+			if not has_bounds:
+				res_bounds = bounds
+				has_bounds = true
+				continue
+			res_bounds = res_bounds.expand(bounds.position)
+			res_bounds = res_bounds.expand(bounds.end)
+
+	return res_bounds
