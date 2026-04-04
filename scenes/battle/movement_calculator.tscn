@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://tctivmjn5n0y"]
+
+[ext_resource type="Script" path="res://scenes/battle/movement_calculator.gd" id="1_8i3s6"]
+
+[node name="MovementCalculator" type="Node" unique_id=889234571]
+script = ExtResource("1_8i3s6")

@@ -1,29 +1,31 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene format=3 uid="uid://cw5lldjp7lh7m"]
 
-[ext_resource type="Script" path="res://scenes/battle/base_level.gd" id="1_base"]
-[ext_resource type="Script" path="res://scenes/battle/move_overlay.gd" id="2_overlay"]
-[ext_resource type="Script" path="res://scenes/ui/status_bar.gd" id="3_status"]
+[ext_resource type="Script" uid="uid://0bvkxa1ablid" path="res://scenes/battle/base_level.gd" id="1_base"]
+[ext_resource type="Script" uid="uid://ckcgeq5qlukx6" path="res://scenes/battle/move_overlay.gd" id="2_overlay"]
+[ext_resource type="Script" uid="uid://knyg0ctpi2k8" path="res://scenes/ui/status_bar.gd" id="3_status"]
+[ext_resource type="Script" uid="uid://y23vshydkrvf" path="res://scenes/battle/level_camera.gd" id="3_xqiwy"]
 
-[node name="BaseLevel" type="Node2D"]
+[node name="BaseLevel" type="Node2D" unique_id=553442049]
 script = ExtResource("1_base")
 
-[node name="TileMaps" type="Node2D" parent="."]
+[node name="TileMaps" type="Node2D" parent="." unique_id=1122336516]
 
-[node name="Entities" type="Node2D" parent="."]
+[node name="Entities" type="Node2D" parent="." unique_id=1537960365]
 
-[node name="Players" type="Node2D" parent="Entities"]
+[node name="Players" type="Node2D" parent="Entities" unique_id=436779837]
 
-[node name="Enemies" type="Node2D" parent="Entities"]
+[node name="Enemies" type="Node2D" parent="Entities" unique_id=1178648495]
 
-[node name="MoveOverlay" type="Node2D" parent="."]
+[node name="MoveOverlay" type="Node2D" parent="." unique_id=1306819768]
 script = ExtResource("2_overlay")
 
-[node name="Camera2D" type="Camera2D" parent="."]
+[node name="Camera2D" type="Camera2D" parent="." unique_id=1804751050]
+script = ExtResource("3_xqiwy")
 
-[node name="GUI" type="CanvasLayer" parent="."]
+[node name="GUI" type="CanvasLayer" parent="." unique_id=256892229]
 layer = 10
 
-[node name="StatusPanel" type="PanelContainer" parent="GUI"]
+[node name="StatusPanel" type="PanelContainer" parent="GUI" unique_id=874318719]
 anchors_preset = 12
 anchor_top = 1.0
 anchor_right = 1.0
@@ -32,14 +34,14 @@ offset_top = -24.0
 grow_horizontal = 2
 grow_vertical = 0
 
-[node name="MarginContainer" type="MarginContainer" parent="GUI/StatusPanel"]
+[node name="MarginContainer" type="MarginContainer" parent="GUI/StatusPanel" unique_id=1164565693]
 layout_mode = 2
 theme_override_constants/margin_left = 8
-theme_override_constants/margin_right = 8
 theme_override_constants/margin_top = 2
+theme_override_constants/margin_right = 8
 theme_override_constants/margin_bottom = 2
 
-[node name="StatusBar" type="HBoxContainer" parent="GUI/StatusPanel/MarginContainer"]
+[node name="StatusBar" type="HBoxContainer" parent="GUI/StatusPanel/MarginContainer" unique_id=955117482]
 layout_mode = 2
 theme_override_constants/separation = 12
 script = ExtResource("3_status")
