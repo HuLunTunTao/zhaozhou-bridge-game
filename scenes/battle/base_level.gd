@@ -15,6 +15,7 @@ extends Node2D
 var tilemap: TileMapLayer
 var player: Node2D
 var player_selected := false
+var _mid_cutscene_active := false
 
 ## Names to search for the walkable tilemap layer
 const WALKABLE_LAYER_NAMES: Array[String] = [
@@ -48,6 +49,27 @@ func _on_player_moved() -> void:
 	pass
 
 
+## Play a mid-battle cutscene as an overlay. Blocks until finished.
+func play_mid_cutscene(pages: Array[String]) -> void:
+	_mid_cutscene_active = true
+	var cutscene: CutscenePlayer = preload("res://scenes/cutscene/cutscene_player.tscn").instantiate()
+	add_child(cutscene)
+	cutscene.setup(pages)
+	await cutscene.cutscene_finished
+	_mid_cutscene_active = false
+
+
+## Call when the level is won. Handles post-cutscene or returns to menu.
+func complete_level() -> void:
+	var level := GameState.selected_level
+	if GameState.has_cutscene(level, "post"):
+		GameState.pending_cutscene_pages = GameState.get_cutscene_pages(level, "post")
+		GameState.pending_next_scene = "res://scenes/menu/main_menu.tscn"
+		get_tree().change_scene_to_file("res://scenes/cutscene/cutscene_scene.tscn")
+	else:
+		get_tree().change_scene_to_file("res://scenes/menu/main_menu.tscn")
+
+
 func _find_walkable_tilemap() -> TileMapLayer:
 	for layer_name in WALKABLE_LAYER_NAMES:
 		var node: Node = tilemap_container.find_child(layer_name, true, false)
@@ -66,6 +88,8 @@ func _find_player() -> Node2D:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if _mid_cutscene_active:
+		return
 	if tilemap == null or player == null or player.is_moving:
 		return
 
