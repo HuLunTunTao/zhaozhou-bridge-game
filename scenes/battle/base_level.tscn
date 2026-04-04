@@ -43,3 +43,16 @@ theme_override_constants/margin_bottom = 2
 layout_mode = 2
 theme_override_constants/separation = 12
 script = ExtResource("3_status")
+
+[node name="SettingsButton" type="Button" parent="GUI"]
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -28.0
+offset_top = 4.0
+offset_right = -4.0
+offset_bottom = 28.0
+grow_horizontal = 0
+text = "⚙"
+
+[connection signal="pressed" from="GUI/SettingsButton" to="." method="_on_settings_button_pressed"]
