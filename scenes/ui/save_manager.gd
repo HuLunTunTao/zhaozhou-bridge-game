@@ -1,18 +1,25 @@
 class_name SaveManager
 extends CanvasLayer
-## Save management overlay with 9 save slots.
-## Each slot supports save, load, and delete operations.
+## Minecraft-style save management overlay.
+## Top: selectable slot list. Bottom: action buttons for selected slot.
 
 signal closed
 
 const SLOT_COUNT := 9
 
 @onready var slot_container: VBoxContainer = %SlotContainer
+@onready var save_button: Button = %SaveButton
+@onready var load_button: Button = %LoadButton
+@onready var delete_button: Button = %DeleteButton
+
+var _selected_slot := -1
+var _slot_buttons: Array[Button] = []
 
 
 func _ready() -> void:
 	layer = 95
 	_build_slots()
+	_update_action_buttons()
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -22,77 +29,86 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _build_slots() -> void:
+	_slot_buttons.clear()
+	for child in slot_container.get_children():
+		child.queue_free()
+
 	for i in range(SLOT_COUNT):
-		var slot := _create_slot_row(i + 1)
-		slot_container.add_child(slot)
+		var slot_num := i + 1
+		var btn := Button.new()
+		btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		btn.custom_minimum_size = Vector2(0, 22)
+		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		btn.toggle_mode = true
+		btn.button_group = _get_or_create_button_group()
+		btn.text = "  栏位 %d    %s" % [slot_num, _get_slot_status(slot_num)]
+		btn.pressed.connect(_on_slot_selected.bind(slot_num))
+		slot_container.add_child(btn)
+		_slot_buttons.append(btn)
 
 
-func _create_slot_row(slot_num: int) -> HBoxContainer:
-	var row := HBoxContainer.new()
+var _button_group: ButtonGroup
 
-	# Slot label
-	var label := Label.new()
-	label.text = "栏位 %d" % slot_num
-	label.custom_minimum_size = Vector2(56, 0)
-	row.add_child(label)
+func _get_or_create_button_group() -> ButtonGroup:
+	if _button_group == null:
+		_button_group = ButtonGroup.new()
+	return _button_group
 
-	# Status label (empty or save info)
-	var status := Label.new()
-	status.text = _get_slot_status(slot_num)
-	status.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	row.add_child(status)
 
-	# Save button
-	var save_btn := Button.new()
-	save_btn.text = "存"
-	save_btn.custom_minimum_size = Vector2(28, 0)
-	save_btn.pressed.connect(_on_save_slot.bind(slot_num))
-	row.add_child(save_btn)
+func _on_slot_selected(slot_num: int) -> void:
+	_selected_slot = slot_num
+	_update_action_buttons()
 
-	# Load button
-	var load_btn := Button.new()
-	load_btn.text = "读"
-	load_btn.custom_minimum_size = Vector2(28, 0)
-	load_btn.pressed.connect(_on_load_slot.bind(slot_num))
-	row.add_child(load_btn)
 
-	# Delete button
-	var delete_btn := Button.new()
-	delete_btn.text = "删"
-	delete_btn.custom_minimum_size = Vector2(28, 0)
-	delete_btn.pressed.connect(_on_delete_slot.bind(slot_num))
-	row.add_child(delete_btn)
+func _update_action_buttons() -> void:
+	var has_selection := _selected_slot > 0
+	var has_save := has_selection and _slot_has_save(_selected_slot)
+	save_button.disabled = not has_selection
+	load_button.disabled = not has_save
+	delete_button.disabled = not has_save
 
-	return row
+
+func _slot_has_save(_slot_num: int) -> bool:
+	# TODO: 检查 user://save_{slot_num}.dat 是否存在
+	return false
 
 
 func _get_slot_status(_slot_num: int) -> String:
-	# TODO: 检查 user://save_{slot_num}.dat 是否存在，返回存档时间等信息
+	# TODO: 检查存档文件，返回存档时间等信息
 	return "—— 空 ——"
 
 
-func _on_save_slot(slot_num: int) -> void:
-	# TODO: 将 GameState 序列化写入 user://save_{slot_num}.dat
-	print("TODO: save to slot %d" % slot_num)
-	_refresh_slots()
-
-
-func _on_load_slot(slot_num: int) -> void:
-	# TODO: 从 user://save_{slot_num}.dat 读取并恢复 GameState
-	print("TODO: load from slot %d" % slot_num)
-
-
-func _on_delete_slot(slot_num: int) -> void:
-	# TODO: 删除 user://save_{slot_num}.dat，可加确认对话框
-	print("TODO: delete slot %d" % slot_num)
-	_refresh_slots()
-
-
-func _refresh_slots() -> void:
-	for child in slot_container.get_children():
-		child.queue_free()
+func _on_save_pressed() -> void:
+	if _selected_slot < 1:
+		return
+	# TODO: 将 GameState 序列化写入 user://save_{_selected_slot}.dat
+	print("TODO: save to slot %d" % _selected_slot)
 	_build_slots()
+	_select_slot(_selected_slot)
+
+
+func _on_load_pressed() -> void:
+	if _selected_slot < 1:
+		return
+	# TODO: 从 user://save_{_selected_slot}.dat 读取并恢复 GameState
+	print("TODO: load from slot %d" % _selected_slot)
+
+
+func _on_delete_pressed() -> void:
+	if _selected_slot < 1:
+		return
+	# TODO: 删除 user://save_{_selected_slot}.dat
+	print("TODO: delete slot %d" % _selected_slot)
+	_build_slots()
+	_select_slot(_selected_slot)
+
+
+func _select_slot(slot_num: int) -> void:
+	var idx := slot_num - 1
+	if idx >= 0 and idx < _slot_buttons.size():
+		_slot_buttons[idx].button_pressed = true
+		_selected_slot = slot_num
+	_update_action_buttons()
 
 
 func _on_close_pressed() -> void:

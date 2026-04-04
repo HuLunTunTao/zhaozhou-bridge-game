@@ -10,11 +10,13 @@ signal closed
 
 @onready var music_slider: HSlider = %MusicSlider
 @onready var sfx_slider: HSlider = %SfxSlider
+@onready var quick_save_button: Button = %QuickSaveButton
 @onready var back_to_menu_button: Button = %BackToMenuButton
 
 
 func _ready() -> void:
 	layer = 90
+	quick_save_button.visible = show_back_to_menu
 	back_to_menu_button.visible = show_back_to_menu
 
 
@@ -42,6 +44,11 @@ const SaveManagerScene := preload("res://scenes/ui/save_manager.tscn")
 func _on_save_manager_pressed() -> void:
 	var manager: SaveManager = SaveManagerScene.instantiate()
 	add_child(manager)
+
+
+func _on_quick_save_pressed() -> void:
+	# TODO: 快速存档到固定栏位（如 slot 0），保存当前关卡状态
+	print("TODO: quick save")
 
 
 func _on_back_to_menu_pressed() -> void:
