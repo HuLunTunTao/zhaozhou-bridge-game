@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://b0rcagnkrahyu"]
 
-[ext_resource type="PackedScene" path="res://scenes/battle/base_level.tscn" id="1_base"]
+[ext_resource type="PackedScene" uid="uid://cw5lldjp7lh7m" path="res://scenes/battle/base_level.tscn" id="1_base"]
 [ext_resource type="PackedScene" path="res://scenes/player/player.tscn" id="3_player"]
 
 [sub_resource type="GDScript" id="GDScript_pc88n"]
@@ -8,4 +8,4 @@
 [node name="Level1-1" unique_id=347880728 instance=ExtResource("1_base")]
 script = SubResource("GDScript_pc88n")
 
-[node name="Player" parent="Entities/Players" index="0" unique_id=1722909034 instance=ExtResource("3_player")]
+[node name="Player" parent="Entities/Players" parent_id_path=PackedInt32Array(436779837) index="0" unique_id=1722909034 instance=ExtResource("3_player")]
