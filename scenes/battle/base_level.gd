@@ -4,6 +4,8 @@ extends Node2D
 ## Inherited scenes should add TileMapLayers under the TileMaps node,
 ## and place Player instances under the Players node.
 
+@export var map_scene: PackedScene
+
 @onready var tilemap_container: Node2D = $TileMaps
 @onready var players_container: Node2D = $Entities/Players
 @onready var enemies_container: Node2D = $Entities/Enemies
@@ -23,6 +25,12 @@ const WALKABLE_LAYER_NAMES: Array[String] = [
 
 
 func _ready() -> void:
+	# 加载地图
+	if map_scene:
+		var map_instance: Node = map_scene.instantiate()
+		map_instance.name = "MapData"
+		tilemap_container.add_child(map_instance)
+
 	tilemap = _find_walkable_tilemap()
 	if tilemap == null:
 		push_error("No walkable tilemap found in level")

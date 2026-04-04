@@ -1,11 +1,11 @@
 [gd_scene load_steps=4 format=3]
 
 [ext_resource type="PackedScene" path="res://scenes/battle/base_level.tscn" id="1_base"]
-[ext_resource type="Script" path="res://scenes/levels/level_base.gd" id="2_script"]
+[ext_resource type="Script" path="res://scenes/levels/level1-4/level1-4.gd" id="2_script"]
 [ext_resource type="PackedScene" path="res://scenes/player/player.tscn" id="3_player"]
-[ext_resource type="PackedScene" uid="uid://clt8n38e1y2vm" path="res://scenes/levels/maps/level1-3-2.tscn" id="4_map"]
+[ext_resource type="PackedScene" uid="uid://cdkpk3ggtyfac" path="res://scenes/levels/maps/level1-4.tscn" id="4_map"]
 
-[node name="Level1-3-2" instance=ExtResource("1_base")]
+[node name="Level1-4" instance=ExtResource("1_base")]
 script = ExtResource("2_script")
 map_scene = ExtResource("4_map")
 
