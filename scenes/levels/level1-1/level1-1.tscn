@@ -5,8 +5,9 @@
 [ext_resource type="TileSet" uid="uid://bdvi30tgeb2kv" path="res://assets/battle_tile_set.tres" id="3_oqa8r"]
 [ext_resource type="PackedScene" path="res://scenes/player/player.tscn" id="3_player"]
 
-[node name="Level1-1" unique_id=1386379922 instance=ExtResource("1_base")]
+[node name="Level1-1" unique_id=1386379922 node_paths=PackedStringArray("obstacles_tilemap_layer") instance=ExtResource("1_base")]
 script = ExtResource("2_script")
+obstacles_tilemap_layer = NodePath("TileMaps/Obstacle z=2")
 
 [node name="init tile map" type="TileMapLayer" parent="TileMaps" parent_id_path=PackedInt32Array(1122336516) index="0" unique_id=1777325095]
 tile_set = ExtResource("3_oqa8r")

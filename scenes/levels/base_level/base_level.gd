@@ -4,7 +4,7 @@ extends Node2D
 ## Inherited scenes should add TileMapLayers under the TileMaps node,
 ## and place Player instances under the Players node.
 
-@export var map_scene: PackedScene
+@export var obstacles_tilemap_layer:TileMapLayer # 障碍物所在的层，必须在编辑器中指定
 
 @onready var tilemap_container: Node2D = $TileMaps
 @onready var players_container: Node2D = $Entities/Players
@@ -29,11 +29,6 @@ const WALKABLE_LAYER_NAMES: Array[String] = [
 
 
 func _ready() -> void:
-	# 若子类场景已直接内嵌 TileMapLayer，则跳过动态加载
-	if map_scene:
-		var map_instance: Node = map_scene.instantiate()
-		map_instance.name = "MapData"
-		tilemap_container.add_child(map_instance)
 
 	tilemap = _find_walkable_tilemap()
 	if tilemap == null:
@@ -42,6 +37,7 @@ func _ready() -> void:
 	player = _find_player()
 	if player:
 		player.set_cell(get_player_start_cell(), tilemap)
+	_reparent_entities_to_obstacles()
 	if camera and camera is LevelCamera:
 		(camera as LevelCamera).set_level_bounds(get_tilemap_bounds())
 	_on_level_ready()
@@ -91,6 +87,32 @@ func _on_settings_button_pressed() -> void:
 	panel.show_back_to_menu = true
 	add_child(panel)
 	panel.closed.connect(func(): _settings_open = false)
+
+
+func _reparent_entities_to_obstacles() -> void:
+	if obstacles_tilemap_layer == null:
+		push_error("obstacles_tilemap_layer is not set; cannot reparent entities")
+		return
+	var entities: Node2D = $Entities
+	for container in entities.get_children():
+		for entity in container.get_children():
+			# keep_global_transform=true (default) preserves world position
+			entity.reparent(obstacles_tilemap_layer)
+			# Snap to nearest tile cell so cell property matches visual position
+			if tilemap != null:
+				var nearest_cell := tilemap.local_to_map(
+						tilemap.to_local(entity.global_position))
+				if entity.has_method("set_cell"):
+					entity.set_cell(nearest_cell, tilemap)
+				else:
+					entity.global_position = tilemap.to_global(
+							tilemap.map_to_local(nearest_cell))
+					if "cell" in entity:
+						entity.cell = nearest_cell
+	obstacles_tilemap_layer.y_sort_enabled = true
+	for child in obstacles_tilemap_layer.get_children():
+		if child is Node2D:
+			child.y_sort_enabled = true
 
 
 func _find_walkable_tilemap() -> TileMapLayer:
