@@ -1,7 +1,7 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene format=3]
 
-[ext_resource type="PackedScene" path="res://scenes/battle/base_level.tscn" id="1_base"]
-[ext_resource type="Script" path="res://scenes/debug/debug_battle.gd" id="2_debug"]
+[ext_resource type="PackedScene" uid="uid://cw5lldjp7lh7m" path="res://scenes/levels/base_level/base_level.tscn" id="1_base"]
+[ext_resource type="Script" uid="uid://b4lrkay7voaxy" path="res://scenes/debug/debug_battle.gd" id="2_debug"]
 [ext_resource type="PackedScene" path="res://scenes/player/player.tscn" id="3_player"]
 
 [node name="DebugBattle" instance=ExtResource("1_base")]

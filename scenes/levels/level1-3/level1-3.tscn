@@ -1,6 +1,6 @@
 [gd_scene format=4 uid="uid://csy5rdmjm0q7n"]
 
-[ext_resource type="PackedScene" uid="uid://cw5lldjp7lh7m" path="res://scenes/battle/base_level.tscn" id="1_base"]
+[ext_resource type="PackedScene" uid="uid://cw5lldjp7lh7m" path="res://scenes/levels/base_level/base_level.tscn" id="1_base"]
 [ext_resource type="Script" uid="uid://mmo8mw7caitt" path="res://scenes/levels/level1-3/level1-3.gd" id="2_script"]
 [ext_resource type="TileSet" uid="uid://bdvi30tgeb2kv" path="res://assets/battle_tile_set.tres" id="3_ix7q0"]
 [ext_resource type="PackedScene" path="res://scenes/player/player.tscn" id="3_player"]

@@ -1,9 +1,9 @@
 [gd_scene format=3 uid="uid://cw5lldjp7lh7m"]
 
-[ext_resource type="Script" uid="uid://0bvkxa1ablid" path="res://scenes/battle/base_level.gd" id="1_base"]
-[ext_resource type="Script" uid="uid://ckcgeq5qlukx6" path="res://scenes/battle/move_overlay.gd" id="2_overlay"]
+[ext_resource type="Script" uid="uid://0bvkxa1ablid" path="res://scenes/levels/base_level/base_level.gd" id="1_base"]
+[ext_resource type="Script" uid="uid://ckcgeq5qlukx6" path="res://scenes/levels/base_level/move_overlay.gd" id="2_overlay"]
 [ext_resource type="Script" uid="uid://knyg0ctpi2k8" path="res://scenes/ui/status_bar.gd" id="3_status"]
-[ext_resource type="Script" uid="uid://y23vshydkrvf" path="res://scenes/battle/level_camera.gd" id="3_xqiwy"]
+[ext_resource type="Script" uid="uid://y23vshydkrvf" path="res://scenes/levels/base_level/level_camera.gd" id="3_xqiwy"]
 
 [node name="BaseLevel" type="Node2D" unique_id=553442049]
 script = ExtResource("1_base")
