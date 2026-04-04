@@ -45,8 +45,16 @@ func _on_save_manager_pressed() -> void:
 
 
 func _on_back_to_menu_pressed() -> void:
-	_close()
-	get_tree().change_scene_to_file("res://scenes/menu/main_menu.tscn")
+	var dialog := ConfirmationDialog.new()
+	dialog.dialog_text = "确定要返回主菜单吗？\n所有未存档的进度将会丢失"
+	dialog.ok_button_text = "确定"
+	dialog.cancel_button_text = "取消"
+	dialog.confirmed.connect(func():
+		_close()
+		get_tree().change_scene_to_file("res://scenes/menu/main_menu.tscn")
+	)
+	add_child(dialog)
+	dialog.popup_centered()
 
 
 func _on_close_pressed() -> void:
