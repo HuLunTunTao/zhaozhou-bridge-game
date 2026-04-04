@@ -2,7 +2,9 @@ extends Control
 
 @onready var main_page: Control = $MainPage
 @onready var level_select_page: Control = $LevelSelectPage
-@onready var settings_page: Control = $SettingsPage
+
+const SettingsPanelScene := preload("res://scenes/ui/settings_panel.tscn")
+var _settings_open := false
 
 
 # TODO: 主菜单背景美术替换（赵州桥像素画）
@@ -14,7 +16,6 @@ func _ready() -> void:
 func _show_page(page: Control) -> void:
 	main_page.visible = page == main_page
 	level_select_page.visible = page == level_select_page
-	settings_page.visible = page == settings_page
 
 
 # Main page buttons
@@ -23,7 +24,12 @@ func _on_start_pressed() -> void:
 
 
 func _on_settings_pressed() -> void:
-	_show_page(settings_page)
+	if _settings_open:
+		return
+	_settings_open = true
+	var panel: SettingsPanel = SettingsPanelScene.instantiate()
+	add_child(panel)
+	panel.closed.connect(func(): _settings_open = false)
 
 
 func _on_quit_pressed() -> void:
@@ -47,35 +53,4 @@ func _on_level_selected(level: int) -> void:
 
 
 func _on_level_back_pressed() -> void:
-	_show_page(main_page)
-
-
-# Settings — Audio
-func _on_music_slider_value_changed(_value: float) -> void:
-	# TODO: AudioServer.set_bus_volume_db(AudioServer.get_bus_index("Music"), linear_to_db(value / 100.0))
-	pass
-
-
-func _on_sfx_slider_value_changed(_value: float) -> void:
-	# TODO: AudioServer.set_bus_volume_db(AudioServer.get_bus_index("SFX"), linear_to_db(value / 100.0))
-	pass
-
-
-# Settings — Save Management
-func _on_save_pressed() -> void:
-	# TODO: 将 GameState 序列化写入 user://save.dat
-	pass
-
-
-func _on_load_pressed() -> void:
-	# TODO: 从 user://save.dat 读取并恢复 GameState
-	pass
-
-
-func _on_delete_pressed() -> void:
-	# TODO: 删除 user://save.dat，弹出确认对话框
-	pass
-
-
-func _on_settings_back_pressed() -> void:
 	_show_page(main_page)
