@@ -54,9 +54,10 @@ func move_along_path(path: Array[Vector2i], tilemap: TileMapLayer) -> void:
 		var tween := create_tween()
 		tween.tween_property(self, "position", target_pos, duration)
 		await tween.finished
-	modulate = Color.WHITE
+	
 		if movement_manager:
 			movement_manager.on_tile_enter(path[i], self)
+	modulate = Color.WHITE
 	cell = path[path.size() - 1]
 	is_moving = false
 	move_finished.emit()
