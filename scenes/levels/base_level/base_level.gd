@@ -14,6 +14,7 @@ extends Node2D
 @onready var tilemap_container: Node2D = $TileMaps
 @onready var players_container: Node2D = $Entities/Players
 @onready var enemies_container: Node2D = $Entities/Enemies
+@onready var special_tiles_container: Node2D = $SpecialTiles
 @onready var move_overlay: Node2D = $MoveOverlay
 @onready var movement_manager: Node = $MovementManager
 @onready var camera: Camera2D = $Camera2D
@@ -381,10 +382,10 @@ func _unhandled_input(event: InputEvent) -> void:
 # ─────────────────────────────────────────────
 
 func _setup_special_tiles() -> void:
-	var container := get_node_or_null("SpecialTiles")
-	if container == null:
+
+	if special_tiles_container == null:
 		return
-	for child in container.get_children():
+	for child in special_tiles_container.get_children():
 		if child is SpecialTile:
 			var snapped_cell := tilemap.local_to_map(tilemap.to_local(child.global_position))
 			child.cell = snapped_cell

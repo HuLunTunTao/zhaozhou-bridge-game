@@ -92,5 +92,7 @@ text = "玩家队伍 的回合"
 [node name="MovementManager" type="Node" parent="." unique_id=1144669128]
 script = ExtResource("4_movemgr")
 
+[node name="SpecialTiles" type="Node2D" parent="." unique_id=2134184137]
+
 [connection signal="pressed" from="GUI/EndTurnButton" to="." method="_on_end_turn_button_pressed"]
 [connection signal="pressed" from="GUI/SettingsButton" to="." method="_on_settings_button_pressed"]

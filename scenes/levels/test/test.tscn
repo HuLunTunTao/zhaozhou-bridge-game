@@ -65,15 +65,13 @@ unit_color = Color(0.9, 0.2, 0.2, 1)
 movement_tilemaps = [NodePath("../TileMaps/surface z=0")]
 obstacle_tilemaps = [NodePath("../TileMaps/Obstacle z=2")]
 
-[node name="SpecialTiles" type="Node2D" parent="." index="6" unique_id=900023372]
-
-[node name="TestTile1" parent="SpecialTiles" index="0" unique_id=1961201846 instance=ExtResource("4_special")]
+[node name="TestTile1" parent="SpecialTiles" parent_id_path=PackedInt32Array(2134184137) index="0" unique_id=1961201846 instance=ExtResource("4_special")]
 position = Vector2(48, 0)
 script = ExtResource("5_test_tile")
 tile_name = "青色地块"
 tile_color = Color(0, 0.8, 0.8, 0.6)
 
-[node name="TestTile2" parent="SpecialTiles" index="1" unique_id=774845409 instance=ExtResource("4_special")]
+[node name="TestTile2" parent="SpecialTiles" parent_id_path=PackedInt32Array(2134184137) index="1" unique_id=774845409 instance=ExtResource("4_special")]
 position = Vector2(80, 16)
 script = ExtResource("5_test_tile")
 tile_name = "紫色地块"
