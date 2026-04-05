@@ -5,6 +5,7 @@ class_name LevelCamera
 
 @export var pan_speed := 560.0
 @export var smooth_speed := 8.0
+@export var edge_margin := 16.0 ## 鼠标距屏幕边缘多少像素时触发滚动
 
 
 @export var level_bounds: Rect2 = Rect2()
@@ -21,6 +22,8 @@ func _process(delta: float) -> void:
 	var input_vector := Vector2.ZERO
 	if input_enabled:
 		input_vector = Input.get_vector("left", "right", "up", "down")
+		if input_vector == Vector2.ZERO:
+			input_vector = _get_edge_scroll_vector()
 	if input_vector != Vector2.ZERO:
 		target_position += input_vector.normalized() * pan_speed * delta
 
@@ -58,6 +61,24 @@ func _clamp_to_bounds(candidate: Vector2) -> Vector2:
 		candidate.y = clampf(candidate.y, min_y, max_y)
 
 	return candidate
+
+func _get_edge_scroll_vector() -> Vector2:
+	var viewport := get_viewport()
+	if viewport == null:
+		return Vector2.ZERO
+	var mouse_pos := viewport.get_mouse_position()
+	var vp_size := viewport.get_visible_rect().size
+	var result := Vector2.ZERO
+	if mouse_pos.x < edge_margin:
+		result.x = -1.0
+	elif mouse_pos.x > vp_size.x - edge_margin:
+		result.x = 1.0
+	if mouse_pos.y < edge_margin:
+		result.y = -1.0
+	elif mouse_pos.y > vp_size.y - edge_margin:
+		result.y = 1.0
+	return result
+
 
 func get_level_bounds() -> Rect2:
 	var level_node := get_parent() as BaseLevel
