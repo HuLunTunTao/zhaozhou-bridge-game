@@ -133,6 +133,9 @@ func _find_player() -> Node2D:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("ui_cancel") and not _settings_open:
+		_on_settings_button_pressed()
+		return
 	if _mid_cutscene_active:
 		return
 	if tilemap == null or player == null or player.is_moving:
@@ -144,9 +147,9 @@ func _unhandled_input(event: InputEvent) -> void:
 			move_overlay.update_path(hover_cell)
 		return
 
-	if not event is InputEventMouseButton or not event.pressed:
+	if not event is InputEventMouseButton:
 		return
-	if event.button_index != MOUSE_BUTTON_RIGHT:
+	if event.button_index != MOUSE_BUTTON_RIGHT or event.pressed:
 		return
 
 	var clicked_cell := tilemap.local_to_map(tilemap.get_local_mouse_position())
