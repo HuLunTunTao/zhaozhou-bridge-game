@@ -22,10 +22,14 @@ func _process(delta: float) -> void:
 	var input_vector := Vector2.ZERO
 	if input_enabled:
 		input_vector = Input.get_vector("left", "right", "up", "down")
-		if input_vector == Vector2.ZERO:
+		if input_vector != Vector2.ZERO:
+			input_vector = input_vector.normalized()
+		else:
 			input_vector = _get_edge_scroll_vector()
+			if input_vector.length() > 1.0:
+				input_vector = input_vector.normalized()
 	if input_vector != Vector2.ZERO:
-		target_position += input_vector.normalized() * pan_speed * delta
+		target_position += input_vector * pan_speed * delta
 
 	target_position = _clamp_to_bounds(target_position)
 	global_position = global_position.lerp(target_position, 1.0 - exp(-smooth_speed * delta))
@@ -70,13 +74,13 @@ func _get_edge_scroll_vector() -> Vector2:
 	var vp_size := viewport.get_visible_rect().size
 	var result := Vector2.ZERO
 	if mouse_pos.x < edge_margin:
-		result.x = -1.0
+		result.x = -(1.0 - mouse_pos.x / edge_margin)
 	elif mouse_pos.x > vp_size.x - edge_margin:
-		result.x = 1.0
+		result.x = 1.0 - (vp_size.x - mouse_pos.x) / edge_margin
 	if mouse_pos.y < edge_margin:
-		result.y = -1.0
+		result.y = -(1.0 - mouse_pos.y / edge_margin)
 	elif mouse_pos.y > vp_size.y - edge_margin:
-		result.y = 1.0
+		result.y = 1.0 - (vp_size.y - mouse_pos.y) / edge_margin
 	return result
 
 
