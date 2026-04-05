@@ -1,12 +1,15 @@
 [gd_scene format=4 uid="uid://c827o03ssu0yu"]
 
-[ext_resource type="PackedScene" uid="uid://cw5lldjp7lh7m" path="res://scenes/levels/base_level/base_level.tscn" id="1_base"]
+[ext_resource type="PackedScene" uid="uid://5w0o8w3sxwf5" path="res://scenes/levels/base_level/base_level.tscn" id="1_base"]
 [ext_resource type="Script" uid="uid://bwvkj6sh1fegq" path="res://scenes/levels/test/test.gd" id="2_script"]
 [ext_resource type="TileSet" uid="uid://bdvi30tgeb2kv" path="res://assets/battle_tile_set.tres" id="3_lqotf"]
 [ext_resource type="PackedScene" path="res://scenes/player/player.tscn" id="3_player"]
+[ext_resource type="PackedScene" path="res://scenes/levels/base_level/special_tile.tscn" id="4_special"]
+[ext_resource type="Script" uid="uid://daipb21vkksiy" path="res://scenes/levels/test/test_special_tile.gd" id="5_test_tile"]
 
-[node name="Test" unique_id=1964530952 instance=ExtResource("1_base")]
+[node name="Test" unique_id=1964530952 node_paths=PackedStringArray("obstacles_tilemap_layer") instance=ExtResource("1_base")]
 script = ExtResource("2_script")
+obstacles_tilemap_layer = NodePath("TileMaps/Obstacle z=2")
 
 [node name="init tile map" type="TileMapLayer" parent="TileMaps" parent_id_path=PackedInt32Array(1122336516) index="0" unique_id=149158445]
 tile_set = ExtResource("3_lqotf")
@@ -38,3 +41,38 @@ tile_map_data = PackedByteArray("AAAUABUAAQAEAAAAAAAUABQAAQAFAAAAAAAUABMAAQAAAAA
 tile_set = ExtResource("3_lqotf")
 
 [node name="Player" parent="Entities/Players" parent_id_path=PackedInt32Array(436779837) index="0" unique_id=819459000 instance=ExtResource("3_player")]
+
+[node name="PlayerB" parent="Entities/Players" parent_id_path=PackedInt32Array(436779837) index="1" unique_id=200000001 instance=ExtResource("3_player")]
+position = Vector2(114, 21)
+
+[node name="Ally1" parent="Entities/Players" parent_id_path=PackedInt32Array(436779837) index="2" unique_id=200000002 instance=ExtResource("3_player")]
+position = Vector2(116, 0)
+unit_color = Color(0.2, 0.85, 0.35, 1)
+
+[node name="Ally2" parent="Entities/Players" parent_id_path=PackedInt32Array(436779837) index="3" unique_id=200000003 instance=ExtResource("3_player")]
+position = Vector2(275, 0)
+unit_color = Color(0.2, 0.85, 0.35, 1)
+
+[node name="Enemy1" parent="Entities/Enemies" parent_id_path=PackedInt32Array(1178648495) index="0" unique_id=200000004 instance=ExtResource("3_player")]
+position = Vector2(113, -274)
+unit_color = Color(0.9, 0.2, 0.2, 1)
+
+[node name="Enemy2" parent="Entities/Enemies" parent_id_path=PackedInt32Array(1178648495) index="1" unique_id=200000005 instance=ExtResource("3_player")]
+position = Vector2(-270, 0)
+unit_color = Color(0.9, 0.2, 0.2, 1)
+
+[node name="MovementManager" parent="." index="5" unique_id=1144669128 node_paths=PackedStringArray("movement_tilemaps", "obstacle_tilemaps")]
+movement_tilemaps = [NodePath("../TileMaps/surface z=0")]
+obstacle_tilemaps = [NodePath("../TileMaps/Obstacle z=2")]
+
+[node name="TestTile1" parent="SpecialTiles" parent_id_path=PackedInt32Array(2134184137) index="0" unique_id=1961201846 instance=ExtResource("4_special")]
+position = Vector2(48, 0)
+script = ExtResource("5_test_tile")
+tile_name = "青色地块"
+tile_color = Color(0, 0.8, 0.8, 0.6)
+
+[node name="TestTile2" parent="SpecialTiles" parent_id_path=PackedInt32Array(2134184137) index="1" unique_id=774845409 instance=ExtResource("4_special")]
+position = Vector2(80, 16)
+script = ExtResource("5_test_tile")
+tile_name = "紫色地块"
+tile_color = Color(0.8, 0, 0.8, 0.6)
