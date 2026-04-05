@@ -3,41 +3,62 @@ extends Node2D
 
 var cells: Array[Vector2i] = []
 var tilemap: TileMapLayer
+var movement_manager  # MovementManager
 var half_tile := Vector2(16, 8)  # half of 32x16 isometric tile
 var origin: Vector2i
 var _parents: Dictionary = {}  # cell -> parent cell (for path reconstruction)
 var _current_path: Array[Vector2i] = []
 
 
-func show_range(p_tilemap: TileMapLayer, p_origin: Vector2i, max_dist: int) -> void:
+func show_range(
+		p_tilemap: TileMapLayer,
+		p_movement_manager,  # MovementManager
+		p_origin: Vector2i,
+		max_points: int
+) -> void:
 	tilemap = p_tilemap
+	movement_manager = p_movement_manager
 	origin = p_origin
 	cells.clear()
 	_parents.clear()
 	_current_path.clear()
 
-	var visited: Dictionary = {}
-	var queue: Array[Vector2i] = [origin]
-	var dists: Dictionary = {origin: 0}
-	visited[origin] = true
-	var directions: Array[Vector2i] = [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
+	# Dijkstra：best[cell] = 到达该格后的最大剩余移动点数
+	var best: Dictionary = { p_origin: max_points }
+	var frontier: Array = [[max_points, p_origin]]
+	var dirs: Array[Vector2i] = [
+		Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)
+	]
 
-	while queue.size() > 0:
-		var current: Vector2i = queue.pop_front()
-		var dist: int = dists[current]
-		if dist > 0:
-			cells.append(current)
-		if dist < max_dist:
-			for dir in directions:
-				var neighbor: Vector2i = current + dir
-				if visited.has(neighbor):
-					continue
-				if tilemap.get_cell_source_id(neighbor) == -1:
-					continue
-				visited[neighbor] = true
-				dists[neighbor] = dist + 1
-				_parents[neighbor] = current
-				queue.append(neighbor)
+	while frontier.size() > 0:
+		# 线性扫描取剩余点最多的格（地图规模小，性能足够）
+		var bi := 0
+		for i in range(1, frontier.size()):
+			if frontier[i][0] > frontier[bi][0]:
+				bi = i
+		var entry: Array = frontier[bi]
+		frontier.remove_at(bi)
+		var remaining: int = entry[0]
+		var current: Vector2i = entry[1]
+
+		for dir in dirs:
+			var nb: Vector2i = current + dir
+			var cost: int = movement_manager.get_movement_cost(nb)
+			if cost == -1:  # TileType.IMPASSABLE
+				continue
+			var new_rem: int = remaining - cost
+			if new_rem < 0:
+				continue
+			if best.has(nb) and best[nb] >= new_rem:
+				continue
+			best[nb] = new_rem
+			_parents[nb] = current
+			frontier.append([new_rem, nb])
+
+	for c: Vector2i in best:
+		if c != origin:
+			cells.append(c)
+
 	queue_redraw()
 
 

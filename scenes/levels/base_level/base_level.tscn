@@ -1,9 +1,10 @@
-[gd_scene format=3 uid="uid://cw5lldjp7lh7m"]
+[gd_scene format=3 uid="uid://5w0o8w3sxwf5"]
 
 [ext_resource type="Script" uid="uid://0bvkxa1ablid" path="res://scenes/levels/base_level/base_level.gd" id="1_base"]
 [ext_resource type="Script" uid="uid://ckcgeq5qlukx6" path="res://scenes/levels/base_level/move_overlay.gd" id="2_overlay"]
 [ext_resource type="Script" uid="uid://knyg0ctpi2k8" path="res://scenes/ui/status_bar.gd" id="3_status"]
 [ext_resource type="Script" uid="uid://y23vshydkrvf" path="res://scenes/levels/base_level/level_camera.gd" id="3_xqiwy"]
+[ext_resource type="Script" uid="uid://dtbq71h31mwwx" path="res://scenes/levels/base_level/movement_manager.gd" id="4_movemgr"]
 
 [node name="BaseLevel" type="Node2D" unique_id=553442049]
 script = ExtResource("1_base")
@@ -46,15 +47,52 @@ layout_mode = 2
 theme_override_constants/separation = 12
 script = ExtResource("3_status")
 
-[node name="SettingsButton" type="Button" parent="GUI"]
+[node name="HudPanel" type="PanelContainer" parent="GUI" unique_id=1450852349]
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 26.0
+grow_horizontal = 2
+
+[node name="EndTurnButton" type="Button" parent="GUI" unique_id=300000002]
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -120.0
+offset_top = -74.0
+offset_right = -20.0
+offset_bottom = -40.0
+grow_horizontal = 0
+grow_vertical = 0
+text = "结束回合"
+
+[node name="SettingsButton" type="Button" parent="GUI" unique_id=500967697]
 anchors_preset = 1
 anchor_left = 1.0
 anchor_right = 1.0
-offset_left = -28.0
-offset_top = 4.0
-offset_right = -4.0
-offset_bottom = 28.0
+offset_left = -47.0
+offset_top = 1.0
+offset_right = -17.0
+offset_bottom = 25.0
 grow_horizontal = 0
 text = "⚙"
 
+[node name="TurnLabel" type="Label" parent="GUI" unique_id=300000001]
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -260.0
+offset_top = 5.0
+offset_right = -58.0
+offset_bottom = 24.0
+grow_horizontal = 0
+text = "玩家队伍 的回合"
+
+[node name="MovementManager" type="Node" parent="." unique_id=1144669128]
+script = ExtResource("4_movemgr")
+
+[node name="SpecialTiles" type="Node2D" parent="." unique_id=2134184137]
+
+[connection signal="pressed" from="GUI/EndTurnButton" to="." method="_on_end_turn_button_pressed"]
 [connection signal="pressed" from="GUI/SettingsButton" to="." method="_on_settings_button_pressed"]
