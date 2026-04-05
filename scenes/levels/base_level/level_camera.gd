@@ -6,16 +6,22 @@ class_name LevelCamera
 @export var pan_speed := 560.0
 @export var smooth_speed := 8.0
 @export var edge_margin := 16.0 ## 鼠标距屏幕边缘多少像素时触发滚动
+@export var zoom_step := 0.1 ## 每次滚轮缩放的幅度
+@export var min_zoom := 0.5 ## 最小缩放（看到更多）
+@export var max_zoom := 2.0 ## 最大缩放（看到更少）
+@export var zoom_smooth_speed := 8.0
 
 
 @export var level_bounds: Rect2 = Rect2()
 var target_position := Vector2.ZERO
+var target_zoom := Vector2.ONE
 var input_enabled := true
 
 
 func _ready() -> void:
 	make_current()
 	target_position = global_position
+	target_zoom = zoom
 
 
 func _process(delta: float) -> void:
@@ -33,6 +39,7 @@ func _process(delta: float) -> void:
 
 	target_position = _clamp_to_bounds(target_position)
 	global_position = global_position.lerp(target_position, 1.0 - exp(-smooth_speed * delta))
+	zoom = zoom.lerp(target_zoom, 1.0 - exp(-zoom_smooth_speed * delta))
 
 
 func set_level_bounds(new_bounds: Rect2) -> void:
@@ -47,7 +54,7 @@ func center_on_bounds() -> void:
 
 
 func _clamp_to_bounds(candidate: Vector2) -> Vector2:
-	var viewport_size := get_viewport_rect().size * zoom
+	var viewport_size := get_viewport_rect().size / zoom
 	var half_view := viewport_size * 0.5
 	var min_x := level_bounds.position.x + half_view.x
 	var max_x := level_bounds.end.x - half_view.x
@@ -65,6 +72,18 @@ func _clamp_to_bounds(candidate: Vector2) -> Vector2:
 		candidate.y = clampf(candidate.y, min_y, max_y)
 
 	return candidate
+
+func _unhandled_input(event: InputEvent) -> void:
+	if not input_enabled:
+		return
+	if event is InputEventMouseButton and event.pressed:
+		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
+			target_zoom += Vector2.ONE * zoom_step
+			target_zoom = target_zoom.clampf(min_zoom, max_zoom)
+		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+			target_zoom -= Vector2.ONE * zoom_step
+			target_zoom = target_zoom.clampf(min_zoom, max_zoom)
+
 
 func _get_edge_scroll_vector() -> Vector2:
 	var viewport := get_viewport()
