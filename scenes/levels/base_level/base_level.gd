@@ -10,6 +10,7 @@ extends Node2D
 @onready var players_container: Node2D = $Entities/Players
 @onready var enemies_container: Node2D = $Entities/Enemies
 @onready var move_overlay: Node2D = $MoveOverlay
+@onready var movement_manager: Node = $MovementManager
 @onready var camera: Camera2D = $Camera2D
 @onready var gui: CanvasLayer = $GUI
 @onready var status_bar: HBoxContainer = $GUI/StatusPanel/MarginContainer/StatusBar
@@ -34,9 +35,13 @@ func _ready() -> void:
 	if tilemap == null:
 		push_error("No walkable tilemap found in level")
 		return
+	# 若 MovementManager 的 movement_tilemaps 未在编辑器中配置，自动填入 walkable tilemap 作为回退
+	if movement_manager and movement_manager.movement_tilemaps.is_empty():
+		movement_manager.movement_tilemaps.append(tilemap)
 	player = _find_player()
 	if player:
 		player.set_cell(get_player_start_cell(), tilemap)
+		player.movement_manager = movement_manager
 	_reparent_entities_to_obstacles()
 	if camera and camera is LevelCamera:
 		(camera as LevelCamera).set_level_bounds(get_tilemap_bounds())
@@ -164,7 +169,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			move_overlay.clear_range()
 	elif clicked_cell == player.cell:
 		player_selected = true
-		move_overlay.show_range(tilemap, player.cell, player.move_range)
+		move_overlay.show_range(tilemap, movement_manager, player.cell, player.movement_points)
 
 func get_tilemap_bounds() -> Rect2:
 	var has_bounds := false
