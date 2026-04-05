@@ -344,9 +344,8 @@ tile_layout = 5
 tile_size = Vector2i(32, 16)
 sources/0 = SubResource("TileSetAtlasSource_mg0w7")
 
-[node name="Level1-3" unique_id=401483904 node_paths=PackedStringArray("obstacles_tilemap_layer") instance=ExtResource("1_base")]
+[node name="Level1-3" unique_id=401483904 instance=ExtResource("1_base")]
 script = ExtResource("2_script")
-obstacles_tilemap_layer = NodePath("")
 
 [node name="init tile map" type="TileMapLayer" parent="TileMaps" parent_id_path=PackedInt32Array(1122336516) index="0" unique_id=1176388236]
 tile_set = SubResource("TileSet_rv6ug")
@@ -395,3 +394,7 @@ tile_set = SubResource("TileSet_rv6ug")
 [node name="DO NOT CHANGE THIS" type="Node2D" parent="TileMaps" parent_id_path=PackedInt32Array(1122336516) index="9" unique_id=432442883]
 
 [node name="Player" parent="Entities/Players" parent_id_path=PackedInt32Array(436779837) index="0" unique_id=1053979073 instance=ExtResource("3_player")]
+
+[node name="MovementManager" parent="." index="5" unique_id=1144669128 node_paths=PackedStringArray("movement_tilemaps", "obstacle_tilemaps")]
+movement_tilemaps = [NodePath("../TileMaps/surface z=0")]
+obstacle_tilemaps = [NodePath("../TileMaps/obstacle z=2")]

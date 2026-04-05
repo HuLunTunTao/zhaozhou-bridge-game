@@ -38,3 +38,7 @@ tile_map_data = PackedByteArray("AAAUABUAAQAEAAAAAAAUABQAAQAFAAAAAAAUABMAAQAAAAA
 tile_set = ExtResource("3_lqotf")
 
 [node name="Player" parent="Entities/Players" parent_id_path=PackedInt32Array(436779837) index="0" unique_id=819459000 instance=ExtResource("3_player")]
+
+[node name="MovementManager" parent="." index="5" unique_id=1144669128 node_paths=PackedStringArray("movement_tilemaps", "obstacle_tilemaps")]
+movement_tilemaps = [NodePath("../TileMaps/surface z=0")]
+obstacle_tilemaps = [NodePath("../TileMaps/Obstacle z=2")]
