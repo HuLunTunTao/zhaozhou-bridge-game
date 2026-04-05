@@ -1,0 +1,13 @@
+[gd_scene format=3 uid="uid://bfwwhme448nbn"]
+
+[ext_resource type="PackedScene" path="res://scenes/battle/base_level.tscn" id="1_base"]
+[ext_resource type="Script" path="res://scenes/levels/level_base.gd" id="2_script"]
+[ext_resource type="PackedScene" path="res://scenes/player/player.tscn" id="3_player"]
+[ext_resource type="PackedScene" path="res://scenes/levels/maps/level1-4.tscn" id="4_map"]
+
+[node name="Level1-4" unique_id=1074699105 instance=ExtResource("1_base")]
+script = ExtResource("2_script")
+map_scene = ExtResource("4_map")
+map_scene = ExtResource("4_map")
+
+[node name="Player" parent="Entities/Players" index="0" unique_id=2062663146 instance=ExtResource("3_player")]
