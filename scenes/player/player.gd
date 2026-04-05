@@ -18,6 +18,7 @@ func move_along_path(path: Array[Vector2i], tilemap: TileMapLayer) -> void:
 	if path.size() < 2 or is_moving:
 		return
 	is_moving = true
+	modulate = Color.PURPLE
 	# Walk each step sequentially
 	for i in range(1, path.size()):
 		var target_pos := tilemap.map_to_local(path[i])
@@ -26,6 +27,7 @@ func move_along_path(path: Array[Vector2i], tilemap: TileMapLayer) -> void:
 		var tween := create_tween()
 		tween.tween_property(self, "position", target_pos, duration)
 		await tween.finished
+	modulate = Color.WHITE
 	cell = path[path.size() - 1]
 	is_moving = false
 	move_finished.emit()
