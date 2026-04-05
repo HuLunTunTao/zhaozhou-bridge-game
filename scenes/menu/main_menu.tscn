@@ -92,36 +92,6 @@ theme_override_constants/h_separation = 8
 theme_override_constants/v_separation = 8
 columns = 3
 
-[node name="Level1" type="Button" parent="LevelSelectPage/LevelGrid"]
-layout_mode = 2
-custom_minimum_size = Vector2(56, 32)
-text = "第一关"
-
-[node name="Level2" type="Button" parent="LevelSelectPage/LevelGrid"]
-layout_mode = 2
-custom_minimum_size = Vector2(56, 32)
-text = "第二关"
-
-[node name="Level3" type="Button" parent="LevelSelectPage/LevelGrid"]
-layout_mode = 2
-custom_minimum_size = Vector2(56, 32)
-text = "第三关"
-
-[node name="Level4" type="Button" parent="LevelSelectPage/LevelGrid"]
-layout_mode = 2
-custom_minimum_size = Vector2(56, 32)
-text = "第四关"
-
-[node name="Level5" type="Button" parent="LevelSelectPage/LevelGrid"]
-layout_mode = 2
-custom_minimum_size = Vector2(56, 32)
-text = "第五关"
-
-[node name="Level6" type="Button" parent="LevelSelectPage/LevelGrid"]
-layout_mode = 2
-custom_minimum_size = Vector2(56, 32)
-text = "第六关"
-
 [node name="BackButton" type="Button" parent="LevelSelectPage"]
 layout_mode = 2
 text = "返回"
@@ -132,10 +102,4 @@ text = "返回"
 [connection signal="pressed" from="MainPage/StartButton" to="." method="_on_start_pressed"]
 [connection signal="pressed" from="MainPage/SettingsButton" to="." method="_on_settings_pressed"]
 [connection signal="pressed" from="MainPage/QuitButton" to="." method="_on_quit_pressed"]
-[connection signal="pressed" from="LevelSelectPage/LevelGrid/Level1" to="." method="_on_level_selected" binds= [1]]
-[connection signal="pressed" from="LevelSelectPage/LevelGrid/Level2" to="." method="_on_level_selected" binds= [2]]
-[connection signal="pressed" from="LevelSelectPage/LevelGrid/Level3" to="." method="_on_level_selected" binds= [3]]
-[connection signal="pressed" from="LevelSelectPage/LevelGrid/Level4" to="." method="_on_level_selected" binds= [4]]
-[connection signal="pressed" from="LevelSelectPage/LevelGrid/Level5" to="." method="_on_level_selected" binds= [5]]
-[connection signal="pressed" from="LevelSelectPage/LevelGrid/Level6" to="." method="_on_level_selected" binds= [6]]
 [connection signal="pressed" from="LevelSelectPage/BackButton" to="." method="_on_level_back_pressed"]

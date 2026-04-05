@@ -2,6 +2,7 @@ extends Control
 
 @onready var main_page: Control = $MainPage
 @onready var level_select_page: Control = $LevelSelectPage
+@onready var level_grid: GridContainer = $LevelSelectPage/LevelGrid
 
 const SettingsPanelScene := preload("res://scenes/ui/settings_panel.tscn")
 var _settings_open := false
@@ -10,7 +11,19 @@ var _settings_open := false
 # TODO: 主菜单背景美术替换（赵州桥像素画）
 # TODO: 标题字体和字号美化
 func _ready() -> void:
+	_build_level_buttons()
 	_show_page(main_page)
+
+
+func _build_level_buttons() -> void:
+	for child in level_grid.get_children():
+		child.queue_free()
+	for level_name: String in GameState.LEVEL_SCENES.keys():
+		var btn := Button.new()
+		btn.text = level_name
+		btn.custom_minimum_size = Vector2(56, 32)
+		btn.pressed.connect(_on_level_selected.bind(level_name))
+		level_grid.add_child(btn)
 
 
 func _show_page(page: Control) -> void:
@@ -37,7 +50,7 @@ func _on_quit_pressed() -> void:
 
 
 # Level select
-func _on_level_selected(level: int) -> void:
+func _on_level_selected(level: String) -> void:
 	GameState.selected_level = level
 	var battle_path := GameState.get_level_scene_path(level)
 	if battle_path == "":
