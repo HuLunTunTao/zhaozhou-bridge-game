@@ -59,6 +59,11 @@ var selected_unit: Node2D = null
 ## 当前是否等待玩家输入。
 var _waiting_for_player_input: bool = false
 
+## 特殊地块：cell → SpecialTile
+var _special_tile_map: Dictionary = {}
+## 缓冲：entity → 最近进入的特殊地块 cell（用于区分抵达与经过）
+var _pending_special_enter: Dictionary = {}
+
 @onready var _turn_label: Label = $GUI/TurnLabel
 @onready var _end_turn_button: Button = $GUI/EndTurnButton
 
@@ -84,6 +89,7 @@ func _ready() -> void:
 		_setup_teams_from_config(team_configs)
 
 	_reparent_entities_to_obstacles()
+	_setup_special_tiles()
 	if camera and camera is LevelCamera:
 		(camera as LevelCamera).set_level_bounds(get_tilemap_bounds())
 	_on_level_ready()
@@ -368,6 +374,54 @@ func _unhandled_input(event: InputEvent) -> void:
 			selected_unit = target_unit
 			player_selected = true
 			move_overlay.show_range(tilemap, movement_manager, target_unit.cell, target_unit.movement_points)
+
+
+# ─────────────────────────────────────────────
+# 特殊地块
+# ─────────────────────────────────────────────
+
+func _setup_special_tiles() -> void:
+	var container := get_node_or_null("SpecialTiles")
+	if container == null:
+		return
+	for child in container.get_children():
+		if child is SpecialTile:
+			var snapped_cell := tilemap.local_to_map(tilemap.to_local(child.global_position))
+			child.cell = snapped_cell
+			child.reparent(obstacles_tilemap_layer)
+			child.position = tilemap.map_to_local(snapped_cell)
+			_special_tile_map[snapped_cell] = child
+	movement_manager.tile_entered.connect(_on_special_tile_entered)
+	movement_manager.tile_exited.connect(_on_special_tile_exited)
+	# 连接所有单位的 move_finished 信号，用于判定"抵达"
+	for team: TeamData in teams:
+		for unit: Node2D in team.units:
+			unit.move_finished.connect(_on_unit_move_finished_special.bind(unit))
+
+
+func _on_special_tile_entered(cell: Vector2i, entity: Node2D) -> void:
+	if cell in _special_tile_map:
+		_pending_special_enter[entity] = cell
+
+
+func _on_special_tile_exited(cell: Vector2i, entity: Node2D) -> void:
+	if cell not in _special_tile_map:
+		return
+	if _pending_special_enter.get(entity) == cell:
+		# 进入后又离开 → 经过
+		_special_tile_map[cell]._on_unit_pass(entity)
+		_pending_special_enter.erase(entity)
+	else:
+		# 没有对应的 pending enter → 从此格出发
+		_special_tile_map[cell]._on_unit_depart(entity)
+
+
+func _on_unit_move_finished_special(entity: Node2D) -> void:
+	if entity in _pending_special_enter:
+		var cell: Vector2i = _pending_special_enter[entity]
+		if cell in _special_tile_map:
+			_special_tile_map[cell]._on_unit_arrive(entity)
+		_pending_special_enter.erase(entity)
 
 
 # ─────────────────────────────────────────────
