@@ -12,10 +12,17 @@ class_name LevelCamera
 @export var zoom_smooth_speed := 8.0
 
 
+@export var drag_threshold := 4.0 ## 右键拖拽的像素阈值，低于此值视为点击
+
+
 @export var level_bounds: Rect2 = Rect2()
 var target_position := Vector2.ZERO
 var target_zoom := Vector2.ONE
 var input_enabled := true
+var _right_pressed := false
+var _is_dragging := false
+var _drag_start := Vector2.ZERO
+var _drag_accumulated := Vector2.ZERO
 
 
 func _ready() -> void:
@@ -76,13 +83,32 @@ func _clamp_to_bounds(candidate: Vector2) -> Vector2:
 func _unhandled_input(event: InputEvent) -> void:
 	if not input_enabled:
 		return
-	if event is InputEventMouseButton and event.pressed:
-		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
-			target_zoom += Vector2.ONE * zoom_step
-			target_zoom = target_zoom.clampf(min_zoom, max_zoom)
-		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
-			target_zoom -= Vector2.ONE * zoom_step
-			target_zoom = target_zoom.clampf(min_zoom, max_zoom)
+	if event is InputEventMouseButton:
+		if event.button_index == MOUSE_BUTTON_RIGHT:
+			if event.pressed:
+				_right_pressed = true
+				_is_dragging = false
+				_drag_start = event.position
+				_drag_accumulated = Vector2.ZERO
+			else:
+				_right_pressed = false
+				if _is_dragging:
+					_is_dragging = false
+					get_viewport().set_input_as_handled()
+		elif event.pressed:
+			if event.button_index == MOUSE_BUTTON_WHEEL_UP:
+				target_zoom += Vector2.ONE * zoom_step
+				target_zoom = target_zoom.clampf(min_zoom, max_zoom)
+			elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+				target_zoom -= Vector2.ONE * zoom_step
+				target_zoom = target_zoom.clampf(min_zoom, max_zoom)
+	elif event is InputEventMouseMotion and _right_pressed:
+		_drag_accumulated += event.relative
+		if not _is_dragging and _drag_accumulated.length() >= drag_threshold:
+			_is_dragging = true
+		if _is_dragging:
+			target_position -= event.relative / zoom
+			get_viewport().set_input_as_handled()
 
 
 func _get_edge_scroll_vector() -> Vector2:
