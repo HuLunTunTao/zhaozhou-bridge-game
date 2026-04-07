@@ -321,6 +321,9 @@ func _on_settings_button_pressed() -> void:
 # ─────────────────────────────────────────────
 
 func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("ui_cancel"):
+		_on_settings_button_pressed()
+		return
 	if _mid_cutscene_active:
 		return
 	if tilemap == null:
