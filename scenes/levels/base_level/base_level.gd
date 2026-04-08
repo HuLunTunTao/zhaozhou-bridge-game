@@ -109,6 +109,8 @@ func _ready() -> void:
 	# 连接状态栏技能按钮信号
 	if status_bar and status_bar.has_signal("skill_button_pressed"):
 		status_bar.skill_button_pressed.connect(_on_skill_button_pressed)
+	if status_bar and status_bar.has_signal("move_button_pressed"):
+		status_bar.move_button_pressed.connect(_on_move_button_pressed)
 	# 初始显示主角信息
 	if hero:
 		_update_status_bar_for_unit(hero, false)
@@ -713,6 +715,11 @@ func _show_combat_feedback(exec_result: SkillExecutor.ExecuteResult) -> void:
 
 func _on_skill_button_pressed(skill: SkillData) -> void:
 	select_skill(skill)
+
+
+func _on_move_button_pressed() -> void:
+	if selected_unit and _input_state != InputState.TARGETING_MOVE:
+		_enter_targeting_move()
 
 
 func _get_all_units() -> Array:
