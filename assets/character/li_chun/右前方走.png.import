@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://c0gmb5x15gc3j"
-path="res://.godot/imported/右前方走.png-1259d45a69b5dc8512d59a5a1b24a8a5.ctex"
+path="res://.godot/imported/右前方走.png-dffac2b67660127b5d905e7bf257cb3b.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/右前方走.png"
-dest_files=["res://.godot/imported/右前方走.png-1259d45a69b5dc8512d59a5a1b24a8a5.ctex"]
+source_file="res://assets/character/li_chun/右前方走.png"
+dest_files=["res://.godot/imported/右前方走.png-dffac2b67660127b5d905e7bf257cb3b.ctex"]
 
 [params]
 
