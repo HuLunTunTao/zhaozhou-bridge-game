@@ -227,7 +227,12 @@ func _start_team_turn(index: int) -> void:
 		_waiting_for_player_input = true
 
 
-func _end_current_turn() -> void:
+## 结束整个队伍的回合。UI"结束回合"按钮和 MCP 都调用此方法。
+func end_team_turn() -> void:
+	if not _waiting_for_player_input:
+		return
+	if _mid_cutscene_active:
+		return
 	# 回合结束：DoT + 休息回复 + 刷新血条
 	if current_team_index >= 0 and current_team_index < teams.size():
 		var team: TeamData = teams[current_team_index]
@@ -246,6 +251,7 @@ func _end_current_turn() -> void:
 	unit_selected = false
 	_input_state = InputState.IDLE
 	move_overlay.clear_range()
+	_clear_skill_targeting()
 	if _end_turn_button:
 		_end_turn_button.visible = false
 	var next_index := (current_team_index + 1) % teams.size()
@@ -253,8 +259,7 @@ func _end_current_turn() -> void:
 
 
 func _on_end_turn_button_pressed() -> void:
-	if _waiting_for_player_input:
-		_end_current_turn()
+	end_team_turn()
 
 
 func _check_all_units_acted() -> void:
@@ -267,7 +272,7 @@ func _check_all_units_acted() -> void:
 		if not unit.has_acted:
 			return
 	# 全员行动完毕，自动结束回合
-	_end_current_turn()
+	end_team_turn()
 
 
 # ─────────────────────────────────────────────
@@ -280,7 +285,7 @@ func _run_ai_turn(team: TeamData) -> void:
 		if not unit.is_moving:
 			await _ai_move_unit(unit)
 		unit.has_acted = true
-	_end_current_turn()
+	end_team_turn()
 
 
 func _ai_move_unit(unit: Node2D) -> void:
@@ -415,11 +420,7 @@ func _on_settings_button_pressed() -> void:
 # ─────────────────────────────────────────────
 
 func _unhandled_input(event: InputEvent) -> void:
-	if _mid_cutscene_active or tilemap == null:
-		return
-	if not _waiting_for_player_input:
-		return
-	if _input_state == InputState.ANIMATING:
+	if not _can_accept_command():
 		return
 
 	if event is InputEventMouseMotion:
@@ -441,8 +442,20 @@ func _unhandled_input(event: InputEvent) -> void:
 		cancel_action()
 
 
-## 预选：悬停到某格时更新预览。
+## 是否允许接收命令（非过场、非动画、玩家回合中）。
+func _can_accept_command() -> bool:
+	if _mid_cutscene_active or tilemap == null:
+		return false
+	if not _waiting_for_player_input:
+		return false
+	if _input_state == InputState.ANIMATING:
+		return false
+	return true
+
+
 func preview_cell(cell: Vector2i) -> void:
+	if not _can_accept_command():
+		return
 	match _input_state:
 		InputState.TARGETING_MOVE:
 			move_overlay.update_path(cell)
@@ -457,6 +470,8 @@ func preview_cell_xy(x: int, y: int) -> void:
 
 ## 确认：点击某格执行对应操作。
 func confirm_cell(cell: Vector2i) -> void:
+	if not _can_accept_command():
+		return
 	var local_mouse := tilemap.map_to_local(cell) if tilemap else Vector2.ZERO
 	var current_team: TeamData = teams[current_team_index] if current_team_index >= 0 else null
 	if current_team == null:
@@ -478,6 +493,8 @@ func confirm_cell_xy(x: int, y: int) -> void:
 
 ## 取消：回到 IDLE，完全取消选中。
 func cancel_action() -> void:
+	if not _can_accept_command():
+		return
 	if _input_state == InputState.TARGETING_SKILL:
 		_clear_skill_targeting()
 	if _input_state != InputState.IDLE:
@@ -486,6 +503,8 @@ func cancel_action() -> void:
 
 ## 选择技能，进入 TARGETING_SKILL 状态。
 func select_skill(skill: SkillData) -> void:
+	if not _can_accept_command():
+		return
 	if selected_unit == null or not selected_unit is Unit:
 		return
 	var unit := selected_unit as Unit
@@ -496,14 +515,6 @@ func select_skill(skill: SkillData) -> void:
 	if _skill_targeting:
 		_skill_targeting.show_skill_range(tilemap, skill, unit.cell)
 	_input_state = InputState.TARGETING_SKILL
-
-
-## 结束当前单位回合。
-func end_unit_turn() -> void:
-	if selected_unit:
-		selected_unit.has_acted = true
-	_go_idle()
-	_check_all_units_acted()
 
 
 func _go_idle() -> void:
@@ -745,6 +756,8 @@ func _get_all_units() -> Array:
 
 ## 通过技能索引选择技能（0~4）。UI 按钮和 MCP 都调用此方法。
 func select_skill_by_index(index: int) -> bool:
+	if not _can_accept_command():
+		return false
 	if selected_unit == null or not selected_unit is Unit:
 		return false
 	var u := selected_unit as Unit
@@ -756,6 +769,8 @@ func select_skill_by_index(index: int) -> bool:
 
 ## 进入移动模式。UI 移动按钮和 MCP 都调用此方法。
 func start_move() -> bool:
+	if not _can_accept_command():
+		return false
 	if selected_unit == null:
 		return false
 	if _input_state == InputState.TARGETING_MOVE:
