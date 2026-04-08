@@ -280,6 +280,24 @@ func _get_unit_at_cell(cell: Vector2i, team: TeamData) -> Node2D:
 	return null
 
 
+## 在点击位置附近查找队伍中的单位。先精确匹配格子，不命中时回退到像素距离。
+## max_dist 为像素距离阈值（等距半格约 16px，设 24px 兼顾易用与精度）。
+func _find_nearest_team_unit(local_mouse_pos: Vector2, team: TeamData, max_dist: float = 24.0) -> Node2D:
+	var clicked_cell := tilemap.local_to_map(local_mouse_pos)
+	var exact := _get_unit_at_cell(clicked_cell, team)
+	if exact != null:
+		return exact
+	var best: Node2D = null
+	var best_dist := max_dist
+	for unit: Node2D in team.units:
+		var unit_pos := tilemap.map_to_local(unit.cell)
+		var dist := local_mouse_pos.distance_to(unit_pos)
+		if dist < best_dist:
+			best_dist = dist
+			best = unit
+	return best
+
+
 # ─────────────────────────────────────────────
 # 关卡完成 / 剧情
 # ─────────────────────────────────────────────
@@ -343,6 +361,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 
 	var clicked_cell := tilemap.local_to_map(tilemap.get_local_mouse_position())
+	var local_mouse := tilemap.get_local_mouse_position()
 
 	if selected_unit != null:
 		if move_overlay.has_cell(clicked_cell):
@@ -357,8 +376,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			moving_unit.has_acted = true
 			_on_unit_moved()
 		else:
-			# 尝试切换选中到同队伍其他单位
-			var target_unit := _get_unit_at_cell(clicked_cell, current_team)
+			# 尝试切换选中到同队伍其他单位（带距离容错）
+			var target_unit := _find_nearest_team_unit(local_mouse, current_team)
 			if target_unit != null and not target_unit.has_acted and not target_unit.is_moving:
 				selected_unit = target_unit
 				unit_selected = true
@@ -368,8 +387,8 @@ func _unhandled_input(event: InputEvent) -> void:
 				unit_selected = false
 				move_overlay.clear_range()
 	else:
-		# 尝试选中当前队伍的一个单位
-		var target_unit := _get_unit_at_cell(clicked_cell, current_team)
+		# 尝试选中当前队伍的一个单位（带距离容错）
+		var target_unit := _find_nearest_team_unit(local_mouse, current_team)
 		if target_unit != null and not target_unit.has_acted and not target_unit.is_moving:
 			selected_unit = target_unit
 			unit_selected = true
