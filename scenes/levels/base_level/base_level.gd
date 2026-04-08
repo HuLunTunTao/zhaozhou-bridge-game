@@ -30,8 +30,12 @@ var _mid_cutscene_active := false
 var _settings_open := false
 
 ## 输入状态机。
-enum InputState { IDLE, UNIT_SELECTED, TARGETING_MOVE, ANIMATING }
+enum InputState { IDLE, UNIT_SELECTED, TARGETING_MOVE, TARGETING_SKILL, ANIMATING }
 var _input_state: InputState = InputState.IDLE
+## 当前选中的技能（TARGETING_SKILL 状态时有效）。
+var _current_skill: SkillData = null
+## 技能范围 Overlay（运行时动态创建）。
+var _skill_targeting: Node2D = null
 
 ## Names to search for the walkable tilemap layer
 const WALKABLE_LAYER_NAMES: Array[String] = [
@@ -94,10 +98,14 @@ func _ready() -> void:
 
 	_reparent_entities_to_obstacles()
 	_setup_special_tiles()
+	_setup_skill_targeting()
 	if camera and camera is LevelCamera:
 		(camera as LevelCamera).set_level_bounds(get_tilemap_bounds())
 	_on_level_ready()
 	_init_turn_system()
+	# 连接状态栏技能按钮信号
+	if status_bar and status_bar.has_signal("skill_button_pressed"):
+		status_bar.skill_button_pressed.connect(_on_skill_button_pressed)
 	# 初始显示主角信息
 	if hero:
 		_update_status_bar_for_unit(hero, false)
@@ -187,9 +195,14 @@ func _start_team_turn(index: int) -> void:
 	var team: TeamData = teams[index]
 	for unit: Node2D in team.units:
 		unit.has_acted = false
-		# 回合开始重置计数器
 		if unit is Unit and unit.combat_stats != null:
+			# 回合开始：重置计数器 + AP 恢复
 			unit.combat_stats.reset_turn_counters()
+			# 状态 turn_start 效果（AP 修正、属性回补等）
+			unit.combat_stats.process_turn_start()
+			# 死亡检查
+			if not unit.combat_stats.is_alive():
+				unit.has_acted = true
 	selected_unit = null
 	unit_selected = false
 	_input_state = InputState.IDLE
@@ -211,6 +224,15 @@ func _start_team_turn(index: int) -> void:
 
 
 func _end_current_turn() -> void:
+	# 回合结束：DoT + 休息回复
+	if current_team_index >= 0 and current_team_index < teams.size():
+		var team: TeamData = teams[current_team_index]
+		for unit: Node2D in team.units:
+			if unit is Unit and unit.combat_stats != null and unit.combat_stats.is_alive():
+				unit.combat_stats.process_turn_end()
+				# 己方单位休息回复
+				if team.controller == "player":
+					unit.combat_stats.rest_recovery()
 	_waiting_for_player_input = false
 	selected_unit = null
 	unit_selected = false
@@ -416,7 +438,9 @@ func preview_cell(cell: Vector2i) -> void:
 	match _input_state:
 		InputState.TARGETING_MOVE:
 			move_overlay.update_path(cell)
-		# TARGETING_SKILL 将在 Phase 4 添加
+		InputState.TARGETING_SKILL:
+			if _skill_targeting:
+				_skill_targeting.update_hover(cell)
 
 
 ## 确认：点击某格执行对应操作。
@@ -431,17 +455,30 @@ func confirm_cell(cell: Vector2i) -> void:
 			_confirm_idle(cell, local_mouse, current_team)
 		InputState.TARGETING_MOVE:
 			_confirm_targeting_move(cell, local_mouse, current_team)
+		InputState.TARGETING_SKILL:
+			_confirm_targeting_skill(cell)
 
 
 ## 取消：回到 IDLE，完全取消选中。
 func cancel_action() -> void:
+	if _input_state == InputState.TARGETING_SKILL:
+		_clear_skill_targeting()
 	if _input_state != InputState.IDLE:
 		_go_idle()
 
 
-## 选择技能（Phase 4 实现，目前预留）。
-func select_skill(_skill: SkillData) -> void:
-	pass
+## 选择技能，进入 TARGETING_SKILL 状态。
+func select_skill(skill: SkillData) -> void:
+	if selected_unit == null or not selected_unit is Unit:
+		return
+	var unit := selected_unit as Unit
+	if unit.combat_stats == null or not unit.combat_stats.can_use_skill(skill):
+		return
+	_current_skill = skill
+	move_overlay.clear_range()
+	if _skill_targeting:
+		_skill_targeting.show_skill_range(tilemap, skill, unit.cell)
+	_input_state = InputState.TARGETING_SKILL
 
 
 ## 结束当前单位回合。
@@ -455,12 +492,14 @@ func end_unit_turn() -> void:
 func _go_idle() -> void:
 	selected_unit = null
 	unit_selected = false
+	_current_skill = null
 	move_overlay.clear_range()
+	_clear_skill_targeting()
 	_input_state = InputState.IDLE
 	_reset_status_bar()
 
 
-func _confirm_idle(cell: Vector2i, local_mouse: Vector2, current_team: TeamData) -> void:
+func _confirm_idle(_cell: Vector2i, local_mouse: Vector2, current_team: TeamData) -> void:
 	# 尝试选中当前队伍的单位
 	var target := _find_nearest_team_unit(local_mouse, current_team)
 	if target != null and not target.has_acted and not target.is_moving:
@@ -483,14 +522,15 @@ func _enter_targeting_move() -> void:
 	if selected_unit == null:
 		return
 	_input_state = InputState.TARGETING_MOVE
-	# 使用 AP 制或旧版
 	var unit := selected_unit
 	if unit is Unit and unit.combat_stats != null:
 		var stats: CombatStats = unit.combat_stats
 		if not stats.can_move():
 			return
 		var occupied: Array[Vector2i] = _get_occupied_cells_except(unit)
-		move_overlay.show_range_ap(tilemap, movement_manager, unit.cell, stats.ap_current, stats.move_cost_per_tile, occupied)
+		# 每格消耗 = 基础消耗 + 状态修正
+		var effective_cost := stats.move_cost_per_tile + stats.get_move_ap_modifier()
+		move_overlay.show_range_ap(tilemap, movement_manager, unit.cell, stats.ap_current, effective_cost, occupied)
 	else:
 		move_overlay.show_range(tilemap, movement_manager, unit.cell, unit.movement_points)
 
@@ -567,6 +607,80 @@ func _has_usable_skill(unit: Node2D) -> bool:
 		if u.combat_stats.can_use_skill(skill):
 			return true
 	return false
+
+
+# ─────────────────────────────────────────────
+# 技能释放
+# ─────────────────────────────────────────────
+
+func _setup_skill_targeting() -> void:
+	var SkillTargetingScript := preload("res://scripts/combat/skill_targeting.gd")
+	var st := Node2D.new()
+	st.set_script(SkillTargetingScript)
+	st.name = "SkillTargeting"
+	add_child(st)
+	_skill_targeting = st
+
+
+func _clear_skill_targeting() -> void:
+	if _skill_targeting and _skill_targeting.has_method("clear"):
+		_skill_targeting.clear()
+	_current_skill = null
+
+
+func _confirm_targeting_skill(cell: Vector2i) -> void:
+	if selected_unit == null or _current_skill == null or _skill_targeting == null:
+		_go_idle()
+		return
+
+	if not _skill_targeting.has_cast_cell(cell):
+		# 点击了范围外 → 取消
+		_go_idle()
+		return
+
+	# 收集场上所有单位
+	var all_units: Array = _get_all_units()
+	var caster_faction: String = selected_unit.faction if "faction" in selected_unit else ""
+
+	# 执行技能
+	var exec_result := SkillExecutor.execute(selected_unit, _current_skill, cell, all_units, caster_faction)
+	_clear_skill_targeting()
+
+	if not exec_result.success:
+		push_warning("技能执行失败: %s" % exec_result.error)
+		_go_idle()
+		return
+
+	# 更新状态栏
+	_update_status_bar_for_unit(selected_unit, true)
+
+	# AP 剩余且还能行动？回到选中状态
+	var unit := selected_unit as Unit
+	if unit and unit.combat_stats:
+		var stats := unit.combat_stats
+		if stats.ap_current > 0 and (stats.can_move() or _has_usable_skill(unit)):
+			_input_state = InputState.UNIT_SELECTED
+			if stats.can_move():
+				_enter_targeting_move()
+			return
+
+	# 否则该单位行动结束
+	if selected_unit:
+		selected_unit.has_acted = true
+	_go_idle()
+	_check_all_units_acted()
+
+
+func _on_skill_button_pressed(skill: SkillData) -> void:
+	select_skill(skill)
+
+
+func _get_all_units() -> Array:
+	var result: Array = []
+	for team: TeamData in teams:
+		for unit: Node2D in team.units:
+			result.append(unit)
+	return result
 
 
 # ─────────────────────────────────────────────
