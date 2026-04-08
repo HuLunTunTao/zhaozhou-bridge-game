@@ -112,17 +112,22 @@ func process_turn_start() -> void:
 	for s in statuses:
 		match s.status_id:
 			"cold_damp":
-				# AP 恢复值降低 15%
 				var reduction := roundi(ap_max * 0.15)
 				ap_current = maxi(ap_current - reduction, 0)
+				CombatLog.msg("  状态【湿寒】: %s AP减少%d → %d" % [unit_name, reduction, ap_current])
 			"silt_lock":
 				skip_element_refresh = true
+				CombatLog.msg("  状态【壅水】: %s 跳过属性回补" % unit_name)
 			"smothered":
 				skip_element_refresh = true
+				CombatLog.msg("  状态【闷熄】: %s 跳过属性回补" % unit_name)
 
-	# 敌方固有属性回补（如果未被 silt_lock/smothered 阻止）
 	if not skip_element_refresh:
+		var before_elem: int = current_element
+		var before_amt: int = current_element_amount
 		ElementSystem.refresh_innate_element(self)
+		if before_elem != current_element or before_amt != current_element_amount:
+			CombatLog.log_element_change(unit_name, before_elem, before_amt, current_element, current_element_amount)
 
 
 ## 回合结束时触发状态效果（DoT 等）。返回本回合 DoT 总伤害。
@@ -134,12 +139,13 @@ func process_turn_end() -> int:
 				var dot := roundi(s.source_base_atk * 0.30)
 				current_hp = maxi(current_hp - dot, 0)
 				total_dot += dot
+				CombatLog.log_dot(unit_name, "裂伤", dot)
 			"scorch_mark":
 				var dot := roundi(s.source_base_atk * 0.25)
 				current_hp = maxi(current_hp - dot, 0)
 				total_dot += dot
+				CombatLog.log_dot(unit_name, "灼痕", dot)
 
-	# 倒计时 + 清除过期状态
 	_tick_statuses()
 	return total_dot
 

@@ -198,14 +198,13 @@ func _init_turn_system() -> void:
 func _start_team_turn(index: int) -> void:
 	current_team_index = index
 	var team: TeamData = teams[index]
+	CombatLog.msg("═══ %s 的回合开始 ═══" % team.team_name)
 	for unit: Node2D in team.units:
 		unit.has_acted = false
 		if unit is Unit and unit.combat_stats != null:
-			# 回合开始：重置计数器 + AP 恢复
 			unit.combat_stats.reset_turn_counters()
-			# 状态 turn_start 效果（AP 修正、属性回补等）
+			CombatLog.log_turn_start(team.team_name, unit.combat_stats.unit_name, unit.combat_stats.current_hp, unit.combat_stats.ap_current)
 			unit.combat_stats.process_turn_start()
-			# 死亡检查
 			if not unit.combat_stats.is_alive():
 				unit.has_acted = true
 	selected_unit = null
@@ -560,8 +559,10 @@ func _confirm_targeting_move(cell: Vector2i, local_mouse: Vector2, current_team:
 		await moving_unit.move_finished
 		# 扣除 AP
 		if moving_unit is Unit and moving_unit.combat_stats != null:
+			var from_cell := path[0]
 			moving_unit.combat_stats.ap_current -= ap_cost
 			moving_unit.combat_stats.moves_used += 1
+			CombatLog.log_unit_move(moving_unit.combat_stats.unit_name, from_cell, cell, ap_cost, moving_unit.combat_stats.ap_current)
 		_on_unit_moved()
 		# AP 剩余且还能行动？回到 UNIT_SELECTED
 		if moving_unit is Unit and moving_unit.combat_stats != null:
