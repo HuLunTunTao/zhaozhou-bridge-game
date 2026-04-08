@@ -229,11 +229,18 @@ func _start_team_turn(index: int) -> void:
 
 ## 结束整个队伍的回合。UI"结束回合"按钮和 MCP 都调用此方法。
 func end_team_turn() -> void:
-	if not _waiting_for_player_input:
+	if current_team_index < 0 or current_team_index >= teams.size():
+		return
+	var team: TeamData = teams[current_team_index]
+	if team.controller == "player" and not _waiting_for_player_input:
 		return
 	if _mid_cutscene_active:
 		return
-	# 回合结束：DoT + 休息回复 + 刷新血条
+	_do_end_turn()
+
+
+## 回合结束的实际逻辑。内部和 AI 也调用此方法。
+func _do_end_turn() -> void:
 	if current_team_index >= 0 and current_team_index < teams.size():
 		var team: TeamData = teams[current_team_index]
 		for unit: Node2D in team.units:
@@ -262,17 +269,6 @@ func _on_end_turn_button_pressed() -> void:
 	end_team_turn()
 
 
-func _check_all_units_acted() -> void:
-	if current_team_index < 0 or current_team_index >= teams.size():
-		return
-	var team: TeamData = teams[current_team_index]
-	if team.controller != "player":
-		return
-	for unit: Node2D in team.units:
-		if not unit.has_acted:
-			return
-	# 全员行动完毕，自动结束回合
-	end_team_turn()
 
 
 # ─────────────────────────────────────────────
@@ -285,7 +281,8 @@ func _run_ai_turn(team: TeamData) -> void:
 		if not unit.is_moving:
 			await _ai_move_unit(unit)
 		unit.has_acted = true
-	end_team_turn()
+	# AI 回合不等待玩家输入，直接走内部回合推进逻辑。
+	_do_end_turn()
 
 
 func _ai_move_unit(unit: Node2D) -> void:
@@ -599,7 +596,6 @@ func _confirm_targeting_move(cell: Vector2i, local_mouse: Vector2, current_team:
 		# 否则该单位行动结束
 		moving_unit.has_acted = true
 		_go_idle()
-		_check_all_units_acted()
 	else:
 		# 点击范围外：尝试切换到其他单位
 		var target := _find_nearest_team_unit(local_mouse, current_team)
@@ -702,7 +698,6 @@ func _confirm_targeting_skill(cell: Vector2i) -> void:
 	if selected_unit:
 		selected_unit.has_acted = true
 	_go_idle()
-	_check_all_units_acted()
 
 
 ## 显示战斗 UI 反馈：伤害弹字 + 血条刷新 + 化势提示。
