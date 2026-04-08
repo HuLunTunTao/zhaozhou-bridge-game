@@ -1,27 +1,383 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene format=3 uid="uid://drujkj0i8k8lh"]
 
-[ext_resource type="Script" path="res://scenes/ui/status_bar.gd" id="1_status"]
+[ext_resource type="Script" uid="uid://knyg0ctpi2k8" path="res://scenes/ui/status_bar.gd" id="1_script"]
+[ext_resource type="FontFile" uid="uid://gfoeu2tleldt" path="res://assets/font/fusion-pixel-10px-proportional-zh_hans.otf" id="2_pixel10"]
 
-[node name="StatusBarLayer" type="CanvasLayer"]
+[sub_resource type="StyleBoxFlat" id="bar_bg"]
+bg_color = Color(0.15, 0.15, 0.15, 1)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
+
+[sub_resource type="StyleBoxFlat" id="hp_fill"]
+bg_color = Color(0.2, 0.8, 0.3, 1)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
+
+[sub_resource type="StyleBoxFlat" id="ap_fill"]
+bg_color = Color(0.3, 0.5, 0.9, 1)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
+
+[node name="StatusBarLayer" type="CanvasLayer" unique_id=1427221301]
 layer = 10
 
-[node name="PanelContainer" type="PanelContainer" parent="."]
+[node name="PanelContainer" type="PanelContainer" parent="." unique_id=1667539759]
 anchors_preset = 12
 anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_top = -24.0
+offset_top = -80.0
 grow_horizontal = 2
 grow_vertical = 0
 
-[node name="MarginContainer" type="MarginContainer" parent="PanelContainer"]
+[node name="MarginContainer" type="MarginContainer" parent="PanelContainer" unique_id=1236050445]
 layout_mode = 2
-theme_override_constants/margin_left = 8
-theme_override_constants/margin_right = 8
-theme_override_constants/margin_top = 2
-theme_override_constants/margin_bottom = 2
+theme_override_constants/margin_left = 4
+theme_override_constants/margin_top = 4
+theme_override_constants/margin_right = 4
+theme_override_constants/margin_bottom = 4
 
-[node name="StatusBar" type="HBoxContainer" parent="PanelContainer/MarginContainer"]
+[node name="StatusBar" type="HBoxContainer" parent="PanelContainer/MarginContainer" unique_id=1180610913]
 layout_mode = 2
-theme_override_constants/separation = 12
-script = ExtResource("1_status")
+theme_override_constants/separation = 4
+script = ExtResource("1_script")
+
+[node name="Portrait" type="ColorRect" parent="PanelContainer/MarginContainer/StatusBar" unique_id=1746247231]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(90, 70)
+layout_mode = 2
+color = Color(0.2, 0.2, 0.3, 0.6)
+
+[node name="Info" type="VBoxContainer" parent="PanelContainer/MarginContainer/StatusBar" unique_id=1436875321]
+custom_minimum_size = Vector2(180, 0)
+layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="NameLabel" type="Label" parent="PanelContainer/MarginContainer/StatusBar/Info" unique_id=893730824]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 16
+
+[node name="ActionsLabel" type="Label" parent="PanelContainer/MarginContainer/StatusBar/Info" unique_id=717327333]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.65, 0.75, 0.9, 1)
+theme_override_fonts/font = ExtResource("2_pixel10")
+theme_override_font_sizes/font_size = 10
+
+[node name="HpRow" type="HBoxContainer" parent="PanelContainer/MarginContainer/StatusBar/Info" unique_id=219493527]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="Prefix" type="Label" parent="PanelContainer/MarginContainer/StatusBar/Info/HpRow" unique_id=584683634]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.4, 0.4, 1)
+theme_override_font_sizes/font_size = 16
+text = "HP"
+
+[node name="HpBar" type="ProgressBar" parent="PanelContainer/MarginContainer/StatusBar/Info/HpRow" unique_id=436143820]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(100, 10)
+layout_mode = 2
+size_flags_vertical = 4
+theme_override_styles/background = SubResource("bar_bg")
+theme_override_styles/fill = SubResource("hp_fill")
+show_percentage = false
+
+[node name="HpLabel" type="Label" parent="PanelContainer/MarginContainer/StatusBar/Info/HpRow" unique_id=419443214]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.85, 0.85, 0.85, 1)
+theme_override_font_sizes/font_size = 16
+
+[node name="ApRow" type="HBoxContainer" parent="PanelContainer/MarginContainer/StatusBar/Info" unique_id=1932568295]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="Prefix" type="Label" parent="PanelContainer/MarginContainer/StatusBar/Info/ApRow" unique_id=429326470]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.4, 0.6, 0.9, 1)
+theme_override_font_sizes/font_size = 16
+text = "AP"
+
+[node name="ApBar" type="ProgressBar" parent="PanelContainer/MarginContainer/StatusBar/Info/ApRow" unique_id=1600509008]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(100, 10)
+layout_mode = 2
+size_flags_vertical = 4
+theme_override_styles/background = SubResource("bar_bg")
+theme_override_styles/fill = SubResource("ap_fill")
+show_percentage = false
+
+[node name="ApLabel" type="Label" parent="PanelContainer/MarginContainer/StatusBar/Info/ApRow" unique_id=467499194]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.85, 0.85, 0.85, 1)
+theme_override_font_sizes/font_size = 16
+
+[node name="CurrentElementRow" type="HBoxContainer" parent="PanelContainer/MarginContainer/StatusBar/Info" unique_id=1713663683]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="Tag" type="Label" parent="PanelContainer/MarginContainer/StatusBar/Info/CurrentElementRow" unique_id=228967237]
+custom_minimum_size = Vector2(44, 10)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.592, 0.631, 0.71, 1)
+theme_override_fonts/font = ExtResource("2_pixel10")
+theme_override_font_sizes/font_size = 10
+text = "当前附着"
+vertical_alignment = 1
+
+[node name="CurElemLogo" type="Label" parent="PanelContainer/MarginContainer/StatusBar/Info/CurrentElementRow" unique_id=59994200]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(28, 10)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.549, 0.576, 0.631, 1)
+theme_override_fonts/font = ExtResource("2_pixel10")
+theme_override_font_sizes/font_size = 10
+text = "无"
+vertical_alignment = 1
+
+[node name="CurElemValue" type="Label" parent="PanelContainer/MarginContainer/StatusBar/Info/CurrentElementRow" unique_id=1594217979]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.933, 0.953, 1, 1)
+theme_override_fonts/font = ExtResource("2_pixel10")
+theme_override_font_sizes/font_size = 10
+text = "--"
+vertical_alignment = 1
+
+[node name="InnateElementRow" type="HBoxContainer" parent="PanelContainer/MarginContainer/StatusBar/Info" unique_id=2116727808]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="Tag" type="Label" parent="PanelContainer/MarginContainer/StatusBar/Info/InnateElementRow" unique_id=1532469059]
+custom_minimum_size = Vector2(44, 10)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.592, 0.631, 0.71, 1)
+theme_override_fonts/font = ExtResource("2_pixel10")
+theme_override_font_sizes/font_size = 10
+text = "固有附着"
+vertical_alignment = 1
+
+[node name="InnElemLogo" type="Label" parent="PanelContainer/MarginContainer/StatusBar/Info/InnateElementRow" unique_id=2026599976]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(28, 10)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.549, 0.576, 0.631, 1)
+theme_override_fonts/font = ExtResource("2_pixel10")
+theme_override_font_sizes/font_size = 10
+text = "无"
+vertical_alignment = 1
+
+[node name="InnElemValue" type="Label" parent="PanelContainer/MarginContainer/StatusBar/Info/InnateElementRow" unique_id=1456838576]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.933, 0.953, 1, 1)
+theme_override_fonts/font = ExtResource("2_pixel10")
+theme_override_font_sizes/font_size = 10
+text = "--"
+vertical_alignment = 1
+
+[node name="Sep" type="VSeparator" parent="PanelContainer/MarginContainer/StatusBar" unique_id=440374274]
+layout_mode = 2
+
+[node name="Slot0" type="Button" parent="PanelContainer/MarginContainer/StatusBar" unique_id=1935539097]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(100, 0)
+layout_mode = 2
+size_flags_horizontal = 2
+size_flags_vertical = 3
+
+[node name="Title" type="Label" parent="PanelContainer/MarginContainer/StatusBar/Slot0" unique_id=1128817647]
+layout_mode = 0
+anchor_right = 1.0
+offset_top = 2.0
+grow_horizontal = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 16
+horizontal_alignment = 1
+
+[node name="Desc" type="Label" parent="PanelContainer/MarginContainer/StatusBar/Slot0" unique_id=37640432]
+layout_mode = 0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 2.0
+offset_top = 20.0
+offset_right = -2.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_color = Color(0.7, 0.75, 0.85, 1)
+theme_override_fonts/font = ExtResource("2_pixel10")
+theme_override_font_sizes/font_size = 10
+horizontal_alignment = 1
+autowrap_mode = 2
+
+[node name="Slot1" type="Button" parent="PanelContainer/MarginContainer/StatusBar" unique_id=302448838]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(100, 0)
+layout_mode = 2
+size_flags_horizontal = 2
+size_flags_vertical = 3
+
+[node name="Title" type="Label" parent="PanelContainer/MarginContainer/StatusBar/Slot1" unique_id=693758945]
+layout_mode = 0
+anchor_right = 1.0
+offset_top = 2.0
+grow_horizontal = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 16
+horizontal_alignment = 1
+
+[node name="Desc" type="Label" parent="PanelContainer/MarginContainer/StatusBar/Slot1" unique_id=1600880446]
+layout_mode = 0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 2.0
+offset_top = 20.0
+offset_right = -2.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_color = Color(0.7, 0.75, 0.85, 1)
+theme_override_fonts/font = ExtResource("2_pixel10")
+theme_override_font_sizes/font_size = 10
+horizontal_alignment = 1
+autowrap_mode = 2
+
+[node name="Slot2" type="Button" parent="PanelContainer/MarginContainer/StatusBar" unique_id=383423528]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(100, 0)
+layout_mode = 2
+size_flags_horizontal = 2
+size_flags_vertical = 3
+
+[node name="Title" type="Label" parent="PanelContainer/MarginContainer/StatusBar/Slot2" unique_id=663474196]
+layout_mode = 0
+anchor_right = 1.0
+offset_top = 2.0
+grow_horizontal = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 16
+horizontal_alignment = 1
+
+[node name="Desc" type="Label" parent="PanelContainer/MarginContainer/StatusBar/Slot2" unique_id=32013042]
+layout_mode = 0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 2.0
+offset_top = 20.0
+offset_right = -2.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_color = Color(0.7, 0.75, 0.85, 1)
+theme_override_fonts/font = ExtResource("2_pixel10")
+theme_override_font_sizes/font_size = 10
+horizontal_alignment = 1
+autowrap_mode = 2
+
+[node name="Slot3" type="Button" parent="PanelContainer/MarginContainer/StatusBar" unique_id=1430313674]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(100, 0)
+layout_mode = 2
+size_flags_horizontal = 2
+size_flags_vertical = 3
+
+[node name="Title" type="Label" parent="PanelContainer/MarginContainer/StatusBar/Slot3" unique_id=1975336969]
+layout_mode = 0
+anchor_right = 1.0
+offset_top = 2.0
+grow_horizontal = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 16
+horizontal_alignment = 1
+
+[node name="Desc" type="Label" parent="PanelContainer/MarginContainer/StatusBar/Slot3" unique_id=165518383]
+layout_mode = 0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 2.0
+offset_top = 20.0
+offset_right = -2.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_color = Color(0.7, 0.75, 0.85, 1)
+theme_override_fonts/font = ExtResource("2_pixel10")
+theme_override_font_sizes/font_size = 10
+horizontal_alignment = 1
+autowrap_mode = 2
+
+[node name="Slot4" type="Button" parent="PanelContainer/MarginContainer/StatusBar" unique_id=2118249000]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(100, 0)
+layout_mode = 2
+size_flags_horizontal = 2
+size_flags_vertical = 3
+
+[node name="Title" type="Label" parent="PanelContainer/MarginContainer/StatusBar/Slot4" unique_id=227441281]
+layout_mode = 0
+anchor_right = 1.0
+offset_top = 2.0
+grow_horizontal = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 16
+horizontal_alignment = 1
+
+[node name="Desc" type="Label" parent="PanelContainer/MarginContainer/StatusBar/Slot4" unique_id=1858521350]
+layout_mode = 0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 2.0
+offset_top = 20.0
+offset_right = -2.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_color = Color(0.7, 0.75, 0.85, 1)
+theme_override_fonts/font = ExtResource("2_pixel10")
+theme_override_font_sizes/font_size = 10
+horizontal_alignment = 1
+autowrap_mode = 2
+
+[node name="Slot5" type="Button" parent="PanelContainer/MarginContainer/StatusBar" unique_id=1656135758]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(100, 0)
+layout_mode = 2
+size_flags_horizontal = 2
+size_flags_vertical = 3
+
+[node name="Title" type="Label" parent="PanelContainer/MarginContainer/StatusBar/Slot5" unique_id=926685694]
+layout_mode = 0
+anchor_right = 1.0
+offset_top = 2.0
+grow_horizontal = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 16
+horizontal_alignment = 1
+
+[node name="Desc" type="Label" parent="PanelContainer/MarginContainer/StatusBar/Slot5" unique_id=1723339324]
+layout_mode = 0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 2.0
+offset_top = 20.0
+offset_right = -2.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_color = Color(0.7, 0.75, 0.85, 1)
+theme_override_fonts/font = ExtResource("2_pixel10")
+theme_override_font_sizes/font_size = 10
+horizontal_alignment = 1
+autowrap_mode = 2
+
+[connection signal="pressed" from="PanelContainer/MarginContainer/StatusBar/Slot0" to="PanelContainer/MarginContainer/StatusBar" method="_on_move_pressed"]
+[connection signal="pressed" from="PanelContainer/MarginContainer/StatusBar/Slot1" to="PanelContainer/MarginContainer/StatusBar" method="_on_skill_pressed" binds= [0]]
+[connection signal="pressed" from="PanelContainer/MarginContainer/StatusBar/Slot2" to="PanelContainer/MarginContainer/StatusBar" method="_on_skill_pressed" binds= [1]]
+[connection signal="pressed" from="PanelContainer/MarginContainer/StatusBar/Slot3" to="PanelContainer/MarginContainer/StatusBar" method="_on_skill_pressed" binds= [2]]
+[connection signal="pressed" from="PanelContainer/MarginContainer/StatusBar/Slot4" to="PanelContainer/MarginContainer/StatusBar" method="_on_skill_pressed" binds= [3]]
+[connection signal="pressed" from="PanelContainer/MarginContainer/StatusBar/Slot5" to="PanelContainer/MarginContainer/StatusBar" method="_on_skill_pressed" binds= [4]]

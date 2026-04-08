@@ -121,11 +121,6 @@ theme_override_constants/margin_top = 2
 theme_override_constants/margin_right = 8
 theme_override_constants/margin_bottom = 2
 
-[node name="EndTurnButton" parent="GUI" parent_id_path=PackedInt32Array(256892229) index="2" unique_id=300000002]
-offset_left = -120.0
-offset_top = -74.0
-offset_bottom = -40.0
-
 [node name="MovementManager" parent="." index="5" unique_id=1144669128 node_paths=PackedStringArray("movement_tilemaps", "obstacle_tilemaps")]
 movement_tilemaps = [NodePath("../TileMaps/surface z=0")]
 obstacle_tilemaps = [NodePath("../TileMaps/Obstacle z=2")]

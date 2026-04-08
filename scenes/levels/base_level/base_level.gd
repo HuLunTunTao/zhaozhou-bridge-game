@@ -18,7 +18,7 @@ extends Node2D
 @onready var movement_manager: Node = $MovementManager
 @onready var camera: Camera2D = $Camera2D
 @onready var gui: CanvasLayer = $GUI
-@onready var status_bar: HBoxContainer = $GUI/StatusPanel/MarginContainer/StatusBar
+@onready var status_bar: HBoxContainer = $StatusBarScene/PanelContainer/MarginContainer/StatusBar
 
 const SettingsPanelScene := preload("res://scenes/ui/settings_panel.tscn")
 

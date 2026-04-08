@@ -2,9 +2,9 @@
 
 [ext_resource type="Script" uid="uid://0bvkxa1ablid" path="res://scenes/levels/base_level/base_level.gd" id="1_base"]
 [ext_resource type="Script" uid="uid://ckcgeq5qlukx6" path="res://scenes/levels/base_level/move_overlay.gd" id="2_overlay"]
-[ext_resource type="Script" uid="uid://knyg0ctpi2k8" path="res://scenes/ui/status_bar.gd" id="3_status"]
 [ext_resource type="Script" uid="uid://y23vshydkrvf" path="res://scenes/levels/base_level/level_camera.gd" id="3_xqiwy"]
 [ext_resource type="Script" uid="uid://dtbq71h31mwwx" path="res://scenes/levels/base_level/movement_manager.gd" id="4_movemgr"]
+[ext_resource type="PackedScene" uid="uid://drujkj0i8k8lh" path="res://scenes/ui/status_bar.tscn" id="5_statusbar"]
 
 [node name="BaseLevel" type="Node2D" unique_id=553442049]
 script = ExtResource("1_base")
@@ -24,27 +24,6 @@ script = ExtResource("3_xqiwy")
 [node name="GUI" type="CanvasLayer" parent="." unique_id=256892229]
 layer = 10
 
-[node name="StatusPanel" type="PanelContainer" parent="GUI" unique_id=874318719]
-anchors_preset = 12
-anchor_top = 1.0
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_top = -80.0
-grow_horizontal = 2
-grow_vertical = 0
-
-[node name="MarginContainer" type="MarginContainer" parent="GUI/StatusPanel" unique_id=1164565693]
-layout_mode = 2
-theme_override_constants/margin_left = 4
-theme_override_constants/margin_top = 4
-theme_override_constants/margin_right = 4
-theme_override_constants/margin_bottom = 4
-
-[node name="StatusBar" type="HBoxContainer" parent="GUI/StatusPanel/MarginContainer" unique_id=955117482]
-layout_mode = 2
-theme_override_constants/separation = 12
-script = ExtResource("3_status")
-
 [node name="HudPanel" type="PanelContainer" parent="GUI" unique_id=1450852349]
 anchors_preset = 10
 anchor_right = 1.0
@@ -57,10 +36,10 @@ anchor_left = 1.0
 anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = -130.0
-offset_top = -110.0
-offset_right = -20.0
-offset_bottom = -86.0
+offset_left = -117.0
+offset_top = -142.0
+offset_right = -7.0
+offset_bottom = -118.0
 grow_horizontal = 0
 grow_vertical = 0
 text = "结束回合"
@@ -86,6 +65,8 @@ offset_right = -58.0
 offset_bottom = 24.0
 grow_horizontal = 0
 text = "玩家队伍 的回合"
+
+[node name="StatusBarScene" parent="." unique_id=1549933772 instance=ExtResource("5_statusbar")]
 
 [node name="MovementManager" type="Node" parent="." unique_id=1144669128]
 script = ExtResource("4_movemgr")
