@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="PhaseData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/phase_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+phase_id = "fire_over_metal_molten_temper"
+phase_name = "熔铸"
+attack_element = 4
+target_element = 1
+category = 0
+damage_multiplier = 1.0
+apply_status_id = "brittle"
+status_duration = 2
+flavor_text = "火行加金，不徒伤其表，而先改其质"

@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="PhaseData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/phase_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+phase_id = "wood_follow_water_creeping_growth"
+phase_name = "滋蔓"
+attack_element = 2
+target_element = 3
+category = 1
+damage_multiplier = 1.0
+apply_status_id = "overgrow_bind"
+status_duration = 2
+flavor_text = "水能资木，木能循理而伸"

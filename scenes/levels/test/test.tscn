@@ -5,7 +5,50 @@
 [ext_resource type="TileSet" uid="uid://bdvi30tgeb2kv" path="res://assets/battle_tile_set.tres" id="3_lqotf"]
 [ext_resource type="PackedScene" path="res://scenes/unit/unit.tscn" id="3_player"]
 [ext_resource type="PackedScene" path="res://scenes/levels/base_level/special_tile.tscn" id="4_special"]
+[ext_resource type="Script" uid="uid://c2077ybi0615r" path="res://scripts/data/unit_data.gd" id="5_ansyt"]
 [ext_resource type="Script" uid="uid://daipb21vkksiy" path="res://scenes/levels/test/test_special_tile.gd" id="5_test_tile"]
+[ext_resource type="Script" uid="uid://cp0ew5p75uio0" path="res://scripts/data/skill_data.gd" id="6_lxf6v"]
+
+[sub_resource type="Resource" id="Resource_rb7ut"]
+script = ExtResource("5_ansyt")
+unit_id = "1"
+unit_name = "李春"
+metadata/_custom_type_script = "uid://c2077ybi0615r"
+
+[sub_resource type="Resource" id="Resource_ansyt"]
+script = ExtResource("5_ansyt")
+unit_name = "王春"
+move_limit = 1
+skill_limit = 1
+metadata/_custom_type_script = "uid://c2077ybi0615r"
+
+[sub_resource type="Resource" id="Resource_lxf6v"]
+script = ExtResource("5_ansyt")
+unit_name = "队友2"
+move_limit = 1
+skill_limit = 1
+metadata/_custom_type_script = "uid://c2077ybi0615r"
+
+[sub_resource type="Resource" id="Resource_mdsuy"]
+script = ExtResource("5_ansyt")
+unit_name = "队友2"
+move_limit = 1
+skill_limit = 1
+metadata/_custom_type_script = "uid://c2077ybi0615r"
+
+[sub_resource type="Resource" id="Resource_hk8o8"]
+script = ExtResource("5_ansyt")
+unit_name = "恶人"
+camp = 1
+move_limit = 1
+skill_limit = 1
+metadata/_custom_type_script = "uid://c2077ybi0615r"
+
+[sub_resource type="Resource" id="Resource_eyrvp"]
+script = ExtResource("5_ansyt")
+unit_name = "狂人"
+camp = 1
+metadata/_custom_type_script = "uid://c2077ybi0615r"
 
 [node name="Test" unique_id=1964530952 node_paths=PackedStringArray("obstacles_tilemap_layer") instance=ExtResource("1_base")]
 script = ExtResource("2_script")
@@ -41,26 +84,32 @@ tile_map_data = PackedByteArray("AAAUABUAAQAEAAAAAAAUABQAAQAFAAAAAAAUABMAAQAAAAA
 tile_set = ExtResource("3_lqotf")
 
 [node name="Player" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="0" unique_id=819459000 instance=ExtResource("3_player")]
+unit_data = SubResource("Resource_rb7ut")
 unit_color = Color(1, 0.85, 0, 1)
 
 [node name="PlayerB" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="1" unique_id=200000001 instance=ExtResource("3_player")]
 position = Vector2(114, 21)
+unit_data = SubResource("Resource_ansyt")
 unit_color = Color(1, 0.85, 0, 1)
 
 [node name="Ally1" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="2" unique_id=200000002 instance=ExtResource("3_player")]
 position = Vector2(116, 0)
+unit_data = SubResource("Resource_lxf6v")
 unit_color = Color(0.2, 0.85, 0.35, 1)
 
 [node name="Ally2" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="3" unique_id=200000003 instance=ExtResource("3_player")]
 position = Vector2(275, 0)
+unit_data = SubResource("Resource_mdsuy")
 unit_color = Color(0.2, 0.85, 0.35, 1)
 
 [node name="Enemy1" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="4" unique_id=200000004 instance=ExtResource("3_player")]
 position = Vector2(113, -274)
+unit_data = SubResource("Resource_hk8o8")
 unit_color = Color(0.9, 0.2, 0.2, 1)
 
 [node name="Enemy2" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="5" unique_id=200000005 instance=ExtResource("3_player")]
 position = Vector2(-270, 0)
+unit_data = SubResource("Resource_eyrvp")
 unit_color = Color(0.9, 0.2, 0.2, 1)
 
 [node name="MovementManager" parent="." index="5" unique_id=1144669128 node_paths=PackedStringArray("movement_tilemaps", "obstacle_tilemaps")]

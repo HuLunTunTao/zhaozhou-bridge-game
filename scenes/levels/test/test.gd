@@ -21,7 +21,7 @@ func get_teams_config() -> Array:
 		{
 			"name": "队友队伍",
 			"faction": "好人",
-			"controller": "ai",
+			"controller": "player",
 			"units": [
 				$"Entities/Units/Ally1",
 				$"Entities/Units/Ally2",

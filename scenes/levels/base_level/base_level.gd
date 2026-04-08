@@ -94,6 +94,9 @@ func _ready() -> void:
 		(camera as LevelCamera).set_level_bounds(get_tilemap_bounds())
 	_on_level_ready()
 	_init_turn_system()
+	# 初始显示主角信息
+	if hero:
+		_update_status_bar_for_unit(hero, false)
 
 
 # ─────────────────────────────────────────────
@@ -298,6 +301,41 @@ func _find_nearest_team_unit(local_mouse_pos: Vector2, team: TeamData, max_dist:
 	return best
 
 
+## 在点击位置附近查找任意队伍的单位（用于状态栏显示）。
+func _find_nearest_any_unit(local_mouse_pos: Vector2, max_dist: float = 24.0) -> Node2D:
+	var clicked_cell := tilemap.local_to_map(local_mouse_pos)
+	# 先精确匹配
+	for team: TeamData in teams:
+		var exact := _get_unit_at_cell(clicked_cell, team)
+		if exact != null:
+			return exact
+	# 回退到像素距离
+	var best: Node2D = null
+	var best_dist := max_dist
+	for team: TeamData in teams:
+		for unit: Node2D in team.units:
+			var unit_pos := tilemap.map_to_local(unit.cell)
+			var dist := local_mouse_pos.distance_to(unit_pos)
+			if dist < best_dist:
+				best_dist = dist
+				best = unit
+	return best
+
+
+## 更新状态栏显示指定单位的信息。
+func _update_status_bar_for_unit(unit: Node2D, is_active: bool = false) -> void:
+	if status_bar and status_bar.has_method("show_unit"):
+		status_bar.show_unit(unit, is_active)
+
+
+## 状态栏回退显示主角。
+func _reset_status_bar() -> void:
+	if hero and status_bar and status_bar.has_method("show_unit"):
+		status_bar.show_unit(hero, false)
+	elif status_bar and status_bar.has_method("clear_unit"):
+		status_bar.clear_unit()
+
+
 # ─────────────────────────────────────────────
 # 关卡完成 / 剧情
 # ─────────────────────────────────────────────
@@ -375,6 +413,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			await moving_unit.move_finished
 			moving_unit.has_acted = true
 			_on_unit_moved()
+			_reset_status_bar()
 		else:
 			# 尝试切换选中到同队伍其他单位（带距离容错）
 			var target_unit := _find_nearest_team_unit(local_mouse, current_team)
@@ -382,7 +421,14 @@ func _unhandled_input(event: InputEvent) -> void:
 				selected_unit = target_unit
 				unit_selected = true
 				move_overlay.show_range(tilemap, movement_manager, target_unit.cell, target_unit.movement_points)
+				_update_status_bar_for_unit(target_unit, true)
 			else:
+				# 点击了其他队伍的单位？显示其信息但不选中
+				var any_unit := _find_nearest_any_unit(local_mouse)
+				if any_unit != null:
+					_update_status_bar_for_unit(any_unit, false)
+				else:
+					_reset_status_bar()
 				selected_unit = null
 				unit_selected = false
 				move_overlay.clear_range()
@@ -393,6 +439,14 @@ func _unhandled_input(event: InputEvent) -> void:
 			selected_unit = target_unit
 			unit_selected = true
 			move_overlay.show_range(tilemap, movement_manager, target_unit.cell, target_unit.movement_points)
+			_update_status_bar_for_unit(target_unit, true)
+		else:
+			# 点击了其他队伍的单位？显示其信息
+			var any_unit := _find_nearest_any_unit(local_mouse)
+			if any_unit != null:
+				_update_status_bar_for_unit(any_unit, false)
+			else:
+				_reset_status_bar()
 
 
 # ─────────────────────────────────────────────

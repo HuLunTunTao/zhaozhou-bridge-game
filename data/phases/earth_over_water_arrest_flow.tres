@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="PhaseData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/phase_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+phase_id = "earth_over_water_arrest_flow"
+phase_name = "遏流"
+attack_element = 5
+target_element = 3
+category = 0
+damage_multiplier = 1.0
+bonus_damage_type = "target_max_hp_ratio"
+bonus_damage_value = 0.15
+bonus_damage_cap = "attacker_base_atk * 2.0"
+apply_status_id = "silt_lock"
+status_duration = 3
+flavor_text = "土行加水，不争一时之急，而取因势裁流之法"

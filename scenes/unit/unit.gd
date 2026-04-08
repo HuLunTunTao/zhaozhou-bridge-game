@@ -6,6 +6,8 @@ signal move_finished
 
 @export var movement_points: int = 10
 @export var move_speed: float = 100.0  # pixels per second
+## 单位数据（在编辑器中指定 .tres 文件）。
+@export var unit_data: UnitData
 ## 单位叠加颜色，用于区分阵营。修改后在编辑器中实时预览。
 @export var unit_color: Color = Color(1, 1, 1, 1):
 	set(value):
@@ -16,6 +18,9 @@ var cell: Vector2i
 var is_moving := false
 ## 由 BaseLevel 在场景就绪后赋值，用于触发地块进入/退出钩子。
 var movement_manager = null
+
+## 运行时战斗状态（从 unit_data 初始化）。
+var combat_stats: CombatStats
 
 ## 所属队伍编号（由 BaseLevel 赋值）。
 var team_index: int = -1
@@ -32,6 +37,18 @@ func _ready() -> void:
 	_make_sprite_frames_unique()
 	_apply_color()
 	_play_anim(&"idle")
+	_init_combat_stats()
+
+
+## 从 unit_data 初始化 combat_stats。
+func _init_combat_stats() -> void:
+	if Engine.is_editor_hint():
+		return
+	if unit_data:
+		combat_stats = CombatStats.new()
+		combat_stats.init_from(unit_data)
+		# 用 unit_data 的移动消耗覆盖旧版 movement_points
+		movement_points = combat_stats.ap_current
 
 
 ## 让 SpriteFrames 资源唯一化，避免修改颜色时影响其他单位实例。

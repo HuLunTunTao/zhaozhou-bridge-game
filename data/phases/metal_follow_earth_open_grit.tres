@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="PhaseData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/phase_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+phase_id = "metal_follow_earth_open_grit"
+phase_name = "开砺"
+attack_element = 1
+target_element = 5
+category = 1
+damage_multiplier = 1.05
+apply_status_id = "open_fissure"
+status_duration = 2
+flavor_text = "金取土之承，先开其缝，后成其裂"

@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="StatusData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/status_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+status_id = "slowed_step"
+status_name = "迟步"
+duration_turns = 1
+description = "每移动1格额外消耗2点行动力"
