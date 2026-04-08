@@ -13,6 +13,8 @@ var _sk_lunge: SkillData = preload("res://data/skills/dc_hidden_current_lunge.tr
 # 保存节点引用（get_teams_config 在 reparent 之前调用）
 var _player: Node2D
 var _playerB: Node2D
+var _ally1: Node2D
+var _ally2: Node2D
 var _enemy1: Node2D
 var _enemy2: Node2D
 
@@ -20,6 +22,8 @@ var _enemy2: Node2D
 func get_teams_config() -> Array:
 	_player = $"Entities/Units/Player"
 	_playerB = $"Entities/Units/PlayerB"
+	_ally1 = $"Entities/Units/Ally1"
+	_ally2 = $"Entities/Units/Ally2"
 	_enemy1 = $"Entities/Units/Enemy1"
 	_enemy2 = $"Entities/Units/Enemy2"
 	return [
@@ -28,6 +32,12 @@ func get_teams_config() -> Array:
 			"faction": "好人",
 			"controller": "player",
 			"units": [_player, _playerB],
+		},
+		{
+			"name": "盟友队伍",
+			"faction": "好人",
+			"controller": "ai",
+			"units": [_ally1, _ally2],
 		},
 		{
 			"name": "贼人队伍",
