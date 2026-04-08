@@ -2,7 +2,7 @@ extends HBoxContainer
 ## 底部状态栏：左侧头像+信息区，右侧 1移动+5技能 固定槽位。
 ## 字体规则：基础字号 16px，缩小用 scale，保持像素字体清晰。
 
-signal skill_button_pressed(skill: SkillData)
+signal skill_button_pressed(index: int)
 signal move_button_pressed
 
 const COLOR_HERO := Color(0.15, 0.22, 0.55, 0.9)
@@ -291,8 +291,4 @@ func _set_panel_color(color: Color) -> void:
 
 
 func _on_skill_pressed(index: int) -> void:
-	if _current_unit == null:
-		return
-	var data: UnitData = _current_unit.unit_data if _current_unit is Unit else null
-	if data and index < data.skills.size():
-		skill_button_pressed.emit(data.skills[index])
+	skill_button_pressed.emit(index)

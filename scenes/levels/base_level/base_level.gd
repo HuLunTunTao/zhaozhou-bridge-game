@@ -450,10 +450,14 @@ func preview_cell(cell: Vector2i) -> void:
 			if _skill_targeting:
 				_skill_targeting.update_hover(cell)
 
+## MCP 兼容：接受两个 int 参数。
+func preview_cell_xy(x: int, y: int) -> void:
+	preview_cell(Vector2i(x, y))
+
 
 ## 确认：点击某格执行对应操作。
 func confirm_cell(cell: Vector2i) -> void:
-	var local_mouse := tilemap.get_local_mouse_position() if tilemap else Vector2.ZERO
+	var local_mouse := tilemap.map_to_local(cell) if tilemap else Vector2.ZERO
 	var current_team: TeamData = teams[current_team_index] if current_team_index >= 0 else null
 	if current_team == null:
 		return
@@ -465,6 +469,11 @@ func confirm_cell(cell: Vector2i) -> void:
 			_confirm_targeting_move(cell, local_mouse, current_team)
 		InputState.TARGETING_SKILL:
 			_confirm_targeting_skill(cell)
+
+
+## MCP 兼容：接受两个 int 参数。
+func confirm_cell_xy(x: int, y: int) -> void:
+	confirm_cell(Vector2i(x, y))
 
 
 ## 取消：回到 IDLE，完全取消选中。
@@ -714,13 +723,12 @@ func _show_combat_feedback(exec_result: SkillExecutor.ExecuteResult) -> void:
 				_phase_notification.show_phase(pd.phase_name, cat_name)
 
 
-func _on_skill_button_pressed(skill: SkillData) -> void:
-	select_skill(skill)
+func _on_skill_button_pressed(index: int) -> void:
+	select_skill_by_index(index)
 
 
 func _on_move_button_pressed() -> void:
-	if selected_unit and _input_state != InputState.TARGETING_MOVE:
-		_enter_targeting_move()
+	start_move()
 
 
 func _get_all_units() -> Array:
@@ -729,6 +737,119 @@ func _get_all_units() -> Array:
 		for unit: Node2D in team.units:
 			result.append(unit)
 	return result
+
+
+# ─────────────────────────────────────────────
+# 统一接口（UI 和 MCP 共用）
+# ─────────────────────────────────────────────
+
+## 通过技能索引选择技能（0~4）。UI 按钮和 MCP 都调用此方法。
+func select_skill_by_index(index: int) -> bool:
+	if selected_unit == null or not selected_unit is Unit:
+		return false
+	var u := selected_unit as Unit
+	if u.unit_data == null or index < 0 or index >= u.unit_data.skills.size():
+		return false
+	select_skill(u.unit_data.skills[index])
+	return true
+
+
+## 进入移动模式。UI 移动按钮和 MCP 都调用此方法。
+func start_move() -> bool:
+	if selected_unit == null:
+		return false
+	if _input_state == InputState.TARGETING_MOVE:
+		return true
+	if _input_state == InputState.TARGETING_SKILL:
+		_clear_skill_targeting()
+	_enter_targeting_move()
+	return true
+
+
+## 查询当前游戏状态。返回字典，所有值为原始类型。
+func query_state() -> Dictionary:
+	var state_names := ["IDLE", "UNIT_SELECTED", "TARGETING_MOVE", "TARGETING_SKILL", "ANIMATING"]
+	var team_name := ""
+	if current_team_index >= 0 and current_team_index < teams.size():
+		team_name = teams[current_team_index].team_name
+	var sel_name := ""
+	if selected_unit is Unit and selected_unit.combat_stats:
+		sel_name = selected_unit.combat_stats.unit_name
+	return {
+		"input_state": state_names[_input_state] if _input_state < state_names.size() else "UNKNOWN",
+		"team_name": team_name,
+		"team_index": current_team_index,
+		"selected_unit": sel_name,
+		"waiting_for_input": _waiting_for_player_input,
+	}
+
+
+## 查询所有单位信息。返回字典数组，所有值为原始类型。
+func query_units() -> Array:
+	var result: Array = []
+	for ti in range(teams.size()):
+		var team: TeamData = teams[ti]
+		for ui in range(team.units.size()):
+			var unit: Node2D = team.units[ui]
+			var info: Dictionary = {
+				"name": unit.name,
+				"cell": [unit.cell.x, unit.cell.y],
+				"team_index": ti,
+				"team_name": team.team_name,
+				"faction": team.faction,
+				"has_acted": unit.has_acted,
+			}
+			if unit is Unit and unit.combat_stats:
+				var s: CombatStats = unit.combat_stats
+				info["hp"] = s.current_hp
+				info["max_hp"] = s.max_hp
+				info["ap"] = s.ap_current
+				info["ap_max"] = s.ap_max
+				info["base_atk"] = s.base_atk
+				info["element"] = s.current_element
+				info["element_amount"] = s.current_element_amount
+				info["is_hero"] = s.is_hero
+				info["statuses"] = []
+				for st in s.statuses:
+					info["statuses"].append({"id": st.status_id, "turns": st.remaining_turns})
+				# 技能列表
+				var skills_info: Array = []
+				if unit.unit_data:
+					for si in range(unit.unit_data.skills.size()):
+						var sk: SkillData = unit.unit_data.skills[si]
+						skills_info.append({
+							"index": si,
+							"id": sk.skill_id,
+							"name": sk.skill_name,
+							"ap_cost": sk.ap_cost,
+							"can_use": s.can_use_skill(sk),
+						})
+				info["skills"] = skills_info
+			result.append(info)
+	return result
+
+
+## 查询当前可移动范围（TARGETING_MOVE 时有效）。
+func query_move_range() -> Array:
+	if _input_state != InputState.TARGETING_MOVE:
+		return []
+	var result: Array = []
+	for c in move_overlay.cells:
+		result.append([c.x, c.y])
+	return result
+
+
+## 查询技能释放/影响范围（TARGETING_SKILL 时有效）。
+func query_skill_range() -> Dictionary:
+	if _input_state != InputState.TARGETING_SKILL or _skill_targeting == null:
+		return {"cast_cells": [], "effect_cells": []}
+	var cast: Array = []
+	for c in _skill_targeting._cast_cells:
+		cast.append([c.x, c.y])
+	var effect: Array = []
+	for c in _skill_targeting._effect_cells:
+		effect.append([c.x, c.y])
+	return {"cast_cells": cast, "effect_cells": effect}
 
 
 # ─────────────────────────────────────────────
