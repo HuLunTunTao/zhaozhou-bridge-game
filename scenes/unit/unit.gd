@@ -31,6 +31,8 @@ var has_acted: bool = false
 
 ## 当前朝向前缀，用于拼接动画名。
 var _facing: StringName = &"right_front"
+## 头顶血条。
+var _hp_bar: UnitHpBar = null
 
 
 func _ready() -> void:
@@ -38,6 +40,7 @@ func _ready() -> void:
 	_apply_color()
 	_play_anim(&"idle")
 	_init_combat_stats()
+	_init_hp_bar()
 
 
 ## 从 unit_data 初始化 combat_stats。
@@ -47,8 +50,23 @@ func _init_combat_stats() -> void:
 	if unit_data:
 		combat_stats = CombatStats.new()
 		combat_stats.init_from(unit_data)
-		# 用 unit_data 的移动消耗覆盖旧版 movement_points
 		movement_points = combat_stats.ap_current
+
+
+## 初始化头顶血条。
+func _init_hp_bar() -> void:
+	if Engine.is_editor_hint():
+		return
+	_hp_bar = UnitHpBar.new()
+	_hp_bar.z_index = 10
+	_hp_bar.y_sort_enabled = false
+	add_child(_hp_bar)
+
+
+## 刷新血条显示。外部在伤害/治疗后调用。
+func refresh_hp_bar() -> void:
+	if _hp_bar and combat_stats:
+		_hp_bar.update_hp(float(combat_stats.current_hp) / float(combat_stats.max_hp))
 
 
 ## 让 SpriteFrames 资源唯一化，避免修改颜色时影响其他单位实例。

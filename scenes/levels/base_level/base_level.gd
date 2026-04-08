@@ -23,6 +23,8 @@ extends Node2D
 const SettingsPanelScene := preload("res://scenes/ui/settings_panel.tscn")
 
 var tilemap: TileMapLayer
+## 化势提示 UI（运行时创建，挂在 GUI 层）。
+var _phase_notification: PhaseNotification = null
 ## 兼容旧版：指向第一个玩家控制队伍的第一个单位（李春）。
 var hero: Node2D
 var unit_selected := false
@@ -99,6 +101,7 @@ func _ready() -> void:
 	_reparent_entities_to_obstacles()
 	_setup_special_tiles()
 	_setup_skill_targeting()
+	_setup_phase_notification()
 	if camera and camera is LevelCamera:
 		(camera as LevelCamera).set_level_bounds(get_tilemap_bounds())
 	_on_level_ready()
@@ -224,15 +227,19 @@ func _start_team_turn(index: int) -> void:
 
 
 func _end_current_turn() -> void:
-	# 回合结束：DoT + 休息回复
+	# 回合结束：DoT + 休息回复 + 刷新血条
 	if current_team_index >= 0 and current_team_index < teams.size():
 		var team: TeamData = teams[current_team_index]
 		for unit: Node2D in team.units:
 			if unit is Unit and unit.combat_stats != null and unit.combat_stats.is_alive():
-				unit.combat_stats.process_turn_end()
-				# 己方单位休息回复
+				var dot: int = unit.combat_stats.process_turn_end()
+				if dot > 0:
+					var popup := DamagePopup.new()
+					add_child(popup)
+					popup.show_at(unit.global_position, dot)
 				if team.controller == "player":
 					unit.combat_stats.rest_recovery()
+				(unit as Unit).refresh_hp_bar()
 	_waiting_for_player_input = false
 	selected_unit = null
 	unit_selected = false
@@ -622,6 +629,11 @@ func _setup_skill_targeting() -> void:
 	_skill_targeting = st
 
 
+func _setup_phase_notification() -> void:
+	_phase_notification = PhaseNotification.new()
+	gui.add_child(_phase_notification)
+
+
 func _clear_skill_targeting() -> void:
 	if _skill_targeting and _skill_targeting.has_method("clear"):
 		_skill_targeting.clear()
@@ -634,15 +646,12 @@ func _confirm_targeting_skill(cell: Vector2i) -> void:
 		return
 
 	if not _skill_targeting.has_cast_cell(cell):
-		# 点击了范围外 → 取消
 		_go_idle()
 		return
 
-	# 收集场上所有单位
 	var all_units: Array = _get_all_units()
 	var caster_faction: String = selected_unit.faction if "faction" in selected_unit else ""
 
-	# 执行技能
 	var exec_result := SkillExecutor.execute(selected_unit, _current_skill, cell, all_units, caster_faction)
 	_clear_skill_targeting()
 
@@ -651,10 +660,13 @@ func _confirm_targeting_skill(cell: Vector2i) -> void:
 		_go_idle()
 		return
 
+	# ── UI 反馈 ──
+	_show_combat_feedback(exec_result)
+
 	# 更新状态栏
 	_update_status_bar_for_unit(selected_unit, true)
 
-	# AP 剩余且还能行动？回到选中状态
+	# AP 剩余且还能行动？
 	var unit := selected_unit as Unit
 	if unit and unit.combat_stats:
 		var stats := unit.combat_stats
@@ -664,11 +676,39 @@ func _confirm_targeting_skill(cell: Vector2i) -> void:
 				_enter_targeting_move()
 			return
 
-	# 否则该单位行动结束
 	if selected_unit:
 		selected_unit.has_acted = true
 	_go_idle()
 	_check_all_units_acted()
+
+
+## 显示战斗 UI 反馈：伤害弹字 + 血条刷新 + 化势提示。
+func _show_combat_feedback(exec_result: SkillExecutor.ExecuteResult) -> void:
+	var showed_phase := false
+	for entry in exec_result.hit_results:
+		var target_unit: Node2D = entry["unit"]
+		var hit: CombatResolver.HitResult = entry["hit"]
+
+		# 伤害弹字
+		if hit.damage > 0:
+			var phase_name := ""
+			if hit.phase_result and hit.phase_result.phase_data:
+				phase_name = hit.phase_result.phase_data.phase_name
+			var popup := DamagePopup.new()
+			add_child(popup)
+			popup.show_at(target_unit.global_position, hit.damage, phase_name)
+
+		# 刷新血条
+		if target_unit is Unit:
+			(target_unit as Unit).refresh_hp_bar()
+
+		# 化势提示（只显示一次）
+		if not showed_phase and hit.phase_result and hit.phase_result.phase_data:
+			showed_phase = true
+			var pd: PhaseData = hit.phase_result.phase_data
+			var cat_name := "制势" if pd.category == Enums.PhaseCategory.DOMINANT else "承势"
+			if _phase_notification:
+				_phase_notification.show_phase(pd.phase_name, cat_name)
 
 
 func _on_skill_button_pressed(skill: SkillData) -> void:
