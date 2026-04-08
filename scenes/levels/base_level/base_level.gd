@@ -12,8 +12,7 @@ extends Node2D
 @export var obstacles_tilemap_layer: TileMapLayer  # 障碍物所在的层，必须在编辑器中指定
 
 @onready var tilemap_container: Node2D = $TileMaps
-@onready var players_container: Node2D = $Entities/Players
-@onready var enemies_container: Node2D = $Entities/Enemies
+@onready var units_container: Node2D = $Entities/Units
 @onready var special_tiles_container: Node2D = $SpecialTiles
 @onready var move_overlay: Node2D = $MoveOverlay
 @onready var movement_manager: Node = $MovementManager
@@ -24,9 +23,9 @@ extends Node2D
 const SettingsPanelScene := preload("res://scenes/ui/settings_panel.tscn")
 
 var tilemap: TileMapLayer
-## 兼容旧版：指向第一个玩家控制队伍的第一个单位。
-var player: Node2D
-var player_selected := false
+## 兼容旧版：指向第一个玩家控制队伍的第一个单位（李春）。
+var hero: Node2D
+var unit_selected := false
 var _mid_cutscene_active := false
 var _settings_open := false
 
@@ -81,10 +80,10 @@ func _ready() -> void:
 	var team_configs := get_teams_config()
 	if team_configs.is_empty():
 		# ── 旧版单玩家模式 ──────────────────────────────
-		player = _find_player()
-		if player:
-			player.set_cell(get_player_start_cell(), tilemap)
-			player.movement_manager = movement_manager
+		hero = _find_hero()
+		if hero:
+			hero.set_cell(get_hero_start_cell(), tilemap)
+			hero.movement_manager = movement_manager
 	else:
 		# ── 多队伍模式：读取场景中已有的节点 ───────────
 		_setup_teams_from_config(team_configs)
@@ -112,7 +111,7 @@ func get_teams_config() -> Array:
 
 
 ## 覆盖以设置旧版单玩家的起始位置（仅在 get_teams_config() 为空时使用）。
-func get_player_start_cell() -> Vector2i:
+func get_hero_start_cell() -> Vector2i:
 	return Vector2i(0, 0)
 
 
@@ -122,7 +121,7 @@ func _on_level_ready() -> void:
 
 
 ## 任意单位移动完毕后调用（兼容旧版钩子）。
-func _on_player_moved() -> void:
+func _on_unit_moved() -> void:
 	pass
 
 
@@ -148,10 +147,10 @@ func _setup_teams_from_config(configs: Array) -> void:
 			team.units.append(unit)
 		teams.append(team)
 
-	# 向后兼容：player 指向第一个玩家控制队伍的第一个单位
+	# 向后兼容：hero 指向第一个玩家控制队伍的第一个单位
 	for team: TeamData in teams:
 		if team.controller == "player" and not team.units.is_empty():
-			player = team.units[0]
+			hero = team.units[0]
 			break
 
 
@@ -161,9 +160,9 @@ func _setup_teams_from_config(configs: Array) -> void:
 
 func _init_turn_system() -> void:
 	# 若未通过 get_teams_config() 创建队伍，则将旧版 player 包装为单队伍
-	if teams.is_empty() and player:
+	if teams.is_empty() and hero:
 		var team := TeamData.new("玩家", "", "player")
-		team.units.append(player)
+		team.units.append(hero)
 		teams.append(team)
 
 	if teams.is_empty():
@@ -182,7 +181,7 @@ func _start_team_turn(index: int) -> void:
 	for unit: Node2D in team.units:
 		unit.has_acted = false
 	selected_unit = null
-	player_selected = false
+	unit_selected = false
 	move_overlay.clear_range()
 
 	if _turn_label:
@@ -203,7 +202,7 @@ func _start_team_turn(index: int) -> void:
 func _end_current_turn() -> void:
 	_waiting_for_player_input = false
 	selected_unit = null
-	player_selected = false
+	unit_selected = false
 	move_overlay.clear_range()
 	if _end_turn_button:
 		_end_turn_button.visible = false
@@ -352,28 +351,28 @@ func _unhandled_input(event: InputEvent) -> void:
 			move_overlay.clear_range()
 			var moving_unit := selected_unit
 			selected_unit = null
-			player_selected = false
+			unit_selected = false
 			moving_unit.move_along_path(path, tilemap)
 			await moving_unit.move_finished
 			moving_unit.has_acted = true
-			_on_player_moved()
+			_on_unit_moved()
 		else:
 			# 尝试切换选中到同队伍其他单位
 			var target_unit := _get_unit_at_cell(clicked_cell, current_team)
 			if target_unit != null and not target_unit.has_acted and not target_unit.is_moving:
 				selected_unit = target_unit
-				player_selected = true
+				unit_selected = true
 				move_overlay.show_range(tilemap, movement_manager, target_unit.cell, target_unit.movement_points)
 			else:
 				selected_unit = null
-				player_selected = false
+				unit_selected = false
 				move_overlay.clear_range()
 	else:
 		# 尝试选中当前队伍的一个单位
 		var target_unit := _get_unit_at_cell(clicked_cell, current_team)
 		if target_unit != null and not target_unit.has_acted and not target_unit.is_moving:
 			selected_unit = target_unit
-			player_selected = true
+			unit_selected = true
 			move_overlay.show_range(tilemap, movement_manager, target_unit.cell, target_unit.movement_points)
 
 
@@ -466,8 +465,8 @@ func _find_walkable_tilemap() -> TileMapLayer:
 	return null
 
 
-func _find_player() -> Node2D:
-	for child in players_container.get_children():
+func _find_hero() -> Node2D:
+	for child in units_container.get_children():
 		return child
 	return null
 

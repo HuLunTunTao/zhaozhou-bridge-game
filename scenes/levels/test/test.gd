@@ -14,8 +14,8 @@ func get_teams_config() -> Array:
 			"faction": "好人",
 			"controller": "player",
 			"units": [
-				$"Entities/Players/Player",
-				$"Entities/Players/PlayerB",
+				$"Entities/Units/Player",
+				$"Entities/Units/PlayerB",
 			],
 		},
 		{
@@ -23,8 +23,8 @@ func get_teams_config() -> Array:
 			"faction": "好人",
 			"controller": "ai",
 			"units": [
-				$"Entities/Players/Ally1",
-				$"Entities/Players/Ally2",
+				$"Entities/Units/Ally1",
+				$"Entities/Units/Ally2",
 			],
 		},
 		{
@@ -32,8 +32,8 @@ func get_teams_config() -> Array:
 			"faction": "坏人",
 			"controller": "ai",
 			"units": [
-				$"Entities/Enemies/Enemy1",
-				$"Entities/Enemies/Enemy2",
+				$"Entities/Units/Enemy1",
+				$"Entities/Units/Enemy2",
 			],
 		},
 	]

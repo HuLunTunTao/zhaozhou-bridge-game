@@ -3,7 +3,7 @@
 [ext_resource type="PackedScene" uid="uid://cw5lldjp7lh7m" path="res://scenes/levels/base_level/base_level.tscn" id="1_base"]
 [ext_resource type="Script" uid="uid://deusxrxpybcob" path="res://scenes/levels/level1-3-2/level1-3-2.gd" id="2_script"]
 [ext_resource type="TileSet" uid="uid://bdvi30tgeb2kv" path="res://assets/battle_tile_set.tres" id="3_dldkx"]
-[ext_resource type="PackedScene" path="res://scenes/player/player.tscn" id="3_player"]
+[ext_resource type="PackedScene" path="res://scenes/unit/unit.tscn" id="3_player"]
 
 [node name="Level1-3-2" unique_id=8833213 instance=ExtResource("1_base")]
 script = ExtResource("2_script")
@@ -43,4 +43,4 @@ z_index = 5
 position = Vector2(0, 40)
 tile_set = ExtResource("3_dldkx")
 
-[node name="Player" parent="Entities/Players" parent_id_path=PackedInt32Array(436779837) index="0" unique_id=269885103 instance=ExtResource("3_player")]
+[node name="Player" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="0" unique_id=269885103 instance=ExtResource("3_player")]

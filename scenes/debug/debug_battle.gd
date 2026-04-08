@@ -6,7 +6,7 @@ extends BaseLevel
 const GRID_SIZE := 10
 
 
-func get_player_start_cell() -> Vector2i:
+func get_hero_start_cell() -> Vector2i:
 	@warning_ignore("integer_division")
 	return Vector2i(GRID_SIZE / 2, GRID_SIZE / 2)
 
@@ -52,12 +52,12 @@ func _unhandled_input(event: InputEvent) -> void:
 		_update_debug_label()
 
 
-func _on_player_moved() -> void:
+func _on_unit_moved() -> void:
 	_update_status_bar()
 
 
 func _update_status_bar() -> void:
-	status_bar.set_status("状态1", str(player.cell))
+	status_bar.set_status("状态1", str(hero.cell))
 	status_bar.set_status("状态2", "待机")
 
 
@@ -67,6 +67,6 @@ func _update_debug_label() -> void:
 	var mouse_cell := tilemap.local_to_map(tilemap.get_local_mouse_position())
 	var on_grid := mouse_cell.x >= 0 and mouse_cell.x < GRID_SIZE and mouse_cell.y >= 0 and mouse_cell.y < GRID_SIZE
 	debug_label.text = "Player: %s | Mouse: %s %s | Selected: %s" % [
-		player.cell if player else "null", mouse_cell,
-		"(on grid)" if on_grid else "(off grid)", player_selected
+		hero.cell if hero else "null", mouse_cell,
+		"(on grid)" if on_grid else "(off grid)", unit_selected
 	]

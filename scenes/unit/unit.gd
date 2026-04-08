@@ -1,4 +1,5 @@
 @tool
+class_name Unit
 extends Node2D
 
 signal move_finished
@@ -54,7 +55,7 @@ func move_along_path(path: Array[Vector2i], tilemap: TileMapLayer) -> void:
 		var tween := create_tween()
 		tween.tween_property(self, "position", target_pos, duration)
 		await tween.finished
-	
+
 		if movement_manager:
 			movement_manager.on_tile_enter(path[i], self)
 	modulate = Color.WHITE

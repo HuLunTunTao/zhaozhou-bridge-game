@@ -13,9 +13,7 @@ script = ExtResource("1_base")
 
 [node name="Entities" type="Node2D" parent="." unique_id=1537960365]
 
-[node name="Players" type="Node2D" parent="Entities" unique_id=436779837]
-
-[node name="Enemies" type="Node2D" parent="Entities" unique_id=1178648495]
+[node name="Units" type="Node2D" parent="Entities" unique_id=436779837]
 
 [node name="MoveOverlay" type="Node2D" parent="." unique_id=1306819768]
 script = ExtResource("2_overlay")

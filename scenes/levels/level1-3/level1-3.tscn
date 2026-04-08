@@ -3,7 +3,7 @@
 [ext_resource type="PackedScene" uid="uid://cw5lldjp7lh7m" path="res://scenes/levels/base_level/base_level.tscn" id="1_base"]
 [ext_resource type="Script" uid="uid://mmo8mw7caitt" path="res://scenes/levels/level1-3/level1-3.gd" id="2_script"]
 [ext_resource type="Texture2D" uid="uid://dajatjtpi2mtu" path="res://assets/thepixeltiles/isometric tileset/spritesheet.png" id="3_ong38"]
-[ext_resource type="PackedScene" path="res://scenes/player/player.tscn" id="3_player"]
+[ext_resource type="PackedScene" path="res://scenes/unit/unit.tscn" id="3_player"]
 [ext_resource type="Texture2D" uid="uid://dnp77jaatgjll" path="res://assets/thepixeltiles/bridge/thebuilding.png" id="4_djocc"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_l6vlj"]
@@ -393,7 +393,7 @@ tile_set = SubResource("TileSet_rv6ug")
 
 [node name="DO NOT CHANGE THIS" type="Node2D" parent="TileMaps" parent_id_path=PackedInt32Array(1122336516) index="9" unique_id=432442883]
 
-[node name="Player" parent="Entities/Players" parent_id_path=PackedInt32Array(436779837) index="0" unique_id=1053979073 instance=ExtResource("3_player")]
+[node name="Player" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="0" unique_id=1053979073 instance=ExtResource("3_player")]
 
 [node name="MovementManager" parent="." index="5" unique_id=1144669128 node_paths=PackedStringArray("movement_tilemaps", "obstacle_tilemaps")]
 movement_tilemaps = [NodePath("../TileMaps/surface z=0")]
