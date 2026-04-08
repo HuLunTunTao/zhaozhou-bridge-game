@@ -29,6 +29,10 @@ var unit_selected := false
 var _mid_cutscene_active := false
 var _settings_open := false
 
+## 输入状态机。
+enum InputState { IDLE, UNIT_SELECTED, TARGETING_MOVE, ANIMATING }
+var _input_state: InputState = InputState.IDLE
+
 ## Names to search for the walkable tilemap layer
 const WALKABLE_LAYER_NAMES: Array[String] = [
 	"surface z=0", "Main tile map z=0", "WalkableMap",
@@ -183,8 +187,12 @@ func _start_team_turn(index: int) -> void:
 	var team: TeamData = teams[index]
 	for unit: Node2D in team.units:
 		unit.has_acted = false
+		# 回合开始重置计数器
+		if unit is Unit and unit.combat_stats != null:
+			unit.combat_stats.reset_turn_counters()
 	selected_unit = null
 	unit_selected = false
+	_input_state = InputState.IDLE
 	move_overlay.clear_range()
 
 	if _turn_label:
@@ -206,6 +214,7 @@ func _end_current_turn() -> void:
 	_waiting_for_player_input = false
 	selected_unit = null
 	unit_selected = false
+	_input_state = InputState.IDLE
 	move_overlay.clear_range()
 	if _end_turn_button:
 		_end_turn_button.visible = false
@@ -372,81 +381,192 @@ func _on_settings_button_pressed() -> void:
 
 
 # ─────────────────────────────────────────────
-# 输入处理
+# 输入处理（状态机 + 命令函数）
 # ─────────────────────────────────────────────
 
 func _unhandled_input(event: InputEvent) -> void:
-	if _mid_cutscene_active:
-		return
-	if tilemap == null:
+	if _mid_cutscene_active or tilemap == null:
 		return
 	if not _waiting_for_player_input:
 		return
-	if _is_any_unit_moving():
+	if _input_state == InputState.ANIMATING:
 		return
 
-	var current_team: TeamData = teams[current_team_index]
-
 	if event is InputEventMouseMotion:
-		if selected_unit != null:
-			var hover_cell := tilemap.local_to_map(tilemap.get_local_mouse_position())
-			move_overlay.update_path(hover_cell)
+		var hover_cell := tilemap.local_to_map(tilemap.get_local_mouse_position())
+		preview_cell(hover_cell)
 		return
 
 	if not (event is InputEventMouseButton and event.pressed):
 		return
-	if event.button_index != MOUSE_BUTTON_RIGHT:
+
+	if event.button_index == MOUSE_BUTTON_RIGHT:
+		var clicked_cell := tilemap.local_to_map(tilemap.get_local_mouse_position())
+		confirm_cell(clicked_cell)
+	elif event.button_index == MOUSE_BUTTON_LEFT:
+		# 左键取消（ESC 也可以）
+		cancel_action()
+
+	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
+		cancel_action()
+
+
+## 预选：悬停到某格时更新预览。
+func preview_cell(cell: Vector2i) -> void:
+	match _input_state:
+		InputState.TARGETING_MOVE:
+			move_overlay.update_path(cell)
+		# TARGETING_SKILL 将在 Phase 4 添加
+
+
+## 确认：点击某格执行对应操作。
+func confirm_cell(cell: Vector2i) -> void:
+	var local_mouse := tilemap.get_local_mouse_position() if tilemap else Vector2.ZERO
+	var current_team: TeamData = teams[current_team_index] if current_team_index >= 0 else null
+	if current_team == null:
 		return
 
-	var clicked_cell := tilemap.local_to_map(tilemap.get_local_mouse_position())
-	var local_mouse := tilemap.get_local_mouse_position()
+	match _input_state:
+		InputState.IDLE, InputState.UNIT_SELECTED:
+			_confirm_idle(cell, local_mouse, current_team)
+		InputState.TARGETING_MOVE:
+			_confirm_targeting_move(cell, local_mouse, current_team)
 
-	if selected_unit != null:
-		if move_overlay.has_cell(clicked_cell):
-			# 移动选中单位到目标格
-			var path: Array[Vector2i] = move_overlay.get_path_to_cell(clicked_cell)
-			move_overlay.clear_range()
-			var moving_unit := selected_unit
-			selected_unit = null
-			unit_selected = false
-			moving_unit.move_along_path(path, tilemap)
-			await moving_unit.move_finished
-			moving_unit.has_acted = true
-			_on_unit_moved()
-			_reset_status_bar()
-		else:
-			# 尝试切换选中到同队伍其他单位（带距离容错）
-			var target_unit := _find_nearest_team_unit(local_mouse, current_team)
-			if target_unit != null and not target_unit.has_acted and not target_unit.is_moving:
-				selected_unit = target_unit
-				unit_selected = true
-				move_overlay.show_range(tilemap, movement_manager, target_unit.cell, target_unit.movement_points)
-				_update_status_bar_for_unit(target_unit, true)
-			else:
-				# 点击了其他队伍的单位？显示其信息但不选中
-				var any_unit := _find_nearest_any_unit(local_mouse)
-				if any_unit != null:
-					_update_status_bar_for_unit(any_unit, false)
-				else:
-					_reset_status_bar()
-				selected_unit = null
-				unit_selected = false
-				move_overlay.clear_range()
+
+## 取消：回到 IDLE，完全取消选中。
+func cancel_action() -> void:
+	if _input_state != InputState.IDLE:
+		_go_idle()
+
+
+## 选择技能（Phase 4 实现，目前预留）。
+func select_skill(_skill: SkillData) -> void:
+	pass
+
+
+## 结束当前单位回合。
+func end_unit_turn() -> void:
+	if selected_unit:
+		selected_unit.has_acted = true
+	_go_idle()
+	_check_all_units_acted()
+
+
+func _go_idle() -> void:
+	selected_unit = null
+	unit_selected = false
+	move_overlay.clear_range()
+	_input_state = InputState.IDLE
+	_reset_status_bar()
+
+
+func _confirm_idle(cell: Vector2i, local_mouse: Vector2, current_team: TeamData) -> void:
+	# 尝试选中当前队伍的单位
+	var target := _find_nearest_team_unit(local_mouse, current_team)
+	if target != null and not target.has_acted and not target.is_moving:
+		selected_unit = target
+		unit_selected = true
+		_input_state = InputState.UNIT_SELECTED
+		_update_status_bar_for_unit(target, true)
+		# 自动进入移动模式
+		_enter_targeting_move()
 	else:
-		# 尝试选中当前队伍的一个单位（带距离容错）
-		var target_unit := _find_nearest_team_unit(local_mouse, current_team)
-		if target_unit != null and not target_unit.has_acted and not target_unit.is_moving:
-			selected_unit = target_unit
-			unit_selected = true
-			move_overlay.show_range(tilemap, movement_manager, target_unit.cell, target_unit.movement_points)
-			_update_status_bar_for_unit(target_unit, true)
+		# 点击了其他队伍的单位？显示其信息
+		var any_unit := _find_nearest_any_unit(local_mouse)
+		if any_unit != null:
+			_update_status_bar_for_unit(any_unit, false)
 		else:
-			# 点击了其他队伍的单位？显示其信息
+			_reset_status_bar()
+
+
+func _enter_targeting_move() -> void:
+	if selected_unit == null:
+		return
+	_input_state = InputState.TARGETING_MOVE
+	# 使用 AP 制或旧版
+	var unit := selected_unit
+	if unit is Unit and unit.combat_stats != null:
+		var stats: CombatStats = unit.combat_stats
+		if not stats.can_move():
+			return
+		var occupied: Array[Vector2i] = _get_occupied_cells_except(unit)
+		move_overlay.show_range_ap(tilemap, movement_manager, unit.cell, stats.ap_current, stats.move_cost_per_tile, occupied)
+	else:
+		move_overlay.show_range(tilemap, movement_manager, unit.cell, unit.movement_points)
+
+
+func _confirm_targeting_move(cell: Vector2i, local_mouse: Vector2, current_team: TeamData) -> void:
+	if selected_unit == null:
+		_go_idle()
+		return
+
+	if move_overlay.has_cell(cell):
+		# 移动到目标格
+		var path: Array[Vector2i] = move_overlay.get_path_to_cell(cell)
+		var ap_cost: int = move_overlay.get_cost_to_cell(cell)
+		move_overlay.clear_range()
+		var moving_unit := selected_unit
+		_input_state = InputState.ANIMATING
+		moving_unit.move_along_path(path, tilemap)
+		await moving_unit.move_finished
+		# 扣除 AP
+		if moving_unit is Unit and moving_unit.combat_stats != null:
+			moving_unit.combat_stats.ap_current -= ap_cost
+			moving_unit.combat_stats.moves_used += 1
+		_on_unit_moved()
+		# AP 剩余且还能行动？回到 UNIT_SELECTED
+		if moving_unit is Unit and moving_unit.combat_stats != null:
+			var stats: CombatStats = moving_unit.combat_stats
+			if stats.ap_current > 0 and (stats.can_move() or _has_usable_skill(moving_unit)):
+				selected_unit = moving_unit
+				unit_selected = true
+				_input_state = InputState.UNIT_SELECTED
+				_update_status_bar_for_unit(moving_unit, true)
+				# 自动重新进入移动模式
+				if stats.can_move():
+					_enter_targeting_move()
+				return
+		# 否则该单位行动结束
+		moving_unit.has_acted = true
+		_go_idle()
+		_check_all_units_acted()
+	else:
+		# 点击范围外：尝试切换到其他单位
+		var target := _find_nearest_team_unit(local_mouse, current_team)
+		if target != null and target != selected_unit and not target.has_acted and not target.is_moving:
+			selected_unit = target
+			unit_selected = true
+			_input_state = InputState.UNIT_SELECTED
+			_update_status_bar_for_unit(target, true)
+			_enter_targeting_move()
+		else:
 			var any_unit := _find_nearest_any_unit(local_mouse)
 			if any_unit != null:
 				_update_status_bar_for_unit(any_unit, false)
-			else:
-				_reset_status_bar()
+			_go_idle()
+
+
+## 获取除指定单位外所有被占据的格子。
+func _get_occupied_cells_except(exclude: Node2D) -> Array[Vector2i]:
+	var result: Array[Vector2i] = []
+	for team: TeamData in teams:
+		for unit: Node2D in team.units:
+			if unit != exclude:
+				result.append(unit.cell)
+	return result
+
+
+## 检查单位是否有可用技能（AP 够 + 次数未尽）。
+func _has_usable_skill(unit: Node2D) -> bool:
+	if not unit is Unit:
+		return false
+	var u := unit as Unit
+	if u.combat_stats == null or u.unit_data == null:
+		return false
+	for skill: SkillData in u.unit_data.skills:
+		if u.combat_stats.can_use_skill(skill):
+			return true
+	return false
 
 
 # ─────────────────────────────────────────────
