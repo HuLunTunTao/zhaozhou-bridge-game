@@ -1,4 +1,4 @@
-# 02 -- 地图创建
+# 01 -- 地图创建
 
 > 本章介绍如何新建一个关卡场景，并正确设置场景树结构。
 
@@ -81,7 +81,7 @@
 extends BaseLevel
 ```
 
-如果你的关卡需要多队伍（绝大多数战斗关卡都需要），请加上队伍配置方法。完整的队伍配置将在 [06-关卡参数](06-level-parameters.md) 中详细说明。最简模板如下：
+如果你的关卡需要多队伍（绝大多数战斗关卡都需要），请加上队伍配置方法。完整的队伍配置将在 [04-关卡参数](04-level-parameters.md) 中详细说明。最简模板如下：
 
 ```gdscript
 extends BaseLevel
@@ -269,4 +269,4 @@ Level1-5 (Node2D)                     ← 根节点，附带 level1-5.gd 脚本
 
 ---
 
-下一章: [03-地形绘制](03-terrain-painting.md) | 上一章: [01-Godot 基础入门](01-getting-started.md)
+下一章: [02-地形绘制](02-terrain-painting.md) | 返回: [目录](README.md)
