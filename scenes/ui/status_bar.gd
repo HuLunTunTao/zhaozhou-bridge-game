@@ -13,6 +13,7 @@ const MAX_SKILLS := 5
 
 var _current_unit: Node2D = null
 
+@onready var _portrait: TextureRect = %Portrait
 @onready var _name_label: Label = %NameLabel
 @onready var _actions_label: Label = %ActionsLabel
 @onready var _hp_bar: ProgressBar = %HpBar
@@ -67,6 +68,9 @@ func show_unit(unit: Node2D, is_active: bool = false) -> void:
 
 	if stats:
 		_name_label.text = stats.unit_name
+		# 头像：从 unit_data.portrait 读取
+		var data: UnitData = unit.unit_data if unit is Unit else null
+		_portrait.texture = data.portrait if data and data.portrait else null
 
 		_hp_bar.max_value = stats.max_hp
 		_hp_bar.value = stats.current_hp
@@ -98,6 +102,7 @@ func show_unit(unit: Node2D, is_active: bool = false) -> void:
 			_actions_label.self_modulate = Color.TRANSPARENT
 	else:
 		_name_label.text = unit.name
+		_portrait.texture = null
 		_hp_bar.value = 0
 		_hp_label.text = ""
 		_ap_bar.value = 0
@@ -111,6 +116,7 @@ func show_unit(unit: Node2D, is_active: bool = false) -> void:
 
 func clear_unit() -> void:
 	_current_unit = null
+	_portrait.texture = null
 	_name_label.text = "--"
 	_hp_bar.value = 0
 	_hp_label.text = ""

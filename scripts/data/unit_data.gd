@@ -4,6 +4,8 @@ extends Resource
 
 @export var unit_id: String
 @export var unit_name: String
+## 头像纹理（7:9 比例），在状态栏左侧显示。
+@export var portrait: Texture2D
 @export var camp: Enums.Camp = Enums.Camp.ALLY
 @export var max_hp: int = 100
 @export var base_atk: int = 10

@@ -3,9 +3,10 @@
 [ext_resource type="PackedScene" uid="uid://5w0o8w3sxwf5" path="res://scenes/levels/base_level/base_level.tscn" id="1_base"]
 [ext_resource type="Script" uid="uid://bwvkj6sh1fegq" path="res://scenes/levels/test/test.gd" id="2_script"]
 [ext_resource type="TileSet" uid="uid://bdvi30tgeb2kv" path="res://assets/battle_tile_set.tres" id="3_lqotf"]
-[ext_resource type="PackedScene" path="res://scenes/unit/unit.tscn" id="3_player"]
+[ext_resource type="PackedScene" uid="uid://d150ubnb1eitk" path="res://scenes/unit/unit.tscn" id="3_player"]
 [ext_resource type="PackedScene" path="res://scenes/levels/base_level/special_tile.tscn" id="4_special"]
 [ext_resource type="Script" uid="uid://c2077ybi0615r" path="res://scripts/data/unit_data.gd" id="5_ansyt"]
+[ext_resource type="Texture2D" uid="uid://byusdcpkltk31" path="res://assets/face/li_chun.png" id="5_lxf6v"]
 [ext_resource type="Script" uid="uid://daipb21vkksiy" path="res://scenes/levels/test/test_special_tile.gd" id="5_test_tile"]
 [ext_resource type="Script" uid="uid://cp0ew5p75uio0" path="res://scripts/data/skill_data.gd" id="6_lxf6v"]
 
@@ -13,6 +14,7 @@
 script = ExtResource("5_ansyt")
 unit_id = "1"
 unit_name = "李春"
+portrait = ExtResource("5_lxf6v")
 metadata/_custom_type_script = "uid://c2077ybi0615r"
 
 [sub_resource type="Resource" id="Resource_ansyt"]
@@ -112,16 +114,7 @@ position = Vector2(-65, 33)
 unit_data = SubResource("Resource_eyrvp")
 unit_color = Color(0.9, 0.2, 0.2, 1)
 
-[node name="StatusPanel" parent="GUI" parent_id_path=PackedInt32Array(256892229) index="0" unique_id=874318719]
-offset_top = -24.0
-
-[node name="MarginContainer" parent="GUI/StatusPanel" index="0" unique_id=1164565693]
-theme_override_constants/margin_left = 8
-theme_override_constants/margin_top = 2
-theme_override_constants/margin_right = 8
-theme_override_constants/margin_bottom = 2
-
-[node name="MovementManager" parent="." index="5" unique_id=1144669128 node_paths=PackedStringArray("movement_tilemaps", "obstacle_tilemaps")]
+[node name="MovementManager" parent="." index="6" unique_id=1144669128 node_paths=PackedStringArray("movement_tilemaps", "obstacle_tilemaps")]
 movement_tilemaps = [NodePath("../TileMaps/surface z=0")]
 obstacle_tilemaps = [NodePath("../TileMaps/Obstacle z=2")]
 

@@ -1,7 +1,24 @@
 [gd_scene format=3 uid="uid://drujkj0i8k8lh"]
 
 [ext_resource type="Script" uid="uid://knyg0ctpi2k8" path="res://scenes/ui/status_bar.gd" id="1_script"]
+[ext_resource type="Texture2D" uid="uid://byusdcpkltk31" path="res://assets/face/li_chun.png" id="2_2t4m1"]
 [ext_resource type="FontFile" uid="uid://gfoeu2tleldt" path="res://assets/font/fusion-pixel-10px-proportional-zh_hans.otf" id="2_pixel10"]
+
+[sub_resource type="StyleBoxFlat" id="portrait_frame"]
+content_margin_left = 2.0
+content_margin_top = 2.0
+content_margin_right = 2.0
+content_margin_bottom = 2.0
+bg_color = Color(0.1, 0.1, 0.15, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.5, 0.55, 0.7, 0.8)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
 
 [sub_resource type="StyleBoxFlat" id="bar_bg"]
 bg_color = Color(0.15, 0.15, 0.15, 1)
@@ -48,11 +65,18 @@ layout_mode = 2
 theme_override_constants/separation = 4
 script = ExtResource("1_script")
 
-[node name="Portrait" type="ColorRect" parent="PanelContainer/MarginContainer/StatusBar" unique_id=1746247231]
+[node name="PortraitFrame" type="PanelContainer" parent="PanelContainer/MarginContainer/StatusBar" unique_id=1233971562]
+layout_mode = 2
+clip_contents = true
+theme_override_styles/panel = SubResource("portrait_frame")
+
+[node name="Portrait" type="TextureRect" parent="PanelContainer/MarginContainer/StatusBar/PortraitFrame" unique_id=1746247231]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(90, 70)
 layout_mode = 2
-color = Color(0.2, 0.2, 0.3, 0.6)
+texture = ExtResource("2_2t4m1")
+expand_mode = 1
+stretch_mode = 6
 
 [node name="Info" type="VBoxContainer" parent="PanelContainer/MarginContainer/StatusBar" unique_id=1436875321]
 custom_minimum_size = Vector2(180, 0)
