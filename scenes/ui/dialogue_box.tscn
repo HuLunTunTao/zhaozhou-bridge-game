@@ -1,0 +1,139 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scenes/ui/dialogue_box.gd" id="1"]
+
+[sub_resource type="StyleBoxFlat" id="panel_bg"]
+bg_color = Color(0.08, 0.1, 0.14, 0.92)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.35, 0.4, 0.5, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+content_margin_left = 8.0
+content_margin_top = 6.0
+content_margin_right = 8.0
+content_margin_bottom = 6.0
+
+[sub_resource type="StyleBoxFlat" id="portrait_border"]
+bg_color = Color(0.1, 0.12, 0.16, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.5, 0.55, 0.6, 1)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
+content_margin_left = 2.0
+content_margin_top = 2.0
+content_margin_right = 2.0
+content_margin_bottom = 2.0
+
+[node name="DialogueBox" type="CanvasLayer"]
+layer = 80
+script = ExtResource("1")
+
+;; Semi-transparent backdrop
+[node name="Backdrop" type="ColorRect" parent="."]
+unique_name_in_owner = true
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0, 0, 0, 0.3)
+
+;; Bottom bar: [LeftPortrait] [TextPanel] [RightPortrait]
+;; Portraits sit outside the text panel
+[node name="BottomBar" type="HBoxContainer" parent="."]
+unique_name_in_owner = true
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 8.0
+offset_top = -110.0
+offset_right = -8.0
+offset_bottom = -8.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_override_constants/separation = 6
+
+;; Left portrait frame (always occupies space)
+[node name="LeftPortraitFrame" type="PanelContainer" parent="BottomBar"]
+layout_mode = 2
+custom_minimum_size = Vector2(80, 0)
+theme_override_styles/panel = SubResource("portrait_border")
+self_modulate = Color(1, 1, 1, 0)
+
+[node name="LeftPortrait" type="TextureRect" parent="BottomBar/LeftPortraitFrame"]
+unique_name_in_owner = true
+layout_mode = 2
+expand_mode = 1
+stretch_mode = 5
+
+;; Text panel (center, flexible width)
+[node name="Panel" type="PanelContainer" parent="BottomBar"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/panel = SubResource("panel_bg")
+
+[node name="Margin" type="MarginContainer" parent="BottomBar/Panel"]
+layout_mode = 2
+theme_override_constants/margin_left = 6
+theme_override_constants/margin_right = 6
+theme_override_constants/margin_top = 4
+theme_override_constants/margin_bottom = 4
+
+[node name="TextColumn" type="VBoxContainer" parent="BottomBar/Panel/Margin"]
+layout_mode = 2
+scale = Vector2(0.75, 0.75)
+theme_override_constants/separation = 2
+
+;; Speaker name
+[node name="SpeakerLabel" type="Label" parent="BottomBar/Panel/Margin/TextColumn"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.8, 0.5, 1)
+theme_override_font_sizes/font_size = 16
+text = "说话者"
+
+;; Dialogue text
+[node name="TextLabel" type="RichTextLabel" parent="BottomBar/Panel/Margin/TextColumn"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+bbcode_enabled = true
+text = ""
+scroll_active = false
+theme_override_font_sizes/normal_font_size = 16
+
+;; Continue indicator
+[node name="ContinueIndicator" type="Label" parent="BottomBar/Panel/Margin/TextColumn"]
+unique_name_in_owner = true
+layout_mode = 2
+visible = false
+theme_override_colors/font_color = Color(0.6, 0.6, 0.6, 1)
+theme_override_font_sizes/font_size = 10
+text = "▼ 点击继续"
+horizontal_alignment = 2
+
+;; Right portrait frame (always occupies space)
+[node name="RightPortraitFrame" type="PanelContainer" parent="BottomBar"]
+layout_mode = 2
+custom_minimum_size = Vector2(80, 0)
+theme_override_styles/panel = SubResource("portrait_border")
+self_modulate = Color(1, 1, 1, 0)
+
+[node name="RightPortrait" type="TextureRect" parent="BottomBar/RightPortraitFrame"]
+unique_name_in_owner = true
+layout_mode = 2
+expand_mode = 1
+stretch_mode = 5

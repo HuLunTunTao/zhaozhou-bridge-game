@@ -3,6 +3,8 @@ extends Control
 @onready var main_page: Control = $MainPage
 @onready var level_select_page: Control = $LevelSelectPage
 @onready var level_grid: GridContainer = $LevelSelectPage/LevelGrid
+@onready var test_select_page: Control = $TestSelectPage
+@onready var test_grid: GridContainer = $TestSelectPage/TestGrid
 
 const SettingsPanelScene := preload("res://scenes/ui/settings_panel.tscn")
 var _settings_open := false
@@ -29,6 +31,7 @@ func _build_level_buttons() -> void:
 func _show_page(page: Control) -> void:
 	main_page.visible = page == main_page
 	level_select_page.visible = page == level_select_page
+	test_select_page.visible = page == test_select_page
 
 
 # Main page buttons
@@ -66,4 +69,30 @@ func _on_level_selected(level: String) -> void:
 
 
 func _on_level_back_pressed() -> void:
+	_show_page(main_page)
+
+
+# Test scenes
+const TEST_SCENES: Dictionary = {
+	"对话系统": "res://scenes/test/dialogue_test.tscn",
+}
+
+
+func _ready_test_buttons() -> void:
+	for child in test_grid.get_children():
+		child.queue_free()
+	for test_name: String in TEST_SCENES.keys():
+		var btn := Button.new()
+		btn.text = test_name
+		btn.custom_minimum_size = Vector2(56, 32)
+		btn.pressed.connect(func(): get_tree().change_scene_to_file(TEST_SCENES[test_name]))
+		test_grid.add_child(btn)
+
+
+func _on_test_pressed() -> void:
+	_ready_test_buttons()
+	_show_page(test_select_page)
+
+
+func _on_test_back_pressed() -> void:
 	_show_page(main_page)

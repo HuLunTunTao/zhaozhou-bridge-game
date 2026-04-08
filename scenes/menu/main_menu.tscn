@@ -55,6 +55,10 @@ text = "开始游戏"
 layout_mode = 2
 text = "设置"
 
+[node name="TestButton" type="Button" parent="MainPage"]
+layout_mode = 2
+text = "测试场景"
+
 [node name="QuitButton" type="Button" parent="MainPage"]
 layout_mode = 2
 text = "退出游戏"
@@ -97,9 +101,48 @@ layout_mode = 2
 text = "返回"
 
 
+;; ============ Test Select Page ============
+
+[node name="TestSelectPage" type="VBoxContainer" parent="."]
+visible = false
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -100.0
+offset_top = -80.0
+offset_right = 100.0
+offset_bottom = 80.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 8
+
+[node name="TestTitle" type="Label" parent="TestSelectPage"]
+layout_mode = 2
+text = "测试场景"
+horizontal_alignment = 1
+
+[node name="Spacer" type="Control" parent="TestSelectPage"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 8)
+
+[node name="TestGrid" type="GridContainer" parent="TestSelectPage"]
+layout_mode = 2
+theme_override_constants/h_separation = 8
+theme_override_constants/v_separation = 8
+columns = 3
+
+[node name="TestBackButton" type="Button" parent="TestSelectPage"]
+layout_mode = 2
+text = "返回"
+
 ;; ============ Connections ============
 
 [connection signal="pressed" from="MainPage/StartButton" to="." method="_on_start_pressed"]
 [connection signal="pressed" from="MainPage/SettingsButton" to="." method="_on_settings_pressed"]
 [connection signal="pressed" from="MainPage/QuitButton" to="." method="_on_quit_pressed"]
+[connection signal="pressed" from="MainPage/TestButton" to="." method="_on_test_pressed"]
 [connection signal="pressed" from="LevelSelectPage/BackButton" to="." method="_on_level_back_pressed"]
+[connection signal="pressed" from="TestSelectPage/TestBackButton" to="." method="_on_test_back_pressed"]
