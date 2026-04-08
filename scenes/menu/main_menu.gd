@@ -75,6 +75,7 @@ func _on_level_back_pressed() -> void:
 # Test scenes
 const TEST_SCENES: Dictionary = {
 	"对话系统": "res://scenes/test/dialogue_test.tscn",
+	"通知系统": "res://scenes/test/notification_test.tscn",
 }
 
 
