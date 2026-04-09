@@ -11,7 +11,7 @@
 | 01 | [地图创建](01-map-creation.md) | 如何新建关卡场景、场景树结构、继承 BaseLevel |
 | 02 | [地形绘制](02-terrain-painting.md) | 使用 TileMapLayer 绘制等距地形、地形类型与移动消耗 |
 | 03 | [单位配置](03-unit-placement.md) | 放置和配置单位（Unit）、设置 UnitData、技能装配 |
-| 04 | [关卡参数](04-level-parameters.md) | 队伍配置、胜负条件、过场动画、特殊地块 |
+| 04 | [关卡参数](04-level-parameters.md) | 队伍配置、胜负条件、过场动画、特殊地块、对话系统 |
 | 05 | [资源唯一化](05-resource-uniqueness.md) | Make Unique 操作、避免意外修改共享资源 |
 | 06 | [Git 工作流](06-git-workflow.md) | 版本控制、提交规范、分支策略、冲突处理 |
 | 07 | [测试与调试](07-testing.md) | 运行关卡、常见问题排查、调试工具 |
@@ -28,11 +28,13 @@
 - **脚本语言**: GDScript
 - **视口分辨率**: 960x540（窗口 1920x1080）
 - **纹理过滤**: Nearest（像素风）
-- **主字体**: Unifont 16px / Fusion Pixel 10px（描述文字）
+- **主字体**: Unifont（中文支持）
 - **主入口场景**: `scenes/menu/main_menu.tscn`
 - **关卡基类**: `scenes/levels/base_level/base_level.tscn`（class_name: BaseLevel）
+- **单位场景**: `scenes/unit/unit.tscn`（class_name: Unit）
 - **关卡目录**: `scenes/levels/`
 - **数据目录**: `data/units/`、`data/skills/`、`data/statuses/`、`data/phases/`
+- **头像资源**: `assets/face/`（如 `li_chun.png`，7:9 比例）
 
 ---
 
@@ -43,11 +45,11 @@
 - **代码块**: 灰色背景的文字是需要在编辑器属性面板或脚本中输入的值
 - **快捷键**: 格式为 `Ctrl+S`，macOS 用户请将 `Ctrl` 替换为 `Cmd`
 
-> 💡 提示: 标有此图标的段落提供有用但非必需的额外信息。
+> 提示: 标有此图标的段落提供有用但非必需的额外信息。
 
-> ⚠️ 注意: 标有此图标的段落包含容易出错的操作要点。
+> 注意: 标有此图标的段落包含容易出错的操作要点。
 
-> ❌ 常见错误: 标有此图标的段落描述了常见的错误操作及其解决方法。
+> 常见错误: 标有此图标的段落描述了常见的错误操作及其解决方法。
 
 ---
 
@@ -59,3 +61,4 @@
 | 2026-04-08 | v1.1 | 补全全部文档（05-08、附录A/B），更新04技能数据 |
 | 2026-04-08 | v2.0 | 移除 Godot 基础入门和相机设置文档；新增资源唯一化（05）和 Git 工作流（06）；重新编号全部文档 |
 | 2026-04-08 | v3.0 | 战斗系统实现（Phase 0~5 + UI反馈）；视口放大至 960x540；状态栏重构；新增战斗日志；字体更新 |
+| 2026-04-09 | v4.0 | 补充对话系统文档；新增头像（portrait）字段说明；更新状态栏 UI 细节（头像、属性显示、技能槽位）；补充战斗日志使用说明；修正场景树描述与代码一致；新增敌方技能 dlp_drifting_timber_crash；新增 Autoload: Notify（通知管理器） |

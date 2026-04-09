@@ -20,7 +20,7 @@ Unit 节点有以下关键属性（在检查器中可见）：
 | `Movement Points` | int | 旧版移动点数，会被 unit_data 中的 AP 覆盖 |
 | `Move Speed` | float | 角色移动动画速度（像素/秒），默认 100 |
 | `Unit Data` | UnitData | **核心属性**：指向一个 `.tres` 数据文件 |
-| `Unit Color` | Color | 角色叠加颜色，用于区分阵营 |
+| `Unit Color` | Color | 角色叠加颜色，用于区分阵营。编辑器中实时预览 |
 
 ---
 
@@ -134,6 +134,7 @@ Unit 节点有以下关键属性（在检查器中可见）：
 |------|------|--------|------|
 | `unit_id` | String | "" | 单位唯一标识符，如 `"hero_li_chun"` |
 | `unit_name` | String | "" | 显示名称，如 `"李春"` |
+| `portrait` | Texture2D | null | **头像纹理**（7:9 比例），在状态栏左侧显示。将图片拖拽到此属性即可 |
 | `camp` | Camp 枚举 | ALLY | 阵营：`ALLY`(己方) 或 `ENEMY`(敌方) |
 | `max_hp` | int | 100 | 最大生命值 |
 | `base_atk` | int | 10 | 基础攻击力 |
@@ -146,6 +147,23 @@ Unit 节点有以下关键属性（在检查器中可见）：
 | `ai_type` | String | "" | AI 行为类型（敌方单位使用） |
 | `is_escort_target` | bool | false | 是否为护送目标（被击败则关卡失败） |
 | `skills` | Array[SkillData] | [] | 技能列表（最多 5 个） |
+
+### portrait（头像）
+
+头像纹理会显示在底部状态栏的左侧。推荐规格：
+
+- **比例**: 7:9（例如 70x90 像素）
+- **格式**: PNG
+- **位置**: 放在 `assets/face/` 目录下
+- 目前项目中已有 `assets/face/li_chun.png`（李春头像）
+
+设置方法：
+
+1. 在检查器中展开 **Unit Data** 资源
+2. 找到 **Portrait** 属性
+3. 将文件系统面板中的头像图片拖拽到 Portrait 属性上
+
+> 提示: 如果不设置 portrait，状态栏左侧的头像区域会留空，不影响功能。但设置头像可以大幅提升玩家识别角色的效率。
 
 ### Element 枚举值
 
@@ -241,10 +259,10 @@ Unit 节点有以下关键属性（在检查器中可见）：
 ```
 Entities
 └── Units
-    ├── Player    ← 玩家队伍，金黄色，unit_data = hero_li_chun.tres
+    ├── Player    ← 玩家队伍，金黄色，unit_data = 内联(李春)
     ├── PlayerB   ← 玩家队伍，金黄色
-    ├── Ally1     ← 队友队伍，绿色
-    ├── Ally2     ← 队友队伍，绿色
+    ├── Ally1     ← 盟友队伍(AI控制)，绿色
+    ├── Ally2     ← 盟友队伍(AI控制)，绿色
     ├── Enemy1    ← 敌方队伍，红色
     └── Enemy2    ← 敌方队伍，红色
 ```
@@ -266,9 +284,9 @@ func get_teams_config() -> Array:
             ],
         },
         {
-            "name": "队友队伍",
+            "name": "盟友队伍",
             "faction": "好人",
-            "controller": "player",
+            "controller": "ai",
             "units": [
                 $"Entities/Units/Ally1",
                 $"Entities/Units/Ally2",
@@ -297,6 +315,7 @@ func get_teams_config() -> Array:
 - [ ] 节点放在 `Entities/Units/` 下
 - [ ] 节点名称有意义且与脚本中的引用一致
 - [ ] `Unit Data` 属性已设置（拖拽了 `.tres` 文件或创建了内联资源）
+- [ ] `Unit Data` 中的 `portrait`（头像）已设置（可选但推荐）
 - [ ] `Unit Color` 已设置为对应阵营的颜色
 - [ ] 位置大致在正确的格子上（可以不精确）
 - [ ] 在关卡脚本的 `get_teams_config()` 中添加了对该节点的引用

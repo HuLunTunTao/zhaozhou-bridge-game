@@ -22,14 +22,16 @@
 ├── MoveOverlay (Node2D)       -- 移动范围高亮（自动管理，不要修改）
 ├── Camera2D (LevelCamera)     -- 关卡相机
 ├── GUI (CanvasLayer)          -- 界面层（自动管理）
-│   ├── StatusPanel            -- 底部状态栏
 │   ├── HudPanel               -- 顶部面板
 │   ├── EndTurnButton          -- 结束回合按钮
-│   ├── SettingsButton         -- 设置按钮
-│   └── TurnLabel              -- 回合标签
+│   ├── SettingsButton         -- 设置按钮（齿轮图标）
+│   └── TurnLabel              -- 回合标签（显示当前回合队伍）
+├── StatusBarScene             -- 底部状态栏（左侧头像+信息，右侧技能槽位）
 ├── MovementManager (Node)     -- 移动管理器 ★ 需要配置
 └── SpecialTiles (Node2D)      -- 特殊地块容器
 ```
+
+> 注意: `StatusBarScene` 是底部状态栏，包含角色头像、HP/AP 进度条、属性显示和技能按钮。它与 `GUI` 节点是**并列**的（都挂在根节点下），不是 GUI 的子节点。
 
 > ⚠️ 注意: 标有"不要修改"的节点是由基类脚本自动管理的。修改它们可能导致关卡无法正常运行。
 
@@ -246,6 +248,7 @@ Level1-5 (Node2D)                     ← 根节点，附带 level1-5.gd 脚本
 ├── MoveOverlay (Node2D)              ← 继承自 base_level（不要修改）
 ├── Camera2D (LevelCamera)            ← 继承自 base_level
 ├── GUI (CanvasLayer)                 ← 继承自 base_level（不要修改）
+├── StatusBarScene                    ← 继承自 base_level（底部状态栏）
 ├── MovementManager (Node)            ← 已配置 movement/obstacle tilemaps
 └── SpecialTiles (Node2D)             ← 继承自 base_level
 ```

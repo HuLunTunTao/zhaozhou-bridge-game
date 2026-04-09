@@ -1,6 +1,6 @@
 # 04 -- 关卡参数
 
-> 本章介绍关卡中的核心配置：队伍系统、阵营与回合机制、特殊地块、过场动画等。这些是让关卡从"地图+角色"变成"可玩战斗"的关键。
+> 本章介绍关卡中的核心配置：队伍系统、阵营与回合机制、特殊地块、对话系统、过场动画等。这些是让关卡从"地图+角色"变成"可玩战斗"的关键。
 
 ---
 
@@ -66,26 +66,30 @@ func get_teams_config() -> Array:
 ```gdscript
 return [
     { "name": "玩家队伍", "faction": "好人", "controller": "player", ... },
-    { "name": "队友队伍", "faction": "好人", "controller": "player", ... },
+    { "name": "盟友队伍", "faction": "好人", "controller": "ai", ... },
     { "name": "贼人队伍", "faction": "坏人", "controller": "ai", ... },
 ]
-# 回合顺序：玩家 → 队友 → 贼人 → 玩家 → ...
+# 回合顺序：玩家 → 盟友（AI自动） → 贼人（AI自动） → 玩家 → ...
 ```
 
-> 💡 提示: 根据设计文档 `artbook/数值.md` 中的回合顺序规则，标准配置应为：主角回合 -> 敌方回合 -> 友方辅助回合。你可以通过调整数组顺序来实现。
+> 提示: 标准的回合顺序为：主角回合 -> 敌方回合 -> 友方辅助回合。你可以通过调整数组顺序来实现不同的回合安排。
 
 ### 阵营（faction）机制
 
 - 阵营名称是**任意字符串**，如 `"好人"`、`"坏人"`
-- **相同 faction** 的队伍：属于同一方，不可互相攻击
-- **不同 faction** 的队伍：属于对立方，可以互相攻击
-- 一个 faction 可以有多支队伍（例如"好人"阵营下可以有玩家队伍和队友队伍）
+- **相同 faction** 的队伍：属于同一方，技能不会对同阵营单位造成伤害
+- **不同 faction** 的队伍：属于对立方，攻击技能可以作用于对方
+- 一个 faction 可以有多支队伍（例如"好人"阵营下可以有玩家队伍和盟友队伍）
 
-### 多支玩家队伍
+### 多支玩家队伍 vs AI 盟友
 
-可以有多支 `controller = "player"` 的队伍。它们会分别轮到各自的回合，由玩家分别操控。
+可以有多支 `controller = "player"` 的队伍，它们会分别轮到各自的回合，由玩家分别操控。也可以将盟友设为 `controller = "ai"`，让 AI 自动操控盟友。
 
-这在策划设计中用于区分"主角队伍"（李春，行动力自由分配）和"辅助队伍"（工匠等，每回合限制行动次数）。
+这在策划设计中用于区分：
+- **"主角队伍"**（`controller = "player"`）：李春，行动力自由分配
+- **"盟友队伍"**（`controller = "ai"` 或 `"player"`）：工匠等，可由 AI 或玩家操控
+
+> 注意: 当前 AI 行为为占位实现（随机移动一步），因此如果你希望盟友有更复杂的行为，暂时建议设为 `"player"` 由玩家手动控制。
 
 ---
 
@@ -100,9 +104,33 @@ return [
 - 用 `/` 分隔层级
 - 名称必须与场景树中的节点名称**完全一致**（区分大小写）
 
+### 保存节点引用的最佳实践
+
+在 `get_teams_config()` 中通过 `$"..."` 获取的节点引用，建议同时保存为成员变量，以便在 `_on_level_ready()` 中使用：
+
+```gdscript
+extends BaseLevel
+
+var _player: Node2D
+var _enemy1: Node2D
+
+func get_teams_config() -> Array:
+    _player = $"Entities/Units/Player"
+    _enemy1 = $"Entities/Units/Enemy1"
+    return [
+        { "name": "玩家", "faction": "好人", "controller": "player", "units": [_player] },
+        { "name": "敌方", "faction": "坏人", "controller": "ai", "units": [_enemy1] },
+    ]
+
+func _on_level_ready() -> void:
+    # 此时可以直接使用 _player 和 _enemy1
+    if _player is Unit and _player.combat_stats:
+        _player.combat_stats.is_hero = true
+```
+
 ### 常见路径问题
 
-> ❌ 常见错误: 节点名称与脚本中的引用不匹配。
+> 常见错误: 节点名称与脚本中的引用不匹配。
 
 例如，你在场景树中将单位命名为 `li_chun`，但脚本中写了 `$"Entities/Units/LiChun"`。运行时会报错：
 
@@ -112,7 +140,7 @@ Node not found: "Entities/Units/LiChun" (relative to "/root/Level1-1")
 
 解决方法：确保场景树中的节点名和脚本中的引用**完全一致**。
 
-> ❌ 常见错误: 在 `get_teams_config()` 中引用了不存在的节点。
+> 常见错误: 在 `get_teams_config()` 中引用了不存在的节点。
 
 如果你删除了一个单位节点但忘记更新脚本，运行时会崩溃。每次增删单位时，都要同步更新 `get_teams_config()`。
 
@@ -176,11 +204,72 @@ func _on_unit_depart(entity: Node2D) -> void:
 | 治疗点 | 绿色 | `(0.0, 0.8, 0.3, 0.6)` |
 | 陷阱 | 红色 | `(0.9, 0.1, 0.1, 0.6)` |
 
-> 💡 提示: 参考 test 关卡中的 `test_special_tile.gd` 了解完整示例。它会在三种交互时打印日志消息，方便调试。
+> 提示: 参考 test 关卡中的 `test_special_tile.gd` 了解完整示例。它会在三种交互时打印日志消息，方便调试。
 
 ---
 
-## 6.4 过场动画
+## 6.4 对话系统
+
+关卡中可以在任意时机触发 RPG 风格的对话框，支持左/右头像、打字机效果和 BBCode 富文本。
+
+### 对话数据结构
+
+每条对话由 `DialogueLine` 资源表示：
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `speaker` | String | 说话者名称（留空则隐藏名称栏） |
+| `text` | String | 对话文本（支持 BBCode，如 `[color=red]重点[/color]`） |
+| `portrait` | Texture2D | 说话者头像（留空则不显示头像） |
+| `portrait_side` | String | 头像位于哪侧：`"left"`（左侧）或 `"right"`（右侧） |
+
+### 在关卡中触发对话
+
+1. 首先在脚本中预加载对话框场景：
+
+```gdscript
+const DialogueBoxScene := preload("res://scenes/ui/dialogue_box.tscn")
+```
+
+2. 在需要触发对话的地方构建对话行并启动：
+
+```gdscript
+func _some_trigger() -> void:
+    var portrait_lc := preload("res://assets/face/li_chun.png")
+    var lines: Array[DialogueLine] = [
+        DialogueLine.create("李春", "这条河流看起来很危险。", portrait_lc, "left"),
+        DialogueLine.create("工匠", "我们需要先勘测地形才能动工。"),
+        DialogueLine.create("李春", "好的，我来探路。", portrait_lc, "left"),
+    ]
+    var box: DialogueBox = DialogueBoxScene.instantiate()
+    add_child(box)
+    box.start(lines)
+    await box.dialogue_finished
+    # 对话结束后继续执行后续逻辑
+```
+
+### 对话框操作
+
+对话框显示时，玩家通过以下方式推进：
+
+| 操作 | 输入 |
+|------|------|
+| 显示全文（打字机播放中） | 鼠标左键 / 空格 / 回车 |
+| 翻到下一句（当前句已完整显示） | 鼠标左键 / 空格 / 回车 |
+| 最后一句翻完后 | 对话框自动淡出消失 |
+
+### 常见对话触发时机
+
+- **关卡开场**: 在 `_on_level_ready()` 中触发
+- **特定位置到达**: 在 `_on_unit_moved()` 中检查角色位置
+- **特殊地块**: 在 SpecialTile 的 `_on_unit_arrive()` 中触发
+- **回合条件**: 在自定义的回合计数逻辑中触发
+
+> 提示: 对话框显示期间，关卡的操作输入会被对话框拦截（因为对话框在 CanvasLayer 80 层，高于游戏画面）。`await box.dialogue_finished` 会等到玩家读完所有对话后才继续。
+
+---
+
+## 6.5 过场动画
 
 ### 关卡前后过场
 
@@ -227,11 +316,11 @@ await play_mid_cutscene([
 3. 玩家点击或按空格/回车翻页
 4. 全部翻完后返回，恢复关卡输入
 
-> 💡 提示: 中途过场通常在特定条件触发时调用（如角色到达某个位置、击败 Boss 等）。触发逻辑需要在关卡脚本中编写。
+> 提示: 中途过场通常在特定条件触发时调用（如角色到达某个位置、击败 Boss 等）。触发逻辑需要在关卡脚本中编写。
 
 ---
 
-## 6.5 关卡完成
+## 6.6 关卡完成
 
 当关卡达成胜利条件时，调用 `complete_level()` 方法：
 
@@ -245,14 +334,14 @@ complete_level()
 2. 如有，播放过场后返回主菜单
 3. 如无，直接返回主菜单
 
-> ⚠️ 注意: 当前版本没有内置的胜负条件检测系统。你需要在关卡脚本中自行编写条件判断逻辑。常见的触发点包括：
+> 注意: 当前版本没有内置的胜负条件检测系统。你需要在关卡脚本中自行编写条件判断逻辑。常见的触发点包括：
 > - 覆盖 `_on_unit_moved()` 检查角色位置
 > - 在特殊地块的 `_on_unit_arrive()` 中触发
 > - 在每回合结束时检查存活单位数
 
 ---
 
-## 6.6 护送目标
+## 6.7 护送目标
 
 UnitData 中有一个 `is_escort_target` 属性。标记为护送目标的单位（如测量工）如果被击败，应导致关卡失败。
 
@@ -261,11 +350,11 @@ UnitData 中有一个 `is_escort_target` 属性。标记为护送目标的单位
 1. 在单位的 UnitData 中，将 **Is Escort Target** 设为 `true`
 2. 在关卡脚本中编写检测逻辑（当前需手动实现）
 
-> 💡 提示: `survey_worker.tres`（测量工）已预设 `is_escort_target = true`，可作为参考。
+> 提示: `survey_worker.tres`（测量工）已预设 `is_escort_target = true`，可作为参考。
 
 ---
 
-## 6.7 obstacles_tilemap_layer 属性
+## 6.8 obstacles_tilemap_layer 属性
 
 这个属性在 [01-地图创建](01-map-creation.md) 中提到过，但这里详细解释其作用：
 
@@ -285,7 +374,37 @@ BaseLevel 在运行时会将 `Entities/Units` 下的所有单位节点**重新�
 
 ---
 
-## 6.8 完整关卡脚本示例
+## 6.9 技能运行时装配
+
+如果你需要在关卡初始化时为单位运行时装配技能（而不是在 UnitData 的 `.tres` 文件中预设），可以在 `_on_level_ready()` 中进行。test 关卡展示了这种模式：
+
+```gdscript
+func _on_level_ready() -> void:
+    # 预加载技能 .tres 文件
+    var sk_strike: SkillData = preload("res://data/skills/lc_rule_strike.tres")
+
+    # 运行时创建技能
+    var sk_custom := SkillData.new()
+    sk_custom.skill_id = "custom_skill"
+    sk_custom.skill_name = "自定义技能"
+    sk_custom.skill_type = Enums.SkillType.ATTACK
+    sk_custom.ap_cost = 20
+    sk_custom.damage_ratio = 1.0
+    sk_custom.cast_offsets = OffsetPresets.diamond(1, 3)
+    sk_custom.effect_offsets = OffsetPresets.SINGLE
+
+    # 装配到单位（需先对 unit_data 做 duplicate 避免污染原始资源）
+    if _player is Unit and _player.unit_data:
+        _player.unit_data = _player.unit_data.duplicate()
+        var typed: Array[SkillData] = [sk_strike, sk_custom]
+        _player.unit_data.skills = typed
+```
+
+> 注意: 运行时装配技能时，务必先 `duplicate()` unit_data，否则会修改共享的 `.tres` 文件（参见 [05-资源唯一化](05-resource-uniqueness.md)）。
+
+---
+
+## 6.10 完整关卡脚本示例
 
 以下是一个中等复杂度的关卡脚本示例：
 
@@ -293,40 +412,59 @@ BaseLevel 在运行时会将 `Entities/Units` 下的所有单位节点**重新�
 extends BaseLevel
 ## 关卡 1-5：李春带领队伍渡河。
 
+const DialogueBoxScene := preload("res://scenes/ui/dialogue_box.tscn")
+var _sk_strike: SkillData = preload("res://data/skills/lc_rule_strike.tres")
+var _sk_stone: SkillData = preload("res://data/skills/lc_cast_stone_arrest_flow.tres")
+
+var _player: Node2D
+var _guard1: Node2D
+var _survey: Node2D
+var _enemy1: Node2D
+var _enemy2: Node2D
+
+
 func get_teams_config() -> Array:
+    _player = $"Entities/Units/LiChun"
+    _guard1 = $"Entities/Units/Guard1"
+    _survey = $"Entities/Units/SurveyWorker"
+    _enemy1 = $"Entities/Units/DarkCurrent1"
+    _enemy2 = $"Entities/Units/WhirlPool1"
     return [
         {
             "name": "李春队伍",
             "faction": "好人",
             "controller": "player",
-            "units": [
-                $"Entities/Units/LiChun",
-            ],
+            "units": [_player],
         },
         {
             "name": "工匠队伍",
             "faction": "好人",
             "controller": "player",
-            "units": [
-                $"Entities/Units/Guard1",
-                $"Entities/Units/SurveyWorker",
-            ],
+            "units": [_guard1, _survey],
         },
         {
             "name": "水患",
             "faction": "坏人",
             "controller": "ai",
-            "units": [
-                $"Entities/Units/DarkCurrent1",
-                $"Entities/Units/WhirlPool1",
-            ],
+            "units": [_enemy1, _enemy2],
         },
     ]
 
 
 func _on_level_ready() -> void:
-    # 关卡初始化后的额外逻辑
-    pass
+    # 标记主角
+    if _player is Unit and _player.combat_stats:
+        _player.combat_stats.is_hero = true
+
+    # 开场对话
+    var portrait := preload("res://assets/face/li_chun.png")
+    var lines: Array[DialogueLine] = [
+        DialogueLine.create("李春", "前方就是渡口，注意水势。", portrait),
+    ]
+    var box: DialogueBox = DialogueBoxScene.instantiate()
+    add_child(box)
+    box.start(lines)
+    await box.dialogue_finished
 
 
 func _on_unit_moved() -> void:
@@ -337,7 +475,7 @@ func _on_unit_moved() -> void:
 
 ---
 
-## 6.9 关卡参数配置检查清单
+## 6.11 关卡参数配置检查清单
 
 - [ ] `get_teams_config()` 已正确覆盖，包含所有队伍
 - [ ] 所有 `$"..."` 路径与场景树中的节点名一致
@@ -347,6 +485,8 @@ func _on_unit_moved() -> void:
 - [ ] 如需过场动画，已在 `game_state.gd` 的 `CUTSCENE_DATA` 中注册
 - [ ] 如有护送目标，对应 UnitData 的 `is_escort_target = true`
 - [ ] 如有特殊地块，已放在 `SpecialTiles` 节点下
+- [ ] 如有对话，已准备好 DialogueLine 数据和头像图片
+- [ ] 主角单位在 `_on_level_ready()` 中标记了 `is_hero = true`
 
 ---
 

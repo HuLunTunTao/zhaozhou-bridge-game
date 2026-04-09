@@ -138,12 +138,19 @@ BaseLevel._ready() 执行：
 
 ## 8.5 Autoload（自动加载）说明
 
-`GameState` 是一个 Autoload 节点，这意味着：
+游戏中有以下 Autoload 节点：
 
-- 它在游戏启动时自动创建，全局唯一
-- 在任何脚本中都可以通过 `GameState` 直接访问
+| 名称 | 脚本路径 | 作用 |
+|------|----------|------|
+| `GameState` | `scripts/game_state.gd` | 关卡注册表、过场数据、场景间状态传递 |
+| `Notify` | `scripts/notification_manager.gd` | 全局通知管理器（游戏内消息提示） |
+
+这意味着：
+
+- 它们在游戏启动时自动创建，全局唯一
+- 在任何脚本中都可以通过名称直接访问（如 `GameState.selected_level`）
 - 场景切换时不会被销毁，可以在场景之间传递数据
-- 它在 `project.godot` 中配置：`GameState="*res://scripts/game_state.gd"`
+- 配置在 `project.godot` 的 `[autoload]` 段中
 
 关卡设计师通常不需要修改 Autoload 配置，只需编辑 `game_state.gd` 文件中的字典数据。
 
@@ -157,7 +164,15 @@ BaseLevel._ready() 执行：
 
 ---
 
-## 8.7 集成检查清单
+## 8.7 测试场景菜单
+
+主菜单中还有一个"测试"入口，用于运行非关卡的功能测试场景（如对话系统测试、通知系统测试）。这些测试场景在 `main_menu.gd` 的 `TEST_SCENES` 常量中定义，与关卡注册系统是独立的。
+
+关卡设计师通常不需要修改测试场景列表。
+
+---
+
+## 8.8 集成检查清单
 
 完成一个关卡后，按以下清单确认集成：
 
@@ -173,7 +188,7 @@ BaseLevel._ready() 执行：
 
 ---
 
-## 8.8 从完成到上线的完整流程
+## 8.9 从完成到上线的完整流程
 
 总结一个关卡从创建到可玩的完整步骤：
 
