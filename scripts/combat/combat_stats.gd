@@ -155,10 +155,12 @@ func get_move_ap_modifier() -> int:
 	var extra := 0
 	for s in statuses:
 		match s.status_id:
+			"steady_step":
+				extra -= 4  # 稳步：浅水额外消耗-4
 			"fracture_step":
-				extra += 4  # 前2格每格+4（简化为全程+4）
+				extra += 4  # 陷裂：前2格每格+4（简化为全程+4）
 			"slowed_step", "hindered_step":
-				extra += 2
+				extra += 2  # 迟步/迟滞：每格+2
 	return extra
 
 

@@ -275,9 +275,11 @@ func _run_ai_turn(team: TeamData) -> void:
 	# TODO: 完善 AI —— 目前为随机向相邻格移动一步
 	for unit: Node2D in team.units:
 		if not unit.is_moving:
+			CombatLog.msg("  AI行动: %s 在%s 尝试移动..." % [
+				unit.combat_stats.unit_name if unit is Unit and unit.combat_stats else unit.name,
+				unit.cell])
 			await _ai_move_unit(unit)
 		unit.has_acted = true
-	# AI 回合不等待玩家输入，直接走内部回合推进逻辑。
 	_do_end_turn()
 
 
@@ -289,12 +291,15 @@ func _ai_move_unit(unit: Node2D) -> void:
 	dirs.shuffle()
 	for dir: Vector2i in dirs:
 		var target_cell: Vector2i = unit.cell + dir
-		if movement_manager.get_movement_cost(target_cell) != TileType.IMPASSABLE \
-				and not _is_cell_occupied(target_cell):
+		var cost: int = movement_manager.get_movement_cost(target_cell)
+		var occupied := _is_cell_occupied(target_cell)
+		if cost != TileType.IMPASSABLE and not occupied:
 			var path: Array[Vector2i] = [unit.cell, target_cell]
 			unit.move_along_path(path, tilemap)
 			await unit.move_finished
+			CombatLog.msg("  AI移动: %s → %s" % [unit.cell - dir, unit.cell])
 			return
+	CombatLog.msg("  AI无法移动: 所有相邻格不可通行或被占据")
 
 
 func _is_cell_occupied(cell: Vector2i) -> bool:
