@@ -54,6 +54,8 @@ const DEFAULT_DURATION := 3.0
 const FADE_TIME := 0.2
 const MARGIN := 6.0
 const SPACING := 4.0
+## 顶部栏（HudPanel）高度，用于避免 TOP_* 通知与顶部 HUD 重叠。
+const TOP_BAR_HEIGHT := 26.0
 
 var _stacks: Dictionary = {}  # Position -> Array[Control]
 var _root: Control
@@ -186,10 +188,8 @@ func _create_popup(text: String, style: Style, pos: Position) -> PanelContainer:
 	icon_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	if is_center:
 		icon_label.add_theme_font_size_override("font_size", 32)
-		icon_label.scale = Vector2(0.75, 0.75)
 	else:
 		icon_label.add_theme_font_size_override("font_size", 16)
-		icon_label.scale = Vector2(0.75, 0.75)
 	hbox.add_child(icon_label)
 
 	# 文字（RichTextLabel 支持 BBCode）
@@ -202,15 +202,15 @@ func _create_popup(text: String, style: Style, pos: Position) -> PanelContainer:
 	if is_center:
 		text_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		text_label.custom_minimum_size.x = 360.0
-		text_label.add_theme_font_size_override("normal_font_size", 16)
+		text_label.add_theme_font_size_override("normal_font_size", 32)
 	elif is_bar:
 		text_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		text_label.custom_minimum_size.x = _vp_size.x - MARGIN * 2 - 40.0
-		text_label.add_theme_font_size_override("normal_font_size", 12)
+		text_label.add_theme_font_size_override("normal_font_size", 16)
 	else:
 		text_label.autowrap_mode = TextServer.AUTOWRAP_OFF
-		text_label.custom_minimum_size.x = 180.0
-		text_label.add_theme_font_size_override("normal_font_size", 12)
+		text_label.custom_minimum_size.x = 240.0
+		text_label.add_theme_font_size_override("normal_font_size", 16)
 	text_label.text = text
 	hbox.add_child(text_label)
 
@@ -226,18 +226,20 @@ func _create_popup(text: String, style: Style, pos: Position) -> PanelContainer:
 func _position_popup(popup: Control, pos: Position) -> void:
 	var popup_size := popup.size
 	var stack_offset := _get_stack_offset(pos, popup)
+	# TOP_LEFT / TOP_RIGHT / TOP_CENTER 需要避开顶部 HudPanel
+	var top_y: float = MARGIN + TOP_BAR_HEIGHT
 
 	match pos:
 		Position.TOP_LEFT:
-			popup.position = Vector2(MARGIN, MARGIN + stack_offset)
+			popup.position = Vector2(MARGIN, top_y + stack_offset)
 		Position.TOP_RIGHT:
-			popup.position = Vector2(_vp_size.x - popup_size.x - MARGIN, MARGIN + stack_offset)
+			popup.position = Vector2(_vp_size.x - popup_size.x - MARGIN, top_y + stack_offset)
 		Position.BOTTOM_LEFT:
 			popup.position = Vector2(MARGIN, _vp_size.y - popup_size.y - MARGIN - stack_offset)
 		Position.BOTTOM_RIGHT:
 			popup.position = Vector2(_vp_size.x - popup_size.x - MARGIN, _vp_size.y - popup_size.y - MARGIN - stack_offset)
 		Position.TOP_CENTER:
-			popup.position = Vector2((_vp_size.x - popup_size.x) / 2.0, MARGIN + stack_offset)
+			popup.position = Vector2((_vp_size.x - popup_size.x) / 2.0, top_y + stack_offset)
 		Position.BOTTOM_CENTER:
 			popup.position = Vector2((_vp_size.x - popup_size.x) / 2.0, _vp_size.y - popup_size.y - MARGIN - stack_offset)
 		Position.CENTER:
