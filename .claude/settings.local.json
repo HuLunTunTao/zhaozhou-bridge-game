@@ -15,11 +15,7 @@
       "Read(//tmp/**)",
       "Bash(unzip -q /home/ffcrazy/proj/game/artbook/第一章：安济桥成.docx word/document.xml -d temp_chapter1)",
       "Bash(unzip -q /home/ffcrazy/proj/game/artbook/补充详细设定与剧情.docx word/document.xml -d temp_chapter_supplement)",
-      "mcp__godot-mcp__add_node",
-      "Bash(find /Users/hltt/projects/wxy_game/Godot-game -name \"*.tscn\" -exec grep -l \"Players\\\\|Enemies\" {} \\\\;)",
-      "Bash(find /Users/hltt/projects/wxy_game/Godot-game/scenes -name \"*.gd\" -type f -exec grep -l \"get_teams_config\\\\|team_index\\\\|faction\" {} \\\\;)",
-      "Bash(sed -i '' 's|parent=\"Entities/Enemies\" parent_id_path=PackedInt32Array\\(1178648495\\) index=\"0\"|parent=\"Entities/Units\" parent_id_path=PackedInt32Array\\(436779837\\) index=\"4\"|g' scenes/levels/test/test.tscn)",
-      "Bash(sed -i '' 's|parent=\"Entities/Enemies\" parent_id_path=PackedInt32Array\\(1178648495\\) index=\"1\"|parent=\"Entities/Units\" parent_id_path=PackedInt32Array\\(436779837\\) index=\"5\"|g' scenes/levels/test/test.tscn)"
+      "mcp__godot-mcp__add_node"
     ]
   }
 }
