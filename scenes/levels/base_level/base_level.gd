@@ -11,6 +11,29 @@ extends Node2D
 
 @export var obstacles_tilemap_layer: TileMapLayer  # 障碍物所在的层，必须在编辑器中指定
 
+# ─────────────────────────────────────────────
+# 关卡事件信号（供关卡脚本 connect）
+# ─────────────────────────────────────────────
+
+## 某单位死亡（HP 降到 0）。每个单位只会触发一次。
+signal unit_died(unit: Unit)
+
+## 某单位 HP 变化（受伤/治疗/DoT/休息恢复）。可用于 HP 阈值监控。
+signal unit_hp_changed(unit: Unit, old_hp: int, new_hp: int)
+
+## 大回合开始（所有队伍各打完一次为一个大回合）。round_number 在 emit 前已递增。
+signal round_started(round_number: int)
+
+## 队伍小回合开始（team_index 从 0 起）。
+signal team_turn_started(team_index: int)
+
+## 某单位获得一个技能（通过 grant_skill 添加）。
+signal unit_gained_skill(unit: Unit, skill: SkillData)
+
+## 某单位失去一个技能（通过 revoke_skill 移除）。
+signal unit_lost_skill(unit: Unit, skill: SkillData)
+
+
 @onready var tilemap_container: Node2D = $TileMaps
 @onready var units_container: Node2D = $Entities/Units
 @onready var special_tiles_container: Node2D = $SpecialTiles
@@ -64,6 +87,8 @@ class TeamData:
 
 var teams: Array = []  # Array[TeamData]
 var current_team_index: int = -1
+## 大回合计数（所有队伍各轮一次为一个大回合）。第一大回合 = 1。
+var round_number: int = 1
 ## 当前选中的单位（玩家回合时有效）。
 var selected_unit: Node2D = null
 ## 当前是否等待玩家输入。
@@ -199,6 +224,7 @@ func _start_team_turn(index: int) -> void:
 	current_team_index = index
 	var team: TeamData = teams[index]
 	CombatLog.msg("═══ %s 的回合开始 ═══" % team.team_name)
+	team_turn_started.emit(index)
 	for unit: Node2D in team.units:
 		unit.has_acted = false
 		if unit is Unit and unit.combat_stats != null:
@@ -246,19 +272,31 @@ func _do_end_turn() -> void:
 		var team: TeamData = teams[current_team_index]
 		for unit: Node2D in team.units:
 			if unit is Unit and unit.combat_stats != null and unit.combat_stats.is_alive():
+				var hp_before_dot: int = unit.combat_stats.current_hp
 				var dot: int = unit.combat_stats.process_turn_end()
+				var hp_after_dot: int = unit.combat_stats.current_hp
 				if dot > 0:
 					var popup := DamagePopup.new()
 					add_child(popup)
 					popup.show_at(unit.global_position, dot)
-				if team.controller == "player":
+					unit_hp_changed.emit(unit, hp_before_dot, hp_after_dot)
+					if hp_after_dot <= 0:
+						unit_died.emit(unit)
+				if team.controller == "player" and unit.combat_stats.is_alive():
+					var hp_before_rest: int = unit.combat_stats.current_hp
 					unit.combat_stats.rest_recovery()
+					var hp_after_rest: int = unit.combat_stats.current_hp
+					if hp_before_rest != hp_after_rest:
+						unit_hp_changed.emit(unit, hp_before_rest, hp_after_rest)
 				(unit as Unit).refresh_overhead_bars()
 	_go_idle()
 	_waiting_for_player_input = false
 	if _end_turn_button:
 		_end_turn_button.visible = false
 	var next_index := (current_team_index + 1) % teams.size()
+	if next_index == 0:
+		round_number += 1
+		round_started.emit(round_number)
 	_start_team_turn(next_index)
 
 
@@ -402,6 +440,67 @@ func complete_level() -> void:
 		get_tree().change_scene_to_file("res://scenes/cutscene/cutscene_scene.tscn")
 	else:
 		get_tree().change_scene_to_file("res://scenes/menu/main_menu.tscn")
+
+
+## 关卡失败。由关卡脚本在检测到失败条件时调用（例如主角死亡）。
+func defeat_level() -> void:
+	get_tree().change_scene_to_file("res://scenes/menu/main_menu.tscn")
+
+
+## 运行时生成一个单位。加入指定队伍，放置在指定 cell 的脚下。
+## 返回生成的 Unit 节点供进一步操作。
+func spawn_unit(unit_data: UnitData, cell: Vector2i, team_index: int) -> Unit:
+	var UnitScene := preload("res://scenes/unit/unit.tscn")
+	var unit: Unit = UnitScene.instantiate()
+	unit.unit_data = unit_data
+	obstacles_tilemap_layer.add_child(unit)
+	unit.movement_manager = movement_manager
+	unit.set_cell(cell, tilemap)
+	if team_index >= 0 and team_index < teams.size():
+		var team: TeamData = teams[team_index]
+		unit.team_index = team_index
+		unit.faction = team.faction
+		team.units.append(unit)
+	return unit
+
+
+## 播放一段对话。阻塞直到对话结束。用法：await play_dialogue([line1, line2])
+func play_dialogue(lines: Array[DialogueLine]) -> void:
+	var DialogueBoxScene := preload("res://scenes/ui/dialogue_box.tscn")
+	var box = DialogueBoxScene.instantiate()
+	add_child(box)
+	box.start(lines)
+	await box.dialogue_finished
+	box.queue_free()
+
+
+## 授予单位一个新技能。幂等：若单位已有该技能则不做任何操作，不 emit 信号。
+func grant_skill(unit: Unit, skill: SkillData) -> void:
+	if unit == null or unit.unit_data == null or skill == null:
+		return
+	# 确保 unit_data 已 duplicate，避免污染磁盘资源
+	if not unit.unit_data.resource_local_to_scene:
+		unit.unit_data = unit.unit_data.duplicate()
+		unit.unit_data.resource_local_to_scene = true
+	if skill in unit.unit_data.skills:
+		return
+	unit.unit_data.skills.append(skill)
+	unit_gained_skill.emit(unit, skill)
+	# 若正是当前选中单位，刷新状态栏
+	if selected_unit == unit:
+		_update_status_bar_for_unit(unit, true)
+
+
+## 收回单位的一个技能。若单位没有该技能则不做任何操作，不 emit 信号。
+func revoke_skill(unit: Unit, skill: SkillData) -> void:
+	if unit == null or unit.unit_data == null or skill == null:
+		return
+	if not skill in unit.unit_data.skills:
+		return
+	unit.unit_data.skills.erase(skill)
+	unit_lost_skill.emit(unit, skill)
+	if selected_unit == unit:
+		_update_status_bar_for_unit(unit, true)
 
 
 func _on_settings_button_pressed() -> void:
@@ -725,6 +824,15 @@ func _show_combat_feedback(exec_result: SkillExecutor.ExecuteResult) -> void:
 		# 刷新头顶状态条
 		if target_unit is Unit:
 			(target_unit as Unit).refresh_overhead_bars()
+
+		# 关卡事件信号：HP 变化 + 死亡
+		if target_unit is Unit and hit.damage > 0:
+			var stats := (target_unit as Unit).combat_stats
+			var new_hp: int = stats.current_hp
+			var old_hp: int = new_hp + hit.damage
+			unit_hp_changed.emit(target_unit, old_hp, new_hp)
+			if hit.is_kill:
+				unit_died.emit(target_unit)
 
 		# 化势触发时的元素对比 popup（每个命中都显示）
 		if hit.phase_result and hit.phase_result.phase_data:

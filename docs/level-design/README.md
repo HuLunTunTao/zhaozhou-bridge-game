@@ -14,6 +14,7 @@
 4. **[03-单位配置](03-unit-placement.md)** — 放置单位、注意 Unit 原点约定
 5. **[04-关卡参数 § 6.1](04-level-parameters.md#61-队伍配置get_teams_config)** — 编写最简关卡脚本
 6. **[07-测试与调试 § 7.1](07-testing.md#71-运行关卡)** — 按 F6 测试你的关卡
+7. **[09-事件-响应系统](09-event-response.md)** — 进阶：让关卡对死亡/回合/位置等事件做出反应（剧情/胜负判定）
 
 最重要的两个按键：**`Ctrl+S` 保存**、**`F6` 运行当前场景**。
 
@@ -31,6 +32,7 @@
 | 06 | [Git 工作流](06-git-workflow.md) | 版本控制、提交规范、分支策略、冲突处理 |
 | 07 | [测试与调试](07-testing.md) | 运行关卡 · 渲染层级 · 化势反馈 · 常见问题排查 |
 | 08 | [关卡集成](08-integration.md) | 将关卡接入主菜单和战役流程 |
+| 09 | [事件-响应系统](09-event-response.md) | 用 GDScript 钩子让关卡对死亡/回合/位置/HP/技能等事件做出反应 |
 | A | [地形参考表](appendix-tileset-reference.md) | 全部地形类型、移动消耗、Terrain 名称速查 |
 | B | [单位与技能参考表](appendix-creature-reference.md) | 全部单位数据、技能数据、状态数据、ElementColors 用法 |
 
@@ -80,3 +82,4 @@
 | 2026-04-08 | v3.0 | 战斗系统实现（Phase 0~5 + UI反馈）；视口放大至 960x540；状态栏重构；新增战斗日志；字体更新 |
 | 2026-04-09 | v4.0 | 补充对话系统文档；新增头像（portrait）字段说明；更新状态栏 UI 细节（头像、属性显示、技能槽位）；补充战斗日志使用说明；修正场景树描述与代码一致；新增敌方技能 dlp_drifting_timber_crash；新增 Autoload: Notify（通知管理器） |
 | 2026-04-09 | v4.1 | 新增 Godot 编辑器首次使用入门（01 § 2.0）；新增代码编辑器与 GDScript 基础（04 § 6.0）；扩展 Unit 原点约定与脚下对齐示例（03 § 4.2）；新增化势反馈三层 UI 与渲染层级速查（07 § 7.3 / § 7.3b）；新增 Notify.notify 调用示例（04 § 6.11）；新增 ElementColors 全局颜色类使用指南（附录 B § B.13）；修正 HP 条 Y 偏移（-40）、TestBridge autoload |
+| 2026-04-09 | v4.2 | 新增 09 事件-响应系统专题文档：6 个关卡事件信号（unit_died / unit_hp_changed / round_started / team_turn_started / unit_gained_skill / unit_lost_skill）+ 5 个新增响应方法（defeat_level / spawn_unit / play_dialogue / grant_skill / revoke_skill）；中场过场动画用法说明；常见模式速查；完整关卡示例 |
