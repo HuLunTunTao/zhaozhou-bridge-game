@@ -1,7 +1,7 @@
 [gd_scene format=4 uid="uid://dan2k64uwsqv5"]
 
 [ext_resource type="Texture2D" uid="uid://dajatjtpi2mtu" path="res://assets/thepixeltiles/isometric tileset/spritesheet.png" id="1_uwvs4"]
-[ext_resource type="Texture2D" uid="uid://ds7mccb4e617v" path="res://assets/thepixeltiles/trees/PikPng.com_pixel-png_1744665.png" id="2_xc0od"]
+[ext_resource type="Texture2D" uid="uid://ds7mccb4e617v" path="res://assets/thepixeltiles/trees/treeno1.png" id="2_xc0od"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_5fabg"]
 texture = ExtResource("1_uwvs4")
@@ -669,11 +669,14 @@ tile_set = ExtResource("1_vt36q")
 
 [node name="Camera2D" type="Camera2D" parent="." unique_id=1122267846]
 
-[node name="DO NOT CHANGE THIS" type="Node2D" parent="." unique_id=1913978420]
+[node name="trees z=3" type="Node2D" parent="." unique_id=753831345]
+z_index = 3
 
-[node name="tree" type="Sprite2D" parent="." unique_id=1057203202]
+[node name="tree1" type="Sprite2D" parent="trees z=3" unique_id=1057203202]
 position = Vector2(127, 160.00002)
 scale = Vector2(0.6924065, 0.69240665)
 texture = ExtResource("2_xc0od")
 centered = false
 offset = Vector2(-64, -128)
+
+[node name="DO NOT CHANGE THIS" type="Node2D" parent="." unique_id=1913978420]
