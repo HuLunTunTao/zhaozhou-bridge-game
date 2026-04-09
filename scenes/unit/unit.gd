@@ -2,6 +2,8 @@
 class_name Unit
 extends Node2D
 
+const UnitHpBarScene := preload("res://scenes/ui/combat/unit_hp_bar.tscn")
+
 signal move_finished
 
 @export var movement_points: int = 10
@@ -57,7 +59,7 @@ func _init_combat_stats() -> void:
 func _init_hp_bar() -> void:
 	if Engine.is_editor_hint():
 		return
-	_hp_bar = UnitHpBar.new()
+	_hp_bar = UnitHpBarScene.instantiate()
 	add_child(_hp_bar)
 
 
