@@ -58,8 +58,6 @@ func _init_hp_bar() -> void:
 	if Engine.is_editor_hint():
 		return
 	_hp_bar = UnitHpBar.new()
-	_hp_bar.z_index = 10
-	_hp_bar.y_sort_enabled = false
 	add_child(_hp_bar)
 
 
@@ -67,6 +65,18 @@ func _init_hp_bar() -> void:
 func refresh_hp_bar() -> void:
 	if _hp_bar and combat_stats:
 		_hp_bar.update_hp(float(combat_stats.current_hp) / float(combat_stats.max_hp))
+
+
+## 刷新 AP 条显示。
+func refresh_ap_bar() -> void:
+	if _hp_bar and combat_stats:
+		_hp_bar.update_ap(float(combat_stats.ap_current) / float(combat_stats.ap_max))
+
+
+## 一次性刷新头顶 HP + AP 条。
+func refresh_overhead_bars() -> void:
+	refresh_hp_bar()
+	refresh_ap_bar()
 
 
 ## 让 SpriteFrames 资源唯一化，避免修改颜色时影响其他单位实例。

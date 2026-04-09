@@ -8,6 +8,7 @@ class_name DamagePopup
 ## 在指定世界坐标显示伤害数字。
 ## phase_name 非空时在伤害下方显示化势名。
 func show_at(world_pos: Vector2, damage: int, phase_name: String = "", is_heal: bool = false) -> void:
+	z_index = 90
 	position = world_pos + Vector2(0, -20)
 
 	# 伤害数字

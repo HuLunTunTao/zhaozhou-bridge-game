@@ -205,6 +205,7 @@ func _start_team_turn(index: int) -> void:
 			unit.combat_stats.reset_turn_counters()
 			CombatLog.log_turn_start(team.team_name, unit.combat_stats.unit_name, unit.combat_stats.current_hp, unit.combat_stats.ap_current)
 			unit.combat_stats.process_turn_start()
+			(unit as Unit).refresh_overhead_bars()
 			if not unit.combat_stats.is_alive():
 				unit.has_acted = true
 	# _go_idle 已在 _do_end_turn 中调用，此处只需确保状态干净
@@ -252,7 +253,7 @@ func _do_end_turn() -> void:
 					popup.show_at(unit.global_position, dot)
 				if team.controller == "player":
 					unit.combat_stats.rest_recovery()
-				(unit as Unit).refresh_hp_bar()
+				(unit as Unit).refresh_overhead_bars()
 	_go_idle()
 	_waiting_for_player_input = false
 	if _end_turn_button:
@@ -581,6 +582,7 @@ func _confirm_targeting_move(cell: Vector2i, local_mouse: Vector2, current_team:
 			moving_unit.combat_stats.ap_current -= ap_cost
 			moving_unit.combat_stats.moves_used += 1
 			CombatLog.log_unit_move(moving_unit.combat_stats.unit_name, from_cell, cell, ap_cost, moving_unit.combat_stats.ap_current)
+			moving_unit.refresh_overhead_bars()
 		_on_unit_moved()
 		# AP 剩余且还能行动？回到 UNIT_SELECTED
 		if moving_unit is Unit and moving_unit.combat_stats != null:
@@ -685,6 +687,9 @@ func _confirm_targeting_skill(cell: Vector2i) -> void:
 
 	# 更新状态栏
 	_update_status_bar_for_unit(selected_unit, true)
+	# 刷新攻击者头顶状态条（AP 消耗后）
+	if selected_unit is Unit:
+		(selected_unit as Unit).refresh_overhead_bars()
 
 	# AP 剩余且还能行动？
 	var unit := selected_unit as Unit
@@ -717,9 +722,9 @@ func _show_combat_feedback(exec_result: SkillExecutor.ExecuteResult) -> void:
 			add_child(popup)
 			popup.show_at(target_unit.global_position, hit.damage, phase_name)
 
-		# 刷新血条
+		# 刷新头顶状态条
 		if target_unit is Unit:
-			(target_unit as Unit).refresh_hp_bar()
+			(target_unit as Unit).refresh_overhead_bars()
 
 		# 化势提示（只显示一次）
 		if not showed_phase and hit.phase_result and hit.phase_result.phase_data:
