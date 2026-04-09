@@ -207,9 +207,7 @@ func _start_team_turn(index: int) -> void:
 			unit.combat_stats.process_turn_start()
 			if not unit.combat_stats.is_alive():
 				unit.has_acted = true
-	selected_unit = null
-	unit_selected = false
-	_input_state = InputState.IDLE
+	# _go_idle 已在 _do_end_turn 中调用，此处只需确保状态干净
 	move_overlay.clear_range()
 
 	if _turn_label:
@@ -225,6 +223,8 @@ func _start_team_turn(index: int) -> void:
 		if _end_turn_button:
 			_end_turn_button.visible = true
 		_waiting_for_player_input = true
+		# 玩家回合开始时刷新状态栏，确保显示 AP 恢复后的最新数据
+		_reset_status_bar()
 
 
 ## 结束整个队伍的回合。UI"结束回合"按钮和 MCP 都调用此方法。
@@ -253,12 +253,8 @@ func _do_end_turn() -> void:
 				if team.controller == "player":
 					unit.combat_stats.rest_recovery()
 				(unit as Unit).refresh_hp_bar()
+	_go_idle()
 	_waiting_for_player_input = false
-	selected_unit = null
-	unit_selected = false
-	_input_state = InputState.IDLE
-	move_overlay.clear_range()
-	_clear_skill_targeting()
 	if _end_turn_button:
 		_end_turn_button.visible = false
 	var next_index := (current_team_index + 1) % teams.size()
