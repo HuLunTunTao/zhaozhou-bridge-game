@@ -17,5 +17,16 @@ Thumbs.db
 .vscode/
 .idea/
 *.swp
+
+addons/rider-plugin
+
 /release
-/.claude
+
+.godot_test_bridge_port
+.claude/skills/
+.claude/SKILL.md
+.claude/agents/
+.claude/agent-memory/
+.mcp.json
+docs/test-report/
+addons/godot_test_bridge
