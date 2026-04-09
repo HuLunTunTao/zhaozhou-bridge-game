@@ -5,6 +5,8 @@ extends Node2D
 const UnitHpBarScene := preload("res://scenes/ui/combat/unit_hp_bar.tscn")
 
 signal move_finished
+## 单位死亡时发出（HP 降为 0，退场动画播完后触发）。
+signal died
 
 @export var movement_points: int = 10
 @export var move_speed: float = 100.0  # pixels per second
@@ -61,6 +63,20 @@ func _init_hp_bar() -> void:
 		return
 	_hp_bar = UnitHpBarScene.instantiate()
 	add_child(_hp_bar)
+
+
+## 单位死亡：播放淡出动画后从场景树移除，并发出 died 信号。
+func die() -> void:
+	# 防止重复调用
+	if not is_inside_tree():
+		return
+	set_process_input(false)
+	is_moving = false
+	var tween := create_tween()
+	tween.tween_property(self, "modulate:a", 0.0, 0.4)
+	await tween.finished
+	died.emit()
+	queue_free()
 
 
 ## 刷新血条显示。外部在伤害/治疗后调用。

@@ -131,6 +131,8 @@ func _ready() -> void:
 		(camera as LevelCamera).set_level_bounds(get_tilemap_bounds())
 	_on_level_ready()
 	_init_turn_system()
+	# 连接死亡处理
+	unit_died.connect(_on_unit_died)
 	# 连接状态栏技能按钮信号
 	if status_bar and status_bar.has_signal("skill_button_pressed"):
 		status_bar.skill_button_pressed.connect(_on_skill_button_pressed)
@@ -270,7 +272,7 @@ func end_team_turn() -> void:
 func _do_end_turn() -> void:
 	if current_team_index >= 0 and current_team_index < teams.size():
 		var team: TeamData = teams[current_team_index]
-		for unit: Node2D in team.units:
+		for unit: Node2D in team.units.duplicate():
 			if unit is Unit and unit.combat_stats != null and unit.combat_stats.is_alive():
 				var hp_before_dot: int = unit.combat_stats.current_hp
 				var dot: int = unit.combat_stats.process_turn_end()
@@ -462,6 +464,18 @@ func spawn_unit(unit_data: UnitData, cell: Vector2i, team_index: int) -> Unit:
 		unit.faction = team.faction
 		team.units.append(unit)
 	return unit
+
+
+## 单位死亡处理：从队伍名单中移除，取消选中，播放退场动画。
+func _on_unit_died(unit: Unit) -> void:
+	# 从队伍名单中移除
+	for team: TeamData in teams:
+		team.units.erase(unit)
+	# 若正选中该单位，取消选中
+	if selected_unit == unit:
+		_go_idle()
+	# 播放退场动画并移除节点
+	unit.die()
 
 
 ## 播放一段对话。阻塞直到对话结束。用法：await play_dialogue([line1, line2])
