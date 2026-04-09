@@ -14,7 +14,7 @@ var _hp_height: float = 4.0
 var _ap_height: float = 3.0
 var _gap: float = 1.0           # HP 与 AP 之间间距
 var _border: float = 1.0        # 每条各自的描边粗细
-var _offset_y: float = -24.0    # HP 条顶端，在精灵上方
+var _offset_y: float = -40.0    # HP 条顶端，在精灵上方
 
 
 func _ready() -> void:

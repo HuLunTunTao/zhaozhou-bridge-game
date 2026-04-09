@@ -18,6 +18,11 @@ const COLOR_ASSIST := Color(0.2, 0.8, 0.2, 0.35)       # 绿色 — 增益
 const COLOR_INTERACT := Color(1.0, 0.9, 0.2, 0.35)     # 黄色 — 交互
 
 
+func _ready() -> void:
+	# 必须高于所有 TileMapLayer 的 z_index（Obstacle z=2），否则会被地形图层遮挡。
+	z_index = 5
+
+
 ## 显示技能释放范围。caster_cell = 施法者格子坐标。
 func show_skill_range(p_tilemap: TileMapLayer, skill: SkillData, caster_cell: Vector2i) -> void:
 	tilemap = p_tilemap

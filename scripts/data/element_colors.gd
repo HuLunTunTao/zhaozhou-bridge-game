@@ -25,7 +25,7 @@ static func get_color(e: Enums.Element) -> Color:
 	return COLORS.get(e, Color.WHITE)
 
 
-static func get_name(e: Enums.Element) -> String:
+static func element_name(e: Enums.Element) -> String:
 	return NAMES.get(e, "?")
 
 

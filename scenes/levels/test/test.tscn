@@ -105,46 +105,47 @@ tile_map_data = PackedByteArray("AAAUABUAAQAEAAAAAAAUABQAAQAFAAAAAAAUABMAAQAAAAA
 tile_set = ExtResource("3_lqotf")
 
 [node name="Player" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="0" unique_id=819459000 instance=ExtResource("3_player")]
+position = Vector2(-13, -9)
 unit_data = SubResource("Resource_rb7ut")
 unit_color = Color(1, 0.85, 0, 1)
 
 [node name="PlayerB" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="1" unique_id=200000001 instance=ExtResource("3_player")]
-position = Vector2(114, 21)
+position = Vector2(84, -41)
 unit_data = SubResource("Resource_ansyt")
 unit_color = Color(1, 0.85, 0, 1)
 
 [node name="Ally1" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="2" unique_id=200000002 instance=ExtResource("3_player")]
-position = Vector2(116, 0)
+position = Vector2(115, -10)
 unit_data = SubResource("Resource_lxf6v")
 unit_color = Color(0.2, 0.85, 0.35, 1)
 
 [node name="Ally2" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="3" unique_id=200000003 instance=ExtResource("3_player")]
-position = Vector2(275, 0)
+position = Vector2(340, -10)
 unit_data = SubResource("Resource_mdsuy")
 unit_color = Color(0.2, 0.85, 0.35, 1)
 
 [node name="Enemy1" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="4" unique_id=200000004 instance=ExtResource("3_player")]
-position = Vector2(3, -62)
+position = Vector2(19, -105)
 unit_data = SubResource("Resource_hk8o8")
 unit_color = Color(0.9, 0.2, 0.2, 1)
 
 [node name="Enemy2" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="5" unique_id=200000005 instance=ExtResource("3_player")]
-position = Vector2(-65, 33)
+position = Vector2(-74, 18)
 unit_data = SubResource("Resource_eyrvp")
 unit_color = Color(0.9, 0.2, 0.2, 1)
 
 [node name="PlayerC" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="6" unique_id=300000010 instance=ExtResource("3_player")]
-position = Vector2(40, -20)
+position = Vector2(41, -25)
 unit_data = SubResource("Resource_playerc")
 unit_color = Color(0.2, 0.85, 0.35, 1)
 
 [node name="Enemy3" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="7" unique_id=300000011 instance=ExtResource("3_player")]
-position = Vector2(-30, -40)
+position = Vector2(-30, -48)
 unit_data = SubResource("Resource_enemy3")
 unit_color = Color(0.9, 0.2, 0.2, 1)
 
 [node name="Enemy4" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="8" unique_id=300000012 instance=ExtResource("3_player")]
-position = Vector2(20, 50)
+position = Vector2(-27, 61)
 unit_data = SubResource("Resource_enemy4")
 unit_color = Color(0.9, 0.2, 0.2, 1)
 

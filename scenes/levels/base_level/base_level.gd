@@ -769,8 +769,8 @@ func _format_phase_details(pd: PhaseData, hit: CombatResolver.HitResult, cat_nam
 	var lines: Array[String] = []
 	lines.append("【%s·%s】" % [cat_name, pd.phase_name])
 
-	var atk_str := "%s×%d" % [ElementColors.get_name(hit.skill_attach_element), hit.skill_attach_amount]
-	var tgt_str := "%s×%d" % [ElementColors.get_name(hit.pre_target_element), hit.pre_target_amount]
+	var atk_str := "%s×%d" % [ElementColors.element_name(hit.skill_attach_element), hit.skill_attach_amount]
+	var tgt_str := "%s×%d" % [ElementColors.element_name(hit.pre_target_element), hit.pre_target_amount]
 	lines.append("%s → %s" % [
 		ElementColors.bbcode(hit.skill_attach_element, atk_str),
 		ElementColors.bbcode(hit.pre_target_element, tgt_str),

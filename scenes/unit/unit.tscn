@@ -138,7 +138,7 @@ region = Rect2(0, 256, 256, 256)
 atlas = ExtResource("9_u15f5")
 region = Rect2(256, 256, 256, 256)
 
-[sub_resource type="SpriteFrames" id="SpriteFrames_bg1qp"]
+[sub_resource type="SpriteFrames" id="SpriteFrames_vqlpx"]
 animations = [{
 "frames": [{
 "duration": 1.0,
@@ -281,6 +281,7 @@ animations = [{
 script = ExtResource("1_script")
 
 [node name="Visual" parent="." unique_id=1259427927 instance=ExtResource("2_anim")]
-sprite_frames = SubResource("SpriteFrames_bg1qp")
+position = Vector2(-7.1525574e-07, -14.999999)
+sprite_frames = SubResource("SpriteFrames_vqlpx")
 animation = &"right_front_idle"
-frame_progress = 0.4389069
+frame_progress = 0.24908087
