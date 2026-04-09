@@ -192,17 +192,26 @@ func _create_popup(text: String, style: Style, pos: Position) -> PanelContainer:
 		icon_label.scale = Vector2(0.75, 0.75)
 	hbox.add_child(icon_label)
 
-	# 文字
-	var text_label := Label.new()
-	text_label.text = text
+	# 文字（RichTextLabel 支持 BBCode）
+	var text_label := RichTextLabel.new()
+	text_label.bbcode_enabled = true
+	text_label.fit_content = true
+	text_label.scroll_active = false
 	text_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	text_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER if is_bar or is_center else HORIZONTAL_ALIGNMENT_LEFT
+	text_label.add_theme_color_override("default_color", Color.WHITE)
 	if is_center:
-		text_label.add_theme_font_size_override("font_size", 32)
-		text_label.scale = Vector2(0.5, 0.5)
+		text_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		text_label.custom_minimum_size.x = 360.0
+		text_label.add_theme_font_size_override("normal_font_size", 16)
+	elif is_bar:
+		text_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		text_label.custom_minimum_size.x = _vp_size.x - MARGIN * 2 - 40.0
+		text_label.add_theme_font_size_override("normal_font_size", 12)
 	else:
-		text_label.add_theme_font_size_override("font_size", 16)
-		text_label.scale = Vector2(0.75, 0.75)
+		text_label.autowrap_mode = TextServer.AUTOWRAP_OFF
+		text_label.custom_minimum_size.x = 180.0
+		text_label.add_theme_font_size_override("normal_font_size", 12)
+	text_label.text = text
 	hbox.add_child(text_label)
 
 	panel.add_child(hbox)

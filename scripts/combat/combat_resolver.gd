@@ -10,10 +10,24 @@ class HitResult:
 	var statuses_to_apply: Array = []
 	var is_kill: bool = false
 	var non_element_bonus: bool = false
+	## 攻击前目标的附着属性（供 UI 显示化势前状态）。
+	var pre_target_element: Enums.Element = Enums.Element.NONE
+	var pre_target_amount: int = 0
+	## 技能所带属性（供 UI 显示化势对比）。
+	var skill_attach_element: Enums.Element = Enums.Element.NONE
+	var skill_attach_amount: int = 0
+	## 化势附加伤害（供 UI 显示）。
+	var phase_bonus_damage: int = 0
 
 
 static func resolve_hit(attacker: CombatStats, target: CombatStats, skill: SkillData) -> HitResult:
 	var result := HitResult.new()
+
+	# 0. 记录攻击前状态供 UI 使用
+	result.pre_target_element = target.current_element
+	result.pre_target_amount = target.current_element_amount
+	result.skill_attach_element = skill.damage_element
+	result.skill_attach_amount = skill.attach_amount
 
 	# 1. 基础伤害
 	var base_damage: float = attacker.base_atk * skill.damage_ratio
@@ -68,6 +82,7 @@ static func resolve_hit(attacker: CombatStats, target: CombatStats, skill: Skill
 	if phase.phase_data != null:
 		bonus = _calc_bonus_damage(phase.phase_data, attacker, target)
 		final_damage += bonus
+	result.phase_bonus_damage = bonus
 
 	result.damage = maxi(final_damage, 0)
 	result.is_kill = target.current_hp - result.damage <= 0

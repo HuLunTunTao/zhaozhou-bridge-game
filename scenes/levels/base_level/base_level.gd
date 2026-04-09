@@ -726,13 +726,65 @@ func _show_combat_feedback(exec_result: SkillExecutor.ExecuteResult) -> void:
 		if target_unit is Unit:
 			(target_unit as Unit).refresh_overhead_bars()
 
-		# 化势提示（只显示一次）
+		# 化势触发时的元素对比 popup（每个命中都显示）
+		if hit.phase_result and hit.phase_result.phase_data:
+			var elem_popup := PhaseElementPopup.new()
+			add_child(elem_popup)
+			elem_popup.show_at(
+				target_unit.global_position,
+				hit.skill_attach_element, hit.skill_attach_amount,
+				hit.pre_target_element, hit.pre_target_amount
+			)
+
+		# 化势提示（整次施法只一次）
 		if not showed_phase and hit.phase_result and hit.phase_result.phase_data:
 			showed_phase = true
 			var pd: PhaseData = hit.phase_result.phase_data
 			var cat_name := "制势" if pd.category == Enums.PhaseCategory.DOMINANT else "承势"
 			if _phase_notification:
 				_phase_notification.show_phase(pd.phase_name, cat_name)
+			Notify.notify(_format_phase_details(pd, hit, cat_name), Notify.Position.TOP_RIGHT, Notify.Style.INFO, 4.0)
+
+
+const _STATUS_NAMES: Dictionary = {
+	"rend": "裂伤",
+	"fracture_step": "陷裂",
+	"silt_lock": "壅水",
+	"weakened": "攻衰",
+	"brittle": "脆裂",
+	"scorch_mark": "灼痕",
+	"overgrow_bind": "蔓缚",
+	"cold_damp": "湿寒",
+	"smothered": "闷熄",
+	"open_fissure": "开隙",
+	"steady_step": "稳步",
+	"slowed_step": "迟步",
+	"hindered_step": "迟滞",
+	"guarded_cover": "护持",
+}
+
+
+## 拼接化势详情 BBCode 富文本，供 Notify 右上角显示。
+func _format_phase_details(pd: PhaseData, hit: CombatResolver.HitResult, cat_name: String) -> String:
+	var lines: Array[String] = []
+	lines.append("【%s·%s】" % [cat_name, pd.phase_name])
+
+	var atk_str := "%s×%d" % [ElementColors.get_name(hit.skill_attach_element), hit.skill_attach_amount]
+	var tgt_str := "%s×%d" % [ElementColors.get_name(hit.pre_target_element), hit.pre_target_amount]
+	lines.append("%s → %s" % [
+		ElementColors.bbcode(hit.skill_attach_element, atk_str),
+		ElementColors.bbcode(hit.pre_target_element, tgt_str),
+	])
+
+	if not is_equal_approx(pd.damage_multiplier, 1.0):
+		lines.append("伤害倍率 ×%.2f" % pd.damage_multiplier)
+	if hit.phase_bonus_damage > 0:
+		lines.append("附加伤害 %d" % hit.phase_bonus_damage)
+	if pd.apply_status_id != "":
+		var sname: String = _STATUS_NAMES.get(pd.apply_status_id, pd.apply_status_id)
+		lines.append("施加【%s】%d回合" % [sname, pd.status_duration])
+
+	return "\n".join(lines)
 
 
 func _on_skill_button_pressed(index: int) -> void:

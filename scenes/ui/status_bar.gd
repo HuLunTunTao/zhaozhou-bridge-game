@@ -36,15 +36,6 @@ const ELEMENT_LOGOS: Dictionary = {
 	Enums.Element.EARTH: "▦土",
 }
 
-const ELEMENT_COLORS: Dictionary = {
-	Enums.Element.NONE: Color8(140, 147, 161),
-	Enums.Element.METAL: Color8(242, 214, 128),
-	Enums.Element.WOOD: Color8(114, 212, 140),
-	Enums.Element.WATER: Color8(116, 199, 255),
-	Enums.Element.FIRE: Color8(255, 138, 91),
-	Enums.Element.EARTH: Color8(201, 163, 106),
-}
-
 
 func _ready() -> void:
 	clear_unit()
@@ -148,7 +139,7 @@ func _update_hp_color(stats: CombatStats) -> void:
 
 func _update_element(logo_label: Label, value_label: Label, element: Enums.Element, amount: int) -> void:
 	logo_label.text = str(ELEMENT_LOGOS.get(element, "?"))
-	logo_label.add_theme_color_override("font_color", ELEMENT_COLORS.get(element, Color8(140, 147, 161)))
+	logo_label.add_theme_color_override("font_color", ElementColors.get_color(element))
 	if element != Enums.Element.NONE and amount > 0:
 		value_label.text = "x%d" % amount
 	else:
