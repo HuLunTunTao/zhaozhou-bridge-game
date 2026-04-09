@@ -1,6 +1,149 @@
 # 04 -- 关卡参数
 
 > 本章介绍关卡中的核心配置：队伍系统、阵营与回合机制、特殊地块、对话系统、过场动画等。这些是让关卡从"地图+角色"变成"可玩战斗"的关键。
+>
+> **如果你没写过 GDScript**，请先阅读下方 6.0 节的代码编辑器入门。
+
+---
+
+## 6.0 代码编辑器入门（第一次写 .gd 请先读这一节）
+
+如果你已经会写 GDScript，直接跳到 6.1 节。
+
+### 6.0.1 两种编辑器选择
+
+本项目支持两种代码编辑方式，**任选其一即可**：
+
+| 编辑器 | 优点 | 缺点 | 何时使用 |
+|--------|------|------|----------|
+| **Godot 内置脚本编辑器** | 无需安装，与场景编辑紧密集成，自动补全 Node 路径 | 界面较简陋 | 快速修改、临时调试 |
+| **VSCode + godot-tools 插件** | 更强大的补全、Git 集成、多文件标签 | 需要额外配置，需要先启动 Godot LSP | 大段脚本编写 |
+
+**新手推荐先用 Godot 内置编辑器**，等熟悉了再切换到 VSCode。
+
+### 6.0.2 使用 Godot 内置编辑器
+
+1. 在 Godot 主界面顶部，点击 **Script** 切换到脚本视图（快捷键 `Ctrl+F11` 循环切换视图）
+2. 左侧会出现已打开的脚本列表
+3. 要打开一个脚本：在 **文件系统 (FileSystem)** 面板中双击 `.gd` 文件
+4. 要保存脚本：`Ctrl+S`
+5. 要切换回场景编辑：点击顶部的 **2D** 按钮
+
+**脚本编辑器界面：**
+
+```
+┌─────────────────────────────────────────────────┐
+│ 已打开脚本列表   │                                │
+│ ▸ base_level.gd │     代码编辑区                  │
+│ ▸ level1-5.gd   │     (这里输入代码)              │
+│                 │                                │
+├─────────────────┴────────────────────────────────┤
+│ ⑦ 输出 (Output) 面板 — print() 的结果会打印在这里 │
+│     Debugger 面板 — 运行时错误会显示在这里         │
+└──────────────────────────────────────────────────┘
+```
+
+### 6.0.3 使用 VSCode + godot-tools（可选）
+
+如果你更习惯 VSCode：
+
+1. **安装 VSCode**：从 https://code.visualstudio.com 下载
+2. **安装 godot-tools 扩展**：在 VSCode 扩展市场搜索 `godot-tools`，作者 geequlim，点击 Install
+3. **启用 Godot 语言服务器**：
+   - 打开 Godot 编辑器 -> 顶部菜单 **编辑器 (Editor) -> 编辑器设置 (Editor Settings)**
+   - 搜索 `language server`
+   - 确认 **Network > Language Server > Remote Host** = `127.0.0.1`，**Remote Port** = `6005`，**Enable Smart Resolve** 已勾选
+4. **在 VSCode 中打开项目**：`文件 -> 打开文件夹`，选择仓库根目录
+5. **只要 Godot 编辑器保持打开**，VSCode 就能获得跳转、补全、诊断等能力
+
+> ⚠️ 注意: godot-tools 依赖运行中的 Godot 编辑器作为 LSP 服务器。如果补全失效，检查 Godot 是否还开着。
+
+### 6.0.4 GDScript 最小语法你必须知道的
+
+看懂本项目中的关卡脚本，你只需要理解以下几个概念：
+
+```gdscript
+# 1. 注释：# 开头到行尾
+## 双井号是"文档注释"，会显示在 Godot 检查器中
+
+
+# 2. extends：说明这个脚本继承自哪个类
+extends BaseLevel
+
+
+# 3. 常量：全大写，preload() 在脚本加载时读取资源
+const DialogueBoxScene := preload("res://scenes/ui/dialogue_box.tscn")
+
+
+# 4. 成员变量：在整个脚本中都可访问
+var _player: Node2D
+var _turn_count: int = 0
+
+
+# 5. @export：让变量出现在检查器中供设计师修改
+@export var enemy_hp_bonus: int = 0
+
+
+# 6. 函数：func 关键字 + 名称 + (参数) -> 返回类型
+func _ready() -> void:
+    print("场景已加载")
+
+
+# 7. 覆盖父类方法：通常是 _on_xxx 形式的钩子
+func _on_level_ready() -> void:
+    # 关卡初始化完成后自动调用
+    pass
+
+
+# 8. 节点引用：$ 语法是 get_node 的缩写
+func do_something() -> void:
+    var player := $"Entities/Units/LiChun"
+    print(player.name)
+
+
+# 9. if / match / for
+func check() -> void:
+    if _turn_count > 5:
+        print("超时！")
+    elif _turn_count >= 3:
+        print("时间紧迫")
+
+    for team in teams:
+        print(team.team_name)
+```
+
+### 6.0.5 几个关键"魔法"函数（生命周期钩子）
+
+BaseLevel 会在不同时机自动调用以下方法。如果你想在这些时机插入逻辑，在你的关卡脚本中**覆盖（override）**它们即可：
+
+| 函数 | 调用时机 | 用途 |
+|------|----------|------|
+| `_ready()` | 场景节点全部就绪后（底层 Godot 生命周期） | **一般不要覆盖**，用 `_on_level_ready` 代替 |
+| `get_teams_config() -> Array` | BaseLevel 初始化队伍前 | **必须覆盖**，返回队伍配置（见 6.1 节） |
+| `_on_level_ready() -> void` | 队伍初始化完成、相机就位、可以开始战斗前 | 插入开场对话、标记主角、运行时装配技能 |
+| `_on_unit_moved() -> void` | 任何单位完成一次移动后 | 检查胜利条件、触发位置相关对话 |
+
+> ⚠️ 注意: 不要直接覆盖 `_ready()`。BaseLevel 的 `_ready()` 会做大量初始化工作（查找 TileMapLayer、挂载实体、创建 UI），如果你覆盖了它而没有调用 `super._ready()`，关卡会无法运行。请使用 `_on_level_ready()` 这种语义清晰的钩子。
+
+### 6.0.6 如何查看报错
+
+1. **运行时错误**：按 F6 运行后，看 Godot 底部的 **Debugger（调试器）** 面板。红色行就是错误，双击能跳到出错的代码行
+2. **解析错误**：脚本有语法错误时，底部的 **Output（输出）** 面板会立即显示，格式为：
+   ```
+   res://scenes/levels/level1-5/level1-5.gd:12 - Parse Error: Unexpected "Identifier" ...
+   ```
+   文件名后跟行号和错误描述
+3. **自己打印日志**：在代码中加 `print("xxx: ", some_var)`，运行时会在 Output 面板看到
+
+### 6.0.7 常见坑
+
+| 坑 | 症状 | 解决 |
+|----|------|------|
+| 缩进用 Tab 和空格混合 | Parse Error: Used space character for indentation | 统一使用 Tab 或统一使用空格 |
+| 函数参数缺少类型 | 函数能运行但补全不给力 | 写 `func foo(x: int) -> void:`，不要 `func foo(x):` |
+| 忘记 `$` 引号 | `Node not found` | 带空格/中文的路径必须用 `$"Entities/Units/Li Chun"`，纯英文可写 `$Entities/Units/LiChun` |
+| 改了场景树节点名忘记改脚本 | 运行时报 Node not found | 场景树改名后，**立即**去脚本里同步改引用 |
+| 覆盖了 `_ready` 没调 `super._ready` | 关卡界面全空白 | 改用 `_on_level_ready()` |
 
 ---
 
@@ -475,7 +618,100 @@ func _on_unit_moved() -> void:
 
 ---
 
-## 6.11 关卡参数配置检查清单
+## 6.11 调用 Notify 发送通知
+
+`Notify` 是全局 **autoload 单例**（`scripts/notification_manager.gd`），可以在任意脚本中直接调用，让屏幕上弹出一条滑入式通知。无需 preload、无需 `get_node`。
+
+### 函数签名
+
+```gdscript
+Notify.notify(
+    text: String,                                # 通知文本，支持 BBCode 富文本
+    pos: Notify.Position = Notify.Position.TOP_RIGHT,  # 弹出位置
+    style: Notify.Style = Notify.Style.INFO,           # 样式
+    duration: float = 3.0                              # 显示时长（秒）
+) -> void
+```
+
+### 位置枚举
+
+| 枚举值 | 说明 | 典型用途 |
+|--------|------|----------|
+| `Notify.Position.TOP_LEFT` | 左上角 | 次要信息 |
+| `Notify.Position.TOP_RIGHT` | 右上角（默认） | 战斗详情、化势反馈 |
+| `Notify.Position.BOTTOM_LEFT` | 左下角 | 调试信息 |
+| `Notify.Position.BOTTOM_RIGHT` | 右下角 | 成就、奖励 |
+| `Notify.Position.TOP_CENTER` | 顶部横幅 | 重要公告 |
+| `Notify.Position.BOTTOM_CENTER` | 底部横幅 | 任务提示 |
+| `Notify.Position.CENTER` | 屏幕正中（大字+阴影） | 关卡胜利/失败 |
+
+> 💡 提示: 所有 `TOP_*` 位置会自动避开顶部 HudPanel（`TOP_BAR_HEIGHT = 26`，见 `scripts/notification_manager.gd:58`），不会与回合标签重叠。
+
+### 样式枚举
+
+| 枚举值 | 图标 | 配色 | 典型用途 |
+|--------|------|------|----------|
+| `Notify.Style.INFO` | ℹ | 深蓝 | 一般信息 |
+| `Notify.Style.SUCCESS` | ✔ | 深绿 | 任务完成、胜利 |
+| `Notify.Style.WARNING` | ⚠ | 深黄 | 资源不足、危险警告 |
+| `Notify.Style.ERROR` | ✖ | 深红 | 关卡失败、操作非法 |
+
+### 示例
+
+```gdscript
+extends BaseLevel
+
+func _on_level_ready() -> void:
+    # 最简调用：右上角，INFO 样式，3 秒
+    Notify.notify("欢迎来到安济桥工地")
+
+    # 指定位置和样式：左上角，警告样式，5 秒
+    Notify.notify(
+        "洪水将至，注意避让",
+        Notify.Position.TOP_LEFT,
+        Notify.Style.WARNING,
+        5.0
+    )
+
+
+func _on_unit_moved() -> void:
+    # 使用 BBCode 富文本：颜色、粗体
+    Notify.notify(
+        "[color=#ffcc33]李春[/color]到达了 [b]工地东岸[/b]",
+        Notify.Position.BOTTOM_CENTER,
+        Notify.Style.SUCCESS
+    )
+
+
+func _show_victory() -> void:
+    # 屏幕正中大字提示
+    Notify.notify(
+        "关卡胜利",
+        Notify.Position.CENTER,
+        Notify.Style.SUCCESS,
+        2.5
+    )
+```
+
+### 配合 ElementColors 使用
+
+项目内置了 `ElementColors` 全局类（见 [附录 B § B.13](appendix-creature-reference.md#b13-元素颜色全局类-elementcolors)），可以快速生成带五行元素颜色的 BBCode 片段：
+
+```gdscript
+var text := "击中目标：%s" % ElementColors.bbcode(Enums.Element.WATER, "水×2")
+Notify.notify(text, Notify.Position.TOP_RIGHT, Notify.Style.INFO)
+# 显示效果：击中目标：水×2（"水×2"部分为天蓝色）
+```
+
+### 注意事项
+
+- 通知是**非阻塞**的：调用后立即返回，不会暂停游戏。如果需要等玩家确认再继续，用对话框（6.4 节）而不是 Notify
+- 多条通知会**自动堆叠**：同一位置连续发的通知会纵向排列
+- **战斗系统已经在内部使用 Notify**：化势触发时会自动在右上角发送富文本详情（见 [07-测试与调试 § 7.3b](07-testing.md#73b-化势反馈三层-ui)），设计师**不需要**手动为化势发通知
+
+---
+
+## 6.12 关卡参数配置检查清单
 
 - [ ] `get_teams_config()` 已正确覆盖，包含所有队伍
 - [ ] 所有 `$"..."` 路径与场景树中的节点名一致

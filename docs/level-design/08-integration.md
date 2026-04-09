@@ -138,21 +138,21 @@ BaseLevel._ready() 执行：
 
 ## 8.5 Autoload（自动加载）说明
 
-游戏中有以下 Autoload 节点：
+游戏中有以下 Autoload 节点（配置在 `project.godot` 的 `[autoload]` 段）：
 
 | 名称 | 脚本路径 | 作用 |
 |------|----------|------|
 | `GameState` | `scripts/game_state.gd` | 关卡注册表、过场数据、场景间状态传递 |
-| `Notify` | `scripts/notification_manager.gd` | 全局通知管理器（游戏内消息提示） |
+| `Notify` | `scripts/notification_manager.gd` | 全局通知管理器（参见 [04 § 6.11](04-level-parameters.md#611-调用-notify-发送通知)） |
+| `TestBridge` | 通过 UID 引用 | 测试桥接脚本，用于自动化测试和 MCP 工具 |
 
 这意味着：
 
 - 它们在游戏启动时自动创建，全局唯一
-- 在任何脚本中都可以通过名称直接访问（如 `GameState.selected_level`）
+- 在任何脚本中都可以通过名称直接访问（如 `GameState.selected_level` 或 `Notify.notify("xxx")`）
 - 场景切换时不会被销毁，可以在场景之间传递数据
-- 配置在 `project.godot` 的 `[autoload]` 段中
 
-关卡设计师通常不需要修改 Autoload 配置，只需编辑 `game_state.gd` 文件中的字典数据。
+关卡设计师通常不需要修改 Autoload 配置，只需编辑 `game_state.gd` 文件中的字典数据，以及调用 `Notify.notify()` 发送运行时通知。
 
 ---
 

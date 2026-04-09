@@ -386,4 +386,95 @@
 
 ---
 
+## B.13 元素颜色全局类（ElementColors）
+
+项目中所有涉及五行元素的颜色显示都由 **`ElementColors`** 全局类统一管理，实现位于 `scripts/data/element_colors.gd`。
+
+这是一个 `class_name ElementColors extends RefCounted` 类型的工具类，所有方法都是 `static`，可以直接通过类名调用，**无需 preload，无需实例化**。
+
+### 颜色表
+
+| Enums.Element 值 | 中文 | Color8 (R, G, B) | 十六进制 |
+|------------------|------|------------------|----------|
+| `NONE` (0) | 无 | `(140, 147, 161)` | `#8c93a1` |
+| `METAL` (1) | 金 | `(255, 215, 70)` | `#ffd746` |
+| `WOOD` (2) | 木 | `(110, 220, 110)` | `#6edc6e` |
+| `WATER` (3) | 水 | `(90, 180, 255)` | `#5ab4ff` |
+| `FIRE` (4) | 火 | `(230, 70, 60)` | `#e6463c` |
+| `EARTH` (5) | 土 | `(200, 150, 80)` | `#c89650` |
+
+> 💡 提示: 想修改全局元素配色？只需编辑 `scripts/data/element_colors.gd` 的 `COLORS` 字典，底部状态栏、头顶 popup、右上角 Notify 等所有 UI 都会自动同步。
+
+### 静态方法 API
+
+| 方法 | 参数 | 返回值 | 用途 |
+|------|------|--------|------|
+| `ElementColors.get_color(e)` | `Enums.Element` | `Color` | 取得某元素对应的 Color 对象 |
+| `ElementColors.element_name(e)` | `Enums.Element` | `String` | 取得某元素的中文名（金/木/水/火/土/无） |
+| `ElementColors.bbcode(e, text)` | `Enums.Element`, `String` | `String` | 生成带颜色的 BBCode 片段 `[color=#xxx]text[/color]` |
+
+### 使用场景与示例
+
+#### 场景一：在 Label 上用元素色
+
+```gdscript
+var lbl := Label.new()
+lbl.text = "水属性"
+lbl.add_theme_color_override("font_color", ElementColors.get_color(Enums.Element.WATER))
+add_child(lbl)
+```
+
+#### 场景二：在 RichTextLabel / Notify 里嵌入彩色片段
+
+```gdscript
+# 生成 BBCode
+var atk_bb := ElementColors.bbcode(Enums.Element.EARTH, "土×2")
+var tgt_bb := ElementColors.bbcode(Enums.Element.WATER, "水×2")
+
+# 拼接富文本
+var text := "%s → %s" % [atk_bb, tgt_bb]
+
+# 发送到右上角 Notify
+Notify.notify(text, Notify.Position.TOP_RIGHT, Notify.Style.INFO, 3.0)
+
+# 或者填到 RichTextLabel
+var rtl := RichTextLabel.new()
+rtl.bbcode_enabled = true
+rtl.text = text
+add_child(rtl)
+```
+
+#### 场景三：根据单位的固有属性动态取名字
+
+```gdscript
+func describe_unit(unit: Unit) -> String:
+    var e: Enums.Element = unit.unit_data.innate_element
+    var name: String = ElementColors.element_name(e)  # "土"、"水"...
+    return "%s (%s属性)" % [unit.unit_data.unit_name, name]
+```
+
+### 铁律：不要硬编码元素颜色
+
+> ❌ **错误做法**：
+> ```gdscript
+> lbl.add_theme_color_override("font_color", Color(0.3, 0.7, 1.0))  # 直接写水色数值
+> ```
+>
+> ✔ **正确做法**：
+> ```gdscript
+> lbl.add_theme_color_override("font_color", ElementColors.get_color(Enums.Element.WATER))
+> ```
+>
+> **理由**：全局统一的配色可被美术一键调整；硬编码的数值会变成"漏网之鱼"。
+
+### 已在项目中使用 ElementColors 的地方
+
+| 位置 | 用途 |
+|------|------|
+| `scenes/levels/base_level/base_level.gd:775-776` | 拼接化势详情 Notify 的彩色元素片段 |
+| `scenes/ui/combat/phase_element_popup.gd:17-19` | 头顶元素对比 popup 的左右两段颜色 |
+| 底部状态栏的"当前属性 / 固有属性"显示 | 按单位当前元素着色 |
+
+---
+
 返回: [目录](README.md)
