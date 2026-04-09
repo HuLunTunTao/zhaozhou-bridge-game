@@ -518,11 +518,11 @@ func _on_settings_button_pressed() -> void:
 # ─────────────────────────────────────────────
 
 func _unhandled_input(event: InputEvent) -> void:
-  if not _can_accept_command():
-    return
-  if event.is_action_pressed("ui_cancel"):
+	if not _can_accept_command():
+		return
+	if event.is_action_pressed("ui_cancel"):
 		_on_settings_button_pressed()
-    return
+		return
 	if _mid_cutscene_active:
 		return
 
