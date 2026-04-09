@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="StatusData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/status_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+status_id = "overgrow_bind"
+status_name = "蔓缚"
+duration_turns = 2
+description = "最大可移动格数-1"

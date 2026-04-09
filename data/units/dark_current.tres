@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="UnitData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/unit_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+unit_id = "dark_current"
+unit_name = "暗涌"
+camp = 1
+max_hp = 68
+base_atk = 17
+ap_max = 100
+move_cost_per_tile = 10
+innate_element = 3
+innate_element_amount = 2
+ai_type = "flank_melee"
+is_escort_target = false
+skills = []

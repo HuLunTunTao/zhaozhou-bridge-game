@@ -1,0 +1,36 @@
+[gd_scene format=3 uid="uid://bhl2x3mvprkqx"]
+
+[ext_resource type="Script" path="res://scenes/ui/combat/unit_hp_bar.gd" id="1_script"]
+
+[node name="UnitHpBar" type="Node2D"]
+z_index = 100
+z_as_relative = false
+script = ExtResource("1_script")
+
+[node name="HpBg" type="ColorRect" parent="."]
+offset_left = -16.0
+offset_top = -41.0
+offset_right = 16.0
+offset_bottom = -35.0
+color = Color(0, 0, 0, 0.7)
+
+[node name="HpFill" type="ColorRect" parent="HpBg"]
+offset_left = 1.0
+offset_top = 1.0
+offset_right = 31.0
+offset_bottom = 5.0
+color = Color(0.15, 0.95, 0.15, 1)
+
+[node name="ApBg" type="ColorRect" parent="."]
+offset_left = -16.0
+offset_top = -35.0
+offset_right = 16.0
+offset_bottom = -30.0
+color = Color(0, 0, 0, 0.7)
+
+[node name="ApFill" type="ColorRect" parent="ApBg"]
+offset_left = 1.0
+offset_top = 1.0
+offset_right = 31.0
+offset_bottom = 4.0
+color = Color(0.25, 0.55, 1, 1)

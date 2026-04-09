@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="SkillData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/skill_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+skill_id = "sw_staff_end_strike"
+skill_name = "尺梢击"
+skill_type = 0
+ap_cost = 25
+damage_ratio = 0.9
+damage_element = 0
+attach_amount = 0
+extra_effect_id = ""
+duration_turns = 0
+cooldown_turns = 0
+description = "近战攻击"
+cast_offsets = Array[Vector2i]([Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)])
+effect_offsets = Array[Vector2i]([Vector2i(0, 0)])

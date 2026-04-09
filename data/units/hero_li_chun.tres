@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="UnitData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/unit_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+unit_id = "hero_li_chun"
+unit_name = "李春"
+camp = 0
+max_hp = 130
+base_atk = 24
+ap_max = 100
+move_cost_per_tile = 8
+innate_element = 0
+innate_element_amount = 0
+ai_type = ""
+is_escort_target = false
+skills = []

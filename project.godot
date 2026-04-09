@@ -18,18 +18,24 @@ config/icon="res://icon.svg"
 [autoload]
 
 GameState="*res://scripts/game_state.gd"
+Notify="*res://scripts/notification_manager.gd"
+TestBridge="*uid://iorf7f2xmkmt"
 
 [display]
 
-window/size/viewport_width=640
-window/size/viewport_height=360
-window/size/window_width_override=1280
-window/size/window_height_override=720
+window/size/viewport_width=960
+window/size/viewport_height=540
+window/size/window_width_override=1920
+window/size/window_height_override=1080
 window/stretch/mode="viewport"
 
 [dotnet]
 
 project/assembly_name="game"
+
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/godot_test_bridge/plugin.cfg")
 
 [gui]
 

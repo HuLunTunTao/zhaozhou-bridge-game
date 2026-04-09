@@ -3,7 +3,7 @@
 [ext_resource type="PackedScene" uid="uid://cw5lldjp7lh7m" path="res://scenes/levels/base_level/base_level.tscn" id="1_base"]
 [ext_resource type="Script" uid="uid://ca31yemotdp6f" path="res://scenes/levels/level1-1/level1-1.gd" id="2_script"]
 [ext_resource type="TileSet" uid="uid://bdvi30tgeb2kv" path="res://assets/battle_tile_set.tres" id="3_oqa8r"]
-[ext_resource type="PackedScene" path="res://scenes/player/player.tscn" id="3_player"]
+[ext_resource type="PackedScene" path="res://scenes/unit/unit.tscn" id="3_player"]
 [ext_resource type="Texture2D" uid="uid://ds7mccb4e617v" path="res://assets/thepixeltiles/trees/PikPng.com_pixel-png_1744665.png" id="4_oqa8r"]
 
 [node name="Level1-1" unique_id=1386379922 node_paths=PackedStringArray("obstacles_tilemap_layer") instance=ExtResource("1_base")]
@@ -53,7 +53,7 @@ texture = ExtResource("4_oqa8r")
 centered = false
 offset = Vector2(-64, -128)
 
-[node name="Player" parent="Entities/Players" parent_id_path=PackedInt32Array(436779837) index="0" unique_id=1260699601 instance=ExtResource("3_player")]
+[node name="Player" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="0" unique_id=1260699601 instance=ExtResource("3_player")]
 
 [node name="MovementManager" parent="." index="5" unique_id=1144669128 node_paths=PackedStringArray("movement_tilemaps", "obstacle_tilemaps")]
 movement_tilemaps = [NodePath("../TileMaps/surface z=0")]

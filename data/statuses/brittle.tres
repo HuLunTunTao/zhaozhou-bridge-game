@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="StatusData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/status_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+status_id = "brittle"
+status_name = "脆裂"
+duration_turns = 2
+trigger_once = true
+description = "下一次受到的伤害额外提高20%"

@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="PhaseData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/phase_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+phase_id = "earth_follow_fire_smother_ash"
+phase_name = "覆烬"
+attack_element = 5
+target_element = 4
+category = 1
+damage_multiplier = 1.0
+extra_element_consume = 1
+apply_status_id = "smothered"
+status_duration = 1
+flavor_text = "土势覆之，则取其压、隔、闷、抑"

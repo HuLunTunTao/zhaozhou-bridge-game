@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="SkillData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/skill_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+skill_id = "wp_spiral_pull"
+skill_name = "回漩牵汲"
+skill_type = 0
+ap_cost = 25
+damage_ratio = 0.9
+damage_element = 3
+attach_amount = 2
+extra_effect_id = "pull_1"
+duration_turns = 0
+cooldown_turns = 0
+description = "远程水属性攻击，将目标拖向自身1格"
+cast_offsets = Array[Vector2i]([Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1), Vector2i(2, 0), Vector2i(-2, 0), Vector2i(0, 2), Vector2i(0, -2), Vector2i(1, 1), Vector2i(1, -1), Vector2i(-1, 1), Vector2i(-1, -1)])
+effect_offsets = Array[Vector2i]([Vector2i(0, 0)])
