@@ -181,6 +181,8 @@
 
 所有化势数据文件位于 `data/phases/`。
 
+> ⚠️ 注意: 如果你新增了化势 `.tres` 文件，**必须**同时在 `scripts/combat/phase_table.gd` 中注册路径，否则导出版中该化势不会被加载。详见 [B.11a 新增化势的完整流程](#b11a-新增化势的完整流程)。
+
 ### 相克化势（Dominant, category = 0）
 
 五行相克产生的强力反应。
@@ -352,6 +354,111 @@
 | `apply_status_id` | String | 触发时施加的状态 ID |
 | `status_duration` | int | 施加状态的持续回合 |
 | `flavor_text` | String | 化势的意境描述（五行哲学文案） |
+
+---
+
+## B.11a 新增化势的完整流程
+
+当你需要添加一个新的化势（五行反应）时，必须完成**两个步骤**：创建 `.tres` 数据文件，然后在代码中注册路径。缺少任何一步都会导致化势无法生效。
+
+### 为什么需要手动注册？
+
+早期版本中，系统在启动时会自动扫描 `data/phases/` 目录下的所有 `.tres` 文件并加载。这在 Godot 编辑器中运行正常，但 **导出版（export build）中会失败**。
+
+原因：Godot 导出时会将所有资源打包进 `.pck` 文件。打包后，`DirAccess.open("res://data/phases")` **无法列举目录内容**——这是 Godot 引擎的限制，不是 Bug。因此，我们改用了在代码中显式列出所有路径的方式，确保编辑器和导出版行为一致。
+
+> ⚠️ 注意: 如果你只创建了 `.tres` 文件但忘记注册路径，化势在编辑器中 **也不会生效**（因为当前代码已不再扫描目录）。
+
+### 第一步：创建化势数据文件（.tres）
+
+1. 在 Godot 编辑器的 **文件系统 (FileSystem)** 面板中，导航到 `data/phases/`
+2. 右键点击 `phases` 文件夹 → **新建资源 (New Resource)**
+3. 在弹出的对话框中搜索 `PhaseData`，选中后点击 **创建 (Create)**
+4. 给文件起一个有意义的名字，命名规则为：
+   - 相克化势：`{攻击属性}_over_{目标属性}_{英文描述}.tres`
+   - 相生化势：`{攻击属性}_follow_{目标属性}_{英文描述}.tres`
+   - 例如：`fire_over_metal_molten_temper.tres`
+5. 点击 **保存 (Save)**
+
+接下来在检查器中填写各字段：
+
+| 字段 | 说明 | 示例值 |
+|------|------|--------|
+| `phase_id` | 唯一标识符，与文件名一致（不含 `.tres`） | `"fire_over_metal_molten_temper"` |
+| `phase_name` | 化势显示名称（中文，两字为佳） | `"熔铸"` |
+| `attack_element` | 攻击方属性（下拉选择） | `FIRE` |
+| `target_element` | 目标方属性（下拉选择） | `METAL` |
+| `category` | 化势类型 | 相克选 `DOMINANT`，相生选 `FOLLOW` |
+| `damage_multiplier` | 伤害倍率 | `1.0` ~ `1.1` |
+| `bonus_damage_type` | 附加伤害类型，无则留空 | `""` 或 `"target_max_hp_ratio"` |
+| `bonus_damage_value` | 附加伤害数值 | `0.0` 或 `0.15`（= 15%） |
+| `bonus_damage_cap` | 附加伤害上限表达式，无则留空 | `""` 或 `"attacker_base_atk * 2.0"` |
+| `extra_element_consume` | 额外属性消耗量 | `0` |
+| `apply_status_id` | 触发时施加的状态 ID | `"silt_lock"` |
+| `status_duration` | 状态持续回合数 | `2` |
+| `flavor_text` | 五行意境描述文案 | `"土行加水，不争一时之急"` |
+
+> 💡 提示: 各字段的详细定义见上方 [B.11 PhaseData 字段详解](#b11-phasedata-字段详解)。`attack_element` 和 `target_element` 的枚举值见 [B.7 Element 枚举速查](#b7-element-枚举速查)。
+
+### 第二步：在 phase_table.gd 中注册路径（关键！）
+
+这一步**必须做**，否则化势不会被加载。
+
+1. 打开文件 `scripts/combat/phase_table.gd`
+   - 在 Godot 编辑器中：双击文件系统面板中的 `scripts/combat/phase_table.gd`
+   - 或在 VSCode 中：打开该文件
+2. 找到 `_ensure_init()` 函数中的 `var paths` 数组（大约在第 36 行）
+3. 在数组中添加你的新文件路径
+
+修改前的代码大致如下：
+
+```gdscript
+static func _ensure_init() -> void:
+    if _initialized:
+        return
+    _initialized = true
+    var paths := [
+        "res://data/phases/earth_over_water_arrest_flow.tres",
+        "res://data/phases/earth_follow_fire_smother_ash.tres",
+        "res://data/phases/fire_follow_wood_spread_scorch.tres",
+        "res://data/phases/fire_over_metal_molten_temper.tres",
+        "res://data/phases/metal_follow_earth_open_grit.tres",
+        "res://data/phases/metal_over_wood_fell_branch.tres",
+        "res://data/phases/water_follow_metal_quench_edge.tres",
+        "res://data/phases/water_over_fire_quench_blaze.tres",
+        "res://data/phases/wood_follow_water_creeping_growth.tres",
+        "res://data/phases/wood_over_earth_pierce_bank.tres",
+    ]
+```
+
+假设你新增了一个化势文件 `metal_over_fire_example.tres`，你需要在数组末尾加一行：
+
+```gdscript
+    var paths := [
+        "res://data/phases/earth_over_water_arrest_flow.tres",
+        "res://data/phases/earth_follow_fire_smother_ash.tres",
+        # ...（省略已有条目）...
+        "res://data/phases/wood_over_earth_pierce_bank.tres",
+        "res://data/phases/metal_over_fire_example.tres",   # ← 新增
+    ]
+```
+
+4. 保存文件（`Ctrl+S`）
+
+> ❌ 常见错误: 忘记在路径字符串前加 `"res://"`。正确格式是 `"res://data/phases/你的文件名.tres"`，**不是** `"data/phases/你的文件名.tres"`。
+
+> ❌ 常见错误: 路径中的文件名拼写与实际文件不一致。请仔细核对大小写和下划线。如果路径错误，游戏启动时不会报错，但该化势静默缺失。
+
+### 验证清单
+
+完成上述两步后，请逐一确认：
+
+- [ ] `.tres` 文件已保存在 `data/phases/` 目录中
+- [ ] `phase_id` 与文件名一致
+- [ ] `attack_element` 和 `target_element` 已正确设置（不是默认的 NONE）
+- [ ] `category` 已设置为 `DOMINANT`（相克）或 `FOLLOW`（相生）
+- [ ] `scripts/combat/phase_table.gd` 的 `paths` 数组中已添加 `"res://data/phases/你的文件名.tres"`
+- [ ] 按 `F5` 或 `F6` 运行游戏，触发对应属性组合的攻击，确认化势名称出现在右上角通知中
 
 ---
 
