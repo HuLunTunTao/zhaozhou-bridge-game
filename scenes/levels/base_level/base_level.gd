@@ -263,8 +263,38 @@ func _start_team_turn(index: int) -> void:
 		_end_turn_pending_confirm = false
 		_set_end_turn_button_highlight(false)
 		_waiting_for_player_input = true
+		# 玩家回合开始时把镜头平滑拉到主角，给本回合一个明确的起点。
+		_focus_camera_on_team(team)
 		# 玩家回合开始时刷新状态栏，确保显示 AP 恢复后的最新数据
 		_reset_status_bar()
+
+
+## 把镜头平滑拉到队伍"代表单位"（优先 hero，否则队里第一个存活单位）。
+## 仅修改 target_position，不锁定相机，玩家仍可随时手动平移/缩放。
+func _focus_camera_on_team(team: TeamData) -> void:
+	if camera == null:
+		return
+	var lv_camera := camera as LevelCamera
+	if lv_camera == null:
+		return
+	var focus_unit: Node2D = null
+	if hero != null and is_instance_valid(hero) and hero in team.units:
+		var hu := hero as Unit
+		if hu == null or hu.combat_stats == null or hu.combat_stats.is_alive():
+			focus_unit = hero
+	if focus_unit == null:
+		for u: Node2D in team.units:
+			if not is_instance_valid(u):
+				continue
+			if u is Unit:
+				var us := (u as Unit).combat_stats
+				if us != null and not us.is_alive():
+					continue
+			focus_unit = u
+			break
+	if focus_unit == null:
+		return
+	lv_camera.target_position = focus_unit.global_position
 
 
 ## 结束整个队伍的回合。UI"结束回合"按钮和 MCP 都调用此方法。
