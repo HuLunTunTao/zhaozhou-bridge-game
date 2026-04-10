@@ -5,6 +5,8 @@ extends CanvasLayer
 ##   Notify.notify("警告", Notify.Position.TOP_LEFT, Notify.Style.WARNING)
 ##   Notify.notify("错误", Notify.Position.CENTER, Notify.Style.ERROR, 5.0)
 
+const PopupScene: PackedScene = preload("res://scenes/ui/notification_popup.tscn")
+
 enum Position {
 	TOP_LEFT,
 	TOP_RIGHT,
@@ -131,7 +133,7 @@ func _create_popup(text: String, style: Style, pos: Position) -> PanelContainer:
 	var is_bar := pos in [Position.TOP_CENTER, Position.BOTTOM_CENTER]
 	var is_center := pos == Position.CENTER
 
-	var panel := PanelContainer.new()
+	var panel: PanelContainer = PopupScene.instantiate()
 	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 	# StyleBox — 根据位置调整样式
@@ -140,18 +142,15 @@ func _create_popup(text: String, style: Style, pos: Position) -> PanelContainer:
 	sb.border_color = STYLE_BORDER_COLORS[style]
 
 	if is_center:
-		# 中间：更大、更圆润、更突出
 		sb.set_border_width_all(2)
 		sb.set_corner_radius_all(6)
 		sb.content_margin_left = 20.0
 		sb.content_margin_right = 20.0
 		sb.content_margin_top = 12.0
 		sb.content_margin_bottom = 12.0
-		# 加阴影
 		sb.shadow_color = Color(0, 0, 0, 0.4)
 		sb.shadow_size = 4
 	elif is_bar:
-		# 横幅：宽、扁、小圆角
 		sb.set_border_width_all(1)
 		sb.border_width_top = 0 if pos == Position.TOP_CENTER else 1
 		sb.border_width_bottom = 0 if pos == Position.BOTTOM_CENTER else 1
@@ -161,7 +160,6 @@ func _create_popup(text: String, style: Style, pos: Position) -> PanelContainer:
 		sb.content_margin_top = 5.0
 		sb.content_margin_bottom = 5.0
 	else:
-		# 角落：紧凑
 		sb.set_border_width_all(1)
 		sb.set_corner_radius_all(3)
 		sb.content_margin_left = 8.0
@@ -169,36 +167,23 @@ func _create_popup(text: String, style: Style, pos: Position) -> PanelContainer:
 		sb.content_margin_top = 4.0
 		sb.content_margin_bottom = 4.0
 
-	# 左侧加一条样式色彩条
 	if not is_bar:
 		sb.border_width_left = 3
 		sb.border_color = STYLE_BORDER_COLORS[style]
 
 	panel.add_theme_stylebox_override("panel", sb)
 
-	# 内容：图标 + 文字
-	var hbox := HBoxContainer.new()
-	hbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# 从模板获取子节点并配置
+	var hbox: HBoxContainer = panel.get_node("HBox")
 	hbox.add_theme_constant_override("separation", 6 if is_center else 4)
 
-	# 图标
-	var icon_label := Label.new()
+	var icon_label: Label = panel.get_node("HBox/Icon")
 	icon_label.text = STYLE_ICON[style]
 	icon_label.add_theme_color_override("font_color", STYLE_ICON_COLORS[style])
-	icon_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	if is_center:
 		icon_label.add_theme_font_size_override("font_size", 32)
-	else:
-		icon_label.add_theme_font_size_override("font_size", 16)
-	hbox.add_child(icon_label)
 
-	# 文字（RichTextLabel 支持 BBCode）
-	var text_label := RichTextLabel.new()
-	text_label.bbcode_enabled = true
-	text_label.fit_content = true
-	text_label.scroll_active = false
-	text_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	text_label.add_theme_color_override("default_color", Color.WHITE)
+	var text_label: RichTextLabel = panel.get_node("HBox/Message")
 	if is_center:
 		text_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		text_label.custom_minimum_size.x = 360.0
@@ -206,17 +191,8 @@ func _create_popup(text: String, style: Style, pos: Position) -> PanelContainer:
 	elif is_bar:
 		text_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		text_label.custom_minimum_size.x = _vp_size.x - MARGIN * 2 - 40.0
-		text_label.add_theme_font_size_override("normal_font_size", 16)
-	else:
-		text_label.autowrap_mode = TextServer.AUTOWRAP_OFF
-		text_label.custom_minimum_size.x = 240.0
-		text_label.add_theme_font_size_override("normal_font_size", 16)
 	text_label.text = text
-	hbox.add_child(text_label)
 
-	panel.add_child(hbox)
-
-	# 横幅模式：设定宽度撑满
 	if is_bar:
 		panel.custom_minimum_size.x = _vp_size.x - MARGIN * 2
 
