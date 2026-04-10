@@ -10,6 +10,9 @@ extends Node2D
 ##   - 若不覆盖 get_teams_config()，则沿用旧的单玩家行为。
 
 @export var obstacles_tilemap_layer: TileMapLayer  # 障碍物所在的层，必须在编辑器中指定
+## AI 回合中每个敌人一轮内最多走几步（每步 = 向相邻格移动一次）。
+## 子关卡可在 _on_level_ready 里覆盖，例如 `ai_max_move_steps = 4`。
+@export var ai_max_move_steps: int = 1
 
 # ─────────────────────────────────────────────
 # 关卡事件信号（供关卡脚本 connect）
@@ -61,6 +64,12 @@ var _input_state: InputState = InputState.IDLE
 var _current_skill: SkillData = null
 ## 技能范围 Overlay（运行时动态创建）。
 var _skill_targeting: Node2D = null
+## 选中单位脚下的呼吸菱形指示器。
+var _selection_indicator: Line2D
+## 结束回合的待确认状态：第一次点击已登记，等待第二次确认。
+var _end_turn_pending_confirm: bool = false
+## 按钮默认 modulate，切换高亮状态时用来还原。
+var _end_turn_button_default_modulate: Color = Color.WHITE
 
 ## Names to search for the walkable tilemap layer
 const WALKABLE_LAYER_NAMES: Array[String] = [
@@ -108,6 +117,8 @@ func _ready() -> void:
 	if tilemap == null:
 		push_error("No walkable tilemap found in level")
 		return
+	if _end_turn_button:
+		_end_turn_button_default_modulate = _end_turn_button.modulate
 	# 若 MovementManager 的 movement_tilemaps 未在编辑器中配置，自动填入 walkable tilemap 作为回退
 	if movement_manager and movement_manager.movement_tilemaps.is_empty():
 		movement_manager.movement_tilemaps.append(tilemap)
@@ -127,6 +138,7 @@ func _ready() -> void:
 	_setup_special_tiles()
 	_setup_skill_targeting()
 	_setup_phase_notification()
+	_setup_selection_indicator()
 	if camera and camera is LevelCamera:
 		(camera as LevelCamera).set_level_bounds(get_tilemap_bounds())
 	_on_level_ready()
@@ -141,6 +153,32 @@ func _ready() -> void:
 	# 初始显示主角信息
 	if hero:
 		_update_status_bar_for_unit(hero, false)
+
+
+func _process(_delta: float) -> void:
+	# 选中指示器跟随
+	if _selection_indicator:
+		if selected_unit != null and is_instance_valid(selected_unit):
+			_selection_indicator.global_position = selected_unit.global_position
+			_selection_indicator.visible = true
+		else:
+			_selection_indicator.visible = false
+
+
+func _setup_selection_indicator() -> void:
+	_selection_indicator = Line2D.new()
+	# 放大菱形尺寸（原 16→24），线条加粗，颜色更亮
+	_selection_indicator.points = PackedVector2Array([-24, 0, 0, 12, 24, 0, 0, -12, -24, 0])
+	_selection_indicator.width = 2.5
+	_selection_indicator.default_color = Color(1.0, 0.95, 0.3, 1.0)
+	_selection_indicator.z_index = -1
+	_selection_indicator.visible = false
+	add_child(_selection_indicator)
+	var tween := create_tween().set_loops()
+	tween.tween_property(_selection_indicator, "modulate:a", 0.45, 0.5) \
+		.set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_SINE)
+	tween.tween_property(_selection_indicator, "modulate:a", 1.0, 0.5) \
+		.set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_SINE)
 
 
 # ─────────────────────────────────────────────
@@ -239,8 +277,7 @@ func _start_team_turn(index: int) -> void:
 	# _go_idle 已在 _do_end_turn 中调用，此处只需确保状态干净
 	move_overlay.clear_range()
 
-	if _turn_label:
-		_turn_label.text = "[ %s 的回合 ]" % team.team_name
+	_animate_turn_label(team.team_name)
 
 	if team.controller == "ai":
 		if _end_turn_button:
@@ -251,9 +288,55 @@ func _start_team_turn(index: int) -> void:
 	else:
 		if _end_turn_button:
 			_end_turn_button.visible = true
+		_end_turn_pending_confirm = false
+		_set_end_turn_button_highlight(false)
 		_waiting_for_player_input = true
+		# 玩家回合开始时把镜头平滑拉到主角，给本回合一个明确的起点。
+		_focus_camera_on_team(team)
 		# 玩家回合开始时刷新状态栏，确保显示 AP 恢复后的最新数据
 		_reset_status_bar()
+
+
+## 回合标签"弹入"动画：从 1.4 倍+透明缩放到正常+不透明。
+func _animate_turn_label(team_name: String) -> void:
+	if _turn_label == null:
+		return
+	_turn_label.text = "[ %s 的回合 ]" % team_name
+	_turn_label.pivot_offset = _turn_label.size / 2
+	_turn_label.scale = Vector2(1.4, 1.4)
+	_turn_label.modulate = Color(1, 1, 1, 0)
+	var tween := create_tween()
+	tween.tween_property(_turn_label, "modulate:a", 1.0, 0.2).set_ease(Tween.EASE_OUT)
+	tween.parallel().tween_property(_turn_label, "scale", Vector2.ONE, 0.35) \
+		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
+
+
+## 把镜头平滑拉到队伍"代表单位"（优先 hero，否则队里第一个存活单位）。
+## 仅修改 target_position，不锁定相机，玩家仍可随时手动平移/缩放。
+func _focus_camera_on_team(team: TeamData) -> void:
+	if camera == null:
+		return
+	var lv_camera := camera as LevelCamera
+	if lv_camera == null:
+		return
+	var focus_unit: Node2D = null
+	if hero != null and is_instance_valid(hero) and hero in team.units:
+		var hu := hero as Unit
+		if hu == null or hu.combat_stats == null or hu.combat_stats.is_alive():
+			focus_unit = hero
+	if focus_unit == null:
+		for u: Node2D in team.units:
+			if not is_instance_valid(u):
+				continue
+			if u is Unit:
+				var us := (u as Unit).combat_stats
+				if us != null and not us.is_alive():
+					continue
+			focus_unit = u
+			break
+	if focus_unit == null:
+		return
+	lv_camera.target_position = focus_unit.global_position
 
 
 ## 结束整个队伍的回合。UI"结束回合"按钮和 MCP 都调用此方法。
@@ -270,6 +353,7 @@ func end_team_turn() -> void:
 
 ## 回合结束的实际逻辑。内部和 AI 也调用此方法。
 func _do_end_turn() -> void:
+	_clear_end_turn_pending()
 	if current_team_index >= 0 and current_team_index < teams.size():
 		var team: TeamData = teams[current_team_index]
 		for unit: Node2D in team.units.duplicate():
@@ -303,7 +387,60 @@ func _do_end_turn() -> void:
 
 
 func _on_end_turn_button_pressed() -> void:
+	# 队伍已经没得做了 → 直接结束，跳过确认
+	if not _player_team_has_remaining_actions():
+		_end_turn_pending_confirm = false
+		_set_end_turn_button_highlight(false)
+		end_team_turn()
+		return
+	# 第一次点击 → 进入待确认并高亮
+	if not _end_turn_pending_confirm:
+		_end_turn_pending_confirm = true
+		_set_end_turn_button_highlight(true)
+		return
+	# 第二次点击 → 真正结束
+	_end_turn_pending_confirm = false
+	_set_end_turn_button_highlight(false)
 	end_team_turn()
+
+
+## 结束回合按钮高亮配置（"待确认"态）。
+const _END_TURN_HIGHLIGHT_MODULATE: Color = Color(1.8, 1.1, 0.4, 1.0)
+## 边框颜色偏近白，被 modulate 乘完后正好变成更亮的暖橙，和按钮面形成层次。
+const _END_TURN_HIGHLIGHT_BORDER_COLOR: Color = Color(1.0, 0.95, 0.85, 1.0)
+const _END_TURN_HIGHLIGHT_BORDER_WIDTH: int = 3
+const _END_TURN_HIGHLIGHT_STATES: Array[String] = ["normal", "hover", "pressed", "focus"]
+
+
+func _set_end_turn_button_highlight(highlight: bool) -> void:
+	if _end_turn_button == null:
+		return
+	if highlight:
+		# 暖橙色 modulate + 各状态的 StyleBoxFlat 描边。两层叠加，底色再暗也看得见。
+		_end_turn_button.modulate = _END_TURN_HIGHLIGHT_MODULATE
+		for state in _END_TURN_HIGHLIGHT_STATES:
+			var base := _end_turn_button.get_theme_stylebox(state)
+			var style: StyleBoxFlat
+			if base is StyleBoxFlat:
+				style = (base as StyleBoxFlat).duplicate() as StyleBoxFlat
+			else:
+				style = StyleBoxFlat.new()
+				style.bg_color = Color(0.15, 0.15, 0.18, 0.95)
+				style.set_corner_radius_all(3)
+			style.border_color = _END_TURN_HIGHLIGHT_BORDER_COLOR
+			style.set_border_width_all(_END_TURN_HIGHLIGHT_BORDER_WIDTH)
+			_end_turn_button.add_theme_stylebox_override(state, style)
+	else:
+		_end_turn_button.modulate = _end_turn_button_default_modulate
+		for state in _END_TURN_HIGHLIGHT_STATES:
+			_end_turn_button.remove_theme_stylebox_override(state)
+
+
+## 取消"待确认结束回合"状态。被任何玩家的其他操作入口调用。
+func _clear_end_turn_pending() -> void:
+	if _end_turn_pending_confirm:
+		_end_turn_pending_confirm = false
+		_set_end_turn_button_highlight(false)
 
 
 
@@ -312,35 +449,53 @@ func _on_end_turn_button_pressed() -> void:
 # AI 回合
 # ─────────────────────────────────────────────
 
+## AI 回合中每个单位行动前，镜头锁定并放大的倍率。
+const _AI_TURN_CAMERA_LOCK_ZOOM: float = 1.4
+## 镜头切到新单位后、该单位开始移动前的等待时间（秒），给玩家视线跟上的间隔。
+const _AI_TURN_CAMERA_FOCUS_DELAY: float = 0.3
+
+
 func _run_ai_turn(team: TeamData) -> void:
 	# TODO: 完善 AI —— 目前为随机向相邻格移动一步
+	var lv_camera := camera as LevelCamera
 	for unit: Node2D in team.units:
+		if lv_camera and is_instance_valid(unit):
+			lv_camera.lock_on(unit, _AI_TURN_CAMERA_LOCK_ZOOM)
+			await get_tree().create_timer(_AI_TURN_CAMERA_FOCUS_DELAY).timeout
 		if not unit.is_moving:
 			CombatLog.msg("  AI行动: %s 在%s 尝试移动..." % [
 				unit.combat_stats.unit_name if unit is Unit and unit.combat_stats else unit.name,
 				unit.cell])
 			await _ai_move_unit(unit)
 		unit.has_acted = true
+	if lv_camera:
+		lv_camera.unlock()
 	_do_end_turn()
 
 
 func _ai_move_unit(unit: Node2D) -> void:
-	var dirs: Array[Vector2i] = [
-		Vector2i(1, 0), Vector2i(-1, 0),
-		Vector2i(0, 1), Vector2i(0, -1),
-	]
-	dirs.shuffle()
-	for dir: Vector2i in dirs:
-		var target_cell: Vector2i = unit.cell + dir
-		var cost: int = movement_manager.get_movement_cost(target_cell)
-		var occupied := _is_cell_occupied(target_cell)
-		if cost != TileType.IMPASSABLE and not occupied:
-			var path: Array[Vector2i] = [unit.cell, target_cell]
-			unit.move_along_path(path, tilemap)
-			await unit.move_finished
-			CombatLog.msg("  AI移动: %s → %s" % [unit.cell - dir, unit.cell])
+	var steps: int = max(1, ai_max_move_steps)
+	for _i in range(steps):
+		var dirs: Array[Vector2i] = [
+			Vector2i(1, 0), Vector2i(-1, 0),
+			Vector2i(0, 1), Vector2i(0, -1),
+		]
+		dirs.shuffle()
+		var moved := false
+		for dir: Vector2i in dirs:
+			var target_cell: Vector2i = unit.cell + dir
+			var cost: int = movement_manager.get_movement_cost(target_cell)
+			var occupied := _is_cell_occupied(target_cell)
+			if cost != TileType.IMPASSABLE and not occupied:
+				var path: Array[Vector2i] = [unit.cell, target_cell]
+				unit.move_along_path(path, tilemap)
+				await unit.move_finished
+				CombatLog.msg("  AI移动: %s → %s" % [unit.cell - dir, unit.cell])
+				moved = true
+				break
+		if not moved:
+			CombatLog.msg("  AI无法移动: 所有相邻格不可通行或被占据")
 			return
-	CombatLog.msg("  AI无法移动: 所有相邻格不可通行或被占据")
 
 
 func _is_cell_occupied(cell: Vector2i) -> bool:
@@ -439,14 +594,14 @@ func complete_level() -> void:
 	if GameState.has_cutscene(level, "post"):
 		GameState.pending_cutscene_pages = GameState.get_cutscene_pages(level, "post")
 		GameState.pending_next_scene = "res://scenes/menu/main_menu.tscn"
-		get_tree().change_scene_to_file("res://scenes/cutscene/cutscene_scene.tscn")
+		GameState.transition_to_scene("res://scenes/cutscene/cutscene_scene.tscn")
 	else:
-		get_tree().change_scene_to_file("res://scenes/menu/main_menu.tscn")
+		GameState.transition_to_scene("res://scenes/menu/main_menu.tscn")
 
 
 ## 关卡失败。由关卡脚本在检测到失败条件时调用（例如主角死亡）。
 func defeat_level() -> void:
-	get_tree().change_scene_to_file("res://scenes/menu/main_menu.tscn")
+	GameState.transition_to_scene("res://scenes/menu/main_menu.tscn")
 
 
 ## 运行时生成一个单位。加入指定队伍，放置在指定 cell 的脚下。
@@ -612,6 +767,7 @@ func confirm_cell_xy(x: int, y: int) -> void:
 func cancel_action() -> void:
 	if not _can_accept_command():
 		return
+	_clear_end_turn_pending()
 	if _input_state == InputState.TARGETING_SKILL:
 		_clear_skill_targeting()
 	if _input_state != InputState.IDLE:
@@ -627,6 +783,7 @@ func select_skill(skill: SkillData) -> void:
 	var unit := selected_unit as Unit
 	if unit.combat_stats == null or not unit.combat_stats.can_use_skill(skill):
 		return
+	_clear_end_turn_pending()
 	_current_skill = skill
 	move_overlay.clear_range()
 	if _skill_targeting:
@@ -645,6 +802,7 @@ func _go_idle() -> void:
 
 
 func _confirm_idle(_cell: Vector2i, local_mouse: Vector2, current_team: TeamData) -> void:
+	_clear_end_turn_pending()
 	# 尝试选中当前队伍的单位
 	var target := _find_nearest_team_unit(local_mouse, current_team)
 	if target != null and not target.has_acted and not target.is_moving:
@@ -681,6 +839,7 @@ func _enter_targeting_move() -> void:
 
 
 func _confirm_targeting_move(cell: Vector2i, local_mouse: Vector2, current_team: TeamData) -> void:
+	_clear_end_turn_pending()
 	if selected_unit == null:
 		_go_idle()
 		return
@@ -744,6 +903,27 @@ func _get_occupied_cells_except(exclude: Node2D) -> Array[Vector2i]:
 
 
 ## 检查单位是否有可用技能（AP 够 + 次数未尽）。
+## 当前玩家队伍是否还有可行动单位（未 has_acted、未在移动中、还能移动或放技能）。
+func _player_team_has_remaining_actions() -> bool:
+	if current_team_index < 0 or current_team_index >= teams.size():
+		return false
+	var team: TeamData = teams[current_team_index]
+	if team.controller != "player":
+		return false
+	for unit: Node2D in team.units:
+		if not unit is Unit:
+			continue
+		var u := unit as Unit
+		if u.has_acted or u.is_moving:
+			continue
+		if u.combat_stats == null or not u.combat_stats.is_alive():
+			continue
+		var stats: CombatStats = u.combat_stats
+		if stats.ap_current > 0 and (stats.can_move() or _has_usable_skill(u)):
+			return true
+	return false
+
+
 func _has_usable_skill(unit: Node2D) -> bool:
 	if not unit is Unit:
 		return false
@@ -781,6 +961,7 @@ func _clear_skill_targeting() -> void:
 
 
 func _confirm_targeting_skill(cell: Vector2i) -> void:
+	_clear_end_turn_pending()
 	if selected_unit == null or _current_skill == null or _skill_targeting == null:
 		_go_idle()
 		return
@@ -915,10 +1096,12 @@ func _format_phase_details(pd: PhaseData, hit: CombatResolver.HitResult, cat_nam
 
 
 func _on_skill_button_pressed(index: int) -> void:
+	_clear_end_turn_pending()
 	select_skill_by_index(index)
 
 
 func _on_move_button_pressed() -> void:
+	_clear_end_turn_pending()
 	start_move()
 
 

@@ -30,8 +30,20 @@ var combat_stats: CombatStats
 var team_index: int = -1
 ## 所属阵营名称（由 BaseLevel 赋值）。
 var faction: String = ""
-## 本回合是否已行动。
-var has_acted: bool = false
+## 本回合是否已行动。设为 true 时单位自动变暗，false 时恢复。
+var has_acted: bool = false:
+	set(value):
+		has_acted = value
+		_update_acted_visual()
+
+
+func _update_acted_visual() -> void:
+	if not is_inside_tree():
+		return
+	if has_acted:
+		modulate = Color(0.5, 0.5, 0.55, 0.75)
+	else:
+		modulate = Color.WHITE
 
 ## 当前朝向前缀，用于拼接动画名。
 var _facing: StringName = &"right_front"

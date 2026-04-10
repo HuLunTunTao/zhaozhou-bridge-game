@@ -27,6 +27,12 @@ The main scene is `scenes/menu/main_menu.tscn`.
 
 ## Architecture
 
+### Autoloads (`project.godot`)
+
+- `GameState` (`scripts/game_state.gd`) — level registry (`LEVEL_SCENES`), cutscene page table (`CUTSCENE_DATA`), and transient inter-scene state (`pending_cutscene_pages`, `pending_next_scene`)
+- `Notify` (`scripts/notification_manager.gd`) — global notification manager for in-game toasts
+- `TestBridge` — editor plugin bridge (`addons/godot_test_bridge/`)
+
 ### Scene Structure
 
 - `scenes/menu/main_menu.tscn` — Main menu, entry point
@@ -58,16 +64,21 @@ The main scene is `scenes/menu/main_menu.tscn`.
 ### Tile System
 
 - Isometric tiles: 32x32 texture regions displayed as 32x16 in-game
-- Terrain types: Earth, Grass, Stone Road, Water (light/dark), Water Stone
-- Tileset: `assets/battle_tile_set.tres` (battle) + inline tilesets in level scenes
+- Terrain types: Earth, Grass, Stone Road, Water (light/dark), Water Stone — each with movement cost
+- Tileset: `assets/battle_tile_set.tres` + inline tilesets in map scenes
 
 ### Assets
 
-- Spritesheet: `assets/thepixeltiles/isometric tileset/spritesheet.png`
-- Creatures in `assets/thepixeltiles/critters/`: badger, boar, stag, wolf
-  - Naming convention: `{creature}_{direction}_{action}_{frame}.png`
-  - Directions: NE, NW, SE, SW (some have center)
-  - Actions vary per creature (idle, walk, run, attack variants)
+- `assets/thepixeltiles/isometric tileset/spritesheet.png` — main tileset
+- `assets/thepixeltiles/critters/` — badger, boar, stag, wolf
+  - Naming: `{creature}_{direction}_{action}_{frame}.png` (directions: NE/NW/SE/SW, some with center)
+- `assets/character/` — character art; `assets/face/` — portraits (7:9, e.g. `li_chun.png`) shown in status bar and dialogue
+- `assets/cutscenes/` — per-level cutscene pages (e.g. `level1-1/pre_01.png`)
+- `assets/font/` — Unifont
+
+### Level Design Documentation (`docs/level-design/`)
+
+Comprehensive authoring guide for level designers working in the Godot editor. Start with `README.md`. Numbered chapters cover map creation, terrain painting, unit placement, level parameters, resource uniqueness, git workflow, testing, main-menu integration, and the event-response system. Appendices A/B are the terrain and unit/skill reference tables. **When adding features that affect level authoring, update these docs.**
 
 ### Design Documents
 
