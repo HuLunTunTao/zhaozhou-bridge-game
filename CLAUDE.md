@@ -11,19 +11,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Resolution: 960x540 viewport, 1920x1080 window, stretch mode viewport
 - Texture filter: nearest (pixel art)
 - Physics: Jolt (3D enabled despite 2D gameplay)
-- Font: Unifont (Chinese character support)
+- Font: Unifont 15.1.04 (Chinese character support), Fusion Pixel (pixel UI font)
 
 ## Running the Project
 
 ```bash
 # Run the project
-godot --path /home/ffcrazy/proj/game
+godot --path /Users/hltt/projects/wxy_game/Godot-game
 
 # Open in editor
-godot --editor --path /home/ffcrazy/proj/game
+godot --editor --path /Users/hltt/projects/wxy_game/Godot-game
 ```
 
-The main entry scene is `scenes/menu/main_menu.tscn` (see `project.godot`). From there the player picks a level registered in `GameState.LEVEL_SCENES`.
+The main scene is `scenes/menu/main_menu.tscn`.
 
 ## Architecture
 
@@ -35,40 +35,31 @@ The main entry scene is `scenes/menu/main_menu.tscn` (see `project.godot`). From
 
 ### Scene Structure
 
-- `scenes/menu/main_menu.tscn` — Entry scene; builds level buttons from `GameState.LEVEL_SCENES`
-- `scenes/levels/` — All campaign levels. Every level inherits from `BaseLevel`:
-  - `base_level/base_level.tscn` + `base_level.gd` (`class_name BaseLevel`) — shared root with `TileMaps`, `Entities/Units`, `SpecialTiles`, `MoveOverlay`, `MovementManager`, `Camera2D`, `GUI`, `StatusBarScene`
-  - Level folders: `level1-1/`, `level1-2/`, `level1-3/`, `level1-3-2/`, `level1-4/`, `test/`
-  - `maps/` — raw map layouts (`*v2.tscn`) used as starting points for level scenes
-  - `base_level/tile_types/` — terrain tile-type resources; `movement_manager.gd` + `move_overlay.gd` handle pathfinding and range display
-- `scenes/unit/unit.tscn` (`class_name Unit`) — shared unit scene; animations under `scenes/unit/anamation/`
-- `scenes/ui/` — `action_panel`, `status_bar`, `dialogue_box`, `settings_panel`, `save_manager`, plus `combat/` (damage popups, HP bar, phase/element popups, phase notification)
-- `scenes/cutscene/cutscene_player.tscn` — fullscreen cutscene page viewer used before/after levels and mid-level
-- `scenes/highlight/` — tile selection highlight (`highlight_selecter.gd`, a Line2D diamond)
-- `scenes/debug/`, `scenes/test/` — dev-only scenes
+- `scenes/menu/main_menu.tscn` — Main menu, entry point
+- `scenes/levels/base_level/` — Base level class (all battle levels inherit from this)
+  - `base_level.gd` — Turn system, team management, input state machine, combat feedback
+  - `movement_manager.gd` — Tile type queries, movement cost, enter/exit hooks
+  - `move_overlay.gd` — Movement range preview
+- `scenes/levels/` — Campaign levels (level1-1 through level1-4, test)
+- `scenes/unit/unit.tscn` — Unit scene (AnimatedSprite2D + HP bar)
+- `scenes/ui/` — UI components (status_bar, dialogue_box, settings_panel, notification_popup)
+- `scenes/cutscene/` — Cutscene system
+- `scenes/test/` — Test scenes (dialogue, notification, phase notification)
 
-### Combat System (`scripts/combat/`)
+### Combat System
 
-Turn-based combat organized around the five elements (五行) and a "化势" (phase transform) mechanic:
+- `scripts/combat/combat_resolver.gd` — Damage calculation, hit resolution
+- `scripts/combat/skill_executor.gd` — Skill validation, target collection, effect application
+- `scripts/combat/combat_stats.gd` — Unit runtime state (HP, AP, statuses, element)
+- `scripts/combat/phase_table.gd` — Five-element phase (化势) lookup table
+- `scripts/combat/element_system.gd` — Element attachment/collision/refresh
+- `scripts/data/phase_data.gd` — PhaseData resource definition
 
-- `combat_resolver.gd` — resolves skill hits, damage, and knock-on effects
-- `combat_stats.gd` — per-unit stat math
-- `element_system.gd` + `phase_table.gd` — 五行 relationships and phase transitions
-- `skill_executor.gd` — drives skill animation/resolution pipeline
-- `skill_targeting.gd` — range/target overlay selection
-- `combat_log.gd` — structured log feeding the combat log UI
+### Data Resources
 
-`BaseLevel` owns the input state machine (`IDLE` → `UNIT_SELECTED` → `TARGETING_MOVE`/`TARGETING_SKILL` → `ANIMATING`) and emits level-level signals: `unit_died`, `unit_hp_changed`, `round_started`, `team_turn_started`, `unit_gained_skill`, `unit_lost_skill`. Level scripts override `get_teams_config()` and connect to these signals to wire up win/lose conditions, dialogue, and scripted spawns.
-
-### Data Resources (`data/`)
-
-All tunable content lives as `.tres` resources driven by script classes under `scripts/data/`:
-
-- `data/units/*.tres` — `UnitData` (`unit_data.gd`): `hero_li_chun`, `craftsman_guard`, `survey_worker`, `bank_mud_wraith`, `dark_current`, `drift_log_pack`, `whirl_pool`
-- `data/skills/*.tres` — `SkillData` (`skill_data.gd`): Li Chun's `lc_*`, craftsman `cg_*`, survey worker `sw_*`, enemy skills (`bmw_*`, `dc_*`, `dlp_*`, `wp_*`)
-- `data/phases/*.tres` — `PhaseData` (`phase_data.gd`): 五行相生相克关系（`wood_over_earth_pierce_bank`, `water_over_fire_quench_blaze`, …）
-- `data/statuses/*.tres` — `StatusData` (`status_data.gd`): buffs / debuffs / DoT
-- `scripts/data/enums.gd`, `element_colors.gd`, `offset_presets.gd` — shared constants
+- `data/units/*.tres` — Unit data (UnitData resources)
+- `data/skills/*.tres` — Skill data (SkillData resources)
+- `data/phases/*.tres` — Phase data (PhaseData resources, 10 files for five-element interactions)
 
 ### Tile System
 
@@ -93,6 +84,23 @@ Comprehensive authoring guide for level designers working in the Godot editor. S
 
 - `artbook/第一章：安济桥成.docx` — Chapter 1 story and level design
 - `artbook/补充详细设定与剧情.docx` — Supplementary settings and plot details
+- `docs/level-design/` — Level design guides for designers
+
+## Export Build Pitfalls
+
+These patterns cause "works in editor, fails in export" bugs. **Always avoid them:**
+
+1. **NEVER use `DirAccess.open("res://...")` to scan directories at runtime.**
+   Exported builds pack resources into `.pck` files where `DirAccess` cannot enumerate `res://` directories. Use explicit path lists + `load()` instead. See `scripts/combat/phase_table.gd` for the correct pattern.
+
+2. **`@export var node: TileMapLayer` in inherited scenes may be null in exports.**
+   This is a known Godot 4.x bug cluster. Always add a runtime fallback lookup in `_ready()`. See `base_level.gd::_find_obstacle_tilemap()`.
+
+3. **Prefer `autowrap_mode = 3` (WORD_SMART) over `2` (WORD) for Chinese text.**
+   `AUTOWRAP_WORD` has inconsistent CJK line-breaking behavior between editor and export.
+
+4. **Prefer PackedScene `.instantiate()` over `.new()` for complex UI node trees.**
+   Programmatically built Control trees (PanelContainer > HBoxContainer > RichTextLabel) may have minimum_size propagation timing issues in export. Use a `.tscn` template instead. See `scenes/ui/notification_popup.tscn`.
 
 ## MCP Integration
 

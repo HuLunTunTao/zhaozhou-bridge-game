@@ -31,22 +31,26 @@ static func _ensure_init() -> void:
 	if _initialized:
 		return
 	_initialized = true
-	# 加载所有 phase .tres 文件
-	var dir := DirAccess.open("res://data/phases")
-	if dir == null:
-		push_warning("PhaseTable: data/phases directory not found")
-		return
-	dir.list_dir_begin()
-	var file_name := dir.get_next()
-	while file_name != "":
-		if file_name.ends_with(".tres"):
-			var res := load("res://data/phases/" + file_name)
-			if res is PhaseData:
-				var pd: PhaseData = res
-				var key := Vector2i(pd.attack_element, pd.target_element)
-				_phase_map[key] = pd
-		file_name = dir.get_next()
-	dir.list_dir_end()
+	# 显式列出所有化势资源路径（不使用 DirAccess 扫描目录，
+	# 因为导出版中 res:// 目录被打包进 .pck，DirAccess 无法列举）。
+	var paths := [
+		"res://data/phases/earth_over_water_arrest_flow.tres",
+		"res://data/phases/earth_follow_fire_smother_ash.tres",
+		"res://data/phases/fire_follow_wood_spread_scorch.tres",
+		"res://data/phases/fire_over_metal_molten_temper.tres",
+		"res://data/phases/metal_follow_earth_open_grit.tres",
+		"res://data/phases/metal_over_wood_fell_branch.tres",
+		"res://data/phases/water_follow_metal_quench_edge.tres",
+		"res://data/phases/water_over_fire_quench_blaze.tres",
+		"res://data/phases/wood_follow_water_creeping_growth.tres",
+		"res://data/phases/wood_over_earth_pierce_bank.tres",
+	]
+	for path in paths:
+		var res := load(path)
+		if res is PhaseData:
+			var pd: PhaseData = res
+			var key := Vector2i(pd.attack_element, pd.target_element)
+			_phase_map[key] = pd
 
 
 ## 查找两个属性之间的关系。

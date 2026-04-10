@@ -83,3 +83,4 @@
 | 2026-04-09 | v4.0 | 补充对话系统文档；新增头像（portrait）字段说明；更新状态栏 UI 细节（头像、属性显示、技能槽位）；补充战斗日志使用说明；修正场景树描述与代码一致；新增敌方技能 dlp_drifting_timber_crash；新增 Autoload: Notify（通知管理器） |
 | 2026-04-09 | v4.1 | 新增 Godot 编辑器首次使用入门（01 § 2.0）；新增代码编辑器与 GDScript 基础（04 § 6.0）；扩展 Unit 原点约定与脚下对齐示例（03 § 4.2）；新增化势反馈三层 UI 与渲染层级速查（07 § 7.3 / § 7.3b）；新增 Notify.notify 调用示例（04 § 6.11）；新增 ElementColors 全局颜色类使用指南（附录 B § B.13）；修正 HP 条 Y 偏移（-40）、TestBridge autoload |
 | 2026-04-09 | v4.2 | 新增 09 事件-响应系统专题文档：6 个关卡事件信号（unit_died / unit_hp_changed / round_started / team_turn_started / unit_gained_skill / unit_lost_skill）+ 5 个新增响应方法（defeat_level / spawn_unit / play_dialogue / grant_skill / revoke_skill）；中场过场动画用法说明；常见模式速查；完整关卡示例 |
+| 2026-04-10 | v4.3 | 附录 B 新增 B.11a「新增化势的完整流程」：创建 PhaseData .tres 文件 + 在 phase_table.gd 中注册路径的两步必做流程；说明 DirAccess 在导出版中无法扫描目录的技术背景；B.6 节头部新增注册提醒 |

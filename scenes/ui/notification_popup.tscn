@@ -1,0 +1,27 @@
+[gd_scene format=3]
+
+[node name="NotificationPopup" type="PanelContainer"]
+mouse_filter = 2
+
+[node name="HBox" type="HBoxContainer" parent="."]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 4
+
+[node name="Icon" type="Label" parent="HBox"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+theme_override_font_sizes/font_size = 16
+
+[node name="Message" type="RichTextLabel" parent="HBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+bbcode_enabled = true
+fit_content = true
+scroll_active = false
+custom_minimum_size = Vector2(240, 0)
+theme_override_font_sizes/normal_font_size = 16
+theme_override_colors/default_color = Color(1, 1, 1, 1)

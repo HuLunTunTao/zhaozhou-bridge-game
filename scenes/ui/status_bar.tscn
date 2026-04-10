@@ -66,8 +66,8 @@ theme_override_constants/separation = 4
 script = ExtResource("1_script")
 
 [node name="PortraitFrame" type="PanelContainer" parent="PanelContainer/MarginContainer/StatusBar" unique_id=1233971562]
-layout_mode = 2
 clip_contents = true
+layout_mode = 2
 theme_override_styles/panel = SubResource("portrait_frame")
 
 [node name="Portrait" type="TextureRect" parent="PanelContainer/MarginContainer/StatusBar/PortraitFrame" unique_id=1746247231]
@@ -242,7 +242,7 @@ theme_override_colors/font_color = Color(0.7, 0.75, 0.85, 1)
 theme_override_fonts/font = ExtResource("2_pixel10")
 theme_override_font_sizes/font_size = 10
 horizontal_alignment = 1
-autowrap_mode = 2
+autowrap_mode = 3
 
 [node name="Slot1" type="Button" parent="PanelContainer/MarginContainer/StatusBar" unique_id=302448838]
 unique_name_in_owner = true
@@ -273,7 +273,7 @@ theme_override_colors/font_color = Color(0.7, 0.75, 0.85, 1)
 theme_override_fonts/font = ExtResource("2_pixel10")
 theme_override_font_sizes/font_size = 10
 horizontal_alignment = 1
-autowrap_mode = 2
+autowrap_mode = 3
 
 [node name="Slot2" type="Button" parent="PanelContainer/MarginContainer/StatusBar" unique_id=383423528]
 unique_name_in_owner = true
@@ -303,8 +303,9 @@ grow_vertical = 2
 theme_override_colors/font_color = Color(0.7, 0.75, 0.85, 1)
 theme_override_fonts/font = ExtResource("2_pixel10")
 theme_override_font_sizes/font_size = 10
+text = "啊啊啊啊啊啊啊啊啊啊啊啊啊啊啊啊啊啊啊啊啊"
 horizontal_alignment = 1
-autowrap_mode = 2
+autowrap_mode = 3
 
 [node name="Slot3" type="Button" parent="PanelContainer/MarginContainer/StatusBar" unique_id=1430313674]
 unique_name_in_owner = true
@@ -335,7 +336,7 @@ theme_override_colors/font_color = Color(0.7, 0.75, 0.85, 1)
 theme_override_fonts/font = ExtResource("2_pixel10")
 theme_override_font_sizes/font_size = 10
 horizontal_alignment = 1
-autowrap_mode = 2
+autowrap_mode = 3
 
 [node name="Slot4" type="Button" parent="PanelContainer/MarginContainer/StatusBar" unique_id=2118249000]
 unique_name_in_owner = true
@@ -366,7 +367,7 @@ theme_override_colors/font_color = Color(0.7, 0.75, 0.85, 1)
 theme_override_fonts/font = ExtResource("2_pixel10")
 theme_override_font_sizes/font_size = 10
 horizontal_alignment = 1
-autowrap_mode = 2
+autowrap_mode = 3
 
 [node name="Slot5" type="Button" parent="PanelContainer/MarginContainer/StatusBar" unique_id=1656135758]
 unique_name_in_owner = true
@@ -397,7 +398,7 @@ theme_override_colors/font_color = Color(0.7, 0.75, 0.85, 1)
 theme_override_fonts/font = ExtResource("2_pixel10")
 theme_override_font_sizes/font_size = 10
 horizontal_alignment = 1
-autowrap_mode = 2
+autowrap_mode = 3
 
 [connection signal="pressed" from="PanelContainer/MarginContainer/StatusBar/Slot0" to="PanelContainer/MarginContainer/StatusBar" method="_on_move_pressed"]
 [connection signal="pressed" from="PanelContainer/MarginContainer/StatusBar/Slot1" to="PanelContainer/MarginContainer/StatusBar" method="_on_skill_pressed" binds= [0]]
