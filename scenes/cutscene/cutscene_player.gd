@@ -78,7 +78,7 @@ func _advance() -> void:
 
 func _finish() -> void:
 	if _next_scene_path != "":
-		get_tree().change_scene_to_file(_next_scene_path)
+		GameState.transition_to_scene(_next_scene_path)
 	else:
 		cutscene_finished.emit()
 		queue_free()

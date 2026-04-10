@@ -6,6 +6,40 @@ var selected_level: String = ""
 var pending_cutscene_pages: Array[String] = []
 var pending_next_scene: String = ""
 
+## 场景切换过渡层。
+var _transition_layer: CanvasLayer
+var _transition_rect: ColorRect
+
+
+func _ready() -> void:
+	_setup_transition()
+
+
+func _setup_transition() -> void:
+	_transition_layer = CanvasLayer.new()
+	_transition_layer.layer = 100
+	_transition_rect = ColorRect.new()
+	_transition_rect.color = Color.BLACK
+	_transition_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_transition_rect.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_transition_rect.modulate.a = 0.0
+	_transition_layer.add_child(_transition_rect)
+	add_child(_transition_layer)
+
+
+## 带黑幕 fade 的场景切换。替代 get_tree().change_scene_to_file()。
+func transition_to_scene(scene_path: String) -> void:
+	_transition_rect.mouse_filter = Control.MOUSE_FILTER_STOP
+	var tween := create_tween()
+	tween.tween_property(_transition_rect, "modulate:a", 1.0, 0.3)
+	await tween.finished
+	get_tree().change_scene_to_file(scene_path)
+	await get_tree().process_frame
+	var tween_in := create_tween()
+	tween_in.tween_property(_transition_rect, "modulate:a", 0.0, 0.3)
+	await tween_in.finished
+	_transition_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
 ## 关卡名 → 场景路径。字典的插入顺序即关卡按钮的显示顺序。
 ## 开发者只需在此处添加条目，选关界面会自动生成对应按钮。
 const LEVEL_SCENES: Dictionary = {

@@ -58,7 +58,7 @@ func _on_back_to_menu_pressed() -> void:
 	dialog.cancel_button_text = "取消"
 	dialog.confirmed.connect(func():
 		_close()
-		get_tree().change_scene_to_file("res://scenes/menu/main_menu.tscn")
+		GameState.transition_to_scene("res://scenes/menu/main_menu.tscn")
 	)
 	add_child(dialog)
 	dialog.popup_centered()

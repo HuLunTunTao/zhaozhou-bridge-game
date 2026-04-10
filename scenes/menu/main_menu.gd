@@ -61,9 +61,9 @@ func _on_level_selected(level: String) -> void:
 	if GameState.has_cutscene(level, "pre"):
 		GameState.pending_cutscene_pages = GameState.get_cutscene_pages(level, "pre")
 		GameState.pending_next_scene = battle_path
-		get_tree().change_scene_to_file("res://scenes/cutscene/cutscene_scene.tscn")
+		GameState.transition_to_scene("res://scenes/cutscene/cutscene_scene.tscn")
 	else:
-		get_tree().change_scene_to_file(battle_path)
+		GameState.transition_to_scene(battle_path)
 	# TODO: 关卡锁定机制——未通关的关卡按钮置灰
 	# TODO: 已通关关卡显示评价（星级或其他标记）
 
@@ -86,7 +86,7 @@ func _ready_test_buttons() -> void:
 		var btn := Button.new()
 		btn.text = test_name
 		btn.custom_minimum_size = Vector2(56, 32)
-		btn.pressed.connect(func(): get_tree().change_scene_to_file(TEST_SCENES[test_name]))
+		btn.pressed.connect(func(): GameState.transition_to_scene(TEST_SCENES[test_name]))
 		test_grid.add_child(btn)
 
 

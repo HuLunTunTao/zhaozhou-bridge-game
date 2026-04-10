@@ -64,6 +64,8 @@ var _input_state: InputState = InputState.IDLE
 var _current_skill: SkillData = null
 ## 技能范围 Overlay（运行时动态创建）。
 var _skill_targeting: Node2D = null
+## 选中单位脚下的呼吸菱形指示器。
+var _selection_indicator: Line2D
 ## 结束回合的待确认状态：第一次点击已登记，等待第二次确认。
 var _end_turn_pending_confirm: bool = false
 ## 按钮默认 modulate，切换高亮状态时用来还原。
@@ -136,6 +138,7 @@ func _ready() -> void:
 	_setup_special_tiles()
 	_setup_skill_targeting()
 	_setup_phase_notification()
+	_setup_selection_indicator()
 	if camera and camera is LevelCamera:
 		(camera as LevelCamera).set_level_bounds(get_tilemap_bounds())
 	_on_level_ready()
@@ -150,6 +153,32 @@ func _ready() -> void:
 	# 初始显示主角信息
 	if hero:
 		_update_status_bar_for_unit(hero, false)
+
+
+func _process(_delta: float) -> void:
+	# 选中指示器跟随
+	if _selection_indicator:
+		if selected_unit != null and is_instance_valid(selected_unit):
+			_selection_indicator.global_position = selected_unit.global_position
+			_selection_indicator.visible = true
+		else:
+			_selection_indicator.visible = false
+
+
+func _setup_selection_indicator() -> void:
+	_selection_indicator = Line2D.new()
+	# 放大菱形尺寸（原 16→24），线条加粗，颜色更亮
+	_selection_indicator.points = PackedVector2Array([-24, 0, 0, 12, 24, 0, 0, -12, -24, 0])
+	_selection_indicator.width = 2.5
+	_selection_indicator.default_color = Color(1.0, 0.95, 0.3, 1.0)
+	_selection_indicator.z_index = -1
+	_selection_indicator.visible = false
+	add_child(_selection_indicator)
+	var tween := create_tween().set_loops()
+	tween.tween_property(_selection_indicator, "modulate:a", 0.45, 0.5) \
+		.set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_SINE)
+	tween.tween_property(_selection_indicator, "modulate:a", 1.0, 0.5) \
+		.set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_SINE)
 
 
 # ─────────────────────────────────────────────
@@ -248,8 +277,7 @@ func _start_team_turn(index: int) -> void:
 	# _go_idle 已在 _do_end_turn 中调用，此处只需确保状态干净
 	move_overlay.clear_range()
 
-	if _turn_label:
-		_turn_label.text = "[ %s 的回合 ]" % team.team_name
+	_animate_turn_label(team.team_name)
 
 	if team.controller == "ai":
 		if _end_turn_button:
@@ -267,6 +295,20 @@ func _start_team_turn(index: int) -> void:
 		_focus_camera_on_team(team)
 		# 玩家回合开始时刷新状态栏，确保显示 AP 恢复后的最新数据
 		_reset_status_bar()
+
+
+## 回合标签"弹入"动画：从 1.4 倍+透明缩放到正常+不透明。
+func _animate_turn_label(team_name: String) -> void:
+	if _turn_label == null:
+		return
+	_turn_label.text = "[ %s 的回合 ]" % team_name
+	_turn_label.pivot_offset = _turn_label.size / 2
+	_turn_label.scale = Vector2(1.4, 1.4)
+	_turn_label.modulate = Color(1, 1, 1, 0)
+	var tween := create_tween()
+	tween.tween_property(_turn_label, "modulate:a", 1.0, 0.2).set_ease(Tween.EASE_OUT)
+	tween.parallel().tween_property(_turn_label, "scale", Vector2.ONE, 0.35) \
+		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
 
 
 ## 把镜头平滑拉到队伍"代表单位"（优先 hero，否则队里第一个存活单位）。
@@ -552,14 +594,14 @@ func complete_level() -> void:
 	if GameState.has_cutscene(level, "post"):
 		GameState.pending_cutscene_pages = GameState.get_cutscene_pages(level, "post")
 		GameState.pending_next_scene = "res://scenes/menu/main_menu.tscn"
-		get_tree().change_scene_to_file("res://scenes/cutscene/cutscene_scene.tscn")
+		GameState.transition_to_scene("res://scenes/cutscene/cutscene_scene.tscn")
 	else:
-		get_tree().change_scene_to_file("res://scenes/menu/main_menu.tscn")
+		GameState.transition_to_scene("res://scenes/menu/main_menu.tscn")
 
 
 ## 关卡失败。由关卡脚本在检测到失败条件时调用（例如主角死亡）。
 func defeat_level() -> void:
-	get_tree().change_scene_to_file("res://scenes/menu/main_menu.tscn")
+	GameState.transition_to_scene("res://scenes/menu/main_menu.tscn")
 
 
 ## 运行时生成一个单位。加入指定队伍，放置在指定 cell 的脚下。
