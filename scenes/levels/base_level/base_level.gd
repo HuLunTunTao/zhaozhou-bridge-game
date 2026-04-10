@@ -61,6 +61,10 @@ var _input_state: InputState = InputState.IDLE
 var _current_skill: SkillData = null
 ## 技能范围 Overlay（运行时动态创建）。
 var _skill_targeting: Node2D = null
+## 结束回合的待确认状态：第一次点击已登记，等待第二次确认。
+var _end_turn_pending_confirm: bool = false
+## 按钮默认 modulate，切换高亮状态时用来还原。
+var _end_turn_button_default_modulate: Color = Color.WHITE
 
 ## Names to search for the walkable tilemap layer
 const WALKABLE_LAYER_NAMES: Array[String] = [
@@ -108,6 +112,8 @@ func _ready() -> void:
 	if tilemap == null:
 		push_error("No walkable tilemap found in level")
 		return
+	if _end_turn_button:
+		_end_turn_button_default_modulate = _end_turn_button.modulate
 	# 若 MovementManager 的 movement_tilemaps 未在编辑器中配置，自动填入 walkable tilemap 作为回退
 	if movement_manager and movement_manager.movement_tilemaps.is_empty():
 		movement_manager.movement_tilemaps.append(tilemap)
@@ -251,6 +257,8 @@ func _start_team_turn(index: int) -> void:
 	else:
 		if _end_turn_button:
 			_end_turn_button.visible = true
+		_end_turn_pending_confirm = false
+		_set_end_turn_button_highlight(false)
 		_waiting_for_player_input = true
 		# 玩家回合开始时刷新状态栏，确保显示 AP 恢复后的最新数据
 		_reset_status_bar()
@@ -270,6 +278,7 @@ func end_team_turn() -> void:
 
 ## 回合结束的实际逻辑。内部和 AI 也调用此方法。
 func _do_end_turn() -> void:
+	_clear_end_turn_pending()
 	if current_team_index >= 0 and current_team_index < teams.size():
 		var team: TeamData = teams[current_team_index]
 		for unit: Node2D in team.units.duplicate():
@@ -303,7 +312,60 @@ func _do_end_turn() -> void:
 
 
 func _on_end_turn_button_pressed() -> void:
+	# 队伍已经没得做了 → 直接结束，跳过确认
+	if not _player_team_has_remaining_actions():
+		_end_turn_pending_confirm = false
+		_set_end_turn_button_highlight(false)
+		end_team_turn()
+		return
+	# 第一次点击 → 进入待确认并高亮
+	if not _end_turn_pending_confirm:
+		_end_turn_pending_confirm = true
+		_set_end_turn_button_highlight(true)
+		return
+	# 第二次点击 → 真正结束
+	_end_turn_pending_confirm = false
+	_set_end_turn_button_highlight(false)
 	end_team_turn()
+
+
+## 结束回合按钮高亮配置（"待确认"态）。
+const _END_TURN_HIGHLIGHT_MODULATE: Color = Color(1.8, 1.1, 0.4, 1.0)
+## 边框颜色偏近白，被 modulate 乘完后正好变成更亮的暖橙，和按钮面形成层次。
+const _END_TURN_HIGHLIGHT_BORDER_COLOR: Color = Color(1.0, 0.95, 0.85, 1.0)
+const _END_TURN_HIGHLIGHT_BORDER_WIDTH: int = 3
+const _END_TURN_HIGHLIGHT_STATES: Array[String] = ["normal", "hover", "pressed", "focus"]
+
+
+func _set_end_turn_button_highlight(highlight: bool) -> void:
+	if _end_turn_button == null:
+		return
+	if highlight:
+		# 暖橙色 modulate + 各状态的 StyleBoxFlat 描边。两层叠加，底色再暗也看得见。
+		_end_turn_button.modulate = _END_TURN_HIGHLIGHT_MODULATE
+		for state in _END_TURN_HIGHLIGHT_STATES:
+			var base := _end_turn_button.get_theme_stylebox(state)
+			var style: StyleBoxFlat
+			if base is StyleBoxFlat:
+				style = (base as StyleBoxFlat).duplicate() as StyleBoxFlat
+			else:
+				style = StyleBoxFlat.new()
+				style.bg_color = Color(0.15, 0.15, 0.18, 0.95)
+				style.set_corner_radius_all(3)
+			style.border_color = _END_TURN_HIGHLIGHT_BORDER_COLOR
+			style.set_border_width_all(_END_TURN_HIGHLIGHT_BORDER_WIDTH)
+			_end_turn_button.add_theme_stylebox_override(state, style)
+	else:
+		_end_turn_button.modulate = _end_turn_button_default_modulate
+		for state in _END_TURN_HIGHLIGHT_STATES:
+			_end_turn_button.remove_theme_stylebox_override(state)
+
+
+## 取消"待确认结束回合"状态。被任何玩家的其他操作入口调用。
+func _clear_end_turn_pending() -> void:
+	if _end_turn_pending_confirm:
+		_end_turn_pending_confirm = false
+		_set_end_turn_button_highlight(false)
 
 
 
@@ -612,6 +674,7 @@ func confirm_cell_xy(x: int, y: int) -> void:
 func cancel_action() -> void:
 	if not _can_accept_command():
 		return
+	_clear_end_turn_pending()
 	if _input_state == InputState.TARGETING_SKILL:
 		_clear_skill_targeting()
 	if _input_state != InputState.IDLE:
@@ -627,6 +690,7 @@ func select_skill(skill: SkillData) -> void:
 	var unit := selected_unit as Unit
 	if unit.combat_stats == null or not unit.combat_stats.can_use_skill(skill):
 		return
+	_clear_end_turn_pending()
 	_current_skill = skill
 	move_overlay.clear_range()
 	if _skill_targeting:
@@ -645,6 +709,7 @@ func _go_idle() -> void:
 
 
 func _confirm_idle(_cell: Vector2i, local_mouse: Vector2, current_team: TeamData) -> void:
+	_clear_end_turn_pending()
 	# 尝试选中当前队伍的单位
 	var target := _find_nearest_team_unit(local_mouse, current_team)
 	if target != null and not target.has_acted and not target.is_moving:
@@ -681,6 +746,7 @@ func _enter_targeting_move() -> void:
 
 
 func _confirm_targeting_move(cell: Vector2i, local_mouse: Vector2, current_team: TeamData) -> void:
+	_clear_end_turn_pending()
 	if selected_unit == null:
 		_go_idle()
 		return
@@ -744,6 +810,27 @@ func _get_occupied_cells_except(exclude: Node2D) -> Array[Vector2i]:
 
 
 ## 检查单位是否有可用技能（AP 够 + 次数未尽）。
+## 当前玩家队伍是否还有可行动单位（未 has_acted、未在移动中、还能移动或放技能）。
+func _player_team_has_remaining_actions() -> bool:
+	if current_team_index < 0 or current_team_index >= teams.size():
+		return false
+	var team: TeamData = teams[current_team_index]
+	if team.controller != "player":
+		return false
+	for unit: Node2D in team.units:
+		if not unit is Unit:
+			continue
+		var u := unit as Unit
+		if u.has_acted or u.is_moving:
+			continue
+		if u.combat_stats == null or not u.combat_stats.is_alive():
+			continue
+		var stats: CombatStats = u.combat_stats
+		if stats.ap_current > 0 and (stats.can_move() or _has_usable_skill(u)):
+			return true
+	return false
+
+
 func _has_usable_skill(unit: Node2D) -> bool:
 	if not unit is Unit:
 		return false
@@ -781,6 +868,7 @@ func _clear_skill_targeting() -> void:
 
 
 func _confirm_targeting_skill(cell: Vector2i) -> void:
+	_clear_end_turn_pending()
 	if selected_unit == null or _current_skill == null or _skill_targeting == null:
 		_go_idle()
 		return
@@ -915,10 +1003,12 @@ func _format_phase_details(pd: PhaseData, hit: CombatResolver.HitResult, cat_nam
 
 
 func _on_skill_button_pressed(index: int) -> void:
+	_clear_end_turn_pending()
 	select_skill_by_index(index)
 
 
 func _on_move_button_pressed() -> void:
+	_clear_end_turn_pending()
 	start_move()
 
 
