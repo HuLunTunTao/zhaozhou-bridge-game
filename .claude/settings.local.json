@@ -15,7 +15,9 @@
       "Read(//tmp/**)",
       "Bash(unzip -q /home/ffcrazy/proj/game/artbook/第一章：安济桥成.docx word/document.xml -d temp_chapter1)",
       "Bash(unzip -q /home/ffcrazy/proj/game/artbook/补充详细设定与剧情.docx word/document.xml -d temp_chapter_supplement)",
-      "mcp__godot-mcp__add_node"
+      "mcp__godot-mcp__add_node",
+      "Bash(grep -E \"\\\\.gd$\")",
+      "Bash(find:*)"
     ]
   }
 }
