@@ -96,8 +96,8 @@ These patterns cause "works in editor, fails in export" bugs. **Always avoid the
 2. **`@export var node: TileMapLayer` in inherited scenes may be null in exports.**
    This is a known Godot 4.x bug cluster. Always add a runtime fallback lookup in `_ready()`. See `base_level.gd::_find_obstacle_tilemap()`.
 
-3. **Prefer `autowrap_mode = 3` (WORD_SMART) over `2` (WORD) for Chinese text.**
-   `AUTOWRAP_WORD` has inconsistent CJK line-breaking behavior between editor and export.
+3. **CJK text wrapping: enable `Include Text Server Data` or use `AUTOWRAP_WORD_SMART`.**
+   Exported builds do NOT include ICU break iterator data by default ([godotengine/godot#117102](https://github.com/godotengine/godot/issues/117102)). Without it, `AUTOWRAP_WORD` treats Chinese text as a single unbreakable word. Fix: go to `Project > Project Settings > General > Internationalization > Locale`, enable `Include Text Server Data` (~4 MB), then re-export. Alternatively, use `autowrap_mode = 3` (WORD_SMART) which falls back to per-character breaking.
 
 4. **Prefer PackedScene `.instantiate()` over `.new()` for complex UI node trees.**
    Programmatically built Control trees (PanelContainer > HBoxContainer > RichTextLabel) may have minimum_size propagation timing issues in export. Use a `.tscn` template instead. See `scenes/ui/notification_popup.tscn`.
