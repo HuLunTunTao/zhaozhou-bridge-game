@@ -24,6 +24,13 @@ var _is_dragging := false
 var _drag_start := Vector2.ZERO
 var _drag_accumulated := Vector2.ZERO
 
+## 锁定跟随的目标。非 null 时 _process 会每帧把相机拉到其位置，并禁用玩家手动操作。
+var _lock_target: Node2D = null
+## 进入 lock_on 之前的 target_zoom，unlock 时按需恢复。
+var _zoom_before_lock: Vector2 = Vector2.ONE
+## 进入 lock_on 之前的 input_enabled，unlock 时恢复（防止锁定前就是禁用态的边缘情况）。
+var _input_enabled_before_lock: bool = true
+
 
 func _ready() -> void:
 	make_current()
@@ -32,6 +39,16 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
+	# 镜头锁定：优先跟随目标，跳过玩家输入/边缘滚动。
+	if _lock_target != null:
+		if not is_instance_valid(_lock_target):
+			unlock()
+		else:
+			target_position = _clamp_to_bounds(_lock_target.global_position)
+			global_position = global_position.lerp(target_position, 1.0 - exp(-smooth_speed * delta))
+			zoom = zoom.lerp(target_zoom, 1.0 - exp(-zoom_smooth_speed * delta))
+			return
+
 	var input_vector := Vector2.ZERO
 	if input_enabled:
 		input_vector = Input.get_vector("left", "right", "up", "down")
@@ -58,6 +75,44 @@ func set_level_bounds(new_bounds: Rect2) -> void:
 func center_on_bounds() -> void:
 	target_position = _clamp_to_bounds(level_bounds.get_center())
 	global_position = target_position
+
+
+## 锁定镜头到一个节点。锁定期间：
+##   - 每帧把 target_position 拉到该节点的 global_position；
+##   - 玩家键盘/边缘滚动/右键拖拽/滚轮缩放输入全部失效；
+##   - 按 lock_zoom 设定缩放（<= 0 时不改动缩放）。
+## 典型用法：`(camera as LevelCamera).lock_on(hero, 1.4)`。
+##   - target    : 要跟随的节点（必须仍在场景树里）
+##   - lock_zoom : 锁定期间的缩放系数；默认 1.3（轻微放大），会被 min/max_zoom 夹取
+##   - instant   : 是否立即贴到目标（跳过平滑），默认 false 走平滑过渡
+func lock_on(target: Node2D, lock_zoom: float = 1.3, instant: bool = false) -> void:
+	if target == null or not is_instance_valid(target):
+		return
+	if _lock_target == null:
+		_zoom_before_lock = target_zoom
+		_input_enabled_before_lock = input_enabled
+	_lock_target = target
+	input_enabled = false
+	if lock_zoom > 0.0:
+		target_zoom = Vector2(lock_zoom, lock_zoom).clampf(min_zoom, max_zoom)
+	target_position = _clamp_to_bounds(target.global_position)
+	if instant:
+		global_position = target_position
+		zoom = target_zoom
+
+
+## 解除锁定，恢复玩家手动控制。restore_zoom=true 时回到锁定前的缩放。
+func unlock(restore_zoom: bool = true) -> void:
+	if _lock_target == null:
+		return
+	_lock_target = null
+	input_enabled = _input_enabled_before_lock
+	if restore_zoom:
+		target_zoom = _zoom_before_lock
+
+
+func is_locked() -> bool:
+	return _lock_target != null and is_instance_valid(_lock_target)
 
 
 func _clamp_to_bounds(candidate: Vector2) -> Vector2:

@@ -59,6 +59,8 @@ func get_teams_config() -> Array:
 
 
 func _on_level_ready() -> void:
+	# 测试关卡专用：敌人一轮内最多走 4 步，便于观察镜头跟随效果。
+	ai_max_move_steps = 4
 	# ── 分配正式技能 ──
 	_assign_skills(_player, [_sk_rule_strike, _sk_wedge, _sk_stone, _sk_read_water, _sk_pile_bind])
 	_assign_skills(_playerB, [_sk_mallet, _sk_guard])

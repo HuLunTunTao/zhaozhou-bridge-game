@@ -10,6 +10,9 @@ extends Node2D
 ##   - 若不覆盖 get_teams_config()，则沿用旧的单玩家行为。
 
 @export var obstacles_tilemap_layer: TileMapLayer  # 障碍物所在的层，必须在编辑器中指定
+## AI 回合中每个敌人一轮内最多走几步（每步 = 向相邻格移动一次）。
+## 子关卡可在 _on_level_ready 里覆盖，例如 `ai_max_move_steps = 4`。
+@export var ai_max_move_steps: int = 1
 
 # ─────────────────────────────────────────────
 # 关卡事件信号（供关卡脚本 connect）
@@ -374,35 +377,53 @@ func _clear_end_turn_pending() -> void:
 # AI 回合
 # ─────────────────────────────────────────────
 
+## AI 回合中每个单位行动前，镜头锁定并放大的倍率。
+const _AI_TURN_CAMERA_LOCK_ZOOM: float = 1.4
+## 镜头切到新单位后、该单位开始移动前的等待时间（秒），给玩家视线跟上的间隔。
+const _AI_TURN_CAMERA_FOCUS_DELAY: float = 0.3
+
+
 func _run_ai_turn(team: TeamData) -> void:
 	# TODO: 完善 AI —— 目前为随机向相邻格移动一步
+	var lv_camera := camera as LevelCamera
 	for unit: Node2D in team.units:
+		if lv_camera and is_instance_valid(unit):
+			lv_camera.lock_on(unit, _AI_TURN_CAMERA_LOCK_ZOOM)
+			await get_tree().create_timer(_AI_TURN_CAMERA_FOCUS_DELAY).timeout
 		if not unit.is_moving:
 			CombatLog.msg("  AI行动: %s 在%s 尝试移动..." % [
 				unit.combat_stats.unit_name if unit is Unit and unit.combat_stats else unit.name,
 				unit.cell])
 			await _ai_move_unit(unit)
 		unit.has_acted = true
+	if lv_camera:
+		lv_camera.unlock()
 	_do_end_turn()
 
 
 func _ai_move_unit(unit: Node2D) -> void:
-	var dirs: Array[Vector2i] = [
-		Vector2i(1, 0), Vector2i(-1, 0),
-		Vector2i(0, 1), Vector2i(0, -1),
-	]
-	dirs.shuffle()
-	for dir: Vector2i in dirs:
-		var target_cell: Vector2i = unit.cell + dir
-		var cost: int = movement_manager.get_movement_cost(target_cell)
-		var occupied := _is_cell_occupied(target_cell)
-		if cost != TileType.IMPASSABLE and not occupied:
-			var path: Array[Vector2i] = [unit.cell, target_cell]
-			unit.move_along_path(path, tilemap)
-			await unit.move_finished
-			CombatLog.msg("  AI移动: %s → %s" % [unit.cell - dir, unit.cell])
+	var steps: int = max(1, ai_max_move_steps)
+	for _i in range(steps):
+		var dirs: Array[Vector2i] = [
+			Vector2i(1, 0), Vector2i(-1, 0),
+			Vector2i(0, 1), Vector2i(0, -1),
+		]
+		dirs.shuffle()
+		var moved := false
+		for dir: Vector2i in dirs:
+			var target_cell: Vector2i = unit.cell + dir
+			var cost: int = movement_manager.get_movement_cost(target_cell)
+			var occupied := _is_cell_occupied(target_cell)
+			if cost != TileType.IMPASSABLE and not occupied:
+				var path: Array[Vector2i] = [unit.cell, target_cell]
+				unit.move_along_path(path, tilemap)
+				await unit.move_finished
+				CombatLog.msg("  AI移动: %s → %s" % [unit.cell - dir, unit.cell])
+				moved = true
+				break
+		if not moved:
+			CombatLog.msg("  AI无法移动: 所有相邻格不可通行或被占据")
 			return
-	CombatLog.msg("  AI无法移动: 所有相邻格不可通行或被占据")
 
 
 func _is_cell_occupied(cell: Vector2i) -> bool:
