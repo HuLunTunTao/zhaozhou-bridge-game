@@ -17,10 +17,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```bash
 # Run the project
-godot --path /Users/hltt/projects/wxy_game/Godot-game
+godot --path /path/to/Godot-game
 
 # Open in editor
-godot --editor --path /Users/hltt/projects/wxy_game/Godot-game
+godot --editor --path /path/to/Godot-game
 ```
 
 The main scene is `scenes/menu/main_menu.tscn`.

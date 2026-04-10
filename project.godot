@@ -64,6 +64,10 @@ right={
 ]
 }
 
+[internationalization]
+
+locale/include_text_server_data=true
+
 [physics]
 
 3d/physics_engine="Jolt Physics"
