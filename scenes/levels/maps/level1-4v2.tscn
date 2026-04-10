@@ -8,7 +8,8 @@
 [ext_resource type="Texture2D" uid="uid://dwdqlsswubotb" path="res://assets/thepixeltiles/bridge/赵州桥施工图高清对称版.png" id="4_vpidq"]
 [ext_resource type="Texture2D" uid="uid://2gywkibcc7nu" path="res://assets/thepixeltiles/bridge/brighthalfbrick.png" id="5_4elob"]
 [ext_resource type="Texture2D" uid="uid://d4h30xb4eja78" path="res://assets/thepixeltiles/bridge/mixbrick.png" id="6_6tyal"]
-[ext_resource type="Texture2D" uid="uid://dlvc5frx3jdvr" path="res://assets/thepixeltiles/bridge/栏杆demo.png" id="9_6tyal"]
+[ext_resource type="Texture2D" uid="uid://dlvc5frx3jdvr" path="res://assets/thepixeltiles/bridge/railing down.png" id="9_6tyal"]
+[ext_resource type="Texture2D" uid="uid://douwjujehq1nr" path="res://assets/thepixeltiles/bridge/railing up.png" id="10_byqt0"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_q0qsw"]
 texture = ExtResource("2_c3cod")
@@ -736,6 +737,7 @@ tile_map_data = PackedByteArray("AADu/8z/AQAAAAAAAADt/83/AQAFAAoAAADs/87/AQAFAAo
 tile_set = SubResource("TileSet_jbhqe")
 
 [node name="赵州桥施工图高清对称版" type="Sprite2D" parent="." unique_id=704760529]
+visible = false
 position = Vector2(0, 438)
 scale = Vector2(2.2254667, 2.2254672)
 texture = ExtResource("4_vpidq")
@@ -792,14 +794,14 @@ tile_set = SubResource("TileSet_jbhqe")
 z_index = 10
 
 [node name="railing down" type="Sprite2D" parent="railing z=10" unique_id=1705809315]
-position = Vector2(-9, 438.99997)
-scale = Vector2(0.7347826, 0.73478264)
+position = Vector2(-14, 444)
+scale = Vector2(1.277, 1.277)
 texture = ExtResource("9_6tyal")
 
-[node name="railing up" type="Sprite2D" parent="railing z=10" unique_id=2066890575]
-position = Vector2(-14, 88.99997)
-scale = Vector2(0.7347826, 0.73478264)
-texture = ExtResource("9_6tyal")
+[node name="RailingUp" type="Sprite2D" parent="railing z=10" unique_id=794496741]
+position = Vector2(-9.000001, 82)
+scale = Vector2(1.277, 1.277)
+texture = ExtResource("10_byqt0")
 
 [node name="Camera2D" type="Camera2D" parent="." unique_id=1122267846]
 
