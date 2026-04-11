@@ -117,6 +117,24 @@ func get_objectives_text() -> Dictionary:
 	}
 
 
+func check_defeat() -> String:
+	# 李春死亡
+	if not is_instance_valid(_li_chun):
+		return "李春阵亡"
+	var lc := _li_chun as Unit
+	if lc.combat_stats and not lc.combat_stats.is_alive():
+		return "李春阵亡"
+	# 两名测量工全部死亡
+	var a_dead := not is_instance_valid(_survey_a) or not (_survey_a as Unit).combat_stats.is_alive()
+	var b_dead := not is_instance_valid(_survey_b) or not (_survey_b as Unit).combat_stats.is_alive()
+	if a_dead and b_dead:
+		return "两名测量工全部阵亡"
+	# 超过第 10 回合
+	if round_number > 10:
+		return "超过第 10 回合仍未完成撤离"
+	return ""
+
+
 func _on_level_ready() -> void:
 	_placeholder_tex = _create_placeholder_texture()
 

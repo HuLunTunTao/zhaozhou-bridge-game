@@ -234,9 +234,9 @@ func check_victory() -> bool:
 	return false
 
 
-## 子类覆写：检查是否满足失败条件。每次关键事件后自动调用。
-func check_defeat() -> bool:
-	return false
+## 子类覆写：检查是否满足失败条件。返回失败原因字符串，空串表示未失败。
+func check_defeat() -> String:
+	return ""
 
 
 ## 子类覆写：返回本关目标文本。
@@ -262,13 +262,22 @@ func _process_wave(round_num: int) -> void:
 			assign_skills(unit, entry["skills"])
 
 
+var _level_ended := false
+
 ## 执行胜负条件检查。在关键事件（死亡、回合开始）后自动调用。
 func _check_win_lose(_arg = null) -> void:
+	if _level_ended:
+		return
 	await get_tree().process_frame
-	if check_defeat():
-		defeat_level()
+	if _level_ended:
+		return
+	var defeat_reason: String = check_defeat()
+	if defeat_reason != "":
+		_level_ended = true
+		defeat_level(defeat_reason)
 		return
 	if check_victory():
+		_level_ended = true
 		complete_level()
 
 
@@ -533,6 +542,8 @@ func _run_ai_turn(team: TeamData) -> void:
 	var lv_camera := camera as LevelCamera
 	var context := _get_ai_context()
 	for unit: Node2D in team.units:
+		if _level_ended:
+			break
 		if not is_instance_valid(unit):
 			continue
 		if not unit is Unit:
@@ -564,6 +575,9 @@ func _run_ai_turn(team: TeamData) -> void:
 			u.refresh_overhead_bars()
 			CombatLog.msg("    移动: %s → %s (消耗%dAP)" % [from_cell, u.cell, action["move_cost"]])
 
+		if _level_ended:
+			break
+
 		# 执行攻击
 		if action["skill"] != null:
 			await _execute_ai_skill(u, action["skill"], action["cast_cell"])
@@ -572,7 +586,8 @@ func _run_ai_turn(team: TeamData) -> void:
 
 	if lv_camera:
 		lv_camera.unlock()
-	_do_end_turn()
+	if not _level_ended:
+		_do_end_turn()
 
 
 ## AI 使用技能：镜头聚焦 + 执行 + 战斗反馈。
@@ -722,8 +737,21 @@ func complete_level() -> void:
 		GameState.transition_to_scene("res://scenes/menu/main_menu.tscn")
 
 
-## 关卡失败。由关卡脚本在检测到失败条件时调用（例如主角死亡）。
-func defeat_level() -> void:
+## 关卡失败。显示失败面板，玩家选择重试或返回主菜单。
+## reason: 失败原因文本（显示在面板中）。
+func defeat_level(reason: String = "任务失败") -> void:
+	var panel: Node = preload("res://scenes/ui/defeat_panel.tscn").instantiate()
+	panel.defeat_reason = reason
+	panel.retry_pressed.connect(_on_defeat_retry)
+	panel.main_menu_pressed.connect(_on_defeat_main_menu)
+	add_child(panel)
+
+
+func _on_defeat_retry() -> void:
+	get_tree().reload_current_scene()
+
+
+func _on_defeat_main_menu() -> void:
 	GameState.transition_to_scene("res://scenes/menu/main_menu.tscn")
 
 
