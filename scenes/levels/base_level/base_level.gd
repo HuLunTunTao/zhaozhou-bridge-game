@@ -109,6 +109,7 @@ var _special_tile_map: Dictionary = {}
 var _pending_special_enter: Dictionary = {}
 
 @onready var _turn_label: Label = $GUI/TurnLabel
+@onready var _round_label: Label = $GUI/RoundLabel
 @onready var _end_turn_button: Button = $GUI/EndTurnButton
 
 
@@ -148,6 +149,9 @@ func _ready() -> void:
 	# 胜负条件检查
 	unit_died.connect(_check_win_lose)
 	round_started.connect(func(_r): _check_win_lose())
+	# 回合计数器
+	round_started.connect(_update_round_label)
+	_update_round_label(round_number)
 	# 连接状态栏技能按钮信号
 	if status_bar and status_bar.has_signal("skill_button_pressed"):
 		status_bar.skill_button_pressed.connect(_on_skill_button_pressed)
@@ -353,6 +357,12 @@ func _animate_turn_label(team_name: String) -> void:
 	tween.tween_property(_turn_label, "modulate:a", 1.0, 0.2).set_ease(Tween.EASE_OUT)
 	tween.parallel().tween_property(_turn_label, "scale", Vector2.ONE, 0.35) \
 		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
+
+
+func _update_round_label(round_num: int) -> void:
+	if _round_label == null:
+		return
+	_round_label.text = "第 %d 回合" % round_num
 
 
 ## 把镜头平滑拉到队伍"代表单位"（优先 hero，否则队里第一个存活单位）。

@@ -30,6 +30,15 @@ anchor_right = 1.0
 offset_bottom = 38.0
 grow_horizontal = 2
 
+[node name="RoundLabel" type="Label" parent="GUI" unique_id=400000001]
+anchors_preset = 0
+offset_left = 10.0
+offset_top = 7.0
+offset_right = 130.0
+offset_bottom = 31.0
+theme_override_font_sizes/font_size = 18
+text = "第 1 回合"
+
 [node name="EndTurnButton" type="Button" parent="GUI" unique_id=300000002]
 anchors_preset = 3
 anchor_left = 1.0
