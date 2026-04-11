@@ -4,6 +4,9 @@ extends Node2D
 
 class_name DamagePopup
 
+const _FONT_12 := preload("res://assets/font/fusion-pixel-12px-proportional-zh_hans.otf")
+const _FONT_10 := preload("res://assets/font/fusion-pixel-10px-proportional-zh_hans.otf")
+
 
 ## 在指定世界坐标显示伤害数字。
 ## phase_name 非空时在伤害下方显示化势名。
@@ -11,22 +14,24 @@ func show_at(world_pos: Vector2, damage: int, phase_name: String = "", is_heal: 
 	z_index = 90
 	position = world_pos + Vector2(0, -20)
 
-	# 伤害数字
+	# 伤害数字（12px 字体）
 	var dmg_label := Label.new()
 	dmg_label.text = str(damage) if not is_heal else "+%d" % damage
 	dmg_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	dmg_label.add_theme_font_size_override("font_size", 14)
+	dmg_label.add_theme_font_override("font", _FONT_12)
+	dmg_label.add_theme_font_size_override("font_size", 12)
 	dmg_label.add_theme_color_override("font_color", Color.RED if not is_heal else Color.GREEN)
 	dmg_label.add_theme_color_override("font_outline_color", Color.BLACK)
 	dmg_label.add_theme_constant_override("outline_size", 3)
 	dmg_label.position = Vector2(-20, 0)
 	add_child(dmg_label)
 
-	# 化势名称（如有）
+	# 化势名称（10px 字体）
 	if phase_name != "":
 		var phase_label := Label.new()
 		phase_label.text = phase_name
 		phase_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		phase_label.add_theme_font_override("font", _FONT_10)
 		phase_label.add_theme_font_size_override("font_size", 10)
 		phase_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
 		phase_label.add_theme_color_override("font_outline_color", Color.BLACK)

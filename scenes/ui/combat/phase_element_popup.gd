@@ -3,6 +3,8 @@ class_name PhaseElementPopup
 ## 化势触发时在目标头顶显示「攻击元素×量 → 目标元素×量」。
 ## 用法：var p = PhaseElementPopup.new(); add_child(p); p.show_at(pos, atk_e, atk_a, tgt_e, tgt_a)
 
+const _FONT_8 := preload("res://assets/font/fusion-pixel-8px-proportional-zh_hans.otf")
+
 
 func show_at(world_pos: Vector2, atk_e: Enums.Element, atk_a: int, tgt_e: Enums.Element, tgt_a: int) -> void:
 	z_index = 95  # 在 sprite(0)/damage_popup(90) 上，HP/AP 条(100) 下
@@ -27,7 +29,8 @@ func show_at(world_pos: Vector2, atk_e: Enums.Element, atk_a: int, tgt_e: Enums.
 func _add_label(parent: HBoxContainer, text: String, color: Color) -> void:
 	var lbl := Label.new()
 	lbl.text = text
-	lbl.add_theme_font_size_override("font_size", 12)
+	lbl.add_theme_font_override("font", _FONT_8)
+	lbl.add_theme_font_size_override("font_size", 8)
 	lbl.add_theme_color_override("font_color", color)
 	lbl.add_theme_color_override("font_outline_color", Color.BLACK)
 	lbl.add_theme_constant_override("outline_size", 3)
