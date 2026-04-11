@@ -196,10 +196,11 @@ func _update_slots(unit: Node2D, is_active: bool, stats: CombatStats) -> void:
 	for i in range(mini(data.skills.size(), MAX_SKILLS)):
 		var skill: SkillData = data.skills[i]
 		var desc := skill.description if skill.description != "" else "消耗 %dAP" % skill.ap_cost
-		_set_slot(i + 1, true, skill.skill_name, desc, not stats.can_use_skill(skill), skill.damage_element, skill.attach_amount)
+		var ratio := "x%.1f" % skill.damage_ratio if skill.damage_ratio > 0.0 else ""
+		_set_slot(i + 1, true, skill.skill_name, desc, not stats.can_use_skill(skill), skill.damage_element, skill.attach_amount, ratio)
 
 
-func _set_slot(index: int, active: bool, title: String, desc: String, disabled_flag: bool, element: Enums.Element = Enums.Element.NONE, attach_amount: int = 0) -> void:
+func _set_slot(index: int, active: bool, title: String, desc: String, disabled_flag: bool, element: Enums.Element = Enums.Element.NONE, attach_amount: int = 0, ratio: String = "") -> void:
 	var btn := _slots[index]
 	if active:
 		btn.modulate = Color.WHITE
@@ -221,10 +222,33 @@ func _set_slot(index: int, active: bool, title: String, desc: String, disabled_f
 		var d := btn.get_node_or_null("Desc") as Label
 		if d:
 			d.text = desc
+		_ensure_ratio_label(btn).text = ratio
 	else:
 		btn.modulate = Color(1, 1, 1, 0)
 		btn.disabled = true
 		btn.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_ensure_ratio_label(btn).text = ""
+
+
+func _ensure_ratio_label(btn: Button) -> Label:
+	var r := btn.get_node_or_null("Ratio") as Label
+	if r == null:
+		r = Label.new()
+		r.name = "Ratio"
+		r.anchor_left = 0.0
+		r.anchor_right = 1.0
+		r.anchor_top = 1.0
+		r.anchor_bottom = 1.0
+		r.offset_left = 2.0
+		r.offset_right = -2.0
+		r.offset_top = -14.0
+		r.offset_bottom = -2.0
+		r.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		r.add_theme_font_override("font", Fonts.PIXEL_10)
+		r.add_theme_font_size_override("font_size", 10)
+		r.add_theme_color_override("font_color", Color(0.8, 0.9, 1.0, 0.9))
+		btn.add_child(r)
+	return r
 
 
 func _get_faction_color(unit: Node2D, is_active: bool = false) -> Color:
