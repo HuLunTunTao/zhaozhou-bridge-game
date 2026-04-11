@@ -12,11 +12,19 @@ var _costs: Dictionary = {}      # cell -> total AP cost to reach this cell
 var _current_path: Array[Vector2i] = []
 var _ap_budget: int = -1         # -1 = legacy mode, >=0 = AP mode
 var _ap_font: Font = null
+## AP 消耗标签（独立高 z_index，不被 HP/AP 条遮挡）。
+var _ap_label_node: Node2D = null
 
 
 func _ready() -> void:
 	z_index = 5
 	_ap_font = load("res://assets/font/fusion-pixel-10px-proportional-zh_hans.otf")
+	# AP 消耗文字用独立子节点渲染，z_index 高于 HP/AP 条(100)
+	_ap_label_node = Node2D.new()
+	_ap_label_node.z_index = 110
+	_ap_label_node.z_as_relative = false
+	_ap_label_node.draw.connect(_draw_ap_label)
+	add_child(_ap_label_node)
 
 
 ## 旧版：按固定移动点数显示范围。
@@ -191,20 +199,29 @@ func _draw() -> void:
 			line_points.append(tilemap.map_to_local(cell))
 		draw_polyline(line_points, Color(1.0, 1.0, 1.0, 0.8), 2.0)
 
-	# AP 模式下在路径终点显示消耗/剩余
-	if _ap_budget >= 0 and _current_path.size() >= 2 and _ap_font:
-		var target_cell := _current_path[_current_path.size() - 1]
-		var cost := get_cost_to_cell(target_cell)
-		if cost >= 0:
-			var pos := tilemap.map_to_local(target_cell)
-			var remaining := _ap_budget - cost
-			var text := "-%d AP" % cost
-			var text2 := "余 %d" % remaining
-			# 显示在格子上方，避开角色
-			var bg_pos := pos + Vector2(-30, -40)
-			draw_rect(Rect2(bg_pos, Vector2(60, 24)), Color(0, 0, 0, 0.8))
-			draw_string(_ap_font, pos + Vector2(-28, -30), text, HORIZONTAL_ALIGNMENT_CENTER, 56, 10, Color(1.0, 0.3, 0.3))
-			draw_string(_ap_font, pos + Vector2(-28, -18), text2, HORIZONTAL_ALIGNMENT_CENTER, 56, 10, Color.WHITE)
+	# AP 模式下在路径终点显示消耗/剩余（由 _ap_label_node 绘制，z=110）
+	if _ap_label_node:
+		_ap_label_node.queue_redraw()
+
+
+## 在高 z_index 子节点上绘制 AP 消耗文字，避免被 HP/AP 条遮挡。
+func _draw_ap_label() -> void:
+	if tilemap == null or _ap_font == null:
+		return
+	if _ap_budget < 0 or _current_path.size() < 2:
+		return
+	var target_cell := _current_path[_current_path.size() - 1]
+	var cost := get_cost_to_cell(target_cell)
+	if cost < 0:
+		return
+	var pos := tilemap.map_to_local(target_cell)
+	var remaining := _ap_budget - cost
+	var text := "-%d AP" % cost
+	var text2 := "余 %d" % remaining
+	var bg_pos := pos + Vector2(-30, -40)
+	_ap_label_node.draw_rect(Rect2(bg_pos, Vector2(60, 24)), Color(0, 0, 0, 0.8))
+	_ap_label_node.draw_string(_ap_font, pos + Vector2(-28, -30), text, HORIZONTAL_ALIGNMENT_CENTER, 56, 10, Color(1.0, 0.3, 0.3))
+	_ap_label_node.draw_string(_ap_font, pos + Vector2(-28, -18), text2, HORIZONTAL_ALIGNMENT_CENTER, 56, 10, Color.WHITE)
 
 
 func _diamond_points(center: Vector2) -> PackedVector2Array:

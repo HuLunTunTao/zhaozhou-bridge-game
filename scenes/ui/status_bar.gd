@@ -27,15 +27,6 @@ var _current_unit: Node2D = null
 
 @onready var _slots: Array[Button] = [%Slot0, %Slot1, %Slot2, %Slot3, %Slot4, %Slot5]
 
-const ELEMENT_LOGOS: Dictionary = {
-	Enums.Element.NONE: "无",
-	Enums.Element.METAL: "◇金",
-	Enums.Element.WOOD: "✿木",
-	Enums.Element.WATER: "≈水",
-	Enums.Element.FIRE: "✦火",
-	Enums.Element.EARTH: "▦土",
-}
-
 
 func _ready() -> void:
 	clear_unit()
@@ -138,8 +129,8 @@ func _update_hp_color(stats: CombatStats) -> void:
 
 
 func _update_element(logo_label: Label, value_label: Label, element: Enums.Element, amount: int) -> void:
-	logo_label.text = str(ELEMENT_LOGOS.get(element, "?"))
-	logo_label.add_theme_color_override("font_color", ElementColors.get_color(element))
+	logo_label.text = str(ElementDefs.LOGOS.get(element, "?"))
+	logo_label.add_theme_color_override("font_color", ElementDefs.get_color(element))
 	if element != Enums.Element.NONE and amount > 0:
 		value_label.text = "x%d" % amount
 	else:
@@ -167,10 +158,10 @@ func _update_slots(unit: Node2D, is_active: bool, stats: CombatStats) -> void:
 	for i in range(mini(data.skills.size(), MAX_SKILLS)):
 		var skill: SkillData = data.skills[i]
 		var desc := skill.description if skill.description != "" else "消耗 %dAP" % skill.ap_cost
-		_set_slot(i + 1, true, skill.skill_name, desc, not stats.can_use_skill(skill))
+		_set_slot(i + 1, true, skill.skill_name, desc, not stats.can_use_skill(skill), skill.damage_element, skill.attach_amount)
 
 
-func _set_slot(index: int, active: bool, title: String, desc: String, disabled_flag: bool) -> void:
+func _set_slot(index: int, active: bool, title: String, desc: String, disabled_flag: bool, element: Enums.Element = Enums.Element.NONE, attach_amount: int = 0) -> void:
 	var btn := _slots[index]
 	if active:
 		btn.modulate = Color.WHITE
@@ -179,6 +170,16 @@ func _set_slot(index: int, active: bool, title: String, desc: String, disabled_f
 		var t := btn.get_node_or_null("Title") as Label
 		if t:
 			t.text = title
+			if element != Enums.Element.NONE:
+				t.add_theme_color_override("font_color", ElementDefs.get_color(element))
+			else:
+				t.add_theme_color_override("font_color", Color.WHITE)
+		var et := btn.get_node_or_null("ElemTag") as Label
+		if et:
+			var tag := ElementDefs.element_tag(element, attach_amount)
+			et.text = tag
+			if tag != "":
+				et.add_theme_color_override("font_color", ElementDefs.get_color(element))
 		var d := btn.get_node_or_null("Desc") as Label
 		if d:
 			d.text = desc

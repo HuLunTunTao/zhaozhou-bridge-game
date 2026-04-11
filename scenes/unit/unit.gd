@@ -7,6 +7,8 @@ const UnitHpBarScene := preload("res://scenes/ui/combat/unit_hp_bar.tscn")
 signal move_finished
 ## 单位死亡时发出（HP 降为 0，退场动画播完后触发）。
 signal died
+## 单位被右键点击时发出。
+signal clicked
 
 @export var movement_points: int = 10
 @export var move_speed: float = 100.0  # pixels per second
@@ -40,10 +42,12 @@ var has_acted: bool = false:
 func _update_acted_visual() -> void:
 	if not is_inside_tree():
 		return
-	if has_acted:
-		modulate = Color(0.5, 0.5, 0.55, 0.75)
-	else:
-		modulate = Color.WHITE
+	var visual := get_node_or_null("Visual")
+	if visual:
+		if has_acted:
+			visual.modulate = Color(0.5, 0.5, 0.55, 0.75)
+		else:
+			visual.modulate = Color.WHITE
 
 ## 当前朝向前缀，用于拼接动画名。
 var _facing: StringName = &"right_front"
@@ -57,6 +61,7 @@ func _ready() -> void:
 	_play_anim(&"idle")
 	_init_combat_stats()
 	_init_hp_bar()
+	_init_click_button()
 
 
 ## 从 unit_data 初始化 combat_stats。
@@ -75,6 +80,24 @@ func _init_hp_bar() -> void:
 		return
 	_hp_bar = UnitHpBarScene.instantiate()
 	add_child(_hp_bar)
+	# 初始刷新属性显示
+	if combat_stats:
+		_hp_bar.update_element(combat_stats.current_element, combat_stats.current_element_amount)
+
+
+## 初始化透明点击按钮（响应右键点击）。
+func _init_click_button() -> void:
+	if Engine.is_editor_hint():
+		return
+	var btn := get_node_or_null("Button") as Button
+	if btn:
+		btn.gui_input.connect(_on_button_input)
+
+
+func _on_button_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
+		clicked.emit()
+		get_viewport().set_input_as_handled()
 
 
 ## 单位死亡：播放淡出动画后从场景树移除，并发出 died 信号。
@@ -103,10 +126,12 @@ func refresh_ap_bar() -> void:
 		_hp_bar.update_ap(float(combat_stats.ap_current) / float(combat_stats.ap_max))
 
 
-## 一次性刷新头顶 HP + AP 条。
+## 一次性刷新头顶 HP + AP + 属性条。
 func refresh_overhead_bars() -> void:
 	refresh_hp_bar()
 	refresh_ap_bar()
+	if _hp_bar and combat_stats:
+		_hp_bar.update_element(combat_stats.current_element, combat_stats.current_element_amount)
 
 
 ## 让 SpriteFrames 资源唯一化，避免修改颜色时影响其他单位实例。

@@ -14,9 +14,9 @@ func show_at(world_pos: Vector2, atk_e: Enums.Element, atk_a: int, tgt_e: Enums.
 	hbox.add_theme_constant_override("separation", 2)
 	add_child(hbox)
 
-	_add_label(hbox, "%s×%d" % [ElementColors.element_name(atk_e), atk_a], ElementColors.get_color(atk_e))
+	_add_label(hbox, "%s×%d" % [ElementDefs.element_name(atk_e), atk_a], ElementDefs.get_color(atk_e))
 	_add_label(hbox, "→", Color(1, 1, 1))
-	_add_label(hbox, "%s×%d" % [ElementColors.element_name(tgt_e), tgt_a], ElementColors.get_color(tgt_e))
+	_add_label(hbox, "%s×%d" % [ElementDefs.element_name(tgt_e), tgt_a], ElementDefs.get_color(tgt_e))
 
 	var tween := create_tween().set_parallel(true)
 	tween.tween_property(self, "position:y", position.y - 18, 1.0).set_ease(Tween.EASE_OUT)

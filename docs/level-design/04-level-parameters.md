@@ -519,31 +519,67 @@ BaseLevel 在运行时会将 `Entities/Units` 下的所有单位节点**重新�
 
 ## 6.9 技能运行时装配
 
-如果你需要在关卡初始化时为单位运行时装配技能（而不是在 UnitData 的 `.tres` 文件中预设），可以在 `_on_level_ready()` 中进行。test 关卡展示了这种模式：
+BaseLevel 提供了 `set_unit_skills()` 方法，用于在 `_on_level_ready()` 中为单位批量装配技能。它会自动处理 `unit_data.duplicate()`（避免污染共享资源）和 `unit_gained_skill` 信号发射。
 
 ```gdscript
 func _on_level_ready() -> void:
     # 预加载技能 .tres 文件
     var sk_strike: SkillData = preload("res://data/skills/lc_rule_strike.tres")
+    var sk_stone: SkillData = preload("res://data/skills/lc_cast_stone_arrest_flow.tres")
 
-    # 运行时创建技能
-    var sk_custom := SkillData.new()
-    sk_custom.skill_id = "custom_skill"
-    sk_custom.skill_name = "自定义技能"
-    sk_custom.skill_type = Enums.SkillType.ATTACK
-    sk_custom.ap_cost = 20
-    sk_custom.damage_ratio = 1.0
-    sk_custom.cast_offsets = OffsetPresets.diamond(1, 3)
-    sk_custom.effect_offsets = OffsetPresets.SINGLE
-
-    # 装配到单位（需先对 unit_data 做 duplicate 避免污染原始资源）
-    if _player is Unit and _player.unit_data:
-        _player.unit_data = _player.unit_data.duplicate()
-        var typed: Array[SkillData] = [sk_strike, sk_custom]
-        _player.unit_data.skills = typed
+    # 使用 set_unit_skills() 批量装配（替换该单位的全部技能）
+    set_unit_skills(_player, [sk_strike, sk_stone])
 ```
 
-> 注意: 运行时装配技能时，务必先 `duplicate()` unit_data，否则会修改共享的 `.tres` 文件（参见 [05-资源唯一化](05-resource-uniqueness.md)）。
+如果只需要**追加**单个技能（不替换整个列表），使用 `grant_skill()`：
+
+```gdscript
+grant_skill(_player, sk_stone)  # 追加一个技能，不影响已有技能
+```
+
+> ⚠️ 注意: **不要手动 `duplicate()` 再直接赋值 `unit_data.skills`**。`set_unit_skills()` 和 `grant_skill()` 已内置资源唯一化和信号发射逻辑。
+
+---
+
+## 6.9.1 覆盖单位属性值
+
+BaseLevel 提供了 `setup_unit_stats()` 方法，用于在 `_on_level_ready()` 中覆盖单位的运行时属性。只需传入需要修改的字段，未传字段保持 UnitData `.tres` 中的默认值。修改后自动刷新头顶 UI（HP/AP 条和属性标签）。
+
+```gdscript
+func _on_level_ready() -> void:
+    # 覆盖主角属性并标记为英雄
+    setup_unit_stats(_player, {
+        "unit_name": "李春",
+        "max_hp": 130,
+        "base_atk": 24,
+        "ap_max": 100,
+        "move_cost_per_tile": 8,
+        "is_hero": true,
+    })
+
+    # 覆盖敌方属性（含五行属性）
+    setup_unit_stats(_enemy1, {
+        "unit_name": "暗涌",
+        "max_hp": 68,
+        "base_atk": 17,
+        "innate_element": Enums.Element.WATER,
+        "innate_element_amount": 2,
+    })
+```
+
+**可用字段：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `unit_name` | String | 单位显示名 |
+| `max_hp` | int | 最大 HP（同时重置 current_hp） |
+| `base_atk` | int | 基础攻击力 |
+| `ap_max` | int | 最大 AP（同时重置 ap_current） |
+| `move_cost_per_tile` | int | 每格移动消耗 AP |
+| `innate_element` | Enums.Element | 固有属性（同时设置 current_element） |
+| `innate_element_amount` | int | 固有属性量（同时设置 current_element_amount） |
+| `is_hero` | bool | 是否为主角（影响状态栏显示） |
+| `is_escort_target` | bool | 是否为护送目标 |
 
 ---
 
@@ -595,24 +631,23 @@ func get_teams_config() -> Array:
 
 
 func _on_level_ready() -> void:
-    # 标记主角
-    if _player is Unit and _player.combat_stats:
-        _player.combat_stats.is_hero = true
+    # 装配技能
+    set_unit_skills(_player, [_sk_strike, _sk_stone])
+
+    # 覆盖属性
+    setup_unit_stats(_player, {"unit_name": "李春", "max_hp": 130, "base_atk": 24, "is_hero": true})
+    setup_unit_stats(_enemy1, {"unit_name": "暗涌", "innate_element": Enums.Element.WATER, "innate_element_amount": 2})
 
     # 开场对话
     var portrait := preload("res://assets/face/li_chun.png")
     var lines: Array[DialogueLine] = [
         DialogueLine.create("李春", "前方就是渡口，注意水势。", portrait),
     ]
-    var box: DialogueBox = DialogueBoxScene.instantiate()
-    add_child(box)
-    box.start(lines)
-    await box.dialogue_finished
+    await play_dialogue(lines)
 
 
 func _on_unit_moved() -> void:
     # 每次有单位移动后检查胜利条件
-    # 例如：检查测量工是否到达目标位置
     pass
 ```
 

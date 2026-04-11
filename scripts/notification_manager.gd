@@ -97,14 +97,14 @@ func notify(
 	var slide_offset := _get_slide_offset(pos)
 	popup.position += slide_offset
 	popup.modulate.a = 0.0
-	var tween_in := create_tween().set_parallel(true).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+	var tween_in: Tween = create_tween().set_parallel(true).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
 	tween_in.tween_property(popup, "position", popup.position - slide_offset, FADE_TIME)
 	tween_in.tween_property(popup, "modulate:a", 1.0, FADE_TIME)
 
 	await get_tree().create_timer(duration).timeout
 
 	# 滑出 + 淡出
-	var tween_out := create_tween().set_parallel(true).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_CUBIC)
+	var tween_out: Tween = create_tween().set_parallel(true).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_CUBIC)
 	tween_out.tween_property(popup, "position", popup.position + slide_offset, FADE_TIME)
 	tween_out.tween_property(popup, "modulate:a", 0.0, FADE_TIME)
 	await tween_out.finished

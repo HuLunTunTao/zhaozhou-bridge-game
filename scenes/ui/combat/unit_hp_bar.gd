@@ -1,5 +1,5 @@
 extends Node2D
-## 单位头顶 HP+AP 双条。场景结构在 unit_hp_bar.tscn 中定义。
+## 单位头顶 HP+AP 双条 + 属性标签。场景结构在 unit_hp_bar.tscn 中定义。
 ## z_index = 100（absolute），确保始终在所有 sprite 之上。
 
 class_name UnitHpBar
@@ -8,6 +8,15 @@ const BAR_WIDTH: float = 30.0
 
 @onready var _hp_fill: ColorRect = $HpBg/HpFill
 @onready var _ap_fill: ColorRect = $ApBg/ApFill
+@onready var _elem_label: Label = $ElemLabel
+
+
+## 更新属性标签。
+func update_element(element: Enums.Element, amount: int) -> void:
+	var tag := ElementDefs.element_tag(element, amount)
+	_elem_label.text = tag
+	if tag != "":
+		_elem_label.add_theme_color_override("font_color", ElementDefs.get_color(element))
 
 
 ## 更新血条。ratio = current_hp / max_hp (0.0 ~ 1.0)。
