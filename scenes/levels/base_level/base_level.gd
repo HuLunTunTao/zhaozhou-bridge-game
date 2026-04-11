@@ -918,7 +918,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		# 左键确认：选择单位 / 移动 / 释放技能
 		var clicked_cell := tilemap.local_to_map(tilemap.get_local_mouse_position())
 		confirm_cell(clicked_cell)
-	# 右键不处理，留给 LevelCamera 做拖拽平移
+	elif event.button_index == MOUSE_BUTTON_RIGHT:
+		# 右键取消：移动或技能瞄准状态下回到选中状态
+		if _input_state == InputState.TARGETING_MOVE or _input_state == InputState.TARGETING_SKILL:
+			cancel_action()
 
 
 ## 是否允许接收命令（非过场、非动画、玩家回合中）。
