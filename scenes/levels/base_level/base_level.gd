@@ -978,6 +978,13 @@ func _clear_skill_targeting() -> void:
 	_current_skill = null
 
 
+## 技能攻击镜头参数
+const _SKILL_CAMERA_ZOOM: float = 1.8
+const _SKILL_CAMERA_SETTLE_TIME: float = 0.35
+const _SKILL_CAMERA_PAUSE_TIME: float = 0.25
+const _SKILL_CAMERA_LINGER_TIME: float = 0.45
+
+
 func _confirm_targeting_skill(cell: Vector2i) -> void:
 	_clear_end_turn_pending()
 	if selected_unit == null or _current_skill == null or _skill_targeting == null:
@@ -988,6 +995,22 @@ func _confirm_targeting_skill(cell: Vector2i) -> void:
 		_go_idle()
 		return
 
+	_input_state = InputState.ANIMATING
+
+	# ── 镜头拉近 ──
+	var lv_camera := camera as LevelCamera
+	var focus_marker: Node2D = null
+	if lv_camera:
+		var caster_pos: Vector2 = selected_unit.global_position
+		var target_pos: Vector2 = tilemap.map_to_local(cell) if tilemap else caster_pos
+		focus_marker = Node2D.new()
+		add_child(focus_marker)
+		focus_marker.global_position = (caster_pos + target_pos) * 0.5
+		lv_camera.lock_on(focus_marker, _SKILL_CAMERA_ZOOM)
+		await get_tree().create_timer(_SKILL_CAMERA_SETTLE_TIME).timeout
+		await get_tree().create_timer(_SKILL_CAMERA_PAUSE_TIME).timeout
+
+	# ── 执行技能 ──
 	var all_units: Array = _get_all_units()
 	var caster_faction: String = selected_unit.faction if "faction" in selected_unit else ""
 
@@ -996,11 +1019,21 @@ func _confirm_targeting_skill(cell: Vector2i) -> void:
 
 	if not exec_result.success:
 		push_warning("技能执行失败: %s" % exec_result.error)
+		if focus_marker:
+			focus_marker.queue_free()
+		if lv_camera:
+			lv_camera.unlock()
 		_go_idle()
 		return
 
 	# ── UI 反馈 ──
 	_show_combat_feedback(exec_result)
+
+	# 镜头停留片刻后恢复
+	if lv_camera and focus_marker:
+		await get_tree().create_timer(_SKILL_CAMERA_LINGER_TIME).timeout
+		focus_marker.queue_free()
+		lv_camera.unlock()
 
 	# 更新状态栏
 	_update_status_bar_for_unit(selected_unit, true)
