@@ -86,19 +86,13 @@ func _init_hp_bar() -> void:
 		_hp_bar.update_element(combat_stats.current_element, combat_stats.current_element_amount)
 
 
-## 初始化透明点击按钮（响应右键点击）。
+## 初始化透明点击按钮（不再拦截左键，选择改由地块点击处理）。
 func _init_click_button() -> void:
 	if Engine.is_editor_hint():
 		return
 	var btn := get_node_or_null("Button") as Button
 	if btn:
-		btn.gui_input.connect(_on_button_input)
-
-
-func _on_button_input(event: InputEvent) -> void:
-	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		clicked.emit()
-		get_viewport().set_input_as_handled()
+		btn.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 
 ## 根据阵营设置描边颜色。主角黄色，友方绿色，敌方红色，均 50% alpha。
