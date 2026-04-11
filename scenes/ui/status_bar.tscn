@@ -210,6 +210,14 @@ theme_override_font_sizes/font_size = 10
 text = "--"
 vertical_alignment = 1
 
+[node name="BuffLabel" type="Label" parent="PanelContainer/MarginContainer/StatusBar/Info"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.95, 0.85, 0.5, 1)
+theme_override_fonts/font = ExtResource("2_pixel10")
+theme_override_font_sizes/font_size = 10
+autowrap_mode = 3
+
 [node name="Sep" type="VSeparator" parent="PanelContainer/MarginContainer/StatusBar" unique_id=440374274]
 layout_mode = 2
 

@@ -11,6 +11,22 @@ const COLOR_ALLY := Color(0.15, 0.45, 0.2, 0.9)
 const COLOR_ENEMY := Color(0.5, 0.15, 0.15, 0.9)
 const COLOR_DEFAULT := Color(0.12, 0.12, 0.15, 0.9)
 const MAX_SKILLS := 5
+const _STATUS_NAMES: Dictionary = {
+	"rend": "裂伤",
+	"fracture_step": "陷裂",
+	"silt_lock": "壅水",
+	"weakened": "攻衰",
+	"brittle": "脆裂",
+	"scorch_mark": "灼痕",
+	"overgrow_bind": "蔓缚",
+	"cold_damp": "湿寒",
+	"smothered": "闷熄",
+	"open_fissure": "开隙",
+	"steady_step": "稳步",
+	"slowed_step": "迟步",
+	"hindered_step": "迟滞",
+	"guarded_cover": "护持",
+}
 
 var _current_unit: Node2D = null
 
@@ -25,6 +41,7 @@ var _current_unit: Node2D = null
 @onready var _cur_elem_value: Label = %CurElemValue
 @onready var _inn_elem_logo: Label = %InnElemLogo
 @onready var _inn_elem_value: Label = %InnElemValue
+@onready var _buff_label: Label = %BuffLabel
 
 @onready var _slots: Array[Button] = [%Slot0, %Slot1, %Slot2, %Slot3, %Slot4, %Slot5]
 
@@ -93,6 +110,7 @@ func show_unit(unit: Node2D, is_active: bool = false) -> void:
 		_actions_label.text = " "
 		_actions_label.self_modulate = Color.TRANSPARENT
 
+	_update_buffs(stats)
 	_set_panel_color(_get_faction_color(unit, is_active))
 	_update_slots(unit, is_active, stats)
 
@@ -107,6 +125,8 @@ func clear_unit() -> void:
 	_ap_label.text = ""
 	_actions_label.text = " "
 	_actions_label.self_modulate = Color.TRANSPARENT
+	_buff_label.text = ""
+	_buff_label.visible = false
 	_clear_elements()
 	_set_panel_color(COLOR_DEFAULT)
 	for i in range(_slots.size()):
@@ -141,6 +161,19 @@ func _update_element(logo_label: Label, value_label: Label, element: Enums.Eleme
 func _clear_elements() -> void:
 	_update_element(_cur_elem_logo, _cur_elem_value, Enums.Element.NONE, 0)
 	_update_element(_inn_elem_logo, _inn_elem_value, Enums.Element.NONE, 0)
+
+
+func _update_buffs(stats: CombatStats) -> void:
+	if stats == null or stats.statuses.is_empty():
+		_buff_label.text = ""
+		_buff_label.visible = false
+		return
+	var parts: Array[String] = []
+	for s in stats.statuses:
+		var sname: String = _STATUS_NAMES.get(s.status_id, s.status_id)
+		parts.append("%s(%d)" % [sname, s.remaining_turns])
+	_buff_label.text = " ".join(parts)
+	_buff_label.visible = true
 
 
 func _update_slots(unit: Node2D, is_active: bool, stats: CombatStats) -> void:
