@@ -768,6 +768,7 @@ func spawn_unit(unit_data: UnitData, cell: Vector2i, team_index: int) -> Unit:
 		unit.team_index = team_index
 		unit.faction = team.faction
 		team.units.append(unit)
+	unit.apply_faction_outline()
 	return unit
 
 
@@ -857,6 +858,8 @@ func setup_unit_stats(unit: Unit, uname: String, hp: int, atk: int,
 	s.current_element_amount = elem_amt
 	s.is_hero = is_hero_flag
 	unit.refresh_overhead_bars()
+	if unit.has_method("apply_faction_outline"):
+		unit.apply_faction_outline()
 
 
 func _on_settings_button_pressed() -> void:

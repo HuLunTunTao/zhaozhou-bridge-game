@@ -57,6 +57,7 @@ var _hp_bar: UnitHpBar = null
 
 func _ready() -> void:
 	_make_sprite_frames_unique()
+	_make_outline_material_unique()
 	_apply_color()
 	_play_anim(&"idle")
 	_init_combat_stats()
@@ -100,6 +101,24 @@ func _on_button_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 
 
+## 根据阵营设置描边颜色。主角黄色，友方绿色，敌方红色，均 50% alpha。
+func apply_faction_outline() -> void:
+	var visual := get_node_or_null("Visual")
+	if visual == null:
+		return
+	var mat := visual.material as ShaderMaterial
+	if mat == null:
+		return
+	var color: Color
+	if combat_stats and combat_stats.is_hero:
+		color = Color(1.0, 1.0, 0.0, 0.5)  # 黄色
+	elif faction == "好人":
+		color = Color(0.0, 1.0, 0.0, 0.5)  # 绿色
+	else:
+		color = Color(1.0, 0.0, 0.0, 0.5)  # 红色
+	mat.set_shader_parameter("outline_color", color)
+
+
 ## 单位死亡：播放淡出动画后从场景树移除，并发出 died 信号。
 func die() -> void:
 	# 防止重复调用
@@ -141,6 +160,13 @@ func _make_sprite_frames_unique() -> void:
 		var sprite := visual as AnimatedSprite2D
 		if sprite.sprite_frames:
 			sprite.sprite_frames = sprite.sprite_frames.duplicate()
+
+
+## 让描边材质唯一化，避免修改颜色时影响其他单位实例。
+func _make_outline_material_unique() -> void:
+	var visual := get_node_or_null("Visual")
+	if visual and visual.material is ShaderMaterial:
+		visual.material = visual.material.duplicate()
 
 
 func _apply_color() -> void:
