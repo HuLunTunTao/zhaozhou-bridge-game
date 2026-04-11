@@ -145,6 +145,9 @@ func _ready() -> void:
 	_init_turn_system()
 	# 连接死亡处理
 	unit_died.connect(_on_unit_died)
+	# 胜负条件检查
+	unit_died.connect(_check_win_lose)
+	round_started.connect(func(_r): _check_win_lose())
 	# 连接状态栏技能按钮信号
 	if status_bar and status_bar.has_signal("skill_button_pressed"):
 		status_bar.skill_button_pressed.connect(_on_skill_button_pressed)
@@ -210,6 +213,44 @@ func _on_unit_moved() -> void:
 	pass
 
 
+## 子类覆写：返回波次配置。格式：{ round_number: [WaveEntry, ...] }
+## WaveEntry = { "unit_data": UnitData, "cell": Vector2i, "team_index": int,
+##               "skills": Array[SkillData]（可选）}
+func get_wave_config() -> Dictionary:
+	return {}
+
+
+## 子类覆写：检查是否满足胜利条件。每次关键事件后自动调用。
+func check_victory() -> bool:
+	return false
+
+
+## 子类覆写：检查是否满足失败条件。每次关键事件后自动调用。
+func check_defeat() -> bool:
+	return false
+
+
+## 处理波次生成。在每大回合开始时调用。
+func _process_wave(round_num: int) -> void:
+	var waves := get_wave_config()
+	if not waves.has(round_num):
+		return
+	for entry: Dictionary in waves[round_num]:
+		var unit := spawn_unit(entry["unit_data"], entry["cell"], entry["team_index"])
+		if entry.has("skills"):
+			assign_skills(unit, entry["skills"])
+
+
+## 执行胜负条件检查。在关键事件（死亡、回合开始）后自动调用。
+func _check_win_lose(_arg = null) -> void:
+	await get_tree().process_frame
+	if check_defeat():
+		defeat_level()
+		return
+	if check_victory():
+		complete_level()
+
+
 # ─────────────────────────────────────────────
 # 队伍初始化（读取场景已有节点）
 # ─────────────────────────────────────────────
@@ -265,6 +306,9 @@ func _start_team_turn(index: int) -> void:
 	var team: TeamData = teams[index]
 	CombatLog.msg("═══ %s 的回合开始 ═══" % team.team_name)
 	team_turn_started.emit(index)
+	# 波次生成：在每大回合第一个队伍开始时处理
+	if index == 0:
+		_process_wave(round_number)
 	for unit: Node2D in team.units:
 		unit.has_acted = false
 		if unit is Unit and unit.combat_stats != null:
@@ -673,6 +717,39 @@ func revoke_skill(unit: Unit, skill: SkillData) -> void:
 	unit_lost_skill.emit(unit, skill)
 	if selected_unit == unit:
 		_update_status_bar_for_unit(unit, true)
+
+
+## 批量为单位分配技能，替换原有技能列表。
+func assign_skills(unit: Unit, skills: Array[SkillData]) -> void:
+	if unit == null or unit.unit_data == null:
+		return
+	if not unit.unit_data.resource_local_to_scene:
+		unit.unit_data = unit.unit_data.duplicate()
+		unit.unit_data.resource_local_to_scene = true
+	unit.unit_data.skills = skills
+	if selected_unit == unit:
+		_update_status_bar_for_unit(unit, true)
+
+
+## 在运行时覆写单位的战斗数值（HP/ATK/AP/移动消耗/属性）。
+func setup_unit_stats(unit: Unit, uname: String, hp: int, atk: int,
+		ap: int, move_cost: int, elem: Enums.Element = Enums.Element.NONE,
+		elem_amt: int = 0, is_hero_flag: bool = false) -> void:
+	if unit == null or unit.combat_stats == null:
+		return
+	var s := unit.combat_stats
+	s.unit_name = uname
+	s.max_hp = hp
+	s.current_hp = hp
+	s.base_atk = atk
+	s.ap_max = ap
+	s.ap_current = ap
+	s.move_cost_per_tile = move_cost
+	s.innate_element = elem
+	s.innate_element_amount = elem_amt
+	s.current_element = elem
+	s.current_element_amount = elem_amt
+	s.is_hero = is_hero_flag
 
 
 func _on_settings_button_pressed() -> void:
