@@ -375,6 +375,9 @@ func _do_end_turn() -> void:
 					if hp_before_rest != hp_after_rest:
 						unit_hp_changed.emit(unit, hp_before_rest, hp_after_rest)
 				(unit as Unit).refresh_overhead_bars()
+		# 回合结束后恢复外观，避免进入对方回合时仍显示灰色
+		for unit: Node2D in team.units:
+			unit.has_acted = false
 	_go_idle()
 	_waiting_for_player_input = false
 	if _end_turn_button:
