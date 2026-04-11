@@ -119,13 +119,16 @@ func _on_level_ready() -> void:
 	setup_unit_stats(_li_chun as Unit, "李春", 130, 24, 100, 8, Enums.Element.NONE, 0, true)
 
 
-func _process_wave(round_num: int) -> void:
+func _process_wave(round_num: int) -> Array[Unit]:
 	var waves := get_wave_config()
 	if not waves.has(round_num):
-		return
+		return [] as Array[Unit]
+	var spawned: Array[Unit] = []
 	for entry: Dictionary in waves[round_num]:
 		var unit := spawn_unit(entry["unit_data"], entry["cell"], entry["team_index"])
 		if entry.has("skills"):
 			set_unit_skills(unit, entry["skills"])
 		if entry.has("color"):
 			unit.unit_color = entry["color"]
+		spawned.append(unit)
+	return spawned

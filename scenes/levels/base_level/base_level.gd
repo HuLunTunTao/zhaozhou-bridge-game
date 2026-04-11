@@ -252,14 +252,17 @@ func _get_ai_context() -> Dictionary:
 
 
 ## 处理波次生成。在每大回合开始时调用。
-func _process_wave(round_num: int) -> void:
+func _process_wave(round_num: int) -> Array[Unit]:
 	var waves := get_wave_config()
 	if not waves.has(round_num):
-		return
+		return [] as Array[Unit]
+	var spawned: Array[Unit] = []
 	for entry: Dictionary in waves[round_num]:
 		var unit := spawn_unit(entry["unit_data"], entry["cell"], entry["team_index"])
 		if entry.has("skills"):
 			set_unit_skills(unit, entry["skills"])
+		spawned.append(unit)
+	return spawned
 
 
 var _level_ended := false
@@ -340,7 +343,10 @@ func _start_team_turn(index: int) -> void:
 	team_turn_started.emit(index)
 	# 波次生成：在每大回合第一个队伍开始时处理
 	if index == 0:
-		_process_wave(round_number)
+		var spawned := _process_wave(round_number)
+		# 第一回合不播镜头演出（初始敌人已在场）；后续波次刷新时聚焦新敌人
+		if not spawned.is_empty() and round_number > 1:
+			await _camera_focus_spawned(spawned)
 	for unit: Node2D in team.units:
 		unit.has_acted = false
 		if unit is Unit and unit.combat_stats != null:
@@ -391,6 +397,36 @@ func _update_round_label(round_num: int) -> void:
 	if _round_label == null:
 		return
 	_round_label.text = "第 %d 回合" % round_num
+
+
+## 波次刷新敌人时的镜头演出：锁定到刷新单位的中心，拉近，停留后解锁。
+const _WAVE_CAMERA_ZOOM: float = 1.4
+const _WAVE_CAMERA_SETTLE_TIME: float = 0.4
+const _WAVE_CAMERA_LINGER_TIME: float = 0.8
+
+func _camera_focus_spawned(spawned: Array[Unit]) -> void:
+	var lv_camera := camera as LevelCamera
+	if lv_camera == null:
+		return
+	# 计算所有刷新单位的中心点
+	var center := Vector2.ZERO
+	var count := 0
+	for u in spawned:
+		if is_instance_valid(u):
+			center += u.global_position
+			count += 1
+	if count == 0:
+		return
+	center /= count
+	# 用临时节点作为锁定目标
+	var marker := Node2D.new()
+	add_child(marker)
+	marker.global_position = center
+	lv_camera.lock_on(marker, _WAVE_CAMERA_ZOOM)
+	await get_tree().create_timer(_WAVE_CAMERA_SETTLE_TIME).timeout
+	await get_tree().create_timer(_WAVE_CAMERA_LINGER_TIME).timeout
+	lv_camera.unlock()
+	marker.queue_free()
 
 
 ## 把镜头平滑拉到队伍"代表单位"（优先 hero，否则队里第一个存活单位）。

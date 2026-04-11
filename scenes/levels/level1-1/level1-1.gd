@@ -168,10 +168,11 @@ func _get_ai_context() -> Dictionary:
 
 
 ## 覆写波次处理：生成敌人后设置占位精灵和颜色。
-func _process_wave(round_num: int) -> void:
+func _process_wave(round_num: int) -> Array[Unit]:
 	var waves := get_wave_config()
 	if not waves.has(round_num):
-		return
+		return [] as Array[Unit]
+	var spawned: Array[Unit] = []
 	for entry: Dictionary in waves[round_num]:
 		var unit := spawn_unit(entry["unit_data"], entry["cell"], entry["team_index"])
 		if entry.has("skills"):
@@ -179,6 +180,8 @@ func _process_wave(round_num: int) -> void:
 		if entry.has("color"):
 			unit.unit_color = entry["color"]
 		_set_placeholder_sprite(unit)
+		spawned.append(unit)
+	return spawned
 
 
 # ─────────────────────────────────────────────
