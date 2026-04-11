@@ -46,7 +46,6 @@ const LEVEL_SCENES: Dictionary = {
 	"关卡1-1": "res://scenes/levels/level1-1/level1-1.tscn",
 	"关卡1-2": "res://scenes/levels/level1-2/level1-2.tscn",
 	"关卡1-3": "res://scenes/levels/level1-3/level1-3.tscn",
-	"关卡1-3-2": "res://scenes/levels/level1-3-2/level1-3-2.tscn",
 	"关卡1-4": "res://scenes/levels/level1-4/level1-4.tscn",
 	"关卡测试": "res://scenes/levels/test/test.tscn",
 }
