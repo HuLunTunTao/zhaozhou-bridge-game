@@ -787,7 +787,13 @@ func select_skill(skill: SkillData) -> void:
 	_current_skill = skill
 	move_overlay.clear_range()
 	if _skill_targeting:
-		_skill_targeting.show_skill_range(tilemap, skill, unit.cell)
+		var enemy_cells: Array[Vector2i] = []
+		var caster_faction: String = unit.faction if "faction" in unit else ""
+		for t: TeamData in teams:
+			if t.faction != caster_faction:
+				for eu: Node2D in t.units:
+					enemy_cells.append(eu.cell)
+		_skill_targeting.show_skill_range(tilemap, skill, unit.cell, enemy_cells)
 	_input_state = InputState.TARGETING_SKILL
 
 

@@ -11,9 +11,12 @@ var _effect_cells: Array[Vector2i] = []    # 当前悬停的影响区域（绝�
 var _skill: SkillData = null
 var _caster_cell: Vector2i
 var _hovered_cast_cell: Vector2i = Vector2i(-9999, -9999)
+var _target_set: Dictionary = {}        # 有效目标（敌方）所在格子
+var _hover_has_target: bool = false      # 当前悬停效果区域是否覆盖敌人
 
 const COLOR_CAST := Color(0.3, 0.5, 1.0, 0.3)         # 蓝色 — 释放点
-const COLOR_ATTACK := Color(1.0, 0.2, 0.2, 0.35)       # 红色 — 伤害
+const COLOR_ATTACK := Color(1.0, 0.2, 0.2, 0.35)       # 红色 — 伤害（有目标）
+const COLOR_ATTACK_NO_TARGET := Color(0.5, 0.5, 0.5, 0.25) # 灰色 — 伤害（无目标）
 const COLOR_ASSIST := Color(0.2, 0.8, 0.2, 0.35)       # 绿色 — 增益
 const COLOR_INTERACT := Color(1.0, 0.9, 0.2, 0.35)     # 黄色 — 交互
 
@@ -24,12 +27,17 @@ func _ready() -> void:
 
 
 ## 显示技能释放范围。caster_cell = 施法者格子坐标。
-func show_skill_range(p_tilemap: TileMapLayer, skill: SkillData, caster_cell: Vector2i) -> void:
+## target_cells: 有效目标（敌方单位）所在格子，用于高亮能命中的释放点。
+func show_skill_range(p_tilemap: TileMapLayer, skill: SkillData, caster_cell: Vector2i, target_cells: Array[Vector2i] = []) -> void:
 	tilemap = p_tilemap
 	_skill = skill
 	_caster_cell = caster_cell
 	_hovered_cast_cell = Vector2i(-9999, -9999)
 	_effect_cells.clear()
+
+	_target_set.clear()
+	for c in target_cells:
+		_target_set[c] = true
 
 	# 计算绝对坐标的释放点
 	_cast_cells.clear()
@@ -45,10 +53,14 @@ func update_hover(cell: Vector2i) -> void:
 		return
 	_hovered_cast_cell = cell
 	_effect_cells.clear()
+	_hover_has_target = false
 
 	if _skill and cell in _cast_cells:
 		for offset in _skill.effect_offsets:
-			_effect_cells.append(cell + offset)
+			var ec := cell + offset
+			_effect_cells.append(ec)
+			if _target_set.has(ec):
+				_hover_has_target = true
 
 	queue_redraw()
 
@@ -71,6 +83,8 @@ func get_effect_cells(cast_cell: Vector2i) -> Array[Vector2i]:
 func clear() -> void:
 	_cast_cells.clear()
 	_effect_cells.clear()
+	_target_set.clear()
+	_hover_has_target = false
 	_skill = null
 	_hovered_cast_cell = Vector2i(-9999, -9999)
 	queue_redraw()
@@ -103,7 +117,7 @@ func _get_effect_color() -> Color:
 		return COLOR_INTERACT
 	match _skill.skill_type:
 		Enums.SkillType.ATTACK:
-			return COLOR_ATTACK
+			return COLOR_ATTACK if _hover_has_target else COLOR_ATTACK_NO_TARGET
 		Enums.SkillType.ASSIST:
 			return COLOR_ASSIST
 		_:
