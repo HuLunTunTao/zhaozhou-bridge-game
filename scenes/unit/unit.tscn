@@ -11,6 +11,45 @@
 [ext_resource type="Texture2D" uid="uid://trjxoars8ojq" path="res://assets/character/li_chun/右前方待机.png" id="8_1ifho"]
 [ext_resource type="Texture2D" uid="uid://c0gmb5x15gc3j" path="res://assets/character/li_chun/右前方走.png" id="9_u15f5"]
 
+[sub_resource type="Shader" id="Shader_outline"]
+code = "shader_type canvas_item;
+
+uniform vec4 outline_color : source_color = vec4(1.0, 1.0, 0.0, 0.3);
+uniform float outline_width : hint_range(1.0, 10.0, 0.5) = 2.0;
+
+void fragment() {
+	vec4 col = texture(TEXTURE, UV);
+	if (col.a > 0.0) {
+		COLOR = col;
+	} else {
+		vec2 ps = TEXTURE_PIXEL_SIZE;
+		float w = outline_width;
+		float total = 0.0;
+		float samples = 0.0;
+		for (float x = -w; x <= w; x += 1.0) {
+			for (float y = -w; y <= w; y += 1.0) {
+				float d = length(vec2(x, y));
+				if (d > w || d == 0.0) { continue; }
+				samples += 1.0;
+				total += texture(TEXTURE, UV + vec2(x, y) * ps).a;
+			}
+		}
+		float avg = total / max(samples, 1.0);
+		float edge = smoothstep(0.0, 0.5, avg);
+		if (edge > 0.01) {
+			COLOR = vec4(outline_color.rgb, outline_color.a * edge);
+		} else {
+			COLOR = col;
+		}
+	}
+}
+"
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_l0n34"]
+shader = SubResource("Shader_outline")
+shader_parameter/outline_color = Color(1, 1, 0, 0.3)
+shader_parameter/outline_width = 7.0
+
 [sub_resource type="AtlasTexture" id="AtlasTexture_1g3gk"]
 atlas = ExtResource("3_vqlpx")
 region = Rect2(0, 0, 256, 256)
@@ -139,7 +178,7 @@ region = Rect2(0, 256, 256, 256)
 atlas = ExtResource("9_u15f5")
 region = Rect2(256, 256, 256, 256)
 
-[sub_resource type="SpriteFrames" id="SpriteFrames_vqlpx"]
+[sub_resource type="SpriteFrames" id="SpriteFrames_5im7a"]
 animations = [{
 "frames": [{
 "duration": 1.0,
@@ -282,10 +321,11 @@ animations = [{
 script = ExtResource("1_script")
 
 [node name="Visual" parent="." unique_id=1259427927 instance=ExtResource("2_anim")]
+material = SubResource("ShaderMaterial_l0n34")
 position = Vector2(-7.1525574e-07, -14.999999)
-sprite_frames = SubResource("SpriteFrames_vqlpx")
-animation = &"left_back_idle"
-frame_progress = 0.24862657
+sprite_frames = SubResource("SpriteFrames_5im7a")
+animation = &"right_front_idle"
+frame_progress = 0.6332541
 
 [node name="Button" type="Button" parent="." unique_id=1235358697]
 modulate = Color(1, 1, 1, 0)
