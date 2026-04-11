@@ -259,7 +259,7 @@ func _process_wave(round_num: int) -> void:
 	for entry: Dictionary in waves[round_num]:
 		var unit := spawn_unit(entry["unit_data"], entry["cell"], entry["team_index"])
 		if entry.has("skills"):
-			assign_skills(unit, entry["skills"])
+			set_unit_skills(unit, entry["skills"])
 
 
 var _level_ended := false
@@ -301,6 +301,8 @@ func _setup_teams_from_config(configs: Array) -> void:
 			var snapped_cell := tilemap.local_to_map(tilemap.to_local(unit.global_position))
 			unit.set_cell(snapped_cell, tilemap)
 			team.units.append(unit)
+			if unit is Unit and unit.has_signal("clicked"):
+				unit.clicked.connect(_on_unit_clicked.bind(unit))
 		teams.append(team)
 
 	# 向后兼容：hero 指向第一个玩家控制队伍的第一个单位
@@ -659,23 +661,6 @@ func _get_unit_at_cell(cell: Vector2i, team: TeamData) -> Node2D:
 	return null
 
 
-## 在点击位置附近查找队伍中的单位。先精确匹配格子，不命中时回退到像素距离。
-## max_dist 为像素距离阈值（等距半格约 16px，设 24px 兼顾易用与精度）。
-func _find_nearest_team_unit(local_mouse_pos: Vector2, team: TeamData, max_dist: float = 24.0) -> Node2D:
-	var clicked_cell := tilemap.local_to_map(local_mouse_pos)
-	var exact := _get_unit_at_cell(clicked_cell, team)
-	if exact != null:
-		return exact
-	var best: Node2D = null
-	var best_dist := max_dist
-	for unit: Node2D in team.units:
-		var unit_pos := tilemap.map_to_local(unit.cell)
-		var dist := local_mouse_pos.distance_to(unit_pos)
-		if dist < best_dist:
-			best_dist = dist
-			best = unit
-	return best
-
 
 ## 在点击位置附近查找任意队伍的单位（用于状态栏显示）。
 func _find_nearest_any_unit(local_mouse_pos: Vector2, max_dist: float = 24.0) -> Node2D:
@@ -823,22 +808,22 @@ func revoke_skill(unit: Unit, skill: SkillData) -> void:
 		_update_status_bar_for_unit(unit, true)
 
 
-## 批量为单位分配技能，替换原有技能列表。
-func assign_skills(unit: Unit, skills: Array) -> void:
+## 替换单位的全部技能列表。会 duplicate unit_data 避免修改共享资源。
+func set_unit_skills(unit: Unit, skills: Array) -> void:
 	if unit == null or unit.unit_data == null:
 		return
 	if not unit.unit_data.resource_local_to_scene:
 		unit.unit_data = unit.unit_data.duplicate()
 		unit.unit_data.resource_local_to_scene = true
-	var typed: Array[SkillData] = []
+	unit.unit_data.skills.clear()
 	for s in skills:
-		typed.append(s)
-	unit.unit_data.skills = typed
+		unit.unit_data.skills.append(s)
+		unit_gained_skill.emit(unit, s)
 	if selected_unit == unit:
 		_update_status_bar_for_unit(unit, true)
 
 
-## 在运行时覆写单位的战斗数值（HP/ATK/AP/移动消耗/属性）。
+## 在运行时覆写单位的战斗数值。修改后自动刷新头顶 UI。
 func setup_unit_stats(unit: Unit, uname: String, hp: int, atk: int,
 		ap: int, move_cost: int, elem: Enums.Element = Enums.Element.NONE,
 		elem_amt: int = 0, is_hero_flag: bool = false) -> void:
@@ -857,6 +842,7 @@ func setup_unit_stats(unit: Unit, uname: String, hp: int, atk: int,
 	s.current_element = elem
 	s.current_element_amount = elem_amt
 	s.is_hero = is_hero_flag
+	unit.refresh_overhead_bars()
 
 
 func _on_settings_button_pressed() -> void:
@@ -1013,42 +999,38 @@ func _go_idle() -> void:
 	_reset_status_bar()
 
 
-func _confirm_idle(_cell: Vector2i, local_mouse: Vector2, current_team: TeamData) -> void:
+func _confirm_idle(_cell: Vector2i, local_mouse: Vector2, _current_team: TeamData) -> void:
 	_clear_end_turn_pending()
-	var clicked_cell := tilemap.local_to_map(local_mouse)
-	# 1. 先精确匹配点击格子上的任意单位（避免相邻时模糊匹配抢走点击）
-	var exact_unit: Node2D = null
-	var exact_is_current_team := false
-	for team: TeamData in teams:
-		var unit := _get_unit_at_cell(clicked_cell, team)
-		if unit != null:
-			exact_unit = unit
-			exact_is_current_team = (team == current_team)
-			break
-	if exact_unit != null:
-		if exact_is_current_team and not exact_unit.has_acted and not exact_unit.is_moving:
-			selected_unit = exact_unit
-			unit_selected = true
-			_input_state = InputState.UNIT_SELECTED
-			_update_status_bar_for_unit(exact_unit, true)
-			_enter_targeting_move()
-		else:
-			_update_status_bar_for_unit(exact_unit, false)
-		return
-	# 2. 无精确匹配 → 回退到模糊距离搜索（仅当前队伍）
-	var target := _find_nearest_team_unit(local_mouse, current_team)
-	if target != null and not target.has_acted and not target.is_moving:
-		selected_unit = target
-		unit_selected = true
-		_input_state = InputState.UNIT_SELECTED
-		_update_status_bar_for_unit(target, true)
-		_enter_targeting_move()
+	# 右键空地：显示最近单位的信息（不选中）
+	var any_unit := _find_nearest_any_unit(local_mouse)
+	if any_unit != null:
+		_update_status_bar_for_unit(any_unit, false)
 	else:
-		var any_unit := _find_nearest_any_unit(local_mouse)
-		if any_unit != null:
-			_update_status_bar_for_unit(any_unit, false)
-		else:
-			_reset_status_bar()
+		_reset_status_bar()
+
+
+func _on_unit_clicked(unit: Unit) -> void:
+	if not _can_accept_command():
+		return
+	var current_team: TeamData = teams[current_team_index] if current_team_index >= 0 else null
+	if current_team == null:
+		return
+
+	match _input_state:
+		InputState.IDLE, InputState.UNIT_SELECTED:
+			_clear_end_turn_pending()
+			if unit.team_index == current_team_index and not unit.has_acted and not unit.is_moving:
+				selected_unit = unit
+				unit_selected = true
+				_input_state = InputState.UNIT_SELECTED
+				_update_status_bar_for_unit(unit, true)
+				_enter_targeting_move()
+			else:
+				_update_status_bar_for_unit(unit, false)
+		InputState.TARGETING_MOVE:
+			confirm_cell(unit.cell)
+		InputState.TARGETING_SKILL:
+			confirm_cell(unit.cell)
 
 
 func _enter_targeting_move() -> void:
@@ -1108,19 +1090,11 @@ func _confirm_targeting_move(cell: Vector2i, local_mouse: Vector2, current_team:
 		moving_unit.has_acted = true
 		_go_idle()
 	else:
-		# 点击范围外：尝试切换到其他单位
-		var target := _find_nearest_team_unit(local_mouse, current_team)
-		if target != null and target != selected_unit and not target.has_acted and not target.is_moving:
-			selected_unit = target
-			unit_selected = true
-			_input_state = InputState.UNIT_SELECTED
-			_update_status_bar_for_unit(target, true)
-			_enter_targeting_move()
-		else:
-			var any_unit := _find_nearest_any_unit(local_mouse)
-			if any_unit != null:
-				_update_status_bar_for_unit(any_unit, false)
-			_go_idle()
+		# 点击范围外：显示附近单位信息并回到 IDLE
+		var any_unit := _find_nearest_any_unit(local_mouse)
+		if any_unit != null:
+			_update_status_bar_for_unit(any_unit, false)
+		_go_idle()
 
 
 ## 获取除指定单位外所有被占据的格子。
@@ -1244,6 +1218,7 @@ func _confirm_targeting_skill(cell: Vector2i) -> void:
 	var caster_faction: String = selected_unit.faction if "faction" in selected_unit else ""
 
 	var exec_result := SkillExecutor.execute(selected_unit, _current_skill, cell, all_units, caster_faction)
+	var used_skill: SkillData = _current_skill
 	_clear_skill_targeting()
 
 	if not exec_result.success:
@@ -1255,8 +1230,26 @@ func _confirm_targeting_skill(cell: Vector2i) -> void:
 		_go_idle()
 		return
 
+	# ── 技能释放播报 ──
+	var caster_name := ""
+	if selected_unit is Unit and (selected_unit as Unit).combat_stats:
+		caster_name = (selected_unit as Unit).combat_stats.unit_name
+	Notify.notify("%s 使用了【%s】！" % [caster_name, used_skill.skill_name], Notify.Position.TOP_RIGHT, Notify.Style.INFO, 3.0)
+
 	# ── UI 反馈 ──
-	_show_combat_feedback(exec_result)
+	_show_combat_feedback(exec_result, caster_name)
+
+	# ── 额外效果播报 ──
+	if used_skill.extra_effect_id != "" and not exec_result.hit_results.is_empty():
+		var effect_name: String = _EXTRA_EFFECT_NAMES.get(used_skill.extra_effect_id, "")
+		if effect_name != "":
+			var target_names: Array[String] = []
+			for entry in exec_result.hit_results:
+				var tu: Node2D = entry["unit"]
+				if tu is Unit and (tu as Unit).combat_stats:
+					target_names.append((tu as Unit).combat_stats.unit_name)
+			if not target_names.is_empty():
+				Notify.notify("%s 触发额外效果：%s" % ["、".join(target_names), effect_name], Notify.Position.TOP_RIGHT, Notify.Style.INFO, 3.0)
 
 	# 镜头停留片刻后恢复
 	if lv_camera and focus_marker:
@@ -1287,11 +1280,18 @@ func _confirm_targeting_skill(cell: Vector2i) -> void:
 
 
 ## 显示战斗 UI 反馈：伤害弹字 + 血条刷新 + 化势提示。
-func _show_combat_feedback(exec_result: SkillExecutor.ExecuteResult) -> void:
+func _show_combat_feedback(exec_result: SkillExecutor.ExecuteResult, _caster_name: String = "") -> void:
+	if exec_result.hit_results.is_empty():
+		Notify.notify("没有单位受到技能效果！", Notify.Position.TOP_RIGHT, Notify.Style.WARNING, 3.0)
+		return
 	var showed_phase := false
 	for entry in exec_result.hit_results:
 		var target_unit: Node2D = entry["unit"]
 		var hit: CombatResolver.HitResult = entry["hit"]
+
+		var target_name := ""
+		if target_unit is Unit and (target_unit as Unit).combat_stats:
+			target_name = (target_unit as Unit).combat_stats.unit_name
 
 		# 伤害弹字
 		if hit.damage > 0:
@@ -1301,6 +1301,11 @@ func _show_combat_feedback(exec_result: SkillExecutor.ExecuteResult) -> void:
 			var popup := DamagePopup.new()
 			add_child(popup)
 			popup.show_at(target_unit.global_position, hit.damage, phase_name)
+
+			if hit.is_kill:
+				Notify.notify("%s 受到 %d 点伤害，被击败了！" % [target_name, hit.damage], Notify.Position.TOP_RIGHT, Notify.Style.ERROR, 3.0)
+			else:
+				Notify.notify("%s 受到 %d 点伤害！" % [target_name, hit.damage], Notify.Position.TOP_RIGHT, Notify.Style.INFO, 3.0)
 
 		# 刷新头顶状态条
 		if target_unit is Unit:
@@ -1314,6 +1319,10 @@ func _show_combat_feedback(exec_result: SkillExecutor.ExecuteResult) -> void:
 			unit_hp_changed.emit(target_unit, old_hp, new_hp)
 			if hit.is_kill:
 				unit_died.emit(target_unit)
+
+		for status: CombatResolver.StatusInstance in hit.statuses_to_apply:
+			var sname: String = _STATUS_NAMES.get(status.status_id, status.status_id)
+			Notify.notify("%s 被施加了【%s】！" % [target_name, sname], Notify.Position.TOP_RIGHT, Notify.Style.WARNING, 3.0)
 
 		# 化势触发时的元素对比 popup（每个命中都显示）
 		if hit.phase_result and hit.phase_result.phase_data:
@@ -1352,17 +1361,27 @@ const _STATUS_NAMES: Dictionary = {
 	"guarded_cover": "护持",
 }
 
+const _EXTRA_EFFECT_NAMES: Dictionary = {
+	"knockback_1": "击退1格",
+	"pull_1": "拖拽1格",
+	"guarded_cover": "护持",
+	"hindered_cross": "十字迟滞",
+	"read_water": "相水定址",
+	"complete_survey": "踏勘量址",
+	"non_element_bonus": "无属性加成",
+}
+
 
 ## 拼接化势详情 BBCode 富文本，供 Notify 右上角显示。
 func _format_phase_details(pd: PhaseData, hit: CombatResolver.HitResult, cat_name: String) -> String:
 	var lines: Array[String] = []
 	lines.append("【%s·%s】" % [cat_name, pd.phase_name])
 
-	var atk_str := "%s×%d" % [ElementColors.element_name(hit.skill_attach_element), hit.skill_attach_amount]
-	var tgt_str := "%s×%d" % [ElementColors.element_name(hit.pre_target_element), hit.pre_target_amount]
+	var atk_str := "%s×%d" % [ElementDefs.element_name(hit.skill_attach_element), hit.skill_attach_amount]
+	var tgt_str := "%s×%d" % [ElementDefs.element_name(hit.pre_target_element), hit.pre_target_amount]
 	lines.append("%s → %s" % [
-		ElementColors.bbcode(hit.skill_attach_element, atk_str),
-		ElementColors.bbcode(hit.pre_target_element, tgt_str),
+		ElementDefs.bbcode(hit.skill_attach_element, atk_str),
+		ElementDefs.bbcode(hit.pre_target_element, tgt_str),
 	])
 
 	if not is_equal_approx(pd.damage_multiplier, 1.0):

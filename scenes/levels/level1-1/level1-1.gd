@@ -139,24 +139,24 @@ func _on_level_ready() -> void:
 	_placeholder_tex = _create_placeholder_texture()
 
 	# ── 李春 ──
-	assign_skills(_li_chun as Unit, [_sk_rule_strike, _sk_wedge, _sk_stone, _sk_read_water])
+	set_unit_skills(_li_chun as Unit, [_sk_rule_strike, _sk_wedge, _sk_stone, _sk_read_water])
 	setup_unit_stats(_li_chun as Unit, "李春", 130, 24, 100, 8, Enums.Element.NONE, 0, true)
 
 	# ── 测量工 ──
-	assign_skills(_survey_a as Unit, [_sk_staff, _sk_survey])
+	set_unit_skills(_survey_a as Unit, [_sk_staff, _sk_survey])
 	setup_unit_stats(_survey_a as Unit, "测量工", 80, 12, 85, 10)
 	_set_placeholder_sprite(_survey_a as Unit)
 
-	assign_skills(_survey_b as Unit, [_sk_staff, _sk_survey])
+	set_unit_skills(_survey_b as Unit, [_sk_staff, _sk_survey])
 	setup_unit_stats(_survey_b as Unit, "测量工", 80, 12, 85, 10)
 	_set_placeholder_sprite(_survey_b as Unit)
 
 	# ── 工匠 ──
-	assign_skills(_craftsman_a as Unit, [_sk_mallet, _sk_guard])
+	set_unit_skills(_craftsman_a as Unit, [_sk_mallet, _sk_guard])
 	setup_unit_stats(_craftsman_a as Unit, "工匠", 110, 18, 90, 9)
 	_set_placeholder_sprite(_craftsman_a as Unit)
 
-	assign_skills(_craftsman_b as Unit, [_sk_mallet, _sk_guard])
+	set_unit_skills(_craftsman_b as Unit, [_sk_mallet, _sk_guard])
 	setup_unit_stats(_craftsman_b as Unit, "工匠", 110, 18, 90, 9)
 	_set_placeholder_sprite(_craftsman_b as Unit)
 
@@ -175,7 +175,7 @@ func _process_wave(round_num: int) -> void:
 	for entry: Dictionary in waves[round_num]:
 		var unit := spawn_unit(entry["unit_data"], entry["cell"], entry["team_index"])
 		if entry.has("skills"):
-			assign_skills(unit, entry["skills"])
+			set_unit_skills(unit, entry["skills"])
 		if entry.has("color"):
 			unit.unit_color = entry["color"]
 		_set_placeholder_sprite(unit)

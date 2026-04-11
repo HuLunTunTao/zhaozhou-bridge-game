@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__godot-test-mcp__connect_to_game",
+      "mcp__godot-mcp__stop_project"
+    ]
+  }
+}
