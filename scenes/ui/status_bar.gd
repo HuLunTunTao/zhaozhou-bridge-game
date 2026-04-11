@@ -6,6 +6,7 @@ signal skill_button_pressed(index: int)
 signal move_button_pressed
 
 const COLOR_HERO := Color(0.15, 0.22, 0.55, 0.9)
+const COLOR_HERO_DEFAULT := Color(0.25, 0.22, 0.4, 0.7)  # 淡蓝色，默认显示主角时使用
 const COLOR_ALLY := Color(0.15, 0.45, 0.2, 0.9)
 const COLOR_ENEMY := Color(0.5, 0.15, 0.15, 0.9)
 const COLOR_DEFAULT := Color(0.12, 0.12, 0.15, 0.9)
@@ -92,7 +93,7 @@ func show_unit(unit: Node2D, is_active: bool = false) -> void:
 		_actions_label.text = " "
 		_actions_label.self_modulate = Color.TRANSPARENT
 
-	_set_panel_color(_get_faction_color(unit))
+	_set_panel_color(_get_faction_color(unit, is_active))
 	_update_slots(unit, is_active, stats)
 
 
@@ -189,11 +190,11 @@ func _set_slot(index: int, active: bool, title: String, desc: String, disabled_f
 		btn.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 
-func _get_faction_color(unit: Node2D) -> Color:
+func _get_faction_color(unit: Node2D, is_active: bool = false) -> Color:
 	var stats: CombatStats = unit.combat_stats if unit is Unit and unit.combat_stats != null else null
 	if stats:
 		if stats.is_hero:
-			return COLOR_HERO
+			return COLOR_HERO if is_active else COLOR_HERO_DEFAULT
 		match stats.camp:
 			Enums.Camp.ALLY:
 				return COLOR_ALLY
