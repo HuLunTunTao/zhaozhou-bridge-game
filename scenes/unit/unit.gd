@@ -4,6 +4,10 @@ extends Node2D
 
 const UnitHpBarScene := preload("res://scenes/ui/combat/unit_hp_bar.tscn")
 
+const OUTLINE_COLOR_HERO := Color(1.0, 1.0, 0.0, 0.5)   # 黄色
+const OUTLINE_COLOR_ALLY := Color(0.0, 1.0, 0.0, 0.5)   # 绿色
+const OUTLINE_COLOR_ENEMY := Color(1.0, 0.0, 0.0, 0.5)  # 红色
+
 signal move_finished
 ## 单位死亡时发出（HP 降为 0，退场动画播完后触发）。
 signal died
@@ -105,11 +109,11 @@ func apply_faction_outline() -> void:
 		return
 	var color: Color
 	if combat_stats and combat_stats.is_hero:
-		color = Color(1.0, 1.0, 0.0, 0.5)  # 黄色
+		color = OUTLINE_COLOR_HERO
 	elif faction == "好人":
-		color = Color(0.0, 1.0, 0.0, 0.5)  # 绿色
+		color = OUTLINE_COLOR_ALLY
 	else:
-		color = Color(1.0, 0.0, 0.0, 0.5)  # 红色
+		color = OUTLINE_COLOR_ENEMY
 	mat.set_shader_parameter("outline_color", color)
 
 
