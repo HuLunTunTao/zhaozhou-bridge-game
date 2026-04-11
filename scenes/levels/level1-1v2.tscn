@@ -1,4 +1,4 @@
-[gd_scene format=4 uid="uid://s5gccsek6l0v"]
+[gd_scene format=4 uid="uid://bcat132cu4qn6"]
 
 [ext_resource type="TileSet" uid="uid://bdvi30tgeb2kv" path="res://assets/battle_tile_set.tres" id="1_vt36q"]
 [ext_resource type="Texture2D" uid="uid://ds7mccb4e617v" path="res://assets/thepixeltiles/trees/PikPng.com_pixel-png_1744665.png" id="2_vt36q"]
