@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://ds7mccb4e617v"
-path="res://.godot/imported/PikPng.com_pixel-png_1744665.png-331c0ad006558e3b3987359486d53e9e.ctex"
+uid="uid://dlvc5frx3jdvr"
+path="res://.godot/imported/railing down.png-085064d9606d3207f0c01c366c4f5d1c.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/thepixeltiles/trees/PikPng.com_pixel-png_1744665.png"
-dest_files=["res://.godot/imported/PikPng.com_pixel-png_1744665.png-331c0ad006558e3b3987359486d53e9e.ctex"]
+source_file="res://assets/thepixeltiles/bridge/railing down.png"
+dest_files=["res://.godot/imported/railing down.png-085064d9606d3207f0c01c366c4f5d1c.ctex"]
 
 [params]
 
