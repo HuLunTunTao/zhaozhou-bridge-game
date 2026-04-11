@@ -740,13 +740,16 @@ func revoke_skill(unit: Unit, skill: SkillData) -> void:
 
 
 ## 批量为单位分配技能，替换原有技能列表。
-func assign_skills(unit: Unit, skills: Array[SkillData]) -> void:
+func assign_skills(unit: Unit, skills: Array) -> void:
 	if unit == null or unit.unit_data == null:
 		return
 	if not unit.unit_data.resource_local_to_scene:
 		unit.unit_data = unit.unit_data.duplicate()
 		unit.unit_data.resource_local_to_scene = true
-	unit.unit_data.skills = skills
+	var typed: Array[SkillData] = []
+	for s in skills:
+		typed.append(s)
+	unit.unit_data.skills = typed
 	if selected_unit == unit:
 		_update_status_bar_for_unit(unit, true)
 

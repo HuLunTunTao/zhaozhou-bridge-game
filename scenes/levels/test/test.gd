@@ -62,13 +62,13 @@ func _on_level_ready() -> void:
 	# 测试关卡专用：敌人一轮内最多走 4 步，便于观察镜头跟随效果。
 	ai_max_move_steps = 4
 	# ── 分配正式技能 ──
-	assign_skills(_player as Unit, [_sk_rule_strike, _sk_wedge, _sk_stone, _sk_read_water, _sk_pile_bind] as Array[SkillData])
-	assign_skills(_playerB as Unit, [_sk_mallet, _sk_guard] as Array[SkillData])
-	assign_skills(_playerC as Unit, [_sk_staff, _sk_survey] as Array[SkillData])
-	assign_skills(_enemy1 as Unit, [_sk_lunge] as Array[SkillData])
-	assign_skills(_enemy2 as Unit, [_sk_pull] as Array[SkillData])
-	assign_skills(_enemy3 as Unit, [_sk_crush] as Array[SkillData])
-	assign_skills(_enemy4 as Unit, [_sk_lunge] as Array[SkillData])
+	assign_skills(_player as Unit, [_sk_rule_strike, _sk_wedge, _sk_stone, _sk_read_water, _sk_pile_bind])
+	assign_skills(_playerB as Unit, [_sk_mallet, _sk_guard])
+	assign_skills(_playerC as Unit, [_sk_staff, _sk_survey])
+	assign_skills(_enemy1 as Unit, [_sk_lunge])
+	assign_skills(_enemy2 as Unit, [_sk_pull])
+	assign_skills(_enemy3 as Unit, [_sk_crush])
+	assign_skills(_enemy4 as Unit, [_sk_lunge])
 
 	# ── 覆盖属性值（数值.md 正式数据）──
 	setup_unit_stats(_player as Unit, "李春", 130, 24, 100, 8, Enums.Element.NONE, 0, true)
