@@ -143,6 +143,12 @@ func _on_level_ready() -> void:
 	_set_placeholder_sprite(_craftsman_b as Unit)
 
 
+func _get_ai_context() -> Dictionary:
+	return {
+		"escort_units": [_survey_a, _survey_b],
+	}
+
+
 ## 覆写波次处理：生成敌人后设置占位精灵和颜色。
 func _process_wave(round_num: int) -> void:
 	var waves := get_wave_config()

@@ -20,7 +20,9 @@
       "Bash(find:*)",
       "Bash(grep -E \"\\\\.\\(gd|tscn\\)$\")",
       "Bash(timeout 30 godot --headless --editor --quit)",
-      "Bash(xargs ls:*)"
+      "Bash(xargs ls:*)",
+      "mcp__godot__update_project_uids",
+      "mcp__godot__get_uid"
     ]
   }
 }

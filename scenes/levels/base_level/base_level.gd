@@ -1,6 +1,7 @@
 class_name BaseLevel
 extends Node2D
 ## Base class for all battle levels.
+const _AIBrain := preload("res://scripts/combat/ai_brain.gd")
 ## Inherited scenes should add TileMapLayers under the TileMaps node,
 ## and place unit nodes under the Entities node.
 ##
@@ -242,6 +243,12 @@ func check_defeat() -> bool:
 ## 格式：{ "victory": Array[String], "defeat": Array[String] }
 func get_objectives_text() -> Dictionary:
 	return { "victory": [], "defeat": [] }
+
+
+## 子类覆写：为 AI 提供关卡特有的上下文信息。
+## 可包含 "escort_units"（护送目标）、"drift_directions"（浮木方向）等。
+func _get_ai_context() -> Dictionary:
+	return {}
 
 
 ## 处理波次生成。在每大回合开始时调用。
@@ -523,46 +530,95 @@ const _AI_TURN_CAMERA_FOCUS_DELAY: float = 0.3
 
 
 func _run_ai_turn(team: TeamData) -> void:
-	# TODO: 完善 AI —— 目前为随机向相邻格移动一步
 	var lv_camera := camera as LevelCamera
+	var context := _get_ai_context()
 	for unit: Node2D in team.units:
-		if lv_camera and is_instance_valid(unit):
+		if not is_instance_valid(unit):
+			continue
+		if not unit is Unit:
+			continue
+		var u := unit as Unit
+		if u.combat_stats == null or not u.combat_stats.is_alive():
+			continue
+
+		# 镜头锁定
+		if lv_camera:
 			lv_camera.lock_on(unit, _AI_TURN_CAMERA_LOCK_ZOOM)
 			await get_tree().create_timer(_AI_TURN_CAMERA_FOCUS_DELAY).timeout
-		if not unit.is_moving:
-			CombatLog.msg("  AI行动: %s 在%s 尝试移动..." % [
-				unit.combat_stats.unit_name if unit is Unit and unit.combat_stats else unit.name,
-				unit.cell])
-			await _ai_move_unit(unit)
-		unit.has_acted = true
+
+		CombatLog.msg("  AI行动: %s 在%s" % [u.combat_stats.unit_name, u.cell])
+
+		# 决策
+		var enemies := _get_alive_enemies_of(u.faction)
+		var occupied := _get_occupied_cells_except(u)
+		var action := _AIBrain.decide_action(u, enemies, tilemap, movement_manager, occupied, context)
+
+		# 执行移动
+		if action["move_path"].size() >= 2:
+			var path: Array[Vector2i] = action["move_path"]
+			var from_cell := path[0]
+			u.move_along_path(path, tilemap)
+			await u.move_finished
+			u.combat_stats.ap_current -= action["move_cost"]
+			u.combat_stats.moves_used += 1
+			u.refresh_overhead_bars()
+			CombatLog.msg("    移动: %s → %s (消耗%dAP)" % [from_cell, u.cell, action["move_cost"]])
+
+		# 执行攻击
+		if action["skill"] != null:
+			await _execute_ai_skill(u, action["skill"], action["cast_cell"])
+
+		u.has_acted = true
+
 	if lv_camera:
 		lv_camera.unlock()
 	_do_end_turn()
 
 
-func _ai_move_unit(unit: Node2D) -> void:
-	var steps: int = max(1, ai_max_move_steps)
-	for _i in range(steps):
-		var dirs: Array[Vector2i] = [
-			Vector2i(1, 0), Vector2i(-1, 0),
-			Vector2i(0, 1), Vector2i(0, -1),
-		]
-		dirs.shuffle()
-		var moved := false
-		for dir: Vector2i in dirs:
-			var target_cell: Vector2i = unit.cell + dir
-			var cost: int = movement_manager.get_movement_cost(target_cell)
-			var occupied := _is_cell_occupied(target_cell)
-			if cost != TileType.IMPASSABLE and not occupied:
-				var path: Array[Vector2i] = [unit.cell, target_cell]
-				unit.move_along_path(path, tilemap)
-				await unit.move_finished
-				CombatLog.msg("  AI移动: %s → %s" % [unit.cell - dir, unit.cell])
-				moved = true
-				break
-		if not moved:
-			CombatLog.msg("  AI无法移动: 所有相邻格不可通行或被占据")
-			return
+## AI 使用技能：镜头聚焦 + 执行 + 战斗反馈。
+func _execute_ai_skill(unit: Unit, skill: SkillData, cast_cell: Vector2i) -> void:
+	var lv_camera := camera as LevelCamera
+	var focus_marker: Node2D = null
+
+	# 镜头聚焦到施法者与目标中点
+	if lv_camera:
+		var caster_pos: Vector2 = unit.global_position
+		var target_pos: Vector2 = tilemap.map_to_local(cast_cell) if tilemap else caster_pos
+		focus_marker = Node2D.new()
+		add_child(focus_marker)
+		focus_marker.global_position = (caster_pos + target_pos) * 0.5
+		lv_camera.lock_on(focus_marker, _SKILL_CAMERA_ZOOM)
+		await get_tree().create_timer(_SKILL_CAMERA_SETTLE_TIME).timeout
+
+	# 执行技能
+	var all_units: Array = _get_all_units()
+	var caster_faction: String = unit.faction if "faction" in unit else ""
+	var exec_result := SkillExecutor.execute(unit, skill, cast_cell, all_units, caster_faction)
+
+	if exec_result.success:
+		CombatLog.msg("    技能: %s → %s" % [skill.skill_name, cast_cell])
+		_show_combat_feedback(exec_result)
+		unit.refresh_overhead_bars()
+
+	# 镜头恢复
+	if lv_camera and focus_marker:
+		await get_tree().create_timer(_SKILL_CAMERA_LINGER_TIME).timeout
+		focus_marker.queue_free()
+		lv_camera.unlock()
+	elif focus_marker:
+		focus_marker.queue_free()
+
+
+## 获取指定阵营的所有存活敌对单位。
+func _get_alive_enemies_of(faction: String) -> Array:
+	var result: Array = []
+	for t: TeamData in teams:
+		if t.faction == faction:
+			continue
+		for u: Node2D in t.units:
+			if u is Unit and u.combat_stats != null and u.combat_stats.is_alive():
+				result.append(u)
+	return result
 
 
 func _is_cell_occupied(cell: Vector2i) -> bool:
