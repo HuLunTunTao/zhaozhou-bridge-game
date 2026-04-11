@@ -95,7 +95,7 @@ func _init_click_button() -> void:
 
 
 func _on_button_input(event: InputEvent) -> void:
-	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		clicked.emit()
 		get_viewport().set_input_as_handled()
 

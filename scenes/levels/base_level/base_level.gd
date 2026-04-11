@@ -896,7 +896,11 @@ func _unhandled_input(event: InputEvent) -> void:
 	if not _can_accept_command():
 		return
 	if event.is_action_pressed("ui_cancel"):
-		_on_settings_button_pressed()
+		# ESC：如果当前有选中/瞄准状态，先取消；否则打开设置
+		if _input_state != InputState.IDLE:
+			cancel_action()
+		else:
+			_on_settings_button_pressed()
 		return
 	if _mid_cutscene_active:
 		return
@@ -909,15 +913,11 @@ func _unhandled_input(event: InputEvent) -> void:
 	if not (event is InputEventMouseButton and event.pressed):
 		return
 
-	if event.button_index == MOUSE_BUTTON_RIGHT:
+	if event.button_index == MOUSE_BUTTON_LEFT:
+		# 左键确认：选择单位 / 移动 / 释放技能
 		var clicked_cell := tilemap.local_to_map(tilemap.get_local_mouse_position())
 		confirm_cell(clicked_cell)
-	elif event.button_index == MOUSE_BUTTON_LEFT:
-		# 左键取消（ESC 也可以）
-		cancel_action()
-
-	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
-		cancel_action()
+	# 右键不处理，留给 LevelCamera 做拖拽平移
 
 
 ## 是否允许接收命令（非过场、非动画、玩家回合中）。
