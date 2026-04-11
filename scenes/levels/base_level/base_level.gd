@@ -891,7 +891,8 @@ func _confirm_targeting_move(cell: Vector2i, local_mouse: Vector2, current_team:
 		# AP 剩余且还能行动？回到 UNIT_SELECTED
 		if moving_unit is Unit and moving_unit.combat_stats != null:
 			var stats: CombatStats = moving_unit.combat_stats
-			if stats.ap_current > 0 and (stats.can_move() or _has_usable_skill(moving_unit)):
+			var ec := _get_enemy_cell_set(moving_unit.faction)
+			if stats.ap_current > 0 and (stats.can_move() or _has_usable_attack(moving_unit, ec)):
 				selected_unit = moving_unit
 				unit_selected = true
 				_input_state = InputState.UNIT_SELECTED
@@ -929,14 +930,14 @@ func _get_occupied_cells_except(exclude: Node2D) -> Array[Vector2i]:
 	return result
 
 
-## 检查单位是否有可用技能（AP 够 + 次数未尽）。
-## 当前玩家队伍是否还有可行动单位（未 has_acted、未在移动中、还能移动或放技能）。
+## 当前玩家队伍是否还有可行动单位（未 has_acted、未在移动中、还能移动或有技能能打到敌人）。
 func _player_team_has_remaining_actions() -> bool:
 	if current_team_index < 0 or current_team_index >= teams.size():
 		return false
 	var team: TeamData = teams[current_team_index]
 	if team.controller != "player":
 		return false
+	var enemy_cells := _get_enemy_cell_set(team.faction)
 	for unit: Node2D in team.units:
 		if not unit is Unit:
 			continue
@@ -946,21 +947,37 @@ func _player_team_has_remaining_actions() -> bool:
 		if u.combat_stats == null or not u.combat_stats.is_alive():
 			continue
 		var stats: CombatStats = u.combat_stats
-		if stats.ap_current > 0 and (stats.can_move() or _has_usable_skill(u)):
+		if stats.ap_current > 0 and (stats.can_move() or _has_usable_attack(u, enemy_cells)):
 			return true
 	return false
 
 
-func _has_usable_skill(unit: Node2D) -> bool:
-	if not unit is Unit:
+## 检查单位是否有攻击技能能够打到敌人（AP/次数够 + 范围内有敌人）。
+func _has_usable_attack(unit: Unit, enemy_cells: Dictionary) -> bool:
+	if unit.combat_stats == null or unit.unit_data == null:
 		return false
-	var u := unit as Unit
-	if u.combat_stats == null or u.unit_data == null:
-		return false
-	for skill: SkillData in u.unit_data.skills:
-		if u.combat_stats.can_use_skill(skill):
-			return true
+	for skill: SkillData in unit.unit_data.skills:
+		if skill.skill_type != Enums.SkillType.ATTACK:
+			continue
+		if not unit.combat_stats.can_use_skill(skill):
+			continue
+		for cast_offset in skill.cast_offsets:
+			var cast_cell := unit.cell + cast_offset
+			for effect_offset in skill.effect_offsets:
+				if enemy_cells.has(cast_cell + effect_offset):
+					return true
 	return false
+
+
+## 收集指定阵营的所有存活敌方单位格子。
+func _get_enemy_cell_set(faction: String) -> Dictionary:
+	var result: Dictionary = {}
+	for t: TeamData in teams:
+		if t.faction != faction:
+			for eu: Node2D in t.units:
+				if eu is Unit and eu.combat_stats and eu.combat_stats.is_alive():
+					result[eu.cell] = true
+	return result
 
 
 # ─────────────────────────────────────────────
@@ -1054,7 +1071,8 @@ func _confirm_targeting_skill(cell: Vector2i) -> void:
 	var unit := selected_unit as Unit
 	if unit and unit.combat_stats:
 		var stats := unit.combat_stats
-		if stats.ap_current > 0 and (stats.can_move() or _has_usable_skill(unit)):
+		var ec := _get_enemy_cell_set(unit.faction)
+		if stats.ap_current > 0 and (stats.can_move() or _has_usable_attack(unit, ec)):
 			_input_state = InputState.UNIT_SELECTED
 			if stats.can_move():
 				_enter_targeting_move()
