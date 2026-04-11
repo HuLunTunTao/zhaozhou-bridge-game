@@ -22,6 +22,21 @@ func get_teams_config() -> Array:
 	]
 
 
+func get_objectives_text() -> Dictionary:
+	return {
+		"victory": [
+			"- 完成 3 个勘测点",
+			"- 李春在候选桥位执行「相水定址」",
+			"- 至少 1 名测量工进入撤离区并结束回合",
+		],
+		"defeat": [
+			"- 李春死亡",
+			"- 两名测量工全部死亡",
+			"- 超过第 10 回合仍未完成撤离",
+		],
+	}
+
+
 func _on_level_ready() -> void:
 	assign_skills(_li_chun as Unit, [_sk_rule_strike, _sk_wedge, _sk_stone, _sk_read_water] as Array[SkillData])
 	setup_unit_stats(_li_chun as Unit, "李春", 130, 24, 100, 8, Enums.Element.NONE, 0, true)

@@ -47,6 +47,7 @@ signal unit_lost_skill(unit: Unit, skill: SkillData)
 @onready var status_bar: HBoxContainer = $StatusBarScene/PanelContainer/MarginContainer/StatusBar
 
 const SettingsPanelScene := preload("res://scenes/ui/settings_panel.tscn")
+const ObjectivesPanelScene := preload("res://scenes/ui/objectives_panel.tscn")
 
 var tilemap: TileMapLayer
 ## 化势提示 UI（运行时创建，挂在 GUI 层）。
@@ -56,6 +57,7 @@ var hero: Node2D
 var unit_selected := false
 var _mid_cutscene_active := false
 var _settings_open := false
+var _objectives_open := false
 
 ## 输入状态机。
 enum InputState { IDLE, UNIT_SELECTED, TARGETING_MOVE, TARGETING_SKILL, ANIMATING }
@@ -160,6 +162,8 @@ func _ready() -> void:
 	# 初始显示主角信息
 	if hero:
 		_update_status_bar_for_unit(hero, false)
+	# 进入关卡时自动弹出本关目标
+	show_objectives.call_deferred()
 
 
 func _process(_delta: float) -> void:
@@ -232,6 +236,12 @@ func check_victory() -> bool:
 ## 子类覆写：检查是否满足失败条件。每次关键事件后自动调用。
 func check_defeat() -> bool:
 	return false
+
+
+## 子类覆写：返回本关目标文本。
+## 格式：{ "victory": Array[String], "defeat": Array[String] }
+func get_objectives_text() -> Dictionary:
+	return { "victory": [], "defeat": [] }
 
 
 ## 处理波次生成。在每大回合开始时调用。
@@ -770,6 +780,25 @@ func _on_settings_button_pressed() -> void:
 	panel.show_back_to_menu = true
 	add_child(panel)
 	panel.closed.connect(func(): _settings_open = false)
+
+
+func _on_objectives_button_pressed() -> void:
+	show_objectives()
+
+
+## 弹出本关目标面板。进入关卡时自动调用一次，也可通过按钮随时查看。
+func show_objectives() -> void:
+	if _objectives_open:
+		return
+	var obj := get_objectives_text()
+	if obj["victory"].is_empty() and obj["defeat"].is_empty():
+		return
+	_objectives_open = true
+	var panel: ObjectivesPanel = ObjectivesPanelScene.instantiate()
+	panel.victory_lines = obj["victory"]
+	panel.defeat_lines = obj["defeat"]
+	add_child(panel)
+	panel.closed.connect(func(): _objectives_open = false)
 
 
 # ─────────────────────────────────────────────

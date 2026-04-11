@@ -39,6 +39,15 @@ offset_bottom = 31.0
 theme_override_font_sizes/font_size = 18
 text = "第 1 回合"
 
+[node name="ObjectivesButton" type="Button" parent="GUI" unique_id=400000002]
+anchors_preset = 0
+offset_left = 130.0
+offset_top = 3.0
+offset_right = 230.0
+offset_bottom = 35.0
+theme_override_font_sizes/font_size = 14
+text = "本关目标"
+
 [node name="EndTurnButton" type="Button" parent="GUI" unique_id=300000002]
 anchors_preset = 3
 anchor_left = 1.0
@@ -84,5 +93,6 @@ script = ExtResource("4_movemgr")
 
 [node name="SpecialTiles" type="Node2D" parent="." unique_id=2134184137]
 
+[connection signal="pressed" from="GUI/ObjectivesButton" to="." method="_on_objectives_button_pressed"]
 [connection signal="pressed" from="GUI/EndTurnButton" to="." method="_on_end_turn_button_pressed"]
 [connection signal="pressed" from="GUI/SettingsButton" to="." method="_on_settings_button_pressed"]
