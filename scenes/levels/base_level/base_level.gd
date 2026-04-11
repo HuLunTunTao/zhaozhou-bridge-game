@@ -1320,8 +1320,8 @@ func _show_combat_feedback(exec_result: SkillExecutor.ExecuteResult, _caster_nam
 			if hit.is_kill:
 				unit_died.emit(target_unit)
 
-		for status: CombatResolver.StatusInstance in hit.statuses_to_apply:
-			var sname: String = _STATUS_NAMES.get(status.status_id, status.status_id)
+		for s_info: Dictionary in hit.statuses_to_apply:
+			var sname: String = _STATUS_NAMES.get(s_info["id"], s_info["id"])
 			Notify.notify("%s 被施加了【%s】！" % [target_name, sname], Notify.Position.TOP_RIGHT, Notify.Style.WARNING, 3.0)
 
 		# 化势触发时的元素对比 popup（每个命中都显示）

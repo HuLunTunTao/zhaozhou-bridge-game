@@ -284,7 +284,7 @@ script = ExtResource("1_script")
 position = Vector2(-7.1525574e-07, -14.999999)
 sprite_frames = SubResource("SpriteFrames_vqlpx")
 animation = &"right_front_idle"
-frame_progress = 0.57547104
+frame_progress = 0.80538136
 
 [node name="Button" type="Button" parent="." unique_id=1235358697]
 modulate = Color(1, 1, 1, 0)
