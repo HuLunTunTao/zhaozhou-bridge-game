@@ -803,17 +803,35 @@ func _go_idle() -> void:
 
 func _confirm_idle(_cell: Vector2i, local_mouse: Vector2, current_team: TeamData) -> void:
 	_clear_end_turn_pending()
-	# 尝试选中当前队伍的单位
+	var clicked_cell := tilemap.local_to_map(local_mouse)
+	# 1. 先精确匹配点击格子上的任意单位（避免相邻时模糊匹配抢走点击）
+	var exact_unit: Node2D = null
+	var exact_is_current_team := false
+	for team: TeamData in teams:
+		var unit := _get_unit_at_cell(clicked_cell, team)
+		if unit != null:
+			exact_unit = unit
+			exact_is_current_team = (team == current_team)
+			break
+	if exact_unit != null:
+		if exact_is_current_team and not exact_unit.has_acted and not exact_unit.is_moving:
+			selected_unit = exact_unit
+			unit_selected = true
+			_input_state = InputState.UNIT_SELECTED
+			_update_status_bar_for_unit(exact_unit, true)
+			_enter_targeting_move()
+		else:
+			_update_status_bar_for_unit(exact_unit, false)
+		return
+	# 2. 无精确匹配 → 回退到模糊距离搜索（仅当前队伍）
 	var target := _find_nearest_team_unit(local_mouse, current_team)
 	if target != null and not target.has_acted and not target.is_moving:
 		selected_unit = target
 		unit_selected = true
 		_input_state = InputState.UNIT_SELECTED
 		_update_status_bar_for_unit(target, true)
-		# 自动进入移动模式
 		_enter_targeting_move()
 	else:
-		# 点击了其他队伍的单位？显示其信息
 		var any_unit := _find_nearest_any_unit(local_mouse)
 		if any_unit != null:
 			_update_status_bar_for_unit(any_unit, false)

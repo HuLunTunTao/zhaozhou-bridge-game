@@ -17,7 +17,9 @@
       "Bash(unzip -q /home/ffcrazy/proj/game/artbook/补充详细设定与剧情.docx word/document.xml -d temp_chapter_supplement)",
       "mcp__godot-mcp__add_node",
       "Bash(grep -E \"\\\\.gd$\")",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(grep -E \"\\\\.\\(gd|tscn\\)$\")",
+      "Bash(timeout 30 godot --headless --editor --quit)"
     ]
   }
 }
