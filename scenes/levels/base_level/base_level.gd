@@ -304,8 +304,6 @@ func _setup_teams_from_config(configs: Array) -> void:
 			var snapped_cell := tilemap.local_to_map(tilemap.to_local(unit.global_position))
 			unit.set_cell(snapped_cell, tilemap)
 			team.units.append(unit)
-			if unit is Unit and unit.has_signal("clicked"):
-				unit.clicked.connect(_on_unit_clicked.bind(unit))
 		teams.append(team)
 
 	# 向后兼容：hero 指向第一个玩家控制队伍的第一个单位
@@ -1053,38 +1051,26 @@ func _go_idle() -> void:
 	_reset_status_bar()
 
 
-func _confirm_idle(_cell: Vector2i, local_mouse: Vector2, _current_team: TeamData) -> void:
+func _confirm_idle(cell: Vector2i, _local_mouse: Vector2, current_team: TeamData) -> void:
 	_clear_end_turn_pending()
-	# 右键空地：显示最近单位的信息（不选中）
-	var any_unit := _find_nearest_any_unit(local_mouse)
-	if any_unit != null:
-		_update_status_bar_for_unit(any_unit, false)
-	else:
-		_reset_status_bar()
-
-
-func _on_unit_clicked(unit: Unit) -> void:
-	if not _can_accept_command():
-		return
-	var current_team: TeamData = teams[current_team_index] if current_team_index >= 0 else null
-	if current_team == null:
-		return
-
-	match _input_state:
-		InputState.IDLE, InputState.UNIT_SELECTED:
-			_clear_end_turn_pending()
-			if unit.team_index == current_team_index and not unit.has_acted and not unit.is_moving:
-				selected_unit = unit
-				unit_selected = true
-				_input_state = InputState.UNIT_SELECTED
-				_update_status_bar_for_unit(unit, true)
-				_enter_targeting_move()
-			else:
-				_update_status_bar_for_unit(unit, false)
-		InputState.TARGETING_MOVE:
-			confirm_cell(unit.cell)
-		InputState.TARGETING_SKILL:
-			confirm_cell(unit.cell)
+	# 检查点击格子上是否有当前队伍的可行动单位
+	var clicked_unit := _get_unit_at_cell(cell, current_team)
+	if clicked_unit != null and clicked_unit is Unit:
+		var u := clicked_unit as Unit
+		if not u.has_acted and not u.is_moving:
+			selected_unit = u
+			unit_selected = true
+			_input_state = InputState.UNIT_SELECTED
+			_update_status_bar_for_unit(u, true)
+			_enter_targeting_move()
+			return
+	# 检查是否点击了其他队伍的单位（仅显示信息）
+	for team: TeamData in teams:
+		var unit_on_cell := _get_unit_at_cell(cell, team)
+		if unit_on_cell != null:
+			_update_status_bar_for_unit(unit_on_cell, false)
+			return
+	_reset_status_bar()
 
 
 func _enter_targeting_move() -> void:
@@ -1145,11 +1131,10 @@ func _confirm_targeting_move(cell: Vector2i, local_mouse: Vector2, current_team:
 		moving_unit.has_acted = true
 		_go_idle()
 	else:
-		# 点击范围外：显示附近单位信息并回到 IDLE
-		var any_unit := _find_nearest_any_unit(local_mouse)
-		if any_unit != null:
-			_update_status_bar_for_unit(any_unit, false)
+		# 点击范围外：检查是否点击了其他友方单位，切换选中
 		_go_idle()
+		if current_team:
+			_confirm_idle(cell, local_mouse, current_team)
 
 
 ## 获取除指定单位外所有被占据的格子。
