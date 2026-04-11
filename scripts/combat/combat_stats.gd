@@ -84,8 +84,10 @@ func reset_turn_counters() -> void:
 	ap_current = ap_max
 
 
-## 检查是否还能移动。
+## 检查是否还能移动（AP 足够走至少一格 + 次数未用完）。
 func can_move() -> bool:
+	if ap_current < move_cost_per_tile:
+		return false
 	return move_limit < 0 or moves_used < move_limit
 
 

@@ -19,7 +19,8 @@
       "Bash(grep -E \"\\\\.gd$\")",
       "Bash(find:*)",
       "Bash(grep -E \"\\\\.\\(gd|tscn\\)$\")",
-      "Bash(timeout 30 godot --headless --editor --quit)"
+      "Bash(timeout 30 godot --headless --editor --quit)",
+      "Bash(xargs ls:*)"
     ]
   }
 }
