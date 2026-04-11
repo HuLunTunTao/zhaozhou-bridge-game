@@ -18,7 +18,7 @@ var _ap_label_node: Node2D = null
 
 func _ready() -> void:
 	z_index = 5
-	_ap_font = load("res://assets/font/fusion-pixel-10px-proportional-zh_hans.otf")
+	_ap_font = Fonts.PIXEL_10
 	# AP 消耗文字用独立子节点渲染，z_index 高于 HP/AP 条(100)
 	_ap_label_node = Node2D.new()
 	_ap_label_node.z_index = 110
