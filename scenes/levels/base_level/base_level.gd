@@ -563,8 +563,9 @@ func _run_ai_turn(team: TeamData) -> void:
 
 		# 决策
 		var enemies := _get_alive_enemies_of(u.faction)
-		var occupied := _get_occupied_cells_except(u)
-		var action := _AIBrain.decide_action(u, enemies, tilemap, movement_manager, occupied, context)
+		var friendly_cells := _get_friendly_cells_except(u)
+		var enemy_cells := _get_enemy_cells_except(u)
+		var action := _AIBrain.decide_action(u, enemies, tilemap, movement_manager, friendly_cells, enemy_cells, context)
 
 		# 执行移动
 		if action["move_path"].size() >= 2:
@@ -1056,10 +1057,11 @@ func _enter_targeting_move() -> void:
 		var stats: CombatStats = unit.combat_stats
 		if not stats.can_move():
 			return
-		var occupied: Array[Vector2i] = _get_occupied_cells_except(unit)
+		var friendly: Array[Vector2i] = _get_friendly_cells_except(unit)
+		var enemy: Array[Vector2i] = _get_enemy_cells_except(unit)
 		# 每格消耗 = 基础消耗 + 状态修正
 		var effective_cost := stats.move_cost_per_tile + stats.get_move_ap_modifier()
-		move_overlay.show_range_ap(tilemap, movement_manager, unit.cell, stats.ap_current, effective_cost, occupied)
+		move_overlay.show_range_ap(tilemap, movement_manager, unit.cell, stats.ap_current, effective_cost, friendly, enemy)
 	else:
 		move_overlay.show_range(tilemap, movement_manager, unit.cell, unit.movement_points)
 
@@ -1117,6 +1119,32 @@ func _get_occupied_cells_except(exclude: Node2D) -> Array[Vector2i]:
 	for team: TeamData in teams:
 		for unit: Node2D in team.units:
 			if unit != exclude:
+				result.append(unit.cell)
+	return result
+
+
+## 获取敌方占据的格子（faction 不同），排除指定单位。用于寻路阻挡。
+func _get_enemy_cells_except(exclude: Node2D) -> Array[Vector2i]:
+	var exclude_faction: String = exclude.faction if exclude is Unit else ""
+	var result: Array[Vector2i] = []
+	for team: TeamData in teams:
+		if team.faction == exclude_faction:
+			continue
+		for unit: Node2D in team.units:
+			if unit != exclude and unit is Unit and unit.combat_stats and unit.combat_stats.is_alive():
+				result.append(unit.cell)
+	return result
+
+
+## 获取友方占据的格子（faction 相同），排除指定单位。友方可穿越但不可停留。
+func _get_friendly_cells_except(exclude: Node2D) -> Array[Vector2i]:
+	var exclude_faction: String = exclude.faction if exclude is Unit else ""
+	var result: Array[Vector2i] = []
+	for team: TeamData in teams:
+		if team.faction != exclude_faction:
+			continue
+		for unit: Node2D in team.units:
+			if unit != exclude and unit is Unit and unit.combat_stats and unit.combat_stats.is_alive():
 				result.append(unit.cell)
 	return result
 

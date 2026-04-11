@@ -37,9 +37,9 @@ anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
 offset_left = -130.0
-offset_top = -110.0
+offset_top = -130.0
 offset_right = 130.0
-offset_bottom = 110.0
+offset_bottom = 130.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 0
@@ -112,6 +112,12 @@ layout_mode = 2
 visible = false
 text = "快速存档"
 
+[node name="RestartButton" type="Button" parent="Backdrop/Panel/Content"]
+unique_name_in_owner = true
+layout_mode = 2
+visible = false
+text = "重新开始"
+
 [node name="BackToMenuButton" type="Button" parent="Backdrop/Panel/Content"]
 unique_name_in_owner = true
 layout_mode = 2
@@ -128,5 +134,6 @@ text = "关闭"
 [connection signal="value_changed" from="Backdrop/Panel/Content/AudioSection/SfxRow/SfxSlider" to="." method="_on_sfx_slider_value_changed"]
 [connection signal="pressed" from="Backdrop/Panel/Content/SaveManagerButton" to="." method="_on_save_manager_pressed"]
 [connection signal="pressed" from="Backdrop/Panel/Content/QuickSaveButton" to="." method="_on_quick_save_pressed"]
+[connection signal="pressed" from="Backdrop/Panel/Content/RestartButton" to="." method="_on_restart_pressed"]
 [connection signal="pressed" from="Backdrop/Panel/Content/BackToMenuButton" to="." method="_on_back_to_menu_pressed"]
 [connection signal="pressed" from="Backdrop/Panel/Content/CloseButton" to="." method="_on_close_pressed"]

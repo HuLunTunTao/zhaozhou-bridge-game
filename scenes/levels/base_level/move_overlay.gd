@@ -46,10 +46,11 @@ func show_range_ap(
 		p_origin: Vector2i,
 		ap_budget: int,
 		move_cost_per_tile: int,
-		occupied_cells: Array[Vector2i] = []
+		occupied_cells: Array[Vector2i] = [],
+		blocked_cells: Array[Vector2i] = []
 ) -> void:
 	_ap_budget = ap_budget
-	_show_range_internal(p_tilemap, p_movement_manager, p_origin, ap_budget, move_cost_per_tile, occupied_cells)
+	_show_range_internal(p_tilemap, p_movement_manager, p_origin, ap_budget, move_cost_per_tile, occupied_cells, blocked_cells)
 
 
 func _show_range_internal(
@@ -58,7 +59,8 @@ func _show_range_internal(
 		p_origin: Vector2i,
 		budget: int,
 		base_move_cost: int,
-		occupied_cells: Array[Vector2i] = []
+		occupied_cells: Array[Vector2i] = [],
+		blocked_cells: Array[Vector2i] = []
 ) -> void:
 	tilemap = p_tilemap
 	movement_manager = p_movement_manager
@@ -71,6 +73,9 @@ func _show_range_internal(
 	var occupied_set: Dictionary = {}
 	for c in occupied_cells:
 		occupied_set[c] = true
+	var blocked_set: Dictionary = {}
+	for c in blocked_cells:
+		blocked_set[c] = true
 
 	# Dijkstra：best[cell] = 到达该格的最小消耗
 	var best: Dictionary = { p_origin: 0 }
@@ -99,6 +104,8 @@ func _show_range_internal(
 			var tile_cost: int = movement_manager.get_movement_cost(nb)
 			if tile_cost == -1:  # TileType.IMPASSABLE
 				continue
+			if blocked_set.has(nb):  # 敌方单位阻挡，不可通过
+				continue
 			# AP 模式：消耗 = 单位每格基础消耗 + 地形额外消耗
 			# 旧版模式：消耗 = 地形消耗（兼容）
 			var step_cost: int
@@ -111,7 +118,7 @@ func _show_range_internal(
 				continue
 			if best.has(nb) and best[nb] <= new_cost:
 				continue
-			# 被占据的格子可以路过但不能停留（仍加入寻路图）
+			# 友方占据的格子可以路过但不能停留（仍加入寻路图）
 			best[nb] = new_cost
 			_parents[nb] = current
 			_costs[nb] = new_cost

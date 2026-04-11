@@ -1,7 +1,7 @@
 class_name AIBrain
 ## 敌方 AI 决策器。纯静态函数，无状态。
 ##
-## 用法：var action = _AIBrain.decide_action(unit, enemies, tilemap, mm, occupied, ctx)
+## 用法：var action = _AIBrain.decide_action(unit, enemies, tilemap, mm, friendly, enemy, ctx)
 ## 返回 {"move_path": Array[Vector2i], "move_cost": int,
 ##        "skill": SkillData or null, "cast_cell": Vector2i}
 
@@ -21,6 +21,7 @@ static func decide_action(
 		tilemap: TileMapLayer,
 		movement_manager,
 		occupied: Array[Vector2i],
+		blocked: Array[Vector2i] = [],
 		level_context: Dictionary = {}
 ) -> Dictionary:
 	var empty_action: Dictionary = _make_empty_action()
@@ -34,7 +35,7 @@ static func decide_action(
 
 	# hazard_charge 完全不同的逻辑
 	if ai_type == "hazard_charge":
-		return _decide_hazard_charge(unit, enemies, tilemap, movement_manager, occupied, level_context)
+		return _decide_hazard_charge(unit, enemies, tilemap, movement_manager, occupied, blocked, level_context)
 
 	# ── 标准流程 ──
 	var alive_enemies: Array = []
@@ -52,6 +53,9 @@ static func decide_action(
 	var occupied_set: Dictionary = {}
 	for c in occupied:
 		occupied_set[c] = true
+	var blocked_set: Dictionary = {}
+	for c in blocked:
+		blocked_set[c] = true
 
 	# 1. 检查原地是否能攻击
 	var standing_hit: Dictionary = _find_best_skill_hit(unit, unit.cell, target.cell)
@@ -77,7 +81,7 @@ static func decide_action(
 		if move_budget < 0:
 			continue
 		var reach: Dictionary = _compute_reachable(unit.cell, move_budget, effective_move_cost,
-				movement_manager, occupied_set)
+				movement_manager, occupied_set, blocked_set)
 		var attack_cell: Vector2i = _find_attack_cell(unit.cell, target.cell, skill, reach)
 		if attack_cell != _INVALID_CELL:
 			var dist: int = _manhattan(attack_cell, target.cell)
@@ -98,7 +102,7 @@ static func decide_action(
 
 	# 3. 无法攻击：尽可能接近目标
 	var full_reach: Dictionary = _compute_reachable(unit.cell, stats.ap_current, effective_move_cost,
-			movement_manager, occupied_set)
+			movement_manager, occupied_set, blocked_set)
 	var closest: Vector2i = _find_closest_to_target(target.cell, full_reach)
 	if closest != _INVALID_CELL and closest != unit.cell:
 		var path: Array[Vector2i] = _reconstruct_path(full_reach["parents"], unit.cell, closest)
@@ -124,28 +128,36 @@ static func _pick_target(unit: Unit, enemies: Array, ai_type: String,
 
 	var escort_units: Array = level_context.get("escort_units", [])
 
+	# 第一遍：找出最大距离用于归一化
+	var max_dist: int = 1
 	for enemy in enemies:
 		var e: Unit = enemy as Unit
 		if e == null or e.combat_stats == null or not e.combat_stats.is_alive():
 			continue
-		var score: float = 0.0
 		var dist: int = _manhattan(unit.cell, e.cell)
-		score -= dist
+		if dist > max_dist:
+			max_dist = dist
+
+	# 第二遍：加权评分
+	for enemy in enemies:
+		var e: Unit = enemy as Unit
+		if e == null or e.combat_stats == null or not e.combat_stats.is_alive():
+			continue
+		var dist: int = _manhattan(unit.cell, e.cell)
+		# 距离分：越近越高（归一化到 0~1）
+		var proximity_score: float = 1.0 - float(dist) / float(max_dist)
+		# 护送目标分：是护送目标则为 1，否则为 0
+		var is_escort: bool = e.combat_stats.is_escort_target or e in escort_units
+		var escort_score: float = 1.0 if is_escort else 0.0
+		# 加权：距离 0.8 + 护送目标 0.2
+		var score: float = 0.8 * proximity_score + 0.2 * escort_score
 
 		match ai_type:
 			"flank_melee":
-				if e.combat_stats.is_escort_target or e in escort_units:
-					score += 100.0
 				if e.combat_stats.current_hp < e.combat_stats.max_hp * 0.5:
-					score += 50.0
-			"control_pull":
-				if e.combat_stats.is_escort_target or e in escort_units:
-					score += 100.0
-			"zone_breaker":
-				if e.combat_stats.is_escort_target or e in escort_units:
-					score += 100.0
+					score += 0.1
 			_:
-				pass  # 默认：距离优先
+				pass
 
 		if score > best_score:
 			best_score = score
@@ -164,7 +176,8 @@ static func _compute_reachable(
 		ap_budget: int,
 		base_move_cost: int,
 		movement_manager,
-		occupied_set: Dictionary
+		occupied_set: Dictionary,
+		blocked_set: Dictionary = {}
 ) -> Dictionary:
 	var costs: Dictionary = { origin: 0 }
 	var parents: Dictionary = {}
@@ -187,6 +200,8 @@ static func _compute_reachable(
 			var nb: Vector2i = current + dir
 			var tile_cost: int = movement_manager.get_movement_cost(nb)
 			if tile_cost == -1:
+				continue
+			if blocked_set.has(nb):
 				continue
 			var step_cost: int
 			if base_move_cost > 0:
@@ -303,6 +318,7 @@ static func _decide_hazard_charge(
 		_tilemap: TileMapLayer,
 		movement_manager,
 		occupied: Array[Vector2i],
+		blocked: Array[Vector2i],
 		level_context: Dictionary
 ) -> Dictionary:
 	var stats: CombatStats = unit.combat_stats
@@ -311,8 +327,11 @@ static func _decide_hazard_charge(
 	var drift_dirs: Dictionary = level_context.get("drift_directions", {})
 	var direction: Vector2i = drift_dirs.get(unit, Vector2i(-1, 0))
 
+	# 冲锋在任何单位面前都会停下，合并友方和敌方占据格
 	var occupied_set: Dictionary = {}
 	for c in occupied:
+		occupied_set[c] = true
+	for c in blocked:
 		occupied_set[c] = true
 
 	# 构建敌人位置集合
