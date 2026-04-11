@@ -614,7 +614,21 @@ func _execute_ai_skill(unit: Unit, skill: SkillData, cast_cell: Vector2i) -> voi
 
 	if exec_result.success:
 		CombatLog.msg("    技能: %s → %s" % [skill.skill_name, cast_cell])
-		_show_combat_feedback(exec_result)
+		# 技能释放播报
+		var caster_name: String = unit.combat_stats.unit_name if unit.combat_stats else unit.name
+		Notify.notify("%s 使用了【%s】！" % [caster_name, skill.skill_name], Notify.Position.TOP_RIGHT, Notify.Style.INFO, 3.0)
+		_show_combat_feedback(exec_result, caster_name)
+		# 额外效果播报
+		if skill.extra_effect_id != "" and not exec_result.hit_results.is_empty():
+			var effect_name: String = _EXTRA_EFFECT_NAMES.get(skill.extra_effect_id, "")
+			if effect_name != "":
+				var target_names: Array[String] = []
+				for entry in exec_result.hit_results:
+					var tu: Node2D = entry["unit"]
+					if tu is Unit and (tu as Unit).combat_stats:
+						target_names.append((tu as Unit).combat_stats.unit_name)
+				if not target_names.is_empty():
+					Notify.notify("%s 触发额外效果：%s" % ["、".join(target_names), effect_name], Notify.Position.TOP_RIGHT, Notify.Style.INFO, 3.0)
 		unit.refresh_overhead_bars()
 
 	# 镜头恢复
