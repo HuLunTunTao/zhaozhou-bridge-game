@@ -86,22 +86,18 @@ func show_unit(unit: Node2D, is_active: bool = false) -> void:
 		_update_element(_cur_elem_logo, _cur_elem_value, stats.current_element, stats.current_element_amount)
 		_update_element(_inn_elem_logo, _inn_elem_value, stats.innate_element, stats.innate_element_amount)
 
-		# 行动次数显示：
-		# 不使用 visible=false 隐藏，而是设为透明色。
-		# 原因：visible=false 会导致 VBoxContainer 重新布局，使不同单位的信息区高度不一致。
-		# 保持节点始终 visible=true + 透明色可以让布局高度固定。
+		# 行动次数显示：不需要时隐藏以节省空间。
 		if not stats.is_hero and stats.camp == Enums.Camp.ALLY:
 			var parts: Array[String] = []
 			if stats.move_limit >= 0:
 				parts.append("移动:%d/%d" % [maxi(stats.move_limit - stats.moves_used, 0), stats.move_limit])
 			if stats.skill_limit >= 0:
 				parts.append("技能:%d/%d" % [maxi(stats.skill_limit - stats.skills_used, 0), stats.skill_limit])
-			_actions_label.text = " ".join(parts) if not parts.is_empty() else " "
-			_actions_label.self_modulate = Color.WHITE
+			_actions_label.text = " ".join(parts) if not parts.is_empty() else ""
+			_actions_label.visible = not parts.is_empty()
 		else:
-			# 主角或敌方：保留占位空间但文字透明
-			_actions_label.text = " "
-			_actions_label.self_modulate = Color.TRANSPARENT
+			_actions_label.text = ""
+			_actions_label.visible = false
 	else:
 		_name_label.text = unit.name
 		_atk_label.text = ""
@@ -127,8 +123,8 @@ func clear_unit() -> void:
 	_hp_label.text = ""
 	_ap_bar.value = 0
 	_ap_label.text = ""
-	_actions_label.text = " "
-	_actions_label.self_modulate = Color.TRANSPARENT
+	_actions_label.text = ""
+	_actions_label.visible = false
 	_buff_label.text = ""
 	_buff_label.visible = false
 	_clear_elements()
@@ -241,8 +237,8 @@ func _ensure_ratio_label(btn: Button) -> Label:
 		r.anchor_bottom = 1.0
 		r.offset_left = 2.0
 		r.offset_right = -2.0
-		r.offset_top = -14.0
-		r.offset_bottom = -2.0
+		r.offset_top = -12.0
+		r.offset_bottom = -1.0
 		r.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		r.add_theme_font_override("font", Fonts.PIXEL_10)
 		r.add_theme_font_size_override("font_size", 10)
