@@ -32,6 +32,7 @@ var _current_unit: Node2D = null
 
 @onready var _portrait: TextureRect = %Portrait
 @onready var _name_label: Label = %NameLabel
+@onready var _atk_label: Label = %AtkLabel
 @onready var _actions_label: Label = %ActionsLabel
 @onready var _hp_bar: ProgressBar = %HpBar
 @onready var _hp_label: Label = %HpLabel
@@ -68,6 +69,7 @@ func show_unit(unit: Node2D, is_active: bool = false) -> void:
 
 	if stats:
 		_name_label.text = stats.unit_name
+		_atk_label.text = "攻击力 %d" % stats.base_atk
 		# 头像：从 unit_data.portrait 读取
 		var data: UnitData = unit.unit_data if unit is Unit else null
 		_portrait.texture = data.portrait if data and data.portrait else null
@@ -102,6 +104,7 @@ func show_unit(unit: Node2D, is_active: bool = false) -> void:
 			_actions_label.self_modulate = Color.TRANSPARENT
 	else:
 		_name_label.text = unit.name
+		_atk_label.text = ""
 		_portrait.texture = null
 		_hp_bar.value = 0
 		_hp_label.text = ""
@@ -119,6 +122,7 @@ func clear_unit() -> void:
 	_current_unit = null
 	_portrait.texture = null
 	_name_label.text = "--"
+	_atk_label.text = ""
 	_hp_bar.value = 0
 	_hp_label.text = ""
 	_ap_bar.value = 0

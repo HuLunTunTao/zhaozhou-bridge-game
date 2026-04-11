@@ -89,6 +89,13 @@ layout_mode = 2
 theme_override_colors/font_color = Color(1, 1, 1, 1)
 theme_override_font_sizes/font_size = 16
 
+[node name="AtkLabel" type="Label" parent="PanelContainer/MarginContainer/StatusBar/Info"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.7, 0.4, 1)
+theme_override_fonts/font = ExtResource("2_pixel10")
+theme_override_font_sizes/font_size = 10
+
 [node name="ActionsLabel" type="Label" parent="PanelContainer/MarginContainer/StatusBar/Info" unique_id=717327333]
 unique_name_in_owner = true
 layout_mode = 2
