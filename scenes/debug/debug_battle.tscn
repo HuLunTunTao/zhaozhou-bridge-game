@@ -1,6 +1,6 @@
 [gd_scene format=3]
 
-[ext_resource type="PackedScene" uid="uid://cw5lldjp7lh7m" path="res://scenes/levels/base_level/base_level.tscn" id="1_base"]
+[ext_resource type="PackedScene" uid="uid://5w0o8w3sxwf5" path="res://scenes/levels/base_level/base_level.tscn" id="1_base"]
 [ext_resource type="Script" uid="uid://b4lrkay7voaxy" path="res://scenes/debug/debug_battle.gd" id="2_debug"]
 [ext_resource type="PackedScene" path="res://scenes/unit/unit.tscn" id="3_player"]
 
