@@ -224,7 +224,19 @@ static func _force_move_cell(target: Unit, direction: Vector2i, distance: int) -
 	var current := target.cell
 	for i in range(distance):
 		var next := current + direction
-		# TODO: 检查地形通行性（需要 movement_manager 引用）
+		# 检查地形通行性
+		if target.movement_manager:
+			if target.movement_manager.get_movement_cost(next) == TileType.IMPASSABLE:
+				break
+		# 检查目标格是否被占据（不能移到其他单位身上）
+		var blocked := false
+		if target.get_parent():
+			for sibling in target.get_parent().get_children():
+				if sibling != target and sibling is Unit and sibling.cell == next:
+					blocked = true
+					break
+		if blocked:
+			break
 		current = next
 	target.cell = current
 	# 更新视觉位置（需要 tilemap，通过 movement_manager 间接获取）
