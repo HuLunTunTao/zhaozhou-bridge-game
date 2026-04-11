@@ -5,7 +5,7 @@ class_name PhaseElementPopup
 
 
 func show_at(world_pos: Vector2, atk_e: Enums.Element, atk_a: int, tgt_e: Enums.Element, tgt_a: int) -> void:
-	z_index = 95  # 在 sprite(0)/damage_popup(90) 上，HP/AP 条(100) 下
+	z_index = 106  # 在伤害弹字(105)之上，AP消耗标签(110)之下
 	z_as_relative = false
 	position = world_pos + Vector2(0, -38)
 

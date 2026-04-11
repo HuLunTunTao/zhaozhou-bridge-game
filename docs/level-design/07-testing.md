@@ -209,9 +209,9 @@
 | 层级 | z_index | z_as_relative | 代码位置 | 说明 |
 |------|---------|---------------|---------|------|
 | **AP 消耗标签** | **110** | false（绝对） | `scenes/levels/base_level/move_overlay.gd` | 移动时路径终点的 AP 消耗/余量文字，始终在最顶层 |
-| 头顶 HP/AP 条 | **100** | false（绝对） | `scenes/ui/combat/unit_hp_bar.tscn` | 始终在最上层，不被任何 sprite 或地形遮挡 |
-| 化势元素 popup | 95 | false（绝对） | `scenes/ui/combat/phase_element_popup.gd:8-9` | 头顶 `土×2 → 水×2` 文字，在 HP 条之下、damage 之上 |
-| 伤害弹字 | 90 | true（默认） | `scenes/ui/combat/damage_popup.gd` | 在 sprite 之上，状态条之下 |
+| 化势元素 popup | **106** | false（绝对） | `scenes/ui/combat/phase_element_popup.gd` | 头顶 `土×2 → 水×2` 文字 |
+| 伤害弹字 | **105** | false（绝对） | `scenes/ui/combat/damage_popup.gd` | 浮动伤害/治疗数字 + 化势名 |
+| 头顶 HP/AP 条 | **100** | false（绝对） | `scenes/ui/combat/unit_hp_bar.tscn` | 始终可见，不被 sprite 或地形遮挡 |
 | **移动范围/技能选点 overlay** | **5** | true（默认） | `move_overlay.gd` / `skill_targeting.gd` | **必须 > 任何 TileMapLayer 的 z_index**，否则高亮会被障碍物层遮挡 |
 | TileMap Obstacle 层 | 2 | true（默认） | 关卡场景中 `z=2` 命名的图层 | 障碍物图层 |
 | TileMap 装饰层 | 1 | true（默认） | 关卡场景中 `z=1` 命名的图层 | 装饰图层 |
