@@ -1,0 +1,53 @@
+[gd_scene format=3 uid="uid://v8x3s4b5cn64"]
+
+[ext_resource type="PackedScene" uid="uid://cbjso0lvbcag1" path="res://scenes/unit/visual/visual.tscn" id="1_sbuxx"]
+[ext_resource type="Shader" uid="uid://w8w41kw1kylj" path="res://scenes/unit/shader/unit_edge_light.gdshader" id="2_trspm"]
+[ext_resource type="Texture2D" uid="uid://sqvw3qvprngn" path="res://assets/character/monster/暗涌精灵图.png" id="3_trspm"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_dq1pr"]
+resource_local_to_scene = true
+shader = ExtResource("2_trspm")
+shader_parameter/outline_color = Color(1, 1, 0, 0.3)
+shader_parameter/outline_width = 7.0
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_dq1pr"]
+atlas = ExtResource("3_trspm")
+region = Rect2(0, 0, 38, 30)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_te8q6"]
+atlas = ExtResource("3_trspm")
+region = Rect2(38, 0, 38, 30)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_egpbe"]
+atlas = ExtResource("3_trspm")
+region = Rect2(76, 0, 38, 30)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_tfemx"]
+atlas = ExtResource("3_trspm")
+region = Rect2(114, 0, 38, 30)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_sbuxx"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_dq1pr")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_te8q6")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_egpbe")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_tfemx")
+}],
+"loop": true,
+"name": &"default",
+"speed": 5.0
+}]
+
+[node name="Visual" unique_id=1878430534 instance=ExtResource("1_sbuxx")]
+material = SubResource("ShaderMaterial_dq1pr")
+scale = Vector2(1, 1)
+sprite_frames = SubResource("SpriteFrames_sbuxx")
+move_is_idle = true
