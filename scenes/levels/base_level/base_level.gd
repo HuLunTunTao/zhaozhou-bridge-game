@@ -10,6 +10,20 @@ const _AIBrain := preload("res://scripts/combat/ai_brain.gd")
 ##   - 角色节点挂载在场景中，颜色与初始格子通过 @export 在编辑器中设置。
 ##   - 若不覆盖 get_teams_config()，则沿用旧的单玩家行为。
 
+## 怪物名称 → Visual 场景映射表。spawn_unit 会根据 unit_data.unit_name 自动应用外观。
+const MONSTER_VISUALS: Dictionary = {
+	"暗涌": preload("res://scenes/unit/visual/monster/暗涌/暗涌_visual.tscn"),
+	"水旋": preload("res://scenes/unit/visual/monster/水旋/水旋_visual.tscn"),
+	"坍岸泥鬼": preload("res://scenes/unit/visual/monster/泥沙魇/泥沙魇_visual.tscn"),
+	"浮木群": preload("res://scenes/unit/visual/monster/浮木群/浮木群_visual.tscn"),
+	"洪峰": preload("res://scenes/unit/visual/monster/洪峰/洪峰_visual.tscn"),
+	"断索鬼": preload("res://scenes/unit/visual/monster/断索鬼/断索鬼_visual.tscn"),
+	"桥台噬者": preload("res://scenes/unit/visual/monster/桥台噬者/桥台噬者_visual.tscn"),
+	"脱缝鬼": preload("res://scenes/unit/visual/monster/脱缝鬼/脱缝鬼_visual.tscn"),
+	"错券兵": preload("res://scenes/unit/visual/monster/错券兵/错券兵_visual.tscn"),
+	"漂木群洪水版": preload("res://scenes/unit/visual/monster/漂木群洪水版/漂木群洪水版_visual.tscn"),
+}
+
 @export var obstacles_tilemap_layer: TileMapLayer  # 障碍物所在的层，必须在编辑器中指定
 ## AI 回合中每个敌人一轮内最多走几步（每步 = 向相邻格移动一次）。
 ## 子关卡可在 _on_level_ready 里覆盖，例如 `ai_max_move_steps = 4`。
@@ -258,9 +272,12 @@ func _process_wave(round_num: int) -> Array[Unit]:
 		return [] as Array[Unit]
 	var spawned: Array[Unit] = []
 	for entry: Dictionary in waves[round_num]:
-		var unit := spawn_unit(entry["unit_data"], entry["cell"], entry["team_index"])
+		var vis: PackedScene = entry.get("visual", null)
+		var unit := spawn_unit(entry["unit_data"], entry["cell"], entry["team_index"], vis)
 		if entry.has("skills"):
 			set_unit_skills(unit, entry["skills"])
+		if entry.has("color"):
+			unit.unit_color = entry["color"]
 		spawned.append(unit)
 	return spawned
 
@@ -790,11 +807,17 @@ func _on_defeat_main_menu() -> void:
 
 
 ## 运行时生成一个单位。加入指定队伍，放置在指定 cell 的脚下。
-## 返回生成的 Unit 节点供进一步操作。
-func spawn_unit(unit_data: UnitData, cell: Vector2i, team_index: int) -> Unit:
+## visual 可选：传入 PackedScene 直接指定外观，否则根据 unit_data.unit_name 自动查表。
+func spawn_unit(unit_data: UnitData, cell: Vector2i, team_index: int, visual: PackedScene = null) -> Unit:
 	var UnitScene := preload("res://scenes/unit/unit.tscn")
 	var unit: Unit = UnitScene.instantiate()
 	unit.unit_data = unit_data
+	# 应用外观：优先使用传入的 visual，否则根据名称自动查表
+	var visual_to_use: PackedScene = visual
+	if visual_to_use == null and unit_data and MONSTER_VISUALS.has(unit_data.unit_name):
+		visual_to_use = MONSTER_VISUALS[unit_data.unit_name]
+	if visual_to_use:
+		unit.visual_scene = visual_to_use
 	obstacles_tilemap_layer.add_child(unit)
 	unit.movement_manager = movement_manager
 	unit.set_cell(cell, tilemap)
