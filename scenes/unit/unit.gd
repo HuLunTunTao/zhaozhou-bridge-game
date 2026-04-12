@@ -16,6 +16,11 @@ signal clicked
 @export var move_speed: float = 100.0  # pixels per second
 ## 单位数据（在编辑器中指定 .tres 文件）。
 @export var unit_data: UnitData
+## 单位外观场景。修改后立即替换 Visual 节点（编辑器中可预览）。
+@export var visual_scene: PackedScene:
+	set(value):
+		visual_scene = value
+		_replace_visual()
 ## 单位叠加颜色，用于区分阵营。修改后在编辑器中实时预览。
 @export var unit_color: Color = Color(1, 1, 1, 1):
 	set(value):
@@ -49,7 +54,10 @@ var _hp_bar: UnitHpBar = null
 
 
 func _ready() -> void:
-	_visual = get_node_or_null("Visual") as UnitVisual
+	if visual_scene:
+		_replace_visual()
+	else:
+		_visual = get_node_or_null("Visual") as UnitVisual
 	_apply_color()
 	if _visual:
 		_visual.set_facing(_facing)
@@ -57,6 +65,32 @@ func _ready() -> void:
 	_init_combat_stats()
 	_init_hp_bar()
 	_init_click_button()
+
+
+## 将 visual_scene 的属性复制到当前 Visual 节点（不替换节点）。
+func _replace_visual() -> void:
+	if not is_inside_tree():
+		return
+	var visual := get_node_or_null("Visual")
+	if visual == null or visual_scene == null:
+		return
+	var source := visual_scene.instantiate()
+	visual.sprite_frames = source.sprite_frames
+	if source.material:
+		visual.material = source.material.duplicate()
+	visual.scale = source.scale
+	visual.flip_h = source.flip_h
+	visual.flip_v = source.flip_v
+	visual.set_script(source.get_script())
+	for prop in ["move_is_idle", "flip_h_for_turning", "default_facing_left"]:
+		if prop in source:
+			visual.set(prop, source.get(prop))
+	source.free()
+	# 重新播放动画以刷新显示
+	if visual.sprite_frames and visual.sprite_frames.get_animation_names().size() > 0:
+		visual.play(visual.sprite_frames.get_animation_names()[0])
+	_visual = visual as UnitVisual
+	_apply_color()
 
 
 ## 从 unit_data 初始化 combat_stats。

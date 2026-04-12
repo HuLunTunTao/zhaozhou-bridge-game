@@ -145,20 +145,20 @@ func _on_level_ready() -> void:
 	# ── 测量工 ──
 	set_unit_skills(_survey_a as Unit, [_sk_staff, _sk_survey])
 	setup_unit_stats(_survey_a as Unit, "测量工", 80, 12, 85, 10)
-	_set_placeholder_sprite(_survey_a as Unit)
+	# _set_placeholder_sprite(_survey_a as Unit)
 
 	set_unit_skills(_survey_b as Unit, [_sk_staff, _sk_survey])
 	setup_unit_stats(_survey_b as Unit, "测量工", 80, 12, 85, 10)
-	_set_placeholder_sprite(_survey_b as Unit)
+	# _set_placeholder_sprite(_survey_b as Unit)
 
 	# ── 工匠 ──
 	set_unit_skills(_craftsman_a as Unit, [_sk_mallet, _sk_guard])
 	setup_unit_stats(_craftsman_a as Unit, "工匠", 110, 18, 90, 9)
-	_set_placeholder_sprite(_craftsman_a as Unit)
+	# _set_placeholder_sprite(_craftsman_a as Unit)
 
 	set_unit_skills(_craftsman_b as Unit, [_sk_mallet, _sk_guard])
 	setup_unit_stats(_craftsman_b as Unit, "工匠", 110, 18, 90, 9)
-	_set_placeholder_sprite(_craftsman_b as Unit)
+	# _set_placeholder_sprite(_craftsman_b as Unit)
 
 
 func _get_ai_context() -> Dictionary:
