@@ -89,19 +89,26 @@ layout_mode = 2
 theme_override_colors/font_color = Color(1, 1, 1, 1)
 theme_override_font_sizes/font_size = 16
 
-[node name="AtkLabel" type="Label" parent="PanelContainer/MarginContainer/StatusBar/Info" unique_id=166984740]
+[node name="StatsRow" type="HBoxContainer" parent="PanelContainer/MarginContainer/StatusBar/Info" unique_id=1883649012]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="AtkLabel" type="Label" parent="PanelContainer/MarginContainer/StatusBar/Info/StatsRow" unique_id=166984740]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.9, 0.7, 0.4, 1)
 theme_override_fonts/font = ExtResource("2_pixel10")
 theme_override_font_sizes/font_size = 10
+text = "攻击力24"
+horizontal_alignment = 2
 
-[node name="ActionsLabel" type="Label" parent="PanelContainer/MarginContainer/StatusBar/Info" unique_id=717327333]
+[node name="ActionsLabel" type="Label" parent="PanelContainer/MarginContainer/StatusBar/Info/StatsRow" unique_id=717327333]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.65, 0.75, 0.9, 1)
 theme_override_fonts/font = ExtResource("2_pixel10")
 theme_override_font_sizes/font_size = 10
+text = "移动:1/1 技能:1/1"
 
 [node name="HpRow" type="HBoxContainer" parent="PanelContainer/MarginContainer/StatusBar/Info" unique_id=219493527]
 layout_mode = 2
