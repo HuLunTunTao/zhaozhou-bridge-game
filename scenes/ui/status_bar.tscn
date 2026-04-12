@@ -65,18 +65,23 @@ layout_mode = 2
 theme_override_constants/separation = 4
 script = ExtResource("1_script")
 
-[node name="PortraitFrame" type="PanelContainer" parent="PanelContainer/MarginContainer/StatusBar" unique_id=1233971562]
+[node name="PortraitSlot" type="CenterContainer" parent="PanelContainer/MarginContainer/StatusBar" unique_id=174693580]
+custom_minimum_size = Vector2(94, 74)
+layout_mode = 2
+
+[node name="PortraitFrame" type="PanelContainer" parent="PanelContainer/MarginContainer/StatusBar/PortraitSlot" unique_id=1233971562]
 clip_contents = true
+custom_minimum_size = Vector2(74, 94)
 layout_mode = 2
 theme_override_styles/panel = SubResource("portrait_frame")
 
-[node name="Portrait" type="TextureRect" parent="PanelContainer/MarginContainer/StatusBar/PortraitFrame" unique_id=1746247231]
+[node name="Portrait" type="TextureRect" parent="PanelContainer/MarginContainer/StatusBar/PortraitSlot/PortraitFrame" unique_id=1746247231]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(90, 70)
+custom_minimum_size = Vector2(70, 90)
 layout_mode = 2
 texture = ExtResource("2_2t4m1")
 expand_mode = 1
-stretch_mode = 6
+stretch_mode = 5
 
 [node name="Info" type="VBoxContainer" parent="PanelContainer/MarginContainer/StatusBar" unique_id=1436875321]
 custom_minimum_size = Vector2(180, 0)
