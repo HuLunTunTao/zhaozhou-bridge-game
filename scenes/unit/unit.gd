@@ -2,8 +2,6 @@
 class_name Unit
 extends Node2D
 
-const UnitHpBarScene := preload("res://scenes/ui/combat/unit_hp_bar.tscn")
-
 const OUTLINE_COLOR_HERO := Color(1.0, 1.0, 0.0, 0.5)   # 黄色
 const OUTLINE_COLOR_ALLY := Color(0.0, 1.0, 0.0, 0.5)   # 绿色
 const OUTLINE_COLOR_ENEMY := Color(1.0, 0.0, 0.0, 0.5)  # 红色
@@ -83,10 +81,8 @@ func _init_combat_stats() -> void:
 func _init_hp_bar() -> void:
 	if Engine.is_editor_hint():
 		return
-	_hp_bar = UnitHpBarScene.instantiate()
-	add_child(_hp_bar)
-	# 初始刷新属性显示
-	if combat_stats:
+	_hp_bar = get_node_or_null("HpBar") as UnitHpBar
+	if _hp_bar and combat_stats:
 		_hp_bar.update_element(combat_stats.current_element, combat_stats.current_element_amount)
 
 
