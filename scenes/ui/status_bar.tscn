@@ -89,7 +89,7 @@ layout_mode = 2
 theme_override_colors/font_color = Color(1, 1, 1, 1)
 theme_override_font_sizes/font_size = 16
 
-[node name="AtkLabel" type="Label" parent="PanelContainer/MarginContainer/StatusBar/Info"]
+[node name="AtkLabel" type="Label" parent="PanelContainer/MarginContainer/StatusBar/Info" unique_id=166984740]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.9, 0.7, 0.4, 1)
@@ -217,7 +217,7 @@ theme_override_font_sizes/font_size = 10
 text = "--"
 vertical_alignment = 1
 
-[node name="BuffLabel" type="Label" parent="PanelContainer/MarginContainer/StatusBar/Info"]
+[node name="BuffLabel" type="Label" parent="PanelContainer/MarginContainer/StatusBar/Info" unique_id=671284550]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.95, 0.85, 0.5, 1)
@@ -263,13 +263,14 @@ offset_left = 2.0
 offset_top = 29.84
 offset_right = -2.0
 offset_bottom = -2.8700104
+grow_horizontal = 2
+grow_vertical = 2
 mouse_filter = 1
 theme_override_colors/default_color = Color(0.7, 0.75, 0.85, 1)
 theme_override_fonts/normal_font = ExtResource("2_pixel10")
 theme_override_font_sizes/normal_font_size = 10
 bbcode_enabled = true
 scroll_active = false
-autowrap_mode = 3
 
 [node name="Slot1" type="Button" parent="PanelContainer/MarginContainer/StatusBar" unique_id=302448838]
 unique_name_in_owner = true
@@ -306,13 +307,14 @@ offset_left = 2.0
 offset_top = 29.84
 offset_right = -2.0
 offset_bottom = -2.8700104
+grow_horizontal = 2
+grow_vertical = 2
 mouse_filter = 1
 theme_override_colors/default_color = Color(0.7, 0.75, 0.85, 1)
 theme_override_fonts/normal_font = ExtResource("2_pixel10")
 theme_override_font_sizes/normal_font_size = 10
 bbcode_enabled = true
 scroll_active = false
-autowrap_mode = 3
 
 [node name="Slot2" type="Button" parent="PanelContainer/MarginContainer/StatusBar" unique_id=383423528]
 unique_name_in_owner = true
@@ -349,13 +351,14 @@ offset_left = 2.0
 offset_top = 29.84
 offset_right = -2.0
 offset_bottom = -2.8700104
+grow_horizontal = 2
+grow_vertical = 2
 mouse_filter = 1
 theme_override_colors/default_color = Color(0.7, 0.75, 0.85, 1)
 theme_override_fonts/normal_font = ExtResource("2_pixel10")
 theme_override_font_sizes/normal_font_size = 10
 bbcode_enabled = true
 scroll_active = false
-autowrap_mode = 3
 
 [node name="Slot3" type="Button" parent="PanelContainer/MarginContainer/StatusBar" unique_id=1430313674]
 unique_name_in_owner = true
@@ -392,13 +395,14 @@ offset_left = 2.0
 offset_top = 29.84
 offset_right = -2.0
 offset_bottom = -2.8700104
+grow_horizontal = 2
+grow_vertical = 2
 mouse_filter = 1
 theme_override_colors/default_color = Color(0.7, 0.75, 0.85, 1)
 theme_override_fonts/normal_font = ExtResource("2_pixel10")
 theme_override_font_sizes/normal_font_size = 10
 bbcode_enabled = true
 scroll_active = false
-autowrap_mode = 3
 
 [node name="Slot4" type="Button" parent="PanelContainer/MarginContainer/StatusBar" unique_id=2118249000]
 unique_name_in_owner = true
@@ -435,13 +439,14 @@ offset_left = 2.0
 offset_top = 29.84
 offset_right = -2.0
 offset_bottom = -2.8700104
+grow_horizontal = 2
+grow_vertical = 2
 mouse_filter = 1
 theme_override_colors/default_color = Color(0.7, 0.75, 0.85, 1)
 theme_override_fonts/normal_font = ExtResource("2_pixel10")
 theme_override_font_sizes/normal_font_size = 10
 bbcode_enabled = true
 scroll_active = false
-autowrap_mode = 3
 
 [node name="Slot5" type="Button" parent="PanelContainer/MarginContainer/StatusBar" unique_id=1656135758]
 unique_name_in_owner = true
@@ -478,13 +483,14 @@ offset_left = 2.0
 offset_top = 29.84
 offset_right = -2.0
 offset_bottom = -2.8700104
+grow_horizontal = 2
+grow_vertical = 2
 mouse_filter = 1
 theme_override_colors/default_color = Color(0.7, 0.75, 0.85, 1)
 theme_override_fonts/normal_font = ExtResource("2_pixel10")
 theme_override_font_sizes/normal_font_size = 10
 bbcode_enabled = true
 scroll_active = false
-autowrap_mode = 3
 
 [connection signal="pressed" from="PanelContainer/MarginContainer/StatusBar/Slot0" to="PanelContainer/MarginContainer/StatusBar" method="_on_move_pressed"]
 [connection signal="pressed" from="PanelContainer/MarginContainer/StatusBar/Slot1" to="PanelContainer/MarginContainer/StatusBar" method="_on_skill_pressed" binds= [0]]

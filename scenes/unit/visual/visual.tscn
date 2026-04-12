@@ -1,7 +1,6 @@
 [gd_scene format=3 uid="uid://cbjso0lvbcag1"]
 
 [ext_resource type="Shader" uid="uid://w8w41kw1kylj" path="res://scenes/unit/shader/unit_edge_light.gdshader" id="1_l6c2v"]
-[ext_resource type="Texture2D" uid="uid://pn5pyw4c5qmh" path="res://assets/character/monster/断索鬼.png" id="2_l6c2v"]
 [ext_resource type="Script" uid="uid://c8la6q4g3vnfb" path="res://scenes/unit/visual/unit_visual.gd" id="3_visual_script"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_3po7s"]
@@ -10,60 +9,7 @@ shader = ExtResource("1_l6c2v")
 shader_parameter/outline_color = Color(1, 1, 0, 0.3)
 shader_parameter/outline_width = 7.0
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_2d8vi"]
-atlas = ExtResource("2_l6c2v")
-region = Rect2(0, 0, 256, 256)
-
-[sub_resource type="AtlasTexture" id="AtlasTexture_4nvfg"]
-atlas = ExtResource("2_l6c2v")
-region = Rect2(256, 0, 256, 256)
-
-[sub_resource type="AtlasTexture" id="AtlasTexture_fxpmo"]
-atlas = ExtResource("2_l6c2v")
-region = Rect2(512, 0, 256, 256)
-
-[sub_resource type="AtlasTexture" id="AtlasTexture_ccwnd"]
-atlas = ExtResource("2_l6c2v")
-region = Rect2(768, 0, 256, 256)
-
-[sub_resource type="AtlasTexture" id="AtlasTexture_6hnyr"]
-atlas = ExtResource("2_l6c2v")
-region = Rect2(1024, 0, 256, 256)
-
-[sub_resource type="AtlasTexture" id="AtlasTexture_g7kqg"]
-atlas = ExtResource("2_l6c2v")
-region = Rect2(1280, 0, 256, 256)
-
-[sub_resource type="SpriteFrames" id="SpriteFrames_swp4h"]
-resource_local_to_scene = true
-animations = [{
-"frames": [{
-"duration": 1.0,
-"texture": SubResource("AtlasTexture_2d8vi")
-}, {
-"duration": 1.0,
-"texture": SubResource("AtlasTexture_4nvfg")
-}, {
-"duration": 1.0,
-"texture": SubResource("AtlasTexture_fxpmo")
-}, {
-"duration": 1.0,
-"texture": SubResource("AtlasTexture_ccwnd")
-}, {
-"duration": 1.0,
-"texture": SubResource("AtlasTexture_6hnyr")
-}, {
-"duration": 1.0,
-"texture": SubResource("AtlasTexture_g7kqg")
-}],
-"loop": true,
-"name": &"default",
-"speed": 5.0
-}]
-
 [node name="Visual" type="AnimatedSprite2D" unique_id=1878430534]
 material = SubResource("ShaderMaterial_3po7s")
 scale = Vector2(0.15, 0.15)
-sprite_frames = SubResource("SpriteFrames_swp4h")
-frame_progress = 0.6803035
 script = ExtResource("3_visual_script")
