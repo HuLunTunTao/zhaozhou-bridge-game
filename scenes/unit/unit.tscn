@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://d150ubnb1eitk"]
 
 [ext_resource type="Script" uid="uid://bs7prw4na4esl" path="res://scenes/unit/unit.gd" id="1_script"]
-[ext_resource type="PackedScene" uid="uid://cbjso0lvbcag1" path="res://scenes/unit/visual.tscn" id="2_7jhsn"]
+[ext_resource type="PackedScene" uid="uid://cbjso0lvbcag1" path="res://scenes/unit/visual/visual.tscn" id="2_7jhsn"]
 [ext_resource type="PackedScene" uid="uid://bhl2x3mvprkqx" path="res://scenes/ui/combat/unit_hp_bar.tscn" id="3_hpbar"]
 [ext_resource type="Shader" uid="uid://w8w41kw1kylj" path="res://scenes/unit/shader/unit_edge_light.gdshader" id="3_vgvef"]
 [ext_resource type="Texture2D" uid="uid://bd0bfytvccta8" path="res://assets/character/li_chun/左后方待机.png" id="3_vqlpx"]
@@ -13,7 +13,7 @@
 [ext_resource type="Texture2D" uid="uid://trjxoars8ojq" path="res://assets/character/li_chun/右前方待机.png" id="8_1ifho"]
 [ext_resource type="Texture2D" uid="uid://c0gmb5x15gc3j" path="res://assets/character/li_chun/右前方走.png" id="9_u15f5"]
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_540om"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_7jhsn"]
 resource_local_to_scene = true
 shader = ExtResource("3_vgvef")
 shader_parameter/outline_color = Color(1, 1, 0, 0.3)
@@ -147,7 +147,7 @@ region = Rect2(0, 256, 256, 256)
 atlas = ExtResource("9_u15f5")
 region = Rect2(256, 256, 256, 256)
 
-[sub_resource type="SpriteFrames" id="SpriteFrames_1ifho"]
+[sub_resource type="SpriteFrames" id="SpriteFrames_540om"]
 resource_local_to_scene = true
 animations = [{
 "frames": [{
@@ -291,9 +291,11 @@ animations = [{
 script = ExtResource("1_script")
 
 [node name="Visual" parent="." unique_id=1878430534 instance=ExtResource("2_7jhsn")]
-material = SubResource("ShaderMaterial_540om")
+material = SubResource("ShaderMaterial_7jhsn")
 position = Vector2(0, -15)
-sprite_frames = SubResource("SpriteFrames_1ifho")
+sprite_frames = SubResource("SpriteFrames_540om")
+animation = &"right_front_idle"
+frame_progress = 0.42871425
 
 [node name="Button" type="Button" parent="." unique_id=1235358697]
 modulate = Color(1, 1, 1, 0)
