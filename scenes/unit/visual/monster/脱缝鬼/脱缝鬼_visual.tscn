@@ -1,0 +1,53 @@
+[gd_scene format=3 uid="uid://ctk6anu8jngi6"]
+
+[ext_resource type="PackedScene" uid="uid://cbjso0lvbcag1" path="res://scenes/unit/visual/visual.tscn" id="1_50bdn"]
+[ext_resource type="Shader" uid="uid://w8w41kw1kylj" path="res://scenes/unit/shader/unit_edge_light.gdshader" id="2_slakw"]
+[ext_resource type="Texture2D" uid="uid://b30pyp8ksrxol" path="res://assets/character/monster/脱缝鬼精灵图.png" id="3_slakw"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_ulqw7"]
+resource_local_to_scene = true
+shader = ExtResource("2_slakw")
+shader_parameter/outline_color = Color(1, 1, 0, 0.3)
+shader_parameter/outline_width = 7.0
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ulqw7"]
+atlas = ExtResource("3_slakw")
+region = Rect2(0, 0, 32, 33)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_kaiud"]
+atlas = ExtResource("3_slakw")
+region = Rect2(32, 0, 32, 33)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_r11cb"]
+atlas = ExtResource("3_slakw")
+region = Rect2(64, 0, 32, 33)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_6y0ds"]
+atlas = ExtResource("3_slakw")
+region = Rect2(96, 0, 32, 33)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_hw86i"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_ulqw7")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_kaiud")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_r11cb")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_6y0ds")
+}],
+"loop": true,
+"name": &"default",
+"speed": 5.0
+}]
+
+[node name="Visual" unique_id=1878430534 instance=ExtResource("1_50bdn")]
+material = SubResource("ShaderMaterial_ulqw7")
+scale = Vector2(1, 1)
+sprite_frames = SubResource("SpriteFrames_hw86i")
+move_is_idle = true
