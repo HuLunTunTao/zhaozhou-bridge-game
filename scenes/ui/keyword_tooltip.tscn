@@ -1,0 +1,52 @@
+[gd_scene format=3 uid="uid://cnhc7wqsxy6m1"]
+
+[ext_resource type="FontFile" uid="uid://gfoeu2tleldt" path="res://assets/font/fusion-pixel-10px-proportional-zh_hans.otf" id="1_pixel10"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_tooltip_bg"]
+content_margin_left = 6.0
+content_margin_top = 4.0
+content_margin_right = 6.0
+content_margin_bottom = 4.0
+bg_color = Color(0.08, 0.09, 0.12, 0.96)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.36, 0.55, 0.8, 0.9)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
+
+[node name="KeywordTooltip" type="PanelContainer"]
+top_level = true
+mouse_filter = 2
+visible = false
+theme_override_styles/panel = SubResource("StyleBoxFlat_tooltip_bg")
+
+[node name="VBox" type="VBoxContainer" parent="."]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 2
+
+[node name="Title" type="Label" parent="VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.353, 0.706, 1, 1)
+theme_override_fonts/font = ExtResource("1_pixel10")
+theme_override_font_sizes/font_size = 12
+
+[node name="Body" type="RichTextLabel" parent="VBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(220, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+bbcode_enabled = true
+fit_content = true
+scroll_active = false
+autowrap_mode = 3
+theme_override_colors/default_color = Color(0.88, 0.9, 0.95, 1)
+theme_override_fonts/normal_font = ExtResource("1_pixel10")
+theme_override_font_sizes/normal_font_size = 10

@@ -6,6 +6,9 @@ signal skill_button_pressed(index: int)
 signal move_button_pressed
 signal keyword_clicked(keyword: String)
 
+const KEYWORD_TOOLTIP_SCENE := preload("res://scenes/ui/keyword_tooltip.tscn")
+const TOOLTIP_MOUSE_OFFSET := Vector2(14.0, -8.0)
+
 const COLOR_HERO := Color(0.15, 0.22, 0.55, 0.9)
 const COLOR_HERO_DEFAULT := Color(0.25, 0.22, 0.4, 0.7)  # 淡蓝色，默认显示主角时使用
 const COLOR_ALLY := Color(0.15, 0.45, 0.2, 0.9)
@@ -30,6 +33,9 @@ const _STATUS_NAMES: Dictionary = {
 }
 
 var _current_unit: Node2D = null
+var _tooltip: PanelContainer = null
+var _tooltip_title: Label = null
+var _tooltip_body: RichTextLabel = null
 
 @onready var _portrait: TextureRect = %Portrait
 @onready var _name_label: Label = %NameLabel
@@ -49,7 +55,22 @@ var _current_unit: Node2D = null
 
 
 func _ready() -> void:
+	_ensure_tooltip()
 	clear_unit()
+
+
+func _ensure_tooltip() -> void:
+	if _tooltip != null:
+		return
+	_tooltip = KEYWORD_TOOLTIP_SCENE.instantiate()
+	add_child(_tooltip)
+	_tooltip_title = _tooltip.get_node("VBox/Title") as Label
+	_tooltip_body = _tooltip.get_node("VBox/Body") as RichTextLabel
+
+
+func _process(_delta: float) -> void:
+	if _tooltip != null and _tooltip.visible:
+		_position_tooltip_at_mouse()
 
 
 func _on_move_pressed() -> void:
@@ -62,6 +83,45 @@ func _on_skill_pressed(index: int) -> void:
 
 func _on_desc_meta_clicked(meta: Variant) -> void:
 	keyword_clicked.emit(str(meta))
+
+
+func _on_desc_meta_hover_started(meta: Variant) -> void:
+	var keyword := str(meta)
+	var desc := DescriptionFormatter.get_description(keyword)
+	if desc.is_empty():
+		return
+	_ensure_tooltip()
+	_tooltip_title.text = keyword
+	_tooltip_body.text = desc
+	_tooltip.reset_size()
+	_tooltip.visible = true
+	_tooltip.move_to_front()
+	_position_tooltip_at_mouse()
+
+
+func _on_desc_meta_hover_ended(_meta: Variant) -> void:
+	if _tooltip != null:
+		_tooltip.visible = false
+
+
+func _position_tooltip_at_mouse() -> void:
+	if _tooltip == null:
+		return
+	var vp_size := get_viewport_rect().size
+	var mouse := get_viewport().get_mouse_position()
+	var tsize := _tooltip.size
+	# 默认在鼠标右上方，若超出屏幕再翻转到左侧/下方
+	var pos := Vector2(
+		mouse.x + TOOLTIP_MOUSE_OFFSET.x,
+		mouse.y - tsize.y + TOOLTIP_MOUSE_OFFSET.y
+	)
+	if pos.x + tsize.x > vp_size.x:
+		pos.x = mouse.x - tsize.x - TOOLTIP_MOUSE_OFFSET.x
+	if pos.y < 0.0:
+		pos.y = mouse.y + 16.0
+	pos.x = clampf(pos.x, 0.0, maxf(0.0, vp_size.x - tsize.x))
+	pos.y = clampf(pos.y, 0.0, maxf(0.0, vp_size.y - tsize.y))
+	_tooltip.global_position = pos
 
 
 # ─────────────────────────────────────────────
@@ -121,6 +181,8 @@ func show_unit(unit: Node2D, is_active: bool = false) -> void:
 
 func clear_unit() -> void:
 	_current_unit = null
+	if _tooltip != null:
+		_tooltip.visible = false
 	_portrait.texture = null
 	_name_label.text = "--"
 	_atk_label.text = ""
@@ -225,6 +287,10 @@ func _set_slot(index: int, active: bool, title: String, desc: String, disabled_f
 			d.text = "[center]%s[/center]" % DescriptionFormatter.format(desc)
 			if not d.meta_clicked.is_connected(_on_desc_meta_clicked):
 				d.meta_clicked.connect(_on_desc_meta_clicked)
+			if not d.meta_hover_started.is_connected(_on_desc_meta_hover_started):
+				d.meta_hover_started.connect(_on_desc_meta_hover_started)
+			if not d.meta_hover_ended.is_connected(_on_desc_meta_hover_ended):
+				d.meta_hover_ended.connect(_on_desc_meta_hover_ended)
 		_ensure_ratio_label(btn).text = ratio
 	else:
 		btn.modulate = Color(1, 1, 1, 0)
