@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" uid="uid://bs7prw4na4esl" path="res://scenes/unit/unit.gd" id="1_script"]
 [ext_resource type="PackedScene" uid="uid://dnhtqbsn1r7ac" path="res://scenes/unit/anamation/li_chun_anamation.tscn" id="2_anim"]
+[ext_resource type="PackedScene" uid="uid://bhl2x3mvprkqx" path="res://scenes/ui/combat/unit_hp_bar.tscn" id="3_hpbar"]
 [ext_resource type="Texture2D" uid="uid://bd0bfytvccta8" path="res://assets/character/li_chun/左后方待机.png" id="3_vqlpx"]
 [ext_resource type="Texture2D" uid="uid://l08ce8kkf6ln" path="res://assets/character/li_chun/左后方行走.png" id="4_5im7a"]
 [ext_resource type="Texture2D" uid="uid://u1ux7vfp82gy" path="res://assets/character/li_chun/左前方待机.png" id="4_l0n34"]
@@ -45,7 +46,7 @@ void fragment() {
 }
 "
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_l0n34"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_5im7a"]
 shader = SubResource("Shader_outline")
 shader_parameter/outline_color = Color(1, 1, 0, 0.3)
 shader_parameter/outline_width = 7.0
@@ -178,7 +179,7 @@ region = Rect2(0, 256, 256, 256)
 atlas = ExtResource("9_u15f5")
 region = Rect2(256, 256, 256, 256)
 
-[sub_resource type="SpriteFrames" id="SpriteFrames_5im7a"]
+[sub_resource type="SpriteFrames" id="SpriteFrames_7jhsn"]
 animations = [{
 "frames": [{
 "duration": 1.0,
@@ -321,14 +322,17 @@ animations = [{
 script = ExtResource("1_script")
 
 [node name="Visual" parent="." unique_id=1259427927 instance=ExtResource("2_anim")]
-material = SubResource("ShaderMaterial_l0n34")
+material = SubResource("ShaderMaterial_5im7a")
 position = Vector2(-7.1525574e-07, -14.999999)
-sprite_frames = SubResource("SpriteFrames_5im7a")
+sprite_frames = SubResource("SpriteFrames_7jhsn")
 animation = &"right_front_idle"
-frame_progress = 0.6332541
+frame_progress = 0.7961164
 
 [node name="Button" type="Button" parent="." unique_id=1235358697]
 modulate = Color(1, 1, 1, 0)
 offset_left = -9.0
 offset_top = -32.0
 offset_right = 10.0
+
+[node name="HpBar" parent="." unique_id=1487701422 instance=ExtResource("3_hpbar")]
+position = Vector2(0, -3)

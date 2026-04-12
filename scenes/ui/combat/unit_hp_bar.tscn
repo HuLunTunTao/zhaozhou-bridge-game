@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://bhl2x3mvprkqx"]
 
 [ext_resource type="Script" uid="uid://dnqxyvbamt6k" path="res://scenes/ui/combat/unit_hp_bar.gd" id="1_script"]
-[ext_resource type="FontFile" uid="uid://b5l4et4elic5u" path="res://assets/font/fusion-pixel-8px-proportional-zh_hans.otf" id="2_h4ox0"]
+[ext_resource type="FontFile" uid="uid://gfoeu2tleldt" path="res://assets/font/fusion-pixel-10px-proportional-zh_hans.otf" id="2_jwp6p"]
 
 [node name="UnitHpBar" type="Node2D" unique_id=1863096064]
 z_index = 100
@@ -9,30 +9,32 @@ z_as_relative = false
 script = ExtResource("1_script")
 
 [node name="ElemLabel" type="Label" parent="." unique_id=100268623]
-offset_left = -41.0
-offset_top = -42.0
+offset_left = -53.0
+offset_top = -47.0
 offset_right = -18.0
-offset_bottom = -30.0
+offset_bottom = -23.0
 theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
 theme_override_constants/outline_size = 2
-theme_override_fonts/font = ExtResource("2_h4ox0")
-theme_override_font_sizes/font_size = 8
+theme_override_fonts/font = ExtResource("2_jwp6p")
+theme_override_font_sizes/font_size = 10
+text = "◇金1"
 horizontal_alignment = 2
 vertical_alignment = 1
 
 [node name="HpBg" type="ColorRect" parent="." unique_id=1623608293]
 offset_left = -16.0
-offset_top = -41.0
+offset_top = -37.0
 offset_right = 16.0
-offset_bottom = -35.0
+offset_bottom = -31.0
 color = Color(0, 0, 0, 0.7)
 
 [node name="HpFill" type="ColorRect" parent="HpBg" unique_id=1673422007]
+z_index = 1
 layout_mode = 0
 offset_left = 1.0
 offset_top = 1.0
 offset_right = 31.0
-offset_bottom = 5.0
+offset_bottom = 3.0
 color = Color(0.15, 0.95, 0.15, 1)
 
 [node name="ApBg" type="ColorRect" parent="." unique_id=1152899950]
@@ -45,7 +47,7 @@ color = Color(0, 0, 0, 0.7)
 [node name="ApFill" type="ColorRect" parent="ApBg" unique_id=1144188450]
 layout_mode = 0
 offset_left = 1.0
-offset_top = 1.0
+offset_top = 2.0
 offset_right = 31.0
 offset_bottom = 4.0
 color = Color(0.25, 0.55, 1, 1)
