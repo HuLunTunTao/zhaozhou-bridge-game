@@ -24,11 +24,22 @@ move_limit = 1
 skill_limit = 1
 metadata/_custom_type_script = "uid://c2077ybi0615r"
 
+[sub_resource type="Resource" id="Resource_playerc"]
+script = ExtResource("5_ansyt")
+unit_name = "测量工"
+move_limit = 1
+skill_limit = 1
+innate_element = 1
+innate_element_amount = 2
+metadata/_custom_type_script = "uid://c2077ybi0615r"
+
 [sub_resource type="Resource" id="Resource_lxf6v"]
 script = ExtResource("5_ansyt")
 unit_name = "队友2"
 move_limit = 1
 skill_limit = 1
+innate_element = 1
+innate_element_amount = 1
 metadata/_custom_type_script = "uid://c2077ybi0615r"
 
 [sub_resource type="Resource" id="Resource_mdsuy"]
@@ -36,6 +47,8 @@ script = ExtResource("5_ansyt")
 unit_name = "队友2"
 move_limit = 1
 skill_limit = 1
+innate_element = 2
+innate_element_amount = 3
 metadata/_custom_type_script = "uid://c2077ybi0615r"
 
 [sub_resource type="Resource" id="Resource_hk8o8"]
@@ -44,25 +57,24 @@ unit_name = "恶人"
 camp = 1
 move_limit = 1
 skill_limit = 1
+innate_element = 3
+innate_element_amount = 2
 metadata/_custom_type_script = "uid://c2077ybi0615r"
 
 [sub_resource type="Resource" id="Resource_eyrvp"]
 script = ExtResource("5_ansyt")
 unit_name = "狂人"
 camp = 1
-metadata/_custom_type_script = "uid://c2077ybi0615r"
-
-[sub_resource type="Resource" id="Resource_playerc"]
-script = ExtResource("5_ansyt")
-unit_name = "测量工"
-move_limit = 1
-skill_limit = 1
+innate_element = 4
+innate_element_amount = 1
 metadata/_custom_type_script = "uid://c2077ybi0615r"
 
 [sub_resource type="Resource" id="Resource_enemy3"]
 script = ExtResource("5_ansyt")
 unit_name = "坍岸泥鬼"
 camp = 1
+innate_element = 5
+innate_element_amount = 4
 metadata/_custom_type_script = "uid://c2077ybi0615r"
 
 [sub_resource type="Resource" id="Resource_enemy4"]
@@ -114,30 +126,30 @@ position = Vector2(84, -41)
 unit_data = SubResource("Resource_ansyt")
 unit_color = Color(1, 0.85, 0, 1)
 
-[node name="Ally1" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="2" unique_id=200000002 instance=ExtResource("3_player")]
+[node name="PlayerC" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="2" unique_id=300000010 instance=ExtResource("3_player")]
+position = Vector2(41, -25)
+unit_data = SubResource("Resource_playerc")
+unit_color = Color(0.2, 0.85, 0.35, 1)
+
+[node name="Ally1" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="3" unique_id=200000002 instance=ExtResource("3_player")]
 position = Vector2(115, -10)
 unit_data = SubResource("Resource_lxf6v")
 unit_color = Color(0.2, 0.85, 0.35, 1)
 
-[node name="Ally2" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="3" unique_id=200000003 instance=ExtResource("3_player")]
+[node name="Ally2" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="4" unique_id=200000003 instance=ExtResource("3_player")]
 position = Vector2(340, -10)
 unit_data = SubResource("Resource_mdsuy")
 unit_color = Color(0.2, 0.85, 0.35, 1)
 
-[node name="Enemy1" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="4" unique_id=200000004 instance=ExtResource("3_player")]
+[node name="Enemy1" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="5" unique_id=200000004 instance=ExtResource("3_player")]
 position = Vector2(19, -105)
 unit_data = SubResource("Resource_hk8o8")
 unit_color = Color(0.9, 0.2, 0.2, 1)
 
-[node name="Enemy2" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="5" unique_id=200000005 instance=ExtResource("3_player")]
+[node name="Enemy2" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="6" unique_id=200000005 instance=ExtResource("3_player")]
 position = Vector2(-74, 18)
 unit_data = SubResource("Resource_eyrvp")
 unit_color = Color(0.9, 0.2, 0.2, 1)
-
-[node name="PlayerC" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="6" unique_id=300000010 instance=ExtResource("3_player")]
-position = Vector2(41, -25)
-unit_data = SubResource("Resource_playerc")
-unit_color = Color(0.2, 0.85, 0.35, 1)
 
 [node name="Enemy3" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="7" unique_id=300000011 instance=ExtResource("3_player")]
 position = Vector2(-30, -48)
