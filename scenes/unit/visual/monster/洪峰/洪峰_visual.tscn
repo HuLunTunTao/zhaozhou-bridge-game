@@ -3,6 +3,7 @@
 [ext_resource type="PackedScene" uid="uid://cbjso0lvbcag1" path="res://scenes/unit/visual/visual.tscn" id="1_rngwk"]
 [ext_resource type="Shader" uid="uid://w8w41kw1kylj" path="res://scenes/unit/shader/unit_edge_light.gdshader" id="2_u1wo6"]
 [ext_resource type="Texture2D" uid="uid://bu7cr4rxmrq2k" path="res://assets/character/monster/洪峰精灵图.png" id="3_u1wo6"]
+[ext_resource type="Script" uid="uid://vww988plf3ml4" path="res://scenes/unit/visual/monster/洪峰/洪峰_visual.gd" id="4_script"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_mmsdr"]
 resource_local_to_scene = true
@@ -47,6 +48,7 @@ animations = [{
 }]
 
 [node name="Visual" unique_id=1878430534 instance=ExtResource("1_rngwk")]
+script = ExtResource("4_script")
 material = SubResource("ShaderMaterial_mmsdr")
 scale = Vector2(1, 1)
 sprite_frames = SubResource("SpriteFrames_f4cvb")

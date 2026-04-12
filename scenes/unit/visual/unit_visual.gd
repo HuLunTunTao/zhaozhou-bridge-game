@@ -6,12 +6,12 @@ extends AnimatedSprite2D
 
 enum Facing { RIGHT_FRONT, RIGHT_BACK, LEFT_FRONT, LEFT_BACK }
 
-## move 和 idle 使用相同动画（怪物只有一组帧时设为 true）。
+## move 和 idle 使用相同动画（只有一组帧时设为 true）。
 @export var move_is_idle: bool = false
-## 只有2个方向的动画，另一侧通过 flip_h 镜像实现。
-@export var use_flip_for_left: bool = false
-## 精灵图原始朝向。为 true 时图片角色默认朝左，需要翻转才能朝右。
-@export var sprite_faces_left: bool = false
+## 使用水平翻转实现左右转向（只有一侧方向的精灵时启用）。
+@export var flip_h_for_turning: bool = false
+## 精灵图的原始朝向是否朝左。启用后翻转逻辑会取反。
+@export var default_facing_left: bool = false
 
 var _current_facing: Facing = Facing.RIGHT_FRONT
 
@@ -34,13 +34,12 @@ func play_state(state: StringName) -> void:
 		play(anim_name)
 
 
-## 设置朝向。若 use_flip_for_left 为 true，根据 sprite_faces_left 决定翻转逻辑。
+## 设置朝向。若 flip_h_for_turning 为 true，根据 default_facing_left 决定翻转方向。
 func set_facing(facing: Facing) -> void:
 	_current_facing = facing
-	if use_flip_for_left:
-		var is_left := (facing == Facing.LEFT_FRONT or facing == Facing.LEFT_BACK)
-		# 精灵默认朝右：朝左时翻转；精灵默认朝左：朝右时翻转
-		flip_h = is_left if not sprite_faces_left else not is_left
+	if flip_h_for_turning:
+		var want_left := (facing == Facing.LEFT_FRONT or facing == Facing.LEFT_BACK)
+		flip_h = want_left if not default_facing_left else not want_left
 
 
 ## 设置单位叠加颜色。
@@ -76,9 +75,8 @@ func _resolve_anim_name(facing: Facing, state: StringName) -> StringName:
 
 
 func _facing_to_string(facing: Facing) -> String:
-	if use_flip_for_left:
-		# 只有2个方向的动画名，根据精灵原始朝向选择前缀
-		if sprite_faces_left:
+	if flip_h_for_turning:
+		if default_facing_left:
 			match facing:
 				Facing.LEFT_FRONT, Facing.RIGHT_FRONT:
 					return "left_front"
