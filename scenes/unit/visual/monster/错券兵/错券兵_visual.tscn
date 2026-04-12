@@ -3,6 +3,7 @@
 [ext_resource type="PackedScene" uid="uid://cbjso0lvbcag1" path="res://scenes/unit/visual/visual.tscn" id="1_41y2l"]
 [ext_resource type="Shader" uid="uid://w8w41kw1kylj" path="res://scenes/unit/shader/unit_edge_light.gdshader" id="2_3cwjc"]
 [ext_resource type="Texture2D" uid="uid://b55grtpck83l5" path="res://assets/character/monster/错券兵精灵图.png" id="3_3cwjc"]
+[ext_resource type="Script" uid="uid://gr7so5kj3x8cm" path="res://scenes/unit/visual/monster/错券兵/错券兵_visual.gd" id="4_script"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_pigqk"]
 resource_local_to_scene = true
@@ -47,9 +48,10 @@ animations = [{
 }]
 
 [node name="Visual" unique_id=1878430534 instance=ExtResource("1_41y2l")]
+script = ExtResource("4_script")
 material = SubResource("ShaderMaterial_pigqk")
 scale = Vector2(1, 1)
 sprite_frames = SubResource("SpriteFrames_1ptsr")
 move_is_idle = true
-use_flip_for_left = true
-sprite_faces_left = true
+flip_h_for_turning = true
+default_facing_left = true
