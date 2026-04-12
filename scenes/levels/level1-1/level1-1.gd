@@ -215,14 +215,13 @@ func _fill_rect(img: Image, x0: int, y0: int, w: int, h: int, color: Color) -> v
 
 ## 用占位纹理替换单位的动画精灵。
 func _set_placeholder_sprite(unit: Unit) -> void:
-	var visual := unit.get_node_or_null("Visual")
-	if not visual is AnimatedSprite2D:
+	var visual := unit.get_node_or_null("Visual") as UnitVisual
+	if visual == null:
 		return
-	var sprite := visual as AnimatedSprite2D
 	var frames := SpriteFrames.new()
-	for anim_name in ["SE_idle", "SW_idle", "NE_idle", "NW_idle",
-			"SE_walk", "SW_walk", "NE_walk", "NW_walk"]:
+	for anim_name in ["right_front_idle", "left_back_idle", "right_back_idle", "left_front_idle",
+			"right_front_move", "left_back_move", "right_back_move", "left_front_move"]:
 		frames.add_animation(anim_name)
 		frames.add_frame(anim_name, _placeholder_tex)
-	sprite.sprite_frames = frames
-	sprite.play(&"SE_idle")
+	visual.replace_sprite_frames(frames)
+	visual.play_state(&"idle")
