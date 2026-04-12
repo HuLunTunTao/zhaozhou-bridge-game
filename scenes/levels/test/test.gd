@@ -21,6 +21,7 @@ var _player: Node2D
 var _playerB: Node2D
 var _playerC: Node2D
 var _ally1: Node2D
+var _ally2: Node2D
 var _enemy1: Node2D
 var _enemy2: Node2D
 var _enemy3: Node2D
@@ -32,6 +33,7 @@ func get_teams_config() -> Array:
 	_playerB = $"Entities/Units/PlayerB"
 	_playerC = $"Entities/Units/PlayerC"
 	_ally1 = $"Entities/Units/Ally1"
+	_ally2 = $"Entities/Units/Ally2"
 	_enemy1 = $"Entities/Units/Enemy1"
 	_enemy2 = $"Entities/Units/Enemy2"
 	_enemy3 = $"Entities/Units/Enemy3"
@@ -74,8 +76,9 @@ func _on_level_ready() -> void:
 	setup_unit_stats(_player as Unit, "李春", 130, 24, 100, 8, Enums.Element.NONE, 0, true)
 	setup_unit_stats(_playerB as Unit, "工匠", 110, 18, 90, 9, Enums.Element.NONE, 0, false)
 	setup_unit_stats(_playerC as Unit, "测量工", 80, 12, 85, 10, Enums.Element.NONE, 0, false)
-	setup_unit_stats(_ally1 as Unit, "队友", 100, 10, 100, 10, Enums.Element.NONE, 0, false)
+	setup_unit_stats(_ally1 as Unit, "队友", 100, 10, 100, 10, Enums.Element.METAL, 0, false)
+	setup_unit_stats(_ally2 as Unit, "队友2", 100, 10, 100, 10, Enums.Element.WOOD, 0, false)
 	setup_unit_stats(_enemy1 as Unit, "暗涌", 68, 17, 100, 10, Enums.Element.WATER, 2, false)
-	setup_unit_stats(_enemy2 as Unit, "水旋", 75, 14, 100, 10, Enums.Element.WATER, 2, false)
+	setup_unit_stats(_enemy2 as Unit, "火鸟", 75, 14, 100, 10, Enums.Element.FIRE, 2, false)
 	setup_unit_stats(_enemy3 as Unit, "坍岸泥鬼", 92, 15, 100, 10, Enums.Element.EARTH, 2, false)
 	setup_unit_stats(_enemy4 as Unit, "暗涌2", 68, 17, 100, 10, Enums.Element.WATER, 2, false)
