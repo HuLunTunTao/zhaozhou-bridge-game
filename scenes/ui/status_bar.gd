@@ -4,6 +4,7 @@ extends HBoxContainer
 
 signal skill_button_pressed(index: int)
 signal move_button_pressed
+signal keyword_clicked(keyword: String)
 
 const COLOR_HERO := Color(0.15, 0.22, 0.55, 0.9)
 const COLOR_HERO_DEFAULT := Color(0.25, 0.22, 0.4, 0.7)  # 淡蓝色，默认显示主角时使用
@@ -57,6 +58,10 @@ func _on_move_pressed() -> void:
 
 func _on_skill_pressed(index: int) -> void:
 	skill_button_pressed.emit(index)
+
+
+func _on_desc_meta_clicked(meta: Variant) -> void:
+	keyword_clicked.emit(str(meta))
 
 
 # ─────────────────────────────────────────────
@@ -215,9 +220,11 @@ func _set_slot(index: int, active: bool, title: String, desc: String, disabled_f
 			et.text = tag
 			if tag != "":
 				et.add_theme_color_override("font_color", ElementDefs.get_color(element))
-		var d := btn.get_node_or_null("Desc") as Label
+		var d := btn.get_node_or_null("Desc") as RichTextLabel
 		if d:
-			d.text = desc
+			d.text = "[center]%s[/center]" % DescriptionFormatter.format(desc)
+			if not d.meta_clicked.is_connected(_on_desc_meta_clicked):
+				d.meta_clicked.connect(_on_desc_meta_clicked)
 		_ensure_ratio_label(btn).text = ratio
 	else:
 		btn.modulate = Color(1, 1, 1, 0)

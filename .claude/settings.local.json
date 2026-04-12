@@ -22,7 +22,10 @@
       "Bash(timeout 30 godot --headless --editor --quit)",
       "Bash(xargs ls:*)",
       "mcp__godot__update_project_uids",
-      "mcp__godot__get_uid"
+      "mcp__godot__get_uid",
+      "Bash(xargs -I {} sh -c 'grep -l \"description = \" {} && echo \"---\"')",
+      "Bash(timeout 10 godot --headless --quit-after 3)",
+      "Bash(timeout 10 godot --headless --path . --check-only --script scripts/description_formatter.gd)"
     ]
   }
 }
