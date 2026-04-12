@@ -309,7 +309,7 @@ static func _find_closest_to_target(target_cell: Vector2i,
 
 
 # ─────────────────────────────────────────────
-# hazard_charge 特殊逻辑
+# hazard_charge 特殊逻辑：和标准 AI 同流程，但移动路径限制为单方向直线
 # ─────────────────────────────────────────────
 
 static func _decide_hazard_charge(
@@ -321,69 +321,131 @@ static func _decide_hazard_charge(
 		blocked: Array[Vector2i],
 		level_context: Dictionary
 ) -> Dictionary:
+	var empty_action: Dictionary = _make_empty_action()
 	var stats: CombatStats = unit.combat_stats
+	var ai_type: String = stats.ai_type
 
-	# 从 level_context 获取移动方向，默认向左（水流方向）
-	var drift_dirs: Dictionary = level_context.get("drift_directions", {})
-	var direction: Vector2i = drift_dirs.get(unit, Vector2i(-1, 0))
+	var alive_enemies: Array = []
+	for e in enemies:
+		if e is Unit and e.combat_stats != null and e.combat_stats.is_alive():
+			alive_enemies.append(e)
+	if alive_enemies.is_empty():
+		return empty_action
 
-	# 冲锋在任何单位面前都会停下，合并友方和敌方占据格
+	var target: Unit = _pick_target(unit, alive_enemies, ai_type, level_context)
+	if target == null:
+		return empty_action
+
 	var occupied_set: Dictionary = {}
 	for c in occupied:
 		occupied_set[c] = true
+	var blocked_set: Dictionary = {}
 	for c in blocked:
-		occupied_set[c] = true
+		blocked_set[c] = true
 
-	# 构建敌人位置集合
-	var enemy_cells: Dictionary = {}
-	for e in enemies:
-		if e is Unit and e.combat_stats != null and e.combat_stats.is_alive():
-			enemy_cells[e.cell] = e
+	# 1. 原地攻击检查
+	var standing_hit: Dictionary = _find_best_skill_hit(unit, unit.cell, target.cell)
+	if not standing_hit.is_empty():
+		return {
+			"move_path": [] as Array[Vector2i],
+			"move_cost": 0,
+			"skill": standing_hit["skill"],
+			"cast_cell": standing_hit["cast_cell"],
+		}
 
-	var effective_cost: int = stats.move_cost_per_tile + stats.get_move_ap_modifier()
-	var path: Array[Vector2i] = [unit.cell]
-	var total_cost: int = 0
-	var current: Vector2i = unit.cell
-	var attack_skill: SkillData = null
-	var attack_cast_cell: Vector2i = Vector2i.ZERO
+	# 2. 四方向直线移动后攻击
+	var effective_move_cost: int = stats.move_cost_per_tile + stats.get_move_ap_modifier()
+	var best_action: Dictionary = empty_action
+	var best_dist: int = 999999
 
-	# 找到攻击技能
 	for skill: SkillData in unit.unit_data.skills:
-		if skill.skill_type == Enums.SkillType.ATTACK:
-			attack_skill = skill
-			break
+		if skill.skill_type != Enums.SkillType.ATTACK:
+			continue
+		if not stats.can_use_skill(skill):
+			continue
+		var move_budget: int = stats.ap_current - skill.ap_cost
+		if move_budget < 0:
+			continue
+		for dir: Vector2i in DIRS:
+			var line_reach: Dictionary = _compute_straight_reach(
+					unit.cell, dir, move_budget, effective_move_cost,
+					movement_manager, occupied_set, blocked_set)
+			var attack_cell: Vector2i = _find_attack_cell(unit.cell, target.cell, skill, line_reach)
+			if attack_cell != _INVALID_CELL:
+				var dist: int = _manhattan(attack_cell, target.cell)
+				if dist < best_dist:
+					best_dist = dist
+					var path: Array[Vector2i] = _reconstruct_path(line_reach["parents"], unit.cell, attack_cell)
+					var cost: int = line_reach["costs"].get(attack_cell, 0)
+					var hit: Dictionary = _find_best_skill_hit(unit, attack_cell, target.cell)
+					best_action = {
+						"move_path": path,
+						"move_cost": cost,
+						"skill": hit["skill"] if not hit.is_empty() else skill,
+						"cast_cell": hit["cast_cell"] if not hit.is_empty() else Vector2i.ZERO,
+					}
 
-	# 沿方向直线前进
-	for _step in range(10):
+	if best_action["skill"] != null:
+		return best_action
+
+	# 3. 无法攻击：沿直线接近目标
+	var best_move: Dictionary = empty_action
+	var best_move_dist: int = _manhattan(unit.cell, target.cell)
+	for dir: Vector2i in DIRS:
+		var full_reach: Dictionary = _compute_straight_reach(
+				unit.cell, dir, stats.ap_current, effective_move_cost,
+				movement_manager, occupied_set, blocked_set)
+		for cell: Vector2i in full_reach["cells"]:
+			var dist: int = _manhattan(cell, target.cell)
+			if dist < best_move_dist:
+				best_move_dist = dist
+				best_move = {
+					"move_path": _reconstruct_path(full_reach["parents"], unit.cell, cell),
+					"move_cost": full_reach["costs"][cell],
+					"skill": null,
+					"cast_cell": Vector2i.ZERO,
+				}
+	return best_move
+
+
+## 从 origin 沿单一方向的直线可达。返回格式与 _compute_reachable 一致。
+## cells: 可停留格（非起点、非友方占据）；parents: cell → 前一格，可复用 _reconstruct_path。
+static func _compute_straight_reach(
+		origin: Vector2i,
+		direction: Vector2i,
+		ap_budget: int,
+		base_move_cost: int,
+		movement_manager,
+		occupied_set: Dictionary,
+		blocked_set: Dictionary
+) -> Dictionary:
+	var costs: Dictionary = {origin: 0}
+	var parents: Dictionary = {}
+	var cells: Array[Vector2i] = []
+	var current: Vector2i = origin
+	var total: int = 0
+	for _step in range(30):
 		var next_cell: Vector2i = current + direction
 		var tile_cost: int = movement_manager.get_movement_cost(next_cell)
 		if tile_cost == -1:
 			break
-		var step_cost: int = effective_cost + (tile_cost - 1) if effective_cost > 0 else tile_cost
-		if total_cost + step_cost > stats.ap_current:
+		if blocked_set.has(next_cell):  # 敌方单位阻挡
 			break
-
-		# 检查前方是否有敌人
-		if enemy_cells.has(next_cell) and attack_skill != null:
-			var cast_cell: Vector2i = _get_cast_cell_for_hit(current, attack_skill, next_cell)
-			if cast_cell != _INVALID_CELL:
-				attack_cast_cell = cast_cell
-				break
-
-		if occupied_set.has(next_cell):
+		var step_cost: int
+		if base_move_cost > 0:
+			step_cost = base_move_cost + (tile_cost - 1)
+		else:
+			step_cost = tile_cost
+		var new_total: int = total + step_cost
+		if new_total > ap_budget:
 			break
-
-		total_cost += step_cost
+		total = new_total
+		parents[next_cell] = current
+		costs[next_cell] = total
 		current = next_cell
-		path.append(current)
-
-	var result_path: Array[Vector2i] = path if path.size() >= 2 else [] as Array[Vector2i]
-	return {
-		"move_path": result_path,
-		"move_cost": total_cost,
-		"skill": attack_skill if attack_cast_cell != Vector2i.ZERO else null,
-		"cast_cell": attack_cast_cell,
-	}
+		if not occupied_set.has(current):  # 友方占据可路过但不可停留
+			cells.append(current)
+	return {"costs": costs, "parents": parents, "cells": cells}
 
 
 # ─────────────────────────────────────────────

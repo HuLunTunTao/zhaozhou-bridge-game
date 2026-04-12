@@ -17,3 +17,7 @@ func on_enter(_entity: Node2D) -> void:
 ## entity 离开此地块时调用（每步移动出发前触发）。
 func on_exit(_entity: Node2D) -> void:
 	pass
+
+## 是否为水类地块。子类覆盖返回 true 表示"浮木、水流"等。
+func is_water() -> bool:
+	return false
