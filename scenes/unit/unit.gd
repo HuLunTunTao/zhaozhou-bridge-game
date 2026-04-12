@@ -40,28 +40,20 @@ var has_acted: bool = false:
 		has_acted = value
 		_update_acted_visual()
 
-
-func _update_acted_visual() -> void:
-	if not is_inside_tree():
-		return
-	var visual := get_node_or_null("Visual")
-	if visual:
-		if has_acted:
-			visual.modulate = Color(0.5, 0.5, 0.55, 0.75)
-		else:
-			visual.modulate = Color.WHITE
-
-## 当前朝向前缀，用于拼接动画名。
-var _facing: StringName = &"right_front"
+## 当前朝向。
+var _facing: UnitVisual.Facing = UnitVisual.Facing.RIGHT_FRONT
+## 动画视觉组件。
+var _visual: UnitVisual = null
 ## 头顶血条。
 var _hp_bar: UnitHpBar = null
 
 
 func _ready() -> void:
-	_make_sprite_frames_unique()
-	_make_outline_material_unique()
+	_visual = get_node_or_null("Visual") as UnitVisual
 	_apply_color()
-	_play_anim(&"idle")
+	if _visual:
+		_visual.set_facing(_facing)
+		_visual.play_state(&"idle")
 	_init_combat_stats()
 	_init_hp_bar()
 	_init_click_button()
@@ -95,13 +87,21 @@ func _init_click_button() -> void:
 		btn.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 
-## 根据阵营设置描边颜色。主角黄色，友方绿色，敌方红色，均 50% alpha。
-func apply_faction_outline() -> void:
-	var visual := get_node_or_null("Visual")
-	if visual == null:
+func _update_acted_visual() -> void:
+	if not is_inside_tree():
 		return
-	var mat := visual.material as ShaderMaterial
-	if mat == null:
+	if _visual:
+		_visual.set_acted(has_acted)
+
+
+func _apply_color() -> void:
+	if _visual:
+		_visual.set_unit_color(unit_color)
+
+
+## 根据阵营设置描边颜色。主角黄色，友方绿色，敌方红色。
+func apply_faction_outline() -> void:
+	if _visual == null:
 		return
 	var color: Color
 	if combat_stats and combat_stats.is_hero:
@@ -110,7 +110,7 @@ func apply_faction_outline() -> void:
 		color = OUTLINE_COLOR_ALLY
 	else:
 		color = OUTLINE_COLOR_ENEMY
-	mat.set_shader_parameter("outline_color", color)
+	_visual.set_outline_color(color)
 
 
 ## 单位死亡：播放淡出动画后从场景树移除，并发出 died 信号。
@@ -147,52 +147,17 @@ func refresh_overhead_bars() -> void:
 		_hp_bar.update_element(combat_stats.current_element, combat_stats.current_element_amount)
 
 
-## 让 SpriteFrames 资源唯一化，避免修改颜色时影响其他单位实例。
-func _make_sprite_frames_unique() -> void:
-	var visual := get_node_or_null("Visual")
-	if visual is AnimatedSprite2D:
-		var sprite := visual as AnimatedSprite2D
-		if sprite.sprite_frames:
-			sprite.sprite_frames = sprite.sprite_frames.duplicate()
-
-
-## 让描边材质唯一化，避免修改颜色时影响其他单位实例。
-func _make_outline_material_unique() -> void:
-	var visual := get_node_or_null("Visual")
-	if visual and visual.material is ShaderMaterial:
-		visual.material = visual.material.duplicate()
-
-
-func _apply_color() -> void:
-	var visual := get_node_or_null("Visual")
-	if visual is AnimatedSprite2D:
-		(visual as AnimatedSprite2D).self_modulate = unit_color
-	elif visual is Polygon2D:
-		(visual as Polygon2D).color = unit_color
-
-
 ## 根据等距坐标步进方向确定朝向。
 ## +x = 右前(SE), -x = 左后(NW), +y = 左前(SW), -y = 右后(NE)
-func _facing_from_step(step: Vector2i) -> StringName:
+func _facing_from_step(step: Vector2i) -> UnitVisual.Facing:
 	if step.x > 0:
-		return &"right_front"
+		return UnitVisual.Facing.RIGHT_FRONT
 	elif step.x < 0:
-		return &"left_back"
+		return UnitVisual.Facing.LEFT_BACK
 	elif step.y > 0:
-		return &"left_front"
+		return UnitVisual.Facing.LEFT_FRONT
 	else:
-		return &"right_back"
-
-
-## 播放当前朝向下的指定状态动画（"idle" 或 "move"）。
-func _play_anim(state: StringName) -> void:
-	var visual := get_node_or_null("Visual")
-	if not visual is AnimatedSprite2D:
-		return
-	var sprite := visual as AnimatedSprite2D
-	var anim_name := StringName(String(_facing) + "_" + String(state))
-	if sprite.sprite_frames and sprite.sprite_frames.has_animation(anim_name):
-		sprite.play(anim_name)
+		return UnitVisual.Facing.RIGHT_BACK
 
 
 func set_cell(new_cell: Vector2i, tilemap: TileMapLayer) -> void:
@@ -207,7 +172,9 @@ func move_along_path(path: Array[Vector2i], tilemap: TileMapLayer) -> void:
 	for i in range(1, path.size()):
 		var step := path[i] - path[i - 1]
 		_facing = _facing_from_step(step)
-		_play_anim(&"move")
+		if _visual:
+			_visual.set_facing(_facing)
+			_visual.play_state(&"move")
 
 		if movement_manager:
 			movement_manager.on_tile_exit(path[i - 1], self)
@@ -220,7 +187,8 @@ func move_along_path(path: Array[Vector2i], tilemap: TileMapLayer) -> void:
 
 		if movement_manager:
 			movement_manager.on_tile_enter(path[i], self)
-	_play_anim(&"idle")
+	if _visual:
+		_visual.play_state(&"idle")
 	cell = path[path.size() - 1]
 	is_moving = false
 	move_finished.emit()
