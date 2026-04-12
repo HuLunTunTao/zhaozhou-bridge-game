@@ -1,0 +1,17 @@
+[gd_scene format=3 uid="uid://qkwxdp8ayb57"]
+
+[ext_resource type="PackedScene" uid="uid://cbjso0lvbcag1" path="res://scenes/unit/visual/visual.tscn" id="1_1mpte"]
+[ext_resource type="Shader" uid="uid://w8w41kw1kylj" path="res://scenes/unit/shader/unit_edge_light.gdshader" id="2_pntky"]
+[ext_resource type="SpriteFrames" uid="uid://n78a003emuc8" path="res://scenes/unit/anamation/human/li_chun_sprite_frames.tres" id="3_pntky"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_ai4e1"]
+resource_local_to_scene = true
+shader = ExtResource("2_pntky")
+shader_parameter/outline_color = Color(1, 1, 0, 0.3)
+shader_parameter/outline_width = 7.0
+
+[node name="Visual" unique_id=1878430534 instance=ExtResource("1_1mpte")]
+material = SubResource("ShaderMaterial_ai4e1")
+sprite_frames = ExtResource("3_pntky")
+animation = &"left_back_idle"
+frame_progress = 0.0
