@@ -23,6 +23,9 @@ var _current_facing: Facing = Facing.RIGHT_FRONT
 
 func _ready() -> void:
 	_make_unique()
+	frame_changed.connect(_update_frame_uv_rect)
+	animation_changed.connect(_update_frame_uv_rect)
+	_update_frame_uv_rect()
 
 
 # ─────────────────────────────────────────────
@@ -120,3 +123,30 @@ func _make_unique() -> void:
 		sprite_frames = sprite_frames.duplicate()
 	if material is ShaderMaterial:
 		material = material.duplicate()
+
+
+## 更新 shader 的 frame_uv_rect，使描边采样限制在当前帧区域内。
+func _update_frame_uv_rect() -> void:
+	var mat := material as ShaderMaterial
+	if mat == null or sprite_frames == null:
+		return
+	var anim := animation
+	var idx := frame
+	if idx < 0 or idx >= sprite_frames.get_frame_count(anim):
+		return
+	var tex := sprite_frames.get_frame_texture(anim, idx)
+	if tex is AtlasTexture:
+		var atlas_tex := tex as AtlasTexture
+		if atlas_tex.atlas == null:
+			return
+		var atlas_size := atlas_tex.atlas.get_size()
+		var r := atlas_tex.region
+		mat.set_shader_parameter("frame_uv_rect", Vector4(
+			r.position.x / atlas_size.x,
+			r.position.y / atlas_size.y,
+			(r.position.x + r.size.x) / atlas_size.x,
+			(r.position.y + r.size.y) / atlas_size.y
+		))
+	else:
+		# 非 AtlasTexture（独立纹理），整张都是当前帧
+		mat.set_shader_parameter("frame_uv_rect", Vector4(0.0, 0.0, 1.0, 1.0))
