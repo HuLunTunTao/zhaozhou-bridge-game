@@ -10,9 +10,9 @@ script = ExtResource("1_script")
 
 [node name="ElemLabel" type="Label" parent="." unique_id=100268623]
 offset_left = -53.0
-offset_top = -47.0
+offset_top = 0.0
 offset_right = -18.0
-offset_bottom = -23.0
+offset_bottom = 24.0
 theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
 theme_override_constants/outline_size = 2
 theme_override_fonts/font = ExtResource("2_jwp6p")
@@ -23,9 +23,9 @@ vertical_alignment = 1
 
 [node name="HpBg" type="ColorRect" parent="." unique_id=1623608293]
 offset_left = -16.0
-offset_top = -37.0
+offset_top = 10.0
 offset_right = 16.0
-offset_bottom = -31.0
+offset_bottom = 16.0
 color = Color(0, 0, 0, 0.7)
 
 [node name="HpFill" type="ColorRect" parent="HpBg" unique_id=1673422007]
@@ -39,9 +39,9 @@ color = Color(0.15, 0.95, 0.15, 1)
 
 [node name="ApBg" type="ColorRect" parent="." unique_id=1152899950]
 offset_left = -16.0
-offset_top = -35.0
+offset_top = 12.0
 offset_right = 16.0
-offset_bottom = -30.0
+offset_bottom = 17.0
 color = Color(0, 0, 0, 0.7)
 
 [node name="ApFill" type="ColorRect" parent="ApBg" unique_id=1144188450]

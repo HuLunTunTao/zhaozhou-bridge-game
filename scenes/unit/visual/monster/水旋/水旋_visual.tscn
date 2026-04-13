@@ -54,3 +54,6 @@ sprite_frames = SubResource("SpriteFrames_mfwse")
 frame_progress = 0.98858666
 script = ExtResource("4_script")
 move_is_idle = true
+
+[node name="FootMarker" parent="." index="0"]
+position = Vector2(0, 14.705881)

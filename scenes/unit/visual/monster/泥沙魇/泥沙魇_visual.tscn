@@ -57,3 +57,6 @@ script = ExtResource("4_script")
 move_is_idle = true
 flip_h_for_turning = true
 default_facing_left = true
+
+[node name="FootMarker" parent="." index="0"]
+position = Vector2(0, 12.676057)

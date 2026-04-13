@@ -3,7 +3,7 @@
 [ext_resource type="PackedScene" uid="uid://cbjso0lvbcag1" path="res://scenes/unit/visual/visual.tscn" id="1_73yab"]
 [ext_resource type="Shader" uid="uid://w8w41kw1kylj" path="res://scenes/unit/shader/unit_edge_light.gdshader" id="2_xqehb"]
 [ext_resource type="Texture2D" uid="uid://7l3wwkrsokt6" path="res://assets/character/monster/裂石兽.png" id="3_xqehb"]
-[ext_resource type="Script" uid="uid://a1wzhylfiwike" path="res://scenes/unit/visual/monster/裂石兽/裂石兽_visual.gd" id="4_script"]
+[ext_resource type="Script" path="res://scenes/unit/visual/monster/裂石兽/裂石兽_visual.gd" id="4_script"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_k3cju"]
 resource_local_to_scene = true
@@ -48,11 +48,14 @@ animations = [{
 }]
 
 [node name="Visual" unique_id=1878430534 instance=ExtResource("1_73yab")]
-script = ExtResource("4_script")
 material = SubResource("ShaderMaterial_k3cju")
 scale = Vector2(1, 1)
 sprite_frames = SubResource("SpriteFrames_owsos")
 frame_progress = 0.8641452
+script = ExtResource("4_script")
 move_is_idle = true
 flip_h_for_turning = true
 default_facing_left = true
+
+[node name="FootMarker" parent="." index="0"]
+position = Vector2(0, 10)

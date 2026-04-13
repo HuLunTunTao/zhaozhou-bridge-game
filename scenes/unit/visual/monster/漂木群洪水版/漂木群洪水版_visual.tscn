@@ -53,3 +53,6 @@ scale = Vector2(0.65, 0.65)
 sprite_frames = SubResource("SpriteFrames_xqewc")
 script = ExtResource("4_script")
 move_is_idle = true
+
+[node name="FootMarker" parent="." index="0"]
+position = Vector2(0, 16.923079)

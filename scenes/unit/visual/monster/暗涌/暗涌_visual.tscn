@@ -3,7 +3,7 @@
 [ext_resource type="PackedScene" uid="uid://cbjso0lvbcag1" path="res://scenes/unit/visual/visual.tscn" id="1_sbuxx"]
 [ext_resource type="Shader" uid="uid://w8w41kw1kylj" path="res://scenes/unit/shader/unit_edge_light.gdshader" id="2_trspm"]
 [ext_resource type="Texture2D" uid="uid://sqvw3qvprngn" path="res://assets/character/monster/暗涌精灵图.png" id="3_trspm"]
-[ext_resource type="Script" uid="uid://vo1588ptry4ii" path="res://scenes/unit/visual/monster/暗涌/暗涌_visual.gd" id="4_script"]
+[ext_resource type="Script" uid="uid://cd0tbx4kxyqpo" path="res://scenes/unit/visual/monster/暗涌/暗涌_visual.gd" id="4_script"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_dq1pr"]
 resource_local_to_scene = true
@@ -48,8 +48,11 @@ animations = [{
 }]
 
 [node name="Visual" unique_id=1878430534 instance=ExtResource("1_sbuxx")]
-script = ExtResource("4_script")
 material = SubResource("ShaderMaterial_dq1pr")
 scale = Vector2(1, 1)
 sprite_frames = SubResource("SpriteFrames_sbuxx")
+script = ExtResource("4_script")
 move_is_idle = true
+
+[node name="FootMarker" parent="." index="0"]
+position = Vector2(0, 4)
