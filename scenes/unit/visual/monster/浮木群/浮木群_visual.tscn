@@ -3,9 +3,9 @@
 [ext_resource type="PackedScene" uid="uid://cbjso0lvbcag1" path="res://scenes/unit/visual/visual.tscn" id="1_s0sa7"]
 [ext_resource type="Shader" uid="uid://w8w41kw1kylj" path="res://scenes/unit/shader/unit_edge_light.gdshader" id="2_vpy7t"]
 [ext_resource type="Texture2D" uid="uid://csjqda355n0pn" path="res://assets/character/monster/浮木群精灵图.png" id="3_vpy7t"]
-[ext_resource type="Script" uid="uid://auh8vnyfs23yt" path="res://scenes/unit/visual/monster/浮木群/浮木群_visual.gd" id="4_script"]
+[ext_resource type="Script" uid="uid://uh8vnyfs23yt" path="res://scenes/unit/visual/monster/浮木群/浮木群_visual.gd" id="4_script"]
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_vpy7t"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_bw4rm"]
 resource_local_to_scene = true
 shader = ExtResource("2_vpy7t")
 shader_parameter/outline_color = Color(1, 1, 0, 0.3)
@@ -48,9 +48,9 @@ animations = [{
 }]
 
 [node name="Visual" unique_id=1878430534 instance=ExtResource("1_s0sa7")]
-script = ExtResource("4_script")
-material = SubResource("ShaderMaterial_vpy7t")
-scale = Vector2(1, 1)
+material = SubResource("ShaderMaterial_bw4rm")
+scale = Vector2(0.64, 0.64)
 sprite_frames = SubResource("SpriteFrames_s0sa7")
 frame_progress = 0.44762668
+script = ExtResource("4_script")
 move_is_idle = true
