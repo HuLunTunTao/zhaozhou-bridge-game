@@ -47,7 +47,7 @@ animations = [{
 "speed": 5.0
 }]
 
-[node name="Visual" unique_id=1878430534 instance=ExtResource("1_tbclk")]
+[node name="Visual2" unique_id=1878430534 instance=ExtResource("1_tbclk")]
 material = SubResource("ShaderMaterial_uxrn4")
 scale = Vector2(0.79, 0.79)
 sprite_frames = SubResource("SpriteFrames_rwokq")
@@ -56,3 +56,6 @@ script = ExtResource("4_script")
 move_is_idle = true
 flip_h_for_turning = true
 default_facing_left = true
+
+[node name="FootMarker" parent="." index="0"]
+position = Vector2(0, 15.189873)

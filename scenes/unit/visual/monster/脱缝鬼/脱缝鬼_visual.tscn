@@ -3,7 +3,7 @@
 [ext_resource type="PackedScene" uid="uid://cbjso0lvbcag1" path="res://scenes/unit/visual/visual.tscn" id="1_50bdn"]
 [ext_resource type="Shader" uid="uid://w8w41kw1kylj" path="res://scenes/unit/shader/unit_edge_light.gdshader" id="2_slakw"]
 [ext_resource type="Texture2D" uid="uid://b30pyp8ksrxol" path="res://assets/character/monster/脱缝鬼精灵图.png" id="3_slakw"]
-[ext_resource type="Script" uid="uid://wb0dukg519q29" path="res://scenes/unit/visual/monster/脱缝鬼/脱缝鬼_visual.gd" id="4_script"]
+[ext_resource type="Script" uid="uid://cyx0wauv8aebg" path="res://scenes/unit/visual/monster/脱缝鬼/脱缝鬼_visual.gd" id="4_script"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_ulqw7"]
 resource_local_to_scene = true
@@ -48,8 +48,11 @@ animations = [{
 }]
 
 [node name="Visual" unique_id=1878430534 instance=ExtResource("1_50bdn")]
-script = ExtResource("4_script")
 material = SubResource("ShaderMaterial_ulqw7")
 scale = Vector2(1, 1)
 sprite_frames = SubResource("SpriteFrames_hw86i")
+script = ExtResource("4_script")
 move_is_idle = true
+
+[node name="FootMarker" parent="." index="0"]
+position = Vector2(0, 12)

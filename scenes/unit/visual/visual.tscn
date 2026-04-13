@@ -13,3 +13,6 @@ shader_parameter/outline_width = 7.0
 material = SubResource("ShaderMaterial_3po7s")
 scale = Vector2(0.15, 0.15)
 script = ExtResource("3_visual_script")
+
+[node name="FootMarker" type="Marker2D" parent="."]
+position = Vector2(0, 0)

@@ -3,6 +3,9 @@ extends AnimatedSprite2D
 ## 单位动画视觉组件。
 ## 提供统一的动画播放、朝向、颜色、描边 API。
 ## 子类可覆写 _resolve_anim_name() 实现不同动画行为。
+##
+## 约定：Visual 下有一个 Marker2D "FootMarker" 标记脚底位置（在 Visual 本地坐标系）。
+## unit.gd 根据 FootMarker 自动定位 Visual 和 HpBar。
 
 enum Facing { RIGHT_FRONT, RIGHT_BACK, LEFT_FRONT, LEFT_BACK }
 
@@ -12,6 +15,8 @@ enum Facing { RIGHT_FRONT, RIGHT_BACK, LEFT_FRONT, LEFT_BACK }
 @export var flip_h_for_turning: bool = false
 ## 精灵图的原始朝向是否朝左。启用后翻转逻辑会取反。
 @export var default_facing_left: bool = false
+## HP 条距脚底的高度（像素）。不同体型的怪物可调整此值。
+@export var hp_bar_height: float = 40.0
 
 var _current_facing: Facing = Facing.RIGHT_FRONT
 
@@ -23,6 +28,15 @@ func _ready() -> void:
 # ─────────────────────────────────────────────
 # 公开 API（由 unit.gd 调用）
 # ─────────────────────────────────────────────
+
+## 返回脚底标记在 Unit 坐标系中的偏移（已乘以 Visual 的 scale）。
+## unit.gd 用此值定位 Visual：visual.position = -get_foot_offset()
+func get_foot_offset() -> Vector2:
+	var marker := get_node_or_null("FootMarker") as Marker2D
+	if marker:
+		return marker.position * scale
+	return Vector2.ZERO
+
 
 ## 播放指定状态的动画（&"idle" 或 &"move"）。
 func play_state(state: StringName) -> void:

@@ -59,6 +59,7 @@ func _ready() -> void:
 	else:
 		_visual = get_node_or_null("Visual") as UnitVisual
 	_apply_color()
+	_align_visual()
 	if _visual:
 		_visual.set_facing(_facing)
 		_visual.play_state(&"idle")
@@ -82,15 +83,21 @@ func _replace_visual() -> void:
 	visual.flip_h = source.flip_h
 	visual.flip_v = source.flip_v
 	visual.set_script(source.get_script())
-	for prop in ["move_is_idle", "flip_h_for_turning", "default_facing_left"]:
+	for prop in ["move_is_idle", "flip_h_for_turning", "default_facing_left", "hp_bar_height"]:
 		if prop in source:
 			visual.set(prop, source.get(prop))
+	# 复制 FootMarker 位置
+	var src_marker := source.get_node_or_null("FootMarker") as Marker2D
+	var dst_marker := visual.get_node_or_null("FootMarker") as Marker2D
+	if src_marker and dst_marker:
+		dst_marker.position = src_marker.position
 	source.free()
 	# 重新播放动画以刷新显示
 	if visual.sprite_frames and visual.sprite_frames.get_animation_names().size() > 0:
 		visual.play(visual.sprite_frames.get_animation_names()[0])
 	_visual = visual as UnitVisual
 	_apply_color()
+	_align_visual()
 
 
 ## 从 unit_data 初始化 combat_stats。
@@ -103,11 +110,21 @@ func _init_combat_stats() -> void:
 		movement_points = combat_stats.ap_current
 
 
+## 根据 FootMarker 定位 Visual（脚底对齐 Unit 原点）和 HpBar。
+func _align_visual() -> void:
+	if _visual:
+		_visual.position = -_visual.get_foot_offset()
+
+
 ## 初始化头顶血条。
 func _init_hp_bar() -> void:
 	if Engine.is_editor_hint():
 		return
 	_hp_bar = get_node_or_null("HpBar") as UnitHpBar
+	if _hp_bar:
+		# HpBar 位于脚底上方 hp_bar_height 像素处
+		var h := _visual.hp_bar_height if _visual else 40.0
+		_hp_bar.position = Vector2(0, -h)
 	if _hp_bar and combat_stats:
 		_hp_bar.update_element(combat_stats.current_element, combat_stats.current_element_amount)
 

@@ -3,9 +3,9 @@
 [ext_resource type="PackedScene" uid="uid://cbjso0lvbcag1" path="res://scenes/unit/visual/visual.tscn" id="1_ihq7b"]
 [ext_resource type="Shader" uid="uid://w8w41kw1kylj" path="res://scenes/unit/shader/unit_edge_light.gdshader" id="2_1yol1"]
 [ext_resource type="Texture2D" uid="uid://c4htoc51wkaho" path="res://assets/character/monster/守法匠首.png" id="3_1yol1"]
-[ext_resource type="Script" uid="uid://ceuj8r9xbjzty" path="res://scenes/unit/visual/monster/守法匠首/守法匠首_visual.gd" id="4_script"]
+[ext_resource type="Script" path="res://scenes/unit/visual/monster/守法匠首/守法匠首_visual.gd" id="4_script"]
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_al2aa"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_7b0e6"]
 resource_local_to_scene = true
 shader = ExtResource("2_1yol1")
 shader_parameter/outline_color = Color(1, 1, 0, 0.3)
@@ -48,10 +48,13 @@ animations = [{
 }]
 
 [node name="Visual" unique_id=1878430534 instance=ExtResource("1_ihq7b")]
-script = ExtResource("4_script")
-material = SubResource("ShaderMaterial_al2aa")
+material = SubResource("ShaderMaterial_7b0e6")
 scale = Vector2(0.68, 0.68)
 sprite_frames = SubResource("SpriteFrames_n3vh5")
+script = ExtResource("4_script")
 move_is_idle = true
 flip_h_for_turning = true
 default_facing_left = true
+
+[node name="FootMarker" parent="." index="0"]
+position = Vector2(0, 26.470585)
