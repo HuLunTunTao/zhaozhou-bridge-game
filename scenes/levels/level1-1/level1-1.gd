@@ -197,7 +197,7 @@ func _setup_survey_points() -> void:
 		var visual := Polygon2D.new()
 		visual.name = "Visual"
 		visual.polygon = PackedVector2Array([
-			Vector2(0, -16), Vector2(16, -8), Vector2(0, 0), Vector2(-16, -8)
+			Vector2(0, -8), Vector2(16, 0), Vector2(0, 8), Vector2(-16, 0)
 		])
 		tile.add_child(visual)
 		register_special_tile(tile, cell)

@@ -1232,10 +1232,12 @@ func _has_usable_attack(unit: Unit, enemy_cells: Dictionary) -> bool:
 	if unit.combat_stats == null or unit.unit_data == null:
 		return false
 	for skill: SkillData in unit.unit_data.skills:
-		if skill.skill_type != Enums.SkillType.ATTACK:
-			continue
 		if not unit.combat_stats.can_use_skill(skill):
 			continue
+		# 非攻击技能（辅助/交互）只需 AP 和次数足够即可使用
+		if skill.skill_type != Enums.SkillType.ATTACK:
+			return true
+		# 攻击技能需要敌人在施法+效果范围内
 		for cast_offset in skill.cast_offsets:
 			var cast_cell := unit.cell + cast_offset
 			for effect_offset in skill.effect_offsets:
@@ -1687,8 +1689,8 @@ func register_special_tile(tile: SpecialTile, cell: Vector2i) -> void:
 	tile.cell = cell
 	if not tile.is_inside_tree():
 		special_tiles_container.add_child(tile)
-	tile.position = tilemap.map_to_local(cell)
 	tile.reparent(obstacles_tilemap_layer)
+	tile.position = tilemap.map_to_local(cell)
 	_special_tile_map[cell] = tile
 
 
