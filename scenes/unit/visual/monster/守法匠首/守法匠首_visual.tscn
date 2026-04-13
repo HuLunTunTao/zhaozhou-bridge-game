@@ -10,6 +10,7 @@ resource_local_to_scene = true
 shader = ExtResource("2_1yol1")
 shader_parameter/outline_color = Color(1, 1, 0, 0.3)
 shader_parameter/outline_width = 7.0
+shader_parameter/frame_uv_rect = Vector4(0, 0, 1, 1)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_al2aa"]
 atlas = ExtResource("3_1yol1")
@@ -49,7 +50,7 @@ animations = [{
 
 [node name="Visual" unique_id=1878430534 instance=ExtResource("1_ihq7b")]
 material = SubResource("ShaderMaterial_7b0e6")
-scale = Vector2(0.68, 0.68)
+scale = Vector2(0.51, 0.51)
 sprite_frames = SubResource("SpriteFrames_n3vh5")
 script = ExtResource("4_script")
 move_is_idle = true
