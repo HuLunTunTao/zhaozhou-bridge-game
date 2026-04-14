@@ -134,7 +134,7 @@ func check_defeat() -> String:
 
 func _on_level_ready() -> void:
 	# ── 李春 ──
-	set_unit_skills(_li_chun as Unit, [_sk_rule_strike, _sk_wedge, _sk_stone, _sk_read_water])
+	set_unit_skills(_li_chun as Unit, Progress.get_equipped_skill_resources())
 	setup_unit_stats(_li_chun as Unit, "李春", 130, 24, 100, 8, Enums.Element.NONE, 0, true)
 
 	# ── 测量工 ──

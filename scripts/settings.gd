@@ -4,11 +4,14 @@ extends Node
 
 const SETTINGS_PATH := "user://settings.json"
 
+signal settings_changed
+
 var music_volume := 0.8    ## 音乐音量，范围 0.0 ~ 1.0
 var sfx_volume := 0.8      ## 音效音量，范围 0.0 ~ 1.0
 var ui_volume := 0.8       ## UI 音量，范围 0.0 ~ 1.0
 var voice_volume := 0.8    ## 语音音量，范围 0.0 ~ 1.0
 var ambience_volume := 0.8 ## 环境音量，范围 0.0 ~ 1.0
+var debug_mode := false    ## 隐藏调试模式开关。
 
 
 func _ready() -> void:
@@ -24,6 +27,7 @@ func save_settings() -> void:
 		"ui_volume": ui_volume,
 		"voice_volume": voice_volume,
 		"ambience_volume": ambience_volume,
+		"debug_mode": debug_mode,
 	}
 	var json := JSON.stringify(data)
 	var file := FileAccess.open(SETTINGS_PATH, FileAccess.WRITE)
@@ -54,6 +58,7 @@ func load_settings() -> void:
 		ui_volume = parsed.get("ui_volume", ui_volume) as float
 		voice_volume = parsed.get("voice_volume", voice_volume) as float
 		ambience_volume = parsed.get("ambience_volume", ambience_volume) as float
+		debug_mode = parsed.get("debug_mode", debug_mode) as bool
 	else:
 		push_error("Settings: 设置文件格式错误")
 
@@ -69,9 +74,18 @@ func _apply_settings() -> void:
 	# Cutscene 总线跟随 Music + Voice 的加权平均，或直接用 Voice
 	var cutscene_vol := (music_volume + voice_volume) / 2.0
 	_set_bus_volume("Cutscene", cutscene_vol)
+	settings_changed.emit()
 
 
 func _set_bus_volume(bus_name: String, linear: float) -> void:
 	var idx := AudioServer.get_bus_index(bus_name)
 	if idx >= 0:
 		AudioServer.set_bus_volume_db(idx, linear_to_db(clampf(linear, 0.0, 1.0)))
+
+
+func set_debug_mode(enabled: bool) -> void:
+	if debug_mode == enabled:
+		return
+	debug_mode = enabled
+	save_settings()
+	settings_changed.emit()
