@@ -98,6 +98,11 @@ const WALKABLE_LAYER_NAMES: Array[String] = [
 # ─────────────────────────────────────────────
 
 ## 单个队伍的运行时数据。
+
+
+
+
+
 class TeamData:
 	var team_name: String
 	var faction: String
@@ -300,6 +305,9 @@ func _check_win_lose(_arg = null) -> void:
 		_level_ended = true
 		complete_level()
 
+# 用于测试的一键胜利按钮
+func _on_win_button_pressed() -> void:
+	complete_level()
 
 # ─────────────────────────────────────────────
 # 队伍初始化（读取场景已有节点）
