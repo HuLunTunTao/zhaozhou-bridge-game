@@ -768,7 +768,7 @@ func _reset_status_bar() -> void:
 # ─────────────────────────────────────────────
 
 ## Play a mid-battle cutscene as an overlay. Blocks until finished.
-func play_mid_cutscene(pages: Array[String]) -> void:
+func play_mid_cutscene(pages: Array) -> void:
 	_mid_cutscene_active = true
 	var cutscene: CutscenePlayer = preload("res://scenes/cutscene/cutscene_player.tscn").instantiate()
 	add_child(cutscene)
