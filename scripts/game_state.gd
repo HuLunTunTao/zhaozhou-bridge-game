@@ -3,7 +3,7 @@ extends Node
 var selected_level: String = ""
 
 ## Transient data for passing cutscene info across scene changes.
-var pending_cutscene_pages: Array[String] = []
+var pending_cutscene_pages: Array = []
 var pending_next_scene: String = ""
 
 ## 场景切换过渡层。
@@ -51,16 +51,81 @@ const LEVEL_SCENES: Dictionary = {
 	"怪物全展示": "res://scenes/levels/monster_showcase/monster_showcase.tscn",
 }
 
-## 过场动画图片路径，按关卡名和时机（"pre" / "post"）索引。
+## 过场动画内容，按关卡名和时机（"pre" / "post"）索引。
+## 支持两种内容格式：
+## 1. 字符串：图片路径（旧格式兼容
+## 2. 字典：视频内容，格式：
+##    {
+##      "type": "video",
+##      "path": "res://path/to/video.mp4",
+##      "pause_points": [3.5, 7.2, 10.0]  # 可选，暂停时间点（秒）
+##    }
 ## 关卡内的中途过场在各自关卡脚本中定义。
 const CUTSCENE_DATA: Dictionary = {
 	"关卡1-1": {
 		"pre": [
-			"res://assets/cutscenes/level1-1/pre_01.png",
-			"res://assets/cutscenes/level1-1/pre_02.png",
+			# "res://assets/cutscenes/level1-1/pre_01.png",
+			# "res://assets/cutscenes/level1-1/pre_02.png",
+			{
+				"type": "video",
+				"path": "res://assets/cutscenes/level1-1/1-1-begin.ogv",
+				"pause_points": [4.0, 7.0, 16.0, 21.0, 25.0],
+			},
 		],
 		"post": [
-			"res://assets/cutscenes/level1-1/post_01.png",
+			{
+				"type": "video",
+				"path": "res://assets/cutscenes/level1-1/1-1-end.ogv",
+				"pause_points": [5.0, 12.0],
+			}
+		],
+	},
+	"关卡1-2": {
+		"pre": [
+			{
+				"type": "video",
+				"path": "res://assets/cutscenes/level1-2/1-2-begin.ogv",
+				"pause_points": [5.0, 12.0],
+			},
+		],
+		"post": [
+			{
+				"type": "video",
+				"path": "res://assets/cutscenes/level1-2/1-2-end.ogv",
+				"pause_points": [5.0, 12.0],
+			}
+		],
+	},
+	"关卡1-3": {
+		"pre": [
+			{
+				"type": "video",
+				"path": "res://assets/cutscenes/level1-3/1-3-begin.ogv",
+				"pause_points": [5.0, 12.0],
+			},
+		],
+		"post": [
+			{
+				"type": "video",
+				"path": "res://assets/cutscenes/level1-3/1-3-end.ogv",
+				"pause_points": [5.0, 12.0],
+			}
+		],
+	},
+	"关卡1-4": {
+		"pre": [
+			{
+				"type": "video",
+				"path": "res://assets/cutscenes/level1-4/1-4-begin.ogv",
+				"pause_points": [5.0, 12.0],
+			},
+		],
+		"post": [
+			{
+				"type": "video",
+				"path": "res://assets/cutscenes/level1-4/1-4-end.ogv",
+				"pause_points": [5.0, 12.0],
+			}
 		],
 	},
 }
@@ -70,9 +135,9 @@ func get_level_scene_path(level_name: String) -> String:
 	return LEVEL_SCENES.get(level_name, "")
 
 
-func get_cutscene_pages(level_name: String, timing: String) -> Array[String]:
+func get_cutscene_pages(level_name: String, timing: String) -> Array:
 	var level_data: Dictionary = CUTSCENE_DATA.get(level_name, {})
-	var pages: Array[String] = []
+	var pages: Array = []
 	pages.assign(level_data.get(timing, []))
 	return pages
 
