@@ -13,6 +13,7 @@ var _overall_stability := 12
 var _left_pier_stability := 6
 var _right_pier_stability := 6
 var _pending_enemy_resolution := false
+var _boss_base_atk := 24
 
 var _left_pier: Vector2i
 var _right_pier: Vector2i
@@ -31,11 +32,13 @@ var _survey_data: UnitData = preload("res://data/units/survey_worker.tres")
 var _craftsman_data: UnitData = preload("res://data/units/craftsman_guard.tres")
 var _mud_data: UnitData = preload("res://data/units/bank_mud_wraith.tres")
 var _dark_data: UnitData = preload("res://data/units/dark_current.tres")
+var _drift_data: UnitData = preload("res://data/units/drift_log_pack.tres")
 
 var _staff: SkillData = preload("res://data/skills/sw_staff_end_strike.tres")
 var _mallet: SkillData = preload("res://data/skills/cg_mallet_strike.tres")
 var _guard: SkillData = preload("res://data/skills/cg_guard_the_works.tres")
 var _divider: SkillData = preload("res://data/skills/lc_divider_mark_arc.tres")
+var _timber: SkillData = preload("res://data/skills/dlp_drifting_timber_crash.tres")
 
 
 func get_teams_config() -> Array:
@@ -64,8 +67,14 @@ func get_wave_config() -> Dictionary:
 		5: [
 			{"unit_data": _make_unit_data(_mud_data, "泥沙魇", 110, 18, 90, 9, Enums.Element.EARTH, 1), "cell": _watch_point + Vector2i(0, -2), "team_index": ENEMY_TEAM, "skills": [_guard]},
 		],
+		6: [
+			{"unit_data": _make_unit_data(_drift_data, "漂木群洪水版", 70, 18, 100, 10, Enums.Element.WOOD, 2), "cell": _side_arch_cells["left_front"] + Vector2i(0, -2), "team_index": ENEMY_TEAM, "skills": [_timber]},
+		],
 		7: [
 			{"unit_data": _make_unit_data(_mud_data, "桥台噬者", 150, 22, 90, 9, Enums.Element.EARTH, 1), "cell": _nearest_walkable(_right_pier + Vector2i(2, 0)), "team_index": ENEMY_TEAM, "skills": [_mallet]},
+		],
+		9: [
+			{"unit_data": _make_unit_data(_drift_data, "漂木群洪水版", 70, 18, 100, 10, Enums.Element.WOOD, 2), "cell": _side_arch_cells["right_front"] + Vector2i(0, -2), "team_index": ENEMY_TEAM, "skills": [_timber]},
 		],
 	}
 
@@ -135,10 +144,11 @@ func _on_skill_executed(caster: Unit, skill: SkillData, cast_cell: Vector2i, _ex
 func _on_stage_team_turn_started(team_index: int) -> void:
 	if team_index == ENEMY_TEAM:
 		_pending_enemy_resolution = true
-		_boss_pulse()
+		_sync_boss_pressure()
 	elif team_index == PLAYER_TEAM and _pending_enemy_resolution:
 		_pending_enemy_resolution = false
 		_resolve_enemy_pressure()
+		_sync_boss_pressure()
 
 
 func _on_stage_hp_changed(unit: Unit, old_hp: int, new_hp: int) -> void:
@@ -193,7 +203,7 @@ func _try_open_side_arch(unit: Unit) -> void:
 	if unit != _li_chun and unit not in _stone_carriers:
 		return
 	for arch_key in _side_arch_cells.keys():
-		if unit.cell != _side_arch_cells[arch_key]:
+		if not _is_adjacent_or_same(unit.cell, _side_arch_cells[arch_key]):
 			continue
 		var cost := 30 if unit == _li_chun else 35
 		if unit.combat_stats.ap_current < cost:
@@ -207,12 +217,12 @@ func _try_open_side_arch(unit: Unit) -> void:
 func _try_repair_pier(unit: Unit) -> void:
 	if unit not in _stone_carriers or unit.combat_stats.ap_current < 40:
 		return
-	if unit.cell == _left_pier and _left_pier_stability < 6:
+	if _is_adjacent_or_same(unit.cell, _left_pier) and _left_pier_stability < 6:
 		unit.combat_stats.ap_current -= 40
 		unit.refresh_overhead_bars()
 		_left_pier_stability = min(_left_pier_stability + 1, 6)
 		Notify.notify("左桥台抢修完成，稳定值 %d" % _left_pier_stability, Notify.Position.TOP_RIGHT, Notify.Style.SUCCESS, 2.0)
-	elif unit.cell == _right_pier and _right_pier_stability < 6:
+	elif _is_adjacent_or_same(unit.cell, _right_pier) and _right_pier_stability < 6:
 		unit.combat_stats.ap_current -= 40
 		unit.refresh_overhead_bars()
 		_right_pier_stability = min(_right_pier_stability + 1, 6)
@@ -224,22 +234,31 @@ func _open_arch(arch_key: String, reason: String) -> void:
 	Notify.notify("%s  已开启小拱 %d / 4" % [reason, _open_arch_count()], Notify.Position.TOP_RIGHT, Notify.Style.INFO, 2.0)
 
 
-func _boss_pulse() -> void:
+func _sync_boss_pressure() -> void:
 	if _boss == null or _boss.combat_stats == null or not _boss.combat_stats.is_alive():
 		return
-	if _open_arch_count() <= 1:
-		_overall_stability -= 1
-	var attack_left := _left_pier_stability <= _right_pier_stability
-	if attack_left:
-		_left_pier_stability -= 1
-	else:
-		_right_pier_stability -= 1
+	_boss.combat_stats.base_atk = roundi(_boss_base_atk * 0.85) if _open_arch_count() >= 4 else _boss_base_atk
 
 
 func _resolve_enemy_pressure() -> void:
+	for arch_key in _side_arch_cells.keys():
+		if _side_arch_states[arch_key] == "blocked":
+			_side_arch_states[arch_key] = "closed"
+	for enemy in teams[ENEMY_TEAM].units:
+		if not (enemy is Unit) or enemy.combat_stats == null or not enemy.combat_stats.is_alive():
+			continue
+		if enemy.combat_stats.unit_name == "漂木群洪水版":
+			for arch_key in _side_arch_cells.keys():
+				if enemy.cell == _side_arch_cells[arch_key]:
+					_side_arch_states[arch_key] = "blocked"
+
 	var open_count := _open_arch_count()
 	if open_count == 0:
 		_overall_stability -= 2
+		if _left_pier_stability <= _right_pier_stability:
+			_left_pier_stability -= 1
+		else:
+			_right_pier_stability -= 1
 	elif open_count == 1:
 		_overall_stability -= 2
 	elif open_count == 2:
@@ -249,19 +268,27 @@ func _resolve_enemy_pressure() -> void:
 		if not (enemy is Unit) or enemy.combat_stats == null or not enemy.combat_stats.is_alive():
 			continue
 		if enemy.combat_stats.unit_name == "桥台噬者":
-			if enemy.cell.distance_to(_left_pier) <= 1:
+			if _is_adjacent_or_same(enemy.cell, _left_pier):
 				_left_pier_stability -= 1
-			if enemy.cell.distance_to(_right_pier) <= 1:
+			if _is_adjacent_or_same(enemy.cell, _right_pier):
 				_right_pier_stability -= 1
-		if enemy.combat_stats.unit_name == "泥沙魇" and enemy.cell.distance_to(_watch_point) <= 1:
+		if enemy.combat_stats.unit_name == "泥沙魇" and _is_adjacent_or_same(enemy.cell, _watch_point):
 			_overall_stability -= 1
-		if enemy.combat_stats.unit_name == "漂木群洪水版":
-			for arch_key in _side_arch_cells.keys():
-				if enemy.cell == _side_arch_cells[arch_key]:
-					_side_arch_states[arch_key] = "blocked"
 
 	Notify.notify("整桥:%d 左桥台:%d 右桥台:%d 小拱:%d/4" % [_overall_stability, _left_pier_stability, _right_pier_stability, open_count], Notify.Position.TOP_RIGHT, Notify.Style.WARNING, 2.5)
 	_check_win_lose()
+
+
+func _get_ai_context() -> Dictionary:
+	return {
+		"drift_directions": {
+			"漂木群洪水版": Vector2i(0, 1),
+		}
+	}
+
+
+func _is_adjacent_or_same(a: Vector2i, b: Vector2i) -> bool:
+	return absi(a.x - b.x) + absi(a.y - b.y) <= 1
 
 
 func _open_arch_count() -> int:

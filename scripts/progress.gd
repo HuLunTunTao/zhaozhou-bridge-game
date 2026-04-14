@@ -34,20 +34,26 @@ const SKILL_PATHS := {
 const CLEAR_REWARDS := {
 	"关卡1-1": {
 		"unlock_levels": ["关卡1-2"],
-		"unlock_skills": ["lc_pile_bind_wave", "lc_divider_mark_arc"],
+		"unlock_skills": ["lc_pile_bind_wave"],
 	},
 	"关卡1-2": {
 		"unlock_levels": ["关卡1-3"],
-		"unlock_skills": ["lc_line_lock_arc", "lc_inkline_balance_arch"],
+		"unlock_skills": ["lc_line_lock_arc"],
 	},
 	"关卡1-3": {
 		"unlock_levels": ["关卡1-4"],
-		"unlock_skills": ["lc_link_wedges_arch", "lc_guide_flood_open_arch"],
+		"unlock_skills": ["lc_link_wedges_arch"],
 	},
 	"关卡1-4": {
 		"unlock_levels": [],
 		"unlock_skills": [],
 	},
+}
+
+const LEVEL_FIXED_UNLOCKS := {
+	"关卡1-2": ["lc_divider_mark_arc"],
+	"关卡1-3": ["lc_inkline_balance_arch"],
+	"关卡1-4": ["lc_guide_flood_open_arch"],
 }
 
 signal progress_changed
@@ -190,8 +196,7 @@ func complete_level(level_name: String) -> void:
 		completed_levels.append(level_name)
 	var reward: Dictionary = CLEAR_REWARDS.get(level_name, {})
 	for next_level: String in reward.get("unlock_levels", []):
-		if next_level not in unlocked_levels:
-			unlocked_levels.append(next_level)
+		_unlock_level_content(next_level)
 	for skill_id: String in reward.get("unlock_skills", []):
 		if skill_id not in unlocked_skill_ids:
 			unlocked_skill_ids.append(skill_id)
@@ -238,6 +243,14 @@ func _reset_defaults(emit_change: bool) -> void:
 	equipped_skill_ids = INITIAL_SKILL_IDS.duplicate()
 	if emit_change:
 		_normalize_progress()
+
+
+func _unlock_level_content(level_name: String) -> void:
+	if level_name not in unlocked_levels:
+		unlocked_levels.append(level_name)
+	for skill_id: String in LEVEL_FIXED_UNLOCKS.get(level_name, []):
+		if skill_id not in unlocked_skill_ids:
+			unlocked_skill_ids.append(skill_id)
 
 
 func _normalize_progress() -> void:

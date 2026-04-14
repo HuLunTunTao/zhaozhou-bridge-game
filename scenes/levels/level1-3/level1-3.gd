@@ -191,16 +191,16 @@ func _try_pick_or_deliver_stone(unit: Unit) -> void:
 	if unit not in _stone_carriers:
 		return
 	var key := unit.get_instance_id()
-	if unit.cell in _stone_yard_cells and not _carrying_stone.get(key, false):
+	if _is_adjacent_to_any(unit.cell, _stone_yard_cells) and not _carrying_stone.get(key, false):
 		_carrying_stone[key] = true
 		Notify.notify("%s 已取石" % unit.combat_stats.unit_name, Notify.Position.TOP_RIGHT, Notify.Style.INFO, 1.5)
 		return
 	if not _carrying_stone.get(key, false):
 		return
-	if unit.cell == _left_platform:
+	if _is_adjacent_or_same(unit.cell, _left_platform):
 		_adjust_arch_value(true, 1, "%s 运石入左券" % unit.combat_stats.unit_name)
 		_carrying_stone[key] = false
-	elif unit.cell == _right_platform:
+	elif _is_adjacent_or_same(unit.cell, _right_platform):
 		_adjust_arch_value(false, 1, "%s 运石入右券" % unit.combat_stats.unit_name)
 		_carrying_stone[key] = false
 
@@ -301,3 +301,14 @@ func _nearest_walkable(target: Vector2i) -> Vector2i:
 				if movement_manager.get_movement_cost(candidate) != TileType.IMPASSABLE:
 					return candidate
 	return target
+
+
+func _is_adjacent_or_same(a: Vector2i, b: Vector2i) -> bool:
+	return absi(a.x - b.x) + absi(a.y - b.y) <= 1
+
+
+func _is_adjacent_to_any(cell: Vector2i, targets: Array[Vector2i]) -> bool:
+	for target in targets:
+		if _is_adjacent_or_same(cell, target):
+			return true
+	return false

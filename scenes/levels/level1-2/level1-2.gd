@@ -28,6 +28,8 @@ var _finalized := false
 var _driven_enemy_defeats := 0
 var _summon_cycle := ["守法匠首", "高拱幻影", "守法匠首", "守法匠首", "重墩石像"]
 var _summon_index := 0
+var _li_chun_parameter_round := -1
+var _bonus_summon_next_turn := 0
 
 var _hero_data: UnitData = preload("res://data/units/hero_li_chun.tres")
 var _hero_visual: PackedScene = preload("res://scenes/unit/visual/human/li_chun/li_chun_visual.tscn")
@@ -108,13 +110,17 @@ func _on_unit_moved() -> void:
 
 
 func _on_stage_team_turn_started(team_index: int) -> void:
-	if team_index != ENEMY_TEAM or _boss == null or not _boss.combat_stats.is_alive():
-		return
-	var summon_count := 2 if _enemy_controls_drafting_platform() else 1
-	for i in range(summon_count):
-		if _count_driven_enemies() >= ENEMY_FIELD_CAP:
-			break
-		_spawn_next_summon()
+	if team_index == ENEMY_TEAM:
+		if _boss == null or not _boss.combat_stats.is_alive():
+			return
+		var summon_count := 1 + _bonus_summon_next_turn
+		_bonus_summon_next_turn = 0
+		for i in range(summon_count):
+			if _count_driven_enemies() >= ENEMY_FIELD_CAP:
+				break
+			_spawn_next_summon()
+	elif team_index == PLAYER_TEAM:
+		_bonus_summon_next_turn = 1 if _enemy_controls_drafting_platform() else 0
 
 
 func _on_stage_unit_died(unit: Unit) -> void:
@@ -188,7 +194,7 @@ func _try_collect_parameter(unit: Unit) -> void:
 	for parameter_key in _parameter_cells.keys():
 		if _parameters_done[parameter_key]:
 			continue
-		if unit.cell == _parameter_cells[parameter_key]:
+		if _is_adjacent_or_same(unit.cell, _parameter_cells[parameter_key]):
 			key = parameter_key
 			break
 	if key.is_empty():
@@ -196,10 +202,14 @@ func _try_collect_parameter(unit: Unit) -> void:
 	var ap_cost := 40 if unit == _survey_worker else 45
 	if unit != _survey_worker and unit != _li_chun:
 		return
+	if unit == _li_chun and _li_chun_parameter_round == round_number:
+		return
 	if unit.combat_stats.ap_current < ap_cost:
 		return
 	unit.combat_stats.ap_current -= ap_cost
 	_parameters_done[key] = true
+	if unit == _li_chun:
+		_li_chun_parameter_round = round_number
 	unit.refresh_overhead_bars()
 	Notify.notify("%s 完成参数点：%s" % [unit.combat_stats.unit_name, PARAMETER_NAMES[key]], Notify.Position.TOP_CENTER, Notify.Style.SUCCESS, 2.5)
 
@@ -289,6 +299,10 @@ func _nearest_walkable(target: Vector2i) -> Vector2i:
 				if movement_manager.get_movement_cost(candidate) != TileType.IMPASSABLE:
 					return candidate
 	return target
+
+
+func _is_adjacent_or_same(a: Vector2i, b: Vector2i) -> bool:
+	return absi(a.x - b.x) + absi(a.y - b.y) <= 1
 
 
 func _cell_occupied(cell: Vector2i) -> bool:
