@@ -27,6 +27,10 @@ const MONSTER_VISUALS: Dictionary = {
 	"断索鬼": preload("res://scenes/unit/visual/monster/断索鬼/断索鬼_visual.tscn"),
 	"桥台噬者": preload("res://scenes/unit/visual/monster/桥台噬者/桥台噬者_visual.tscn"),
 	"脱缝鬼": preload("res://scenes/unit/visual/monster/脱缝鬼/脱缝鬼_visual.tscn"),
+	"旧制监工": preload("res://scenes/unit/visual/monster/旧制监工/旧制监工_visual.tscn"),
+	"守法匠首": preload("res://scenes/unit/visual/monster/守法匠首/守法匠首_visual.tscn"),
+	"重墩石像": preload("res://scenes/unit/visual/monster/重墩石像/重墩石像_visual.tscn"),
+	"裂石兽": preload("res://scenes/unit/visual/monster/裂石兽/裂石兽_visual.tscn"),
 	"错券兵": preload("res://scenes/unit/visual/monster/错券兵/错券兵_visual.tscn"),
 	"漂木群洪水版": preload("res://scenes/unit/visual/monster/漂木群洪水版/漂木群洪水版_visual.tscn"),
 }
@@ -67,6 +71,7 @@ signal unit_lost_skill(unit: Unit, skill: SkillData)
 @onready var camera: Camera2D = $Camera2D
 @onready var gui: CanvasLayer = $GUI
 @onready var status_bar: HBoxContainer = $StatusBarScene/PanelContainer/MarginContainer/StatusBar
+@onready var win_button: Button = $GUI/WinButton
 
 const SettingsPanelScene := preload("res://scenes/ui/settings_panel.tscn")
 const ObjectivesPanelScene := preload("res://scenes/ui/objectives_panel.tscn")
@@ -143,6 +148,8 @@ var _pending_special_enter: Dictionary = {}
 
 
 func _ready() -> void:
+	Settings.settings_changed.connect(_refresh_debug_ui, CONNECT_REFERENCE_COUNTED)
+	_refresh_debug_ui()
 	_play_level_bgm()
 	tilemap = _find_walkable_tilemap()
 	if tilemap == null:
@@ -202,6 +209,11 @@ func _play_level_bgm() -> void:
 	var stream: AudioStream = load(path)
 	if stream != null:
 		BgmManager.play(stream)
+
+
+func _refresh_debug_ui() -> void:
+	if win_button:
+		win_button.visible = Settings.debug_mode
 
 
 func _process(_delta: float) -> void:
@@ -286,6 +298,11 @@ func get_objectives_text() -> Dictionary:
 ## 可包含 "escort_units"（护送目标）、"drift_directions"（浮木方向）等。
 func _get_ai_context() -> Dictionary:
 	return {}
+
+
+## 子类覆写：技能成功执行后的关卡机制钩子。
+func _on_skill_executed(_caster: Unit, _skill: SkillData, _cast_cell: Vector2i, _exec_result: SkillExecutor.ExecuteResult) -> void:
+	pass
 
 
 ## 处理波次生成。在每大回合开始时调用。
@@ -696,13 +713,13 @@ func _execute_ai_skill(unit: Unit, skill: SkillData, cast_cell: Vector2i) -> voi
 		await get_tree().create_timer(_SKILL_CAMERA_SETTLE_TIME).timeout
 
 	# 执行技能
+	unit.face_towards_cell(cast_cell)
 	var all_units: Array = _get_all_units()
 	var caster_faction: String = unit.faction if "faction" in unit else ""
 	var exec_result := SkillExecutor.execute(unit, skill, cast_cell, all_units, caster_faction)
 
 	if exec_result.success:
-		# TODO: 替换为实际技能释放音效
-		# SfxManager.play_sfx(preload("res://assets/audio/sfx/skill_cast.wav"), "SFX")
+		SfxManager.play_skill_cast(skill)
 		CombatLog.msg("    技能: %s → %s" % [skill.skill_name, cast_cell])
 		# 技能释放播报
 		var caster_name: String = unit.combat_stats.unit_name if unit.combat_stats else unit.name
@@ -817,6 +834,7 @@ func play_mid_cutscene(pages: Array) -> void:
 
 ## Call when the level is won. Handles post-cutscene or returns to menu.
 func complete_level() -> void:
+	Progress.complete_level(GameState.selected_level)
 	UiSounds.play_victory()
 	var level := GameState.selected_level
 	if GameState.has_cutscene(level, "post"):
@@ -1353,12 +1371,10 @@ func _confirm_targeting_skill(cell: Vector2i) -> void:
 	var all_units: Array = _get_all_units()
 	var caster_faction: String = selected_unit.faction if "faction" in selected_unit else ""
 
+	selected_unit.face_towards_cell(cell)
 	var exec_result := SkillExecutor.execute(selected_unit, _current_skill, cell, all_units, caster_faction)
 	var used_skill: SkillData = _current_skill
 	_clear_skill_targeting()
-
-	# TODO: 替换为实际技能释放音效
-	# SfxManager.play_sfx(preload("res://assets/audio/sfx/skill_cast.wav"), "SFX")
 
 	if not exec_result.success:
 		push_warning("技能执行失败: %s" % exec_result.error)
@@ -1369,6 +1385,8 @@ func _confirm_targeting_skill(cell: Vector2i) -> void:
 		_go_idle()
 		return
 
+	SfxManager.play_skill_cast(used_skill)
+
 	# ── 技能释放播报 ──
 	var caster_name := ""
 	if selected_unit is Unit and (selected_unit as Unit).combat_stats:
@@ -1377,6 +1395,8 @@ func _confirm_targeting_skill(cell: Vector2i) -> void:
 
 	# ── UI 反馈 ──
 	_show_combat_feedback(exec_result, caster_name)
+	if selected_unit is Unit:
+		_on_skill_executed(selected_unit as Unit, used_skill, cell, exec_result)
 
 	# ── 额外效果播报 ──
 	if used_skill.extra_effect_id != "" and not exec_result.hit_results.is_empty():
@@ -1505,7 +1525,10 @@ const _EXTRA_EFFECT_NAMES: Dictionary = {
 	"pull_1": "拖拽1格",
 	"guarded_cover": "护持",
 	"hindered_cross": "十字迟滞",
+	"line_bind": "蔓缚",
 	"read_water": "相水定址",
+	"stage_balance_arch": "校券",
+	"stage_open_arch": "启肩泄洪",
 	"complete_survey": "踏勘量址",
 	"non_element_bonus": "无属性加成",
 }
