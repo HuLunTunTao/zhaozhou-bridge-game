@@ -7,13 +7,16 @@ extends Control
 @onready var test_grid: GridContainer = $TestSelectPage/TestGrid
 
 const SettingsPanelScene := preload("res://scenes/ui/settings_panel.tscn")
+const MAIN_MENU_BGM_PATH := "res://assets/audio/music/主：桥起千秋(Before_the_First_Stone).mp3"
 var _settings_open := false
 
 
 # TODO: 主菜单背景美术替换（赵州桥像素画）
 # TODO: 标题字体和字号美化
 func _ready() -> void:
+	_play_menu_bgm()
 	_build_level_buttons()
+	_bind_static_button_sounds()
 	_show_page(main_page)
 
 
@@ -25,7 +28,19 @@ func _build_level_buttons() -> void:
 		btn.text = level_name
 		btn.custom_minimum_size = Vector2(56, 32)
 		btn.pressed.connect(_on_level_selected.bind(level_name))
+		UiSounds.bind_button(btn)
 		level_grid.add_child(btn)
+
+
+func _bind_static_button_sounds() -> void:
+	for button in find_children("*", "BaseButton", true, false):
+		UiSounds.bind_button(button as BaseButton)
+
+
+func _play_menu_bgm() -> void:
+	if not ResourceLoader.exists(MAIN_MENU_BGM_PATH, "AudioStream"):
+		return
+	BgmManager.play(load(MAIN_MENU_BGM_PATH), false)
 
 
 func _show_page(page: Control) -> void:
@@ -88,6 +103,7 @@ func _ready_test_buttons() -> void:
 		btn.text = test_name
 		btn.custom_minimum_size = Vector2(56, 32)
 		btn.pressed.connect(func(): GameState.transition_to_scene(TEST_SCENES[test_name]))
+		UiSounds.bind_button(btn)
 		test_grid.add_child(btn)
 
 

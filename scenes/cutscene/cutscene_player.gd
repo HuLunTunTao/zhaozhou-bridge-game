@@ -40,6 +40,7 @@ func _ready() -> void:
 	layer = 100
 	skip_button.pressed.connect(_on_skip_pressed)
 	panel_image.modulate.a = 0.0
+	video_player.bus = "Cutscene"
 	video_player.finished.connect(_on_video_finished)
 
 
@@ -178,8 +179,20 @@ func _finish() -> void:
 		queue_free()
 
 
+func _fade_cutscene_volume(duration: float, target_db: float) -> void:
+	var idx := AudioServer.get_bus_index("Cutscene")
+	if idx < 0:
+		return
+	var tween := create_tween()
+	tween.tween_method(func(v): AudioServer.set_bus_volume_db(idx, v), AudioServer.get_bus_volume_db(idx), target_db, duration)
+
+
 func _on_skip_pressed() -> void:
+	_fade_cutscene_volume(0.3, -80.0)
+	await get_tree().create_timer(0.3).timeout
 	_finish()
+	# 恢复 Cutscene 总线音量（由 Settings 负责实际值）
+	Settings._apply_settings()
 
 
 func _process(_delta: float) -> void:

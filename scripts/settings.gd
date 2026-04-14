@@ -4,8 +4,11 @@ extends Node
 
 const SETTINGS_PATH := "user://settings.json"
 
-var music_volume := 0.8 ## 音乐音量，范围 0.0 ~ 1.0
-var sfx_volume := 0.8   ## 音效音量，范围 0.0 ~ 1.0
+var music_volume := 0.8    ## 音乐音量，范围 0.0 ~ 1.0
+var sfx_volume := 0.8      ## 音效音量，范围 0.0 ~ 1.0
+var ui_volume := 0.8       ## UI 音量，范围 0.0 ~ 1.0
+var voice_volume := 0.8    ## 语音音量，范围 0.0 ~ 1.0
+var ambience_volume := 0.8 ## 环境音量，范围 0.0 ~ 1.0
 
 
 func _ready() -> void:
@@ -18,6 +21,9 @@ func save_settings() -> void:
 	var data := {
 		"music_volume": music_volume,
 		"sfx_volume": sfx_volume,
+		"ui_volume": ui_volume,
+		"voice_volume": voice_volume,
+		"ambience_volume": ambience_volume,
 	}
 	var json := JSON.stringify(data)
 	var file := FileAccess.open(SETTINGS_PATH, FileAccess.WRITE)
@@ -45,14 +51,24 @@ func load_settings() -> void:
 	if parsed is Dictionary:
 		music_volume = parsed.get("music_volume", music_volume) as float
 		sfx_volume = parsed.get("sfx_volume", sfx_volume) as float
+		ui_volume = parsed.get("ui_volume", ui_volume) as float
+		voice_volume = parsed.get("voice_volume", voice_volume) as float
+		ambience_volume = parsed.get("ambience_volume", ambience_volume) as float
 	else:
 		push_error("Settings: 设置文件格式错误")
 
 
 ## 应用当前设置到游戏引擎（音量、窗口等）
 func _apply_settings() -> void:
+	_set_bus_volume("Master", 1.0)
 	_set_bus_volume("Music", music_volume)
 	_set_bus_volume("SFX", sfx_volume)
+	_set_bus_volume("UI", ui_volume)
+	_set_bus_volume("Voice", voice_volume)
+	_set_bus_volume("Ambience", ambience_volume)
+	# Cutscene 总线跟随 Music + Voice 的加权平均，或直接用 Voice
+	var cutscene_vol := (music_volume + voice_volume) / 2.0
+	_set_bus_volume("Cutscene", cutscene_vol)
 
 
 func _set_bus_volume(bus_name: String, linear: float) -> void:
