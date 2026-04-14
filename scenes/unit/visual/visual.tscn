@@ -10,6 +10,7 @@ shader_parameter/outline_color = Color(1, 1, 0, 0.3)
 shader_parameter/outline_width = 7.0
 
 [node name="Visual" type="AnimatedSprite2D" unique_id=1878430534]
+texture_filter = 0
 material = SubResource("ShaderMaterial_3po7s")
 scale = Vector2(0.15, 0.15)
 script = ExtResource("3_visual_script")
