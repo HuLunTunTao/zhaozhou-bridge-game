@@ -110,6 +110,21 @@ func _init_combat_stats() -> void:
 		movement_points = combat_stats.ap_current
 
 
+## 运行时为占位单位补齐真实角色数据、外观和颜色。
+## 用于关卡场景里先放一个通用 Unit，再在 _on_level_ready() 中指定具体角色。
+func apply_runtime_setup(data: UnitData, visual: PackedScene = null, color: Color = Color(1, 1, 1, 1)) -> void:
+	if data == null:
+		return
+	unit_data = data.duplicate(true)
+	unit_data.resource_local_to_scene = true
+	if visual != null:
+		visual_scene = visual
+	unit_color = color
+	_init_combat_stats()
+	_init_hp_bar()
+	refresh_overhead_bars()
+
+
 ## 根据 FootMarker 定位 Visual（脚底对齐 Unit 原点）和 HpBar。
 func _align_visual() -> void:
 	if _visual:
