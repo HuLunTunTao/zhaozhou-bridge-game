@@ -166,6 +166,7 @@ func _ready() -> void:
 		(camera as LevelCamera).set_level_bounds(get_tilemap_bounds())
 	_on_level_ready()
 	_init_turn_system()
+	_apply_tilemap_texture_filter()
 	# 连接死亡处理
 	unit_died.connect(_on_unit_died)
 	# 胜负条件检查
@@ -341,6 +342,15 @@ func _setup_teams_from_config(configs: Array) -> void:
 # ─────────────────────────────────────────────
 # 回合系统初始化
 # ─────────────────────────────────────────────
+
+func _apply_tilemap_texture_filter() -> void:
+	if tilemap_container == null:
+		return
+	tilemap_container.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	for node: Node in tilemap_container.find_children("*", "TileMapLayer", true):
+		if node is TileMapLayer:
+			node.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+
 
 func _init_turn_system() -> void:
 	# 若未通过 get_teams_config() 创建队伍，则将旧版 player 包装为单队伍
