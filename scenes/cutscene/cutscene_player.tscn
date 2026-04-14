@@ -51,10 +51,9 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-mouse_default_cursor_shape = 0
 theme_override_styles/normal = SubResource("StyleBoxEmpty_fdsdh")
-theme_override_styles/hover = SubResource("StyleBoxEmpty_fdsdh")
 theme_override_styles/pressed = SubResource("StyleBoxEmpty_fdsdh")
+theme_override_styles/hover = SubResource("StyleBoxEmpty_fdsdh")
 theme_override_styles/disabled = SubResource("StyleBoxEmpty_fdsdh")
 theme_override_styles/focus = SubResource("StyleBoxEmpty_fdsdh")
 
