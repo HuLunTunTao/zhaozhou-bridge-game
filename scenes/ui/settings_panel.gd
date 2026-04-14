@@ -21,6 +21,9 @@ func _ready() -> void:
 	restart_button.visible = show_back_to_menu
 	back_to_menu_button.visible = show_back_to_menu
 
+	music_slider.value = Settings.music_volume * 100.0
+	sfx_slider.value = Settings.sfx_volume * 100.0
+
 
 func _unhandled_input(event: InputEvent) -> void:
 	# Consume all input so nothing leaks to the scene behind
@@ -30,14 +33,20 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 # Audio
-func _on_music_slider_value_changed(_value: float) -> void:
-	# TODO: AudioServer.set_bus_volume_db(AudioServer.get_bus_index("Music"), linear_to_db(value / 100.0))
-	pass
+func _on_music_slider_value_changed(value: float) -> void:
+	Settings.music_volume = value / 100.0
+	Settings._apply_settings()
 
 
-func _on_sfx_slider_value_changed(_value: float) -> void:
-	# TODO: AudioServer.set_bus_volume_db(AudioServer.get_bus_index("SFX"), linear_to_db(value / 100.0))
-	pass
+func _on_sfx_slider_value_changed(value: float) -> void:
+	Settings.sfx_volume = value / 100.0
+	Settings._apply_settings()
+
+
+# 保存设置
+func _on_save_settings_button_pressed() -> void:
+	Settings.save_settings()
+	Notify.notify("设置已保存", Notify.Position.TOP_CENTER, Notify.Style.SUCCESS, 2.0)
 
 
 # Save Management
@@ -86,3 +95,6 @@ func _on_close_pressed() -> void:
 func _close() -> void:
 	closed.emit()
 	queue_free()
+
+
+
