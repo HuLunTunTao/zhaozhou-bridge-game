@@ -10,6 +10,9 @@ signal closed
 
 @onready var music_slider: HSlider = %MusicSlider
 @onready var sfx_slider: HSlider = %SfxSlider
+@onready var ui_slider: HSlider = %UiSlider
+@onready var voice_slider: HSlider = %VoiceSlider
+@onready var ambience_slider: HSlider = %AmbienceSlider
 @onready var quick_save_button: Button = %QuickSaveButton
 @onready var restart_button: Button = %RestartButton
 @onready var back_to_menu_button: Button = %BackToMenuButton
@@ -23,6 +26,12 @@ func _ready() -> void:
 
 	music_slider.value = Settings.music_volume * 100.0
 	sfx_slider.value = Settings.sfx_volume * 100.0
+	ui_slider.value = Settings.ui_volume * 100.0
+	voice_slider.value = Settings.voice_volume * 100.0
+	ambience_slider.value = Settings.ambience_volume * 100.0
+	for button in find_children("*", "BaseButton", true, false):
+		UiSounds.bind_button(button as BaseButton)
+	UiSounds.play_popup()
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -43,6 +52,21 @@ func _on_sfx_slider_value_changed(value: float) -> void:
 	Settings._apply_settings()
 
 
+func _on_ui_slider_value_changed(value: float) -> void:
+	Settings.ui_volume = value / 100.0
+	Settings._apply_settings()
+
+
+func _on_voice_slider_value_changed(value: float) -> void:
+	Settings.voice_volume = value / 100.0
+	Settings._apply_settings()
+
+
+func _on_ambience_slider_value_changed(value: float) -> void:
+	Settings.ambience_volume = value / 100.0
+	Settings._apply_settings()
+
+
 # 保存设置
 func _on_save_settings_button_pressed() -> void:
 	Settings.save_settings()
@@ -55,6 +79,7 @@ const SaveManagerScene := preload("res://scenes/ui/save_manager.tscn")
 func _on_save_manager_pressed() -> void:
 	var manager: SaveManager = SaveManagerScene.instantiate()
 	add_child(manager)
+	UiSounds.play_popup()
 
 
 func _on_quick_save_pressed() -> void:
@@ -95,6 +120,5 @@ func _on_close_pressed() -> void:
 func _close() -> void:
 	closed.emit()
 	queue_free()
-
 
 

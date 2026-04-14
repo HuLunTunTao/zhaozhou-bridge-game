@@ -1,5 +1,12 @@
 class_name BaseLevel
 extends Node2D
+
+const LEVEL_BGM_BY_LEVEL := {
+	"关卡1-1": "res://assets/audio/music/1：踏勘洨河(Charting_the_Hidden_Shore).mp3",
+	"关卡1-2": "res://assets/audio/music/2：弧拱定式(Geometry_of_the_Arch).mp3",
+	"关卡1-3": "res://assets/audio/music/3：二十八券(The_Twenty_Eighth_Arch).mp3",
+	"关卡1-4": "res://assets/audio/music/4：敞肩试汛(Against_the_Angry_Tide).mp3",
+}
 ## Base class for all battle levels.
 const _AIBrain := preload("res://scripts/combat/ai_brain.gd")
 ## Inherited scenes should add TileMapLayers under the TileMaps node,
@@ -136,6 +143,7 @@ var _pending_special_enter: Dictionary = {}
 
 
 func _ready() -> void:
+	_play_level_bgm()
 	tilemap = _find_walkable_tilemap()
 	if tilemap == null:
 		push_error("No walkable tilemap found in level")
@@ -185,6 +193,15 @@ func _ready() -> void:
 		_update_status_bar_for_unit(hero, false)
 	# 进入关卡时自动弹出本关目标
 	show_objectives.call_deferred()
+
+
+func _play_level_bgm() -> void:
+	var path: String = LEVEL_BGM_BY_LEVEL.get(GameState.selected_level, "")
+	if path.is_empty() or not ResourceLoader.exists(path, "AudioStream"):
+		return
+	var stream: AudioStream = load(path)
+	if stream != null:
+		BgmManager.play(stream)
 
 
 func _process(_delta: float) -> void:
@@ -406,6 +423,7 @@ func _start_team_turn(index: int) -> void:
 		_end_turn_pending_confirm = false
 		_set_end_turn_button_highlight(false)
 		_waiting_for_player_input = true
+		UiSounds.play_turn_start()
 		# 玩家回合开始时把镜头平滑拉到主角，给本回合一个明确的起点。
 		_focus_camera_on_team(team)
 		# 玩家回合开始时刷新状态栏，确保显示 AP 恢复后的最新数据
@@ -683,6 +701,8 @@ func _execute_ai_skill(unit: Unit, skill: SkillData, cast_cell: Vector2i) -> voi
 	var exec_result := SkillExecutor.execute(unit, skill, cast_cell, all_units, caster_faction)
 
 	if exec_result.success:
+		# TODO: 替换为实际技能释放音效
+		# SfxManager.play_sfx(preload("res://assets/audio/sfx/skill_cast.wav"), "SFX")
 		CombatLog.msg("    技能: %s → %s" % [skill.skill_name, cast_cell])
 		# 技能释放播报
 		var caster_name: String = unit.combat_stats.unit_name if unit.combat_stats else unit.name
@@ -797,6 +817,7 @@ func play_mid_cutscene(pages: Array) -> void:
 
 ## Call when the level is won. Handles post-cutscene or returns to menu.
 func complete_level() -> void:
+	UiSounds.play_victory()
 	var level := GameState.selected_level
 	if GameState.has_cutscene(level, "post"):
 		GameState.pending_cutscene_pages = GameState.get_cutscene_pages(level, "post")
@@ -809,6 +830,7 @@ func complete_level() -> void:
 ## 关卡失败。显示失败面板，玩家选择重试或返回主菜单。
 ## reason: 失败原因文本（显示在面板中）。
 func defeat_level(reason: String = "任务失败") -> void:
+	UiSounds.play_defeat()
 	var panel: Node = preload("res://scenes/ui/defeat_panel.tscn").instantiate()
 	panel.defeat_reason = reason
 	panel.retry_pressed.connect(_on_defeat_retry)
@@ -856,6 +878,8 @@ func _on_unit_died(unit: Unit) -> void:
 	# 若正选中该单位，取消选中
 	if selected_unit == unit:
 		_go_idle()
+	# TODO: 替换为实际死亡音效
+	# SfxManager.play_sfx(preload("res://assets/audio/sfx/death.wav"), "SFX")
 	# 播放退场动画并移除节点
 	unit.die()
 
@@ -1150,6 +1174,8 @@ func _confirm_targeting_move(cell: Vector2i, local_mouse: Vector2, current_team:
 		_input_state = InputState.ANIMATING
 		moving_unit.move_along_path(path, tilemap)
 		await moving_unit.move_finished
+		# TODO: 替换为实际脚步声资源
+		# SfxManager.play_sfx(preload("res://assets/audio/sfx/footstep.wav"), "SFX")
 		# 扣除 AP
 		if moving_unit is Unit and moving_unit.combat_stats != null:
 			var from_cell := path[0]
@@ -1330,6 +1356,9 @@ func _confirm_targeting_skill(cell: Vector2i) -> void:
 	var exec_result := SkillExecutor.execute(selected_unit, _current_skill, cell, all_units, caster_faction)
 	var used_skill: SkillData = _current_skill
 	_clear_skill_targeting()
+
+	# TODO: 替换为实际技能释放音效
+	# SfxManager.play_sfx(preload("res://assets/audio/sfx/skill_cast.wav"), "SFX")
 
 	if not exec_result.success:
 		push_warning("技能执行失败: %s" % exec_result.error)

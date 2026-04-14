@@ -21,6 +21,9 @@ GameState="*res://scripts/game_state.gd"
 Notify="*res://scripts/notification_manager.gd"
 TestBridge="*uid://iorf7f2xmkmt"
 Settings="*res://scripts/settings.gd"
+BgmManager="*res://scripts/audio/bgm_manager.gd"
+SfxManager="*res://scripts/audio/sfx_manager.gd"
+UiSounds="*res://scripts/audio/ui_sounds.gd"
 
 [display]
 
