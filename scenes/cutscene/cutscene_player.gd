@@ -55,9 +55,8 @@ func _input(event: InputEvent) -> void:
 		return
 
 	var advance := false
-	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		advance = true
-	elif event is InputEventKey and event.pressed and not event.echo:
+
+	if event is InputEventKey and event.pressed and not event.echo:
 		if event.keycode in [KEY_SPACE, KEY_ENTER, KEY_KP_ENTER]:
 			advance = true
 
@@ -203,3 +202,11 @@ func _on_video_finished() -> void:
 
 func _update_page_indicator() -> void:
 	page_indicator.text = "%d / %d" % [_current_index + 1, _pages.size()]
+
+
+func _on_skip_button_pressed() -> void:
+	_finish()
+
+
+func _on_skip_one_step_button_pressed() -> void:
+	_advance()

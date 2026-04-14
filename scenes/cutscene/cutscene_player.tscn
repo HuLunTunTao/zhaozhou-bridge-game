@@ -2,6 +2,8 @@
 
 [ext_resource type="Script" uid="uid://cufmfbgjhapic" path="res://scenes/cutscene/cutscene_player.gd" id="1"]
 
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_fdsdh"]
+
 [node name="CutscenePlayer" type="CanvasLayer" unique_id=666842636]
 layer = 100
 script = ExtResource("1")
@@ -30,15 +32,6 @@ grow_horizontal = 2
 grow_vertical = 2
 expand = true
 
-[node name="SkipButton" type="Button" parent="." unique_id=1427922523]
-anchors_preset = 1
-anchor_left = 1.0
-anchor_right = 1.0
-offset_left = -60.0
-offset_bottom = 28.0
-grow_horizontal = 0
-text = "跳过"
-
 [node name="PageIndicator" type="Label" parent="." unique_id=420323446]
 anchors_preset = 3
 anchor_left = 1.0
@@ -51,6 +44,28 @@ grow_horizontal = 0
 grow_vertical = 0
 text = "1 / 1"
 horizontal_alignment = 2
+
+[node name="SkipOneStepButton" type="Button" parent="." unique_id=1821899832]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_default_cursor_shape = 0
+theme_override_styles/normal = SubResource("StyleBoxEmpty_fdsdh")
+theme_override_styles/hover = SubResource("StyleBoxEmpty_fdsdh")
+theme_override_styles/pressed = SubResource("StyleBoxEmpty_fdsdh")
+theme_override_styles/disabled = SubResource("StyleBoxEmpty_fdsdh")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_fdsdh")
+
+[node name="SkipButton" type="Button" parent="." unique_id=1427922523]
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -60.0
+offset_bottom = 28.0
+grow_horizontal = 0
+text = "跳过"
 
 [node name="DownPanel" type="PanelContainer" parent="." unique_id=1326775575]
 visible = false
@@ -67,3 +82,6 @@ layout_mode = 2
 size_flags_horizontal = 4
 text = "按下鼠标左键或键盘空格以继续"
 horizontal_alignment = 1
+
+[connection signal="pressed" from="SkipOneStepButton" to="." method="_on_skip_one_step_button_pressed"]
+[connection signal="pressed" from="SkipButton" to="." method="_on_skip_button_pressed"]
