@@ -31,7 +31,6 @@ offset_bottom = 38.0
 grow_horizontal = 2
 
 [node name="RoundLabel" type="Label" parent="GUI" unique_id=400000001]
-anchors_preset = 0
 offset_left = 10.0
 offset_top = 7.0
 offset_right = 130.0
@@ -40,7 +39,6 @@ theme_override_font_sizes/font_size = 18
 text = "第 1 回合"
 
 [node name="ObjectivesButton" type="Button" parent="GUI" unique_id=400000002]
-anchors_preset = 0
 offset_left = 130.0
 offset_top = 3.0
 offset_right = 230.0
@@ -74,6 +72,18 @@ grow_horizontal = 0
 theme_override_font_sizes/font_size = 18
 text = "⚙"
 
+[node name="WinButton" type="Button" parent="GUI" unique_id=279380324]
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -488.0
+offset_top = 3.0
+offset_right = -452.0
+offset_bottom = 35.0
+grow_horizontal = 0
+theme_override_font_sizes/font_size = 18
+text = "一键胜利"
+
 [node name="TurnLabel" type="Label" parent="GUI" unique_id=300000001]
 anchors_preset = 1
 anchor_left = 1.0
@@ -96,3 +106,4 @@ script = ExtResource("4_movemgr")
 [connection signal="pressed" from="GUI/ObjectivesButton" to="." method="_on_objectives_button_pressed"]
 [connection signal="pressed" from="GUI/EndTurnButton" to="." method="_on_end_turn_button_pressed"]
 [connection signal="pressed" from="GUI/SettingsButton" to="." method="_on_settings_button_pressed"]
+[connection signal="pressed" from="GUI/WinButton" to="." method="_on_win_button_pressed"]
