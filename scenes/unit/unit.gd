@@ -243,3 +243,13 @@ func move_along_path(path: Array[Vector2i], tilemap: TileMapLayer) -> void:
 	cell = path[path.size() - 1]
 	is_moving = false
 	move_finished.emit()
+
+
+func face_towards_cell(target_cell: Vector2i) -> void:
+	var step := target_cell - cell
+	if step == Vector2i.ZERO:
+		return
+	_facing = _facing_from_step(step)
+	if _visual:
+		_visual.set_facing(_facing)
+		_visual.play_state(&"idle")
