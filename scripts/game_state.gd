@@ -69,14 +69,14 @@ const CUTSCENE_DATA: Dictionary = {
 			{
 				"type": "video",
 				"path": "res://assets/cutscenes/level1-1/1-1-begin.ogv",
-				"pause_points": [4.0, 7.0, 16.0, 21.0, 25.0],
+				"pause_points": [4.0, 8.0, 16.0, 21.0, 25.0],
 			},
 		],
 		"post": [
 			{
 				"type": "video",
 				"path": "res://assets/cutscenes/level1-1/1-1-end.ogv",
-				"pause_points": [5.0, 12.0],
+				"pause_points": [4.0, 7.0],
 			}
 		],
 	},
@@ -85,14 +85,14 @@ const CUTSCENE_DATA: Dictionary = {
 			{
 				"type": "video",
 				"path": "res://assets/cutscenes/level1-2/1-2-begin.ogv",
-				"pause_points": [5.0, 12.0],
+				"pause_points": [3.0, 6.0, 11.0, 15.5 ,18.0, 20.0, 23.0],
 			},
 		],
 		"post": [
 			{
 				"type": "video",
 				"path": "res://assets/cutscenes/level1-2/1-2-end.ogv",
-				"pause_points": [5.0, 12.0],
+				"pause_points": [],
 			}
 		],
 	},
@@ -101,14 +101,14 @@ const CUTSCENE_DATA: Dictionary = {
 			{
 				"type": "video",
 				"path": "res://assets/cutscenes/level1-3/1-3-begin.ogv",
-				"pause_points": [5.0, 12.0],
+				"pause_points":[4.0, 8.0, 13.0, 19.0, 21.0]
 			},
 		],
 		"post": [
 			{
 				"type": "video",
 				"path": "res://assets/cutscenes/level1-3/1-3-end.ogv",
-				"pause_points": [5.0, 12.0],
+				"pause_points": [],
 			}
 		],
 	},
@@ -117,14 +117,14 @@ const CUTSCENE_DATA: Dictionary = {
 			{
 				"type": "video",
 				"path": "res://assets/cutscenes/level1-4/1-4-begin.ogv",
-				"pause_points": [5.0, 12.0],
+				"pause_points": [2.0,6.0,9.0],
 			},
 		],
 		"post": [
 			{
 				"type": "video",
 				"path": "res://assets/cutscenes/level1-4/1-4-end.ogv",
-				"pause_points": [5.0, 12.0],
+				"pause_points": [3.0,7.0,12.0,15.0,19.5],
 			}
 		],
 	},
