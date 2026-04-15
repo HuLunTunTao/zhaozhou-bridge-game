@@ -33,6 +33,10 @@ var _survey_b: Node2D
 var _craftsman_a: Node2D
 var _craftsman_b: Node2D
 
+# ── 勘测点 ──
+var _survey_points: Array[SurveyPointTile] = []
+var _survey_completed_count: int = 0
+
 
 func get_teams_config() -> Array:
 	_li_chun = $"Entities/Units/LiChun"
@@ -96,9 +100,10 @@ func get_wave_config() -> Dictionary:
 
 
 func get_objectives_text() -> Dictionary:
+	var survey_status := " (%d/%d)" % [_survey_completed_count, _survey_points.size()] if _survey_points.size() > 0 else ""
 	return {
 		"victory": [
-			"- 完成 3 个勘测点",
+			"- 完成 3 个勘测点%s" % survey_status,
 			"- 李春在候选桥位执行「相水定址」",
 			"- 至少 1 名测量工进入撤离区并结束回合",
 		],
@@ -128,6 +133,16 @@ func check_defeat() -> String:
 	return ""
 
 
+func check_victory() -> bool:
+	# 条件 1：完成所有勘测点
+	var surveys_done := _survey_completed_count >= _survey_points.size() and _survey_points.size() > 0
+	# 条件 2：李春在候选桥位执行「相水定址」（待实现）
+	var bridge_done := false
+	# 条件 3：至少 1 名测量工进入撤离区并结束回合（待实现）
+	var evac_done := false
+	return surveys_done and bridge_done and evac_done
+
+
 func _on_level_ready() -> void:
 	# ── 李春 ──
 	set_unit_skills(_li_chun as Unit, Progress.get_battle_skill_resources(GameState.selected_level))
@@ -147,6 +162,10 @@ func _on_level_ready() -> void:
 	set_unit_skills(_craftsman_b as Unit, [_sk_mallet, _sk_guard])
 	setup_unit_stats(_craftsman_b as Unit, "工匠", 110, 18, 90, 9)
 	_apply_persistent_growth_effects()
+
+	# ── 勘测点 ──
+	_setup_survey_points()
+	skill_executed.connect(_on_skill_executed)
 
 
 func _get_ai_context() -> Dictionary:

@@ -62,6 +62,9 @@ signal unit_gained_skill(unit: Unit, skill: SkillData)
 ## 某单位失去一个技能（通过 revoke_skill 移除）。
 signal unit_lost_skill(unit: Unit, skill: SkillData)
 
+## 技能成功执行后发射。用于关卡响应技能副作用（如勘测点完成）。
+signal skill_executed(caster: Unit, skill: SkillData, cast_cell: Vector2i)
+
 
 @onready var tilemap_container: Node2D = $TileMaps
 @onready var units_container: Node2D = $Entities/Units
@@ -798,6 +801,9 @@ func _execute_ai_skill(unit: Unit, skill: SkillData, cast_cell: Vector2i) -> voi
 				if not target_names.is_empty():
 					Notify.notify("%s 触发额外效果：%s" % ["、".join(target_names), effect_name], Notify.Position.TOP_RIGHT, Notify.Style.INFO, 3.0)
 		unit.refresh_overhead_bars()
+		# 技能执行通知
+		skill_executed.emit(unit, skill, cast_cell)
+		_check_win_lose()
 
 	# 镜头恢复
 	if lv_camera and focus_marker:
@@ -1372,10 +1378,12 @@ func _has_usable_attack(unit: Unit, enemy_cells: Dictionary) -> bool:
 	if unit.combat_stats == null or unit.unit_data == null:
 		return false
 	for skill: SkillData in unit.unit_data.skills:
-		if skill.skill_type != Enums.SkillType.ATTACK:
-			continue
 		if not unit.combat_stats.can_use_skill(skill):
 			continue
+		# 非攻击技能（辅助/交互）只需 AP 和次数足够即可使用
+		if skill.skill_type != Enums.SkillType.ATTACK:
+			return true
+		# 攻击技能需要敌人在施法+效果范围内
 		for cast_offset in skill.cast_offsets:
 			var cast_cell := unit.cell + cast_offset
 			for effect_offset in skill.effect_offsets:
@@ -1493,6 +1501,10 @@ func _confirm_targeting_skill(cell: Vector2i) -> void:
 					target_names.append((tu as Unit).combat_stats.unit_name)
 			if not target_names.is_empty():
 				Notify.notify("%s 触发额外效果：%s" % ["、".join(target_names), effect_name], Notify.Position.TOP_RIGHT, Notify.Style.INFO, 3.0)
+
+	# ── 技能执行通知（关卡可响应副作用）──
+	skill_executed.emit(selected_unit as Unit, used_skill, cell)
+	_check_win_lose()
 
 	# 镜头停留片刻后恢复
 	if lv_camera and focus_marker:
@@ -1896,6 +1908,16 @@ func _on_unit_move_finished_special(entity: Node2D) -> void:
 		if cell in _special_tile_map:
 			_special_tile_map[cell]._on_unit_arrive(entity)
 		_pending_special_enter.erase(entity)
+
+
+## 在 _on_level_ready() 中程序化注册一个 SpecialTile（跳过 _setup_special_tiles 自动扫描）。
+func register_special_tile(tile: SpecialTile, cell: Vector2i) -> void:
+	tile.cell = cell
+	if not tile.is_inside_tree():
+		special_tiles_container.add_child(tile)
+	tile.reparent(obstacles_tilemap_layer)
+	tile.position = tilemap.map_to_local(cell)
+	_special_tile_map[cell] = tile
 
 
 # ─────────────────────────────────────────────
