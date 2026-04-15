@@ -69,31 +69,31 @@ func get_teams_config() -> Array:
 func get_wave_config() -> Dictionary:
 	return {
 		1: [
-			{"unit_data": _ud_dark_current, "cell": Vector2i(8, -4), "team_index": ENEMY_TEAM,
+			{"unit_data": _ud_dark_current, "cell": Vector2i(0, -4), "team_index": ENEMY_TEAM,
 			 "skills": [_sk_lunge], "color": COLOR_DARK_CURRENT},
 			{"unit_data": _ud_dark_current, "cell": Vector2i(10, -3), "team_index": ENEMY_TEAM,
 			 "skills": [_sk_lunge], "color": COLOR_DARK_CURRENT},
 		],
 		2: [
-			{"unit_data": _ud_dark_current, "cell": Vector2i(6, -5), "team_index": ENEMY_TEAM,
+			{"unit_data": _ud_dark_current, "cell": Vector2i(12, -5), "team_index": ENEMY_TEAM,
 			 "skills": [_sk_lunge], "color": COLOR_DARK_CURRENT},
 		],
 		3: [
-			{"unit_data": _ud_whirl_pool, "cell": Vector2i(9, -2), "team_index": ENEMY_TEAM,
+			{"unit_data": _ud_whirl_pool, "cell": Vector2i(0, -2), "team_index": ENEMY_TEAM,
 			 "skills": [_sk_pull], "color": COLOR_WHIRL_POOL},
 		],
 		4: [
-			{"unit_data": _ud_mud_wraith, "cell": Vector2i(5, -3), "team_index": ENEMY_TEAM,
+			{"unit_data": _ud_mud_wraith, "cell": Vector2i(-5, -3), "team_index": ENEMY_TEAM,
 			 "skills": [_sk_crush], "color": COLOR_MUD_WRAITH},
 		],
 		5: [
-			{"unit_data": _ud_dark_current, "cell": Vector2i(11, -4), "team_index": ENEMY_TEAM,
+			{"unit_data": _ud_dark_current, "cell": Vector2i(-1, -6), "team_index": ENEMY_TEAM,
 			 "skills": [_sk_lunge], "color": COLOR_DARK_CURRENT},
-			{"unit_data": _ud_drift_log, "cell": Vector2i(7, -6), "team_index": ENEMY_TEAM,
+			{"unit_data": _ud_drift_log, "cell": Vector2i(10, -6), "team_index": ENEMY_TEAM,
 			 "skills": [_sk_timber], "color": COLOR_DRIFT_LOG},
 		],
 		7: [
-			{"unit_data": _ud_whirl_pool, "cell": Vector2i(8, -2), "team_index": ENEMY_TEAM,
+			{"unit_data": _ud_whirl_pool, "cell": Vector2i(10, -2), "team_index": ENEMY_TEAM,
 			 "skills": [_sk_pull], "color": COLOR_WHIRL_POOL},
 		],
 	}
