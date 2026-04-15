@@ -18,7 +18,7 @@ var _ud_mud_wraith: UnitData = preload("res://data/units/bank_mud_wraith.tres")
 var _ud_drift_log: UnitData = preload("res://data/units/drift_log_pack.tres")
 
 # ── 敌方队伍索引 ──
-const ENEMY_TEAM := 2
+const ENEMY_TEAM := 1
 
 # ── 敌方颜色 ──
 const COLOR_DARK_CURRENT := Color(0.3, 0.4, 0.9)    # 蓝 - 暗涌（水）
@@ -33,9 +33,30 @@ var _survey_b: Node2D
 var _craftsman_a: Node2D
 var _craftsman_b: Node2D
 
+# ── 关卡任务状态 ──
+enum TaskState { TASK1_SURVEY, TASK2_BRIDGE, TASK3_EVAC }
+var _current_task: TaskState = TaskState.TASK1_SURVEY
+
 # ── 勘测点 ──
 var _survey_points: Array[SurveyPointTile] = []
 var _survey_completed_count: int = 0
+const SURVEY_CELLS: Array[Vector2i] = [Vector2i(-11, 12), Vector2i(-1, 2), Vector2i(10, -10)]
+
+# ── 候选桥位 ──
+var _bridge_confirmed: bool = false
+var _bridge_tile: SpecialTile = null
+const BRIDGE_CELL: Vector2i = Vector2i(0, 0)
+const COLOR_BRIDGE := Color(0.2, 0.6, 0.95, 0.75)
+
+# ── 撤离点 ──
+var _evac_tile: SpecialTile = null
+var _evac_notified: bool = false
+const EVAC_CELL: Vector2i = Vector2i(23, 19)
+const COLOR_EVAC := Color(0.9, 0.3, 0.3, 0.6)
+
+# ── 任务提示 UI ──
+var _mission_hint_label: Label = null
+var _survey_points_label: Label = null
 
 
 func get_teams_config() -> Array:
@@ -50,13 +71,8 @@ func get_teams_config() -> Array:
 			"faction": "好人",
 			"controller": "player",
 			"units": [_li_chun,_survey_a, _survey_b, _craftsman_a, _craftsman_b],
+			
 		},
-		# {
-		# 	"name": "辅助队伍",
-		# 	"faction": "好人",
-		# 	"controller": "player",
-		# 	"units": [_survey_a, _survey_b, _craftsman_a, _craftsman_b],
-		# },
 		{
 			"name": "敌方",
 			"faction": "坏人",
@@ -100,13 +116,26 @@ func get_wave_config() -> Dictionary:
 
 
 func get_objectives_text() -> Dictionary:
-	var survey_status := " (%d/%d)" % [_survey_completed_count, _survey_points.size()] if _survey_points.size() > 0 else ""
+	var lines: Array[String] = []
+	match _current_task:
+		TaskState.TASK1_SURVEY:
+			var status := " (%d/%d)" % [_survey_completed_count, SURVEY_CELLS.size()]
+			lines.append("- 完成 3 个勘测点%s" % status)
+			lines.append("- 李春在候选桥位执行「相水定址」")
+			lines.append("- 至少 1 名测量工进入撤离区并结束回合")
+		TaskState.TASK2_BRIDGE:
+			lines.append("- 完成 3 个勘测点 (3/3)")
+			var status := " (0/1)" if not _bridge_confirmed else " (1/1)"
+			lines.append("- 李春在候选桥位执行「相水定址」%s" % status)
+			lines.append("- 至少 1 名测量工进入撤离区并结束回合")
+		TaskState.TASK3_EVAC:
+			lines.append("- 完成 3 个勘测点 (3/3)")
+			lines.append("- 李春在候选桥位执行「相水定址」 (1/1)")
+			var evac_done := _is_surveyor_at_evac()
+			var status := " (0/1)" if not evac_done else " (1/1)"
+			lines.append("- 至少 1 名测量工进入撤离区并结束回合%s" % status)
 	return {
-		"victory": [
-			"- 完成 3 个勘测点%s" % survey_status,
-			"- 李春在候选桥位执行「相水定址」",
-			"- 至少 1 名测量工进入撤离区并结束回合",
-		],
+		"victory": lines,
 		"defeat": [
 			"- 李春倒下",
 			"- 两名测量工全部倒下",
@@ -134,13 +163,20 @@ func check_defeat() -> String:
 
 
 func check_victory() -> bool:
-	# 条件 1：完成所有勘测点
-	var surveys_done := _survey_completed_count >= _survey_points.size() and _survey_points.size() > 0
-	# 条件 2：李春在候选桥位执行「相水定址」（待实现）
-	var bridge_done := false
-	# 条件 3：至少 1 名测量工进入撤离区并结束回合（待实现）
-	var evac_done := false
-	return surveys_done and bridge_done and evac_done
+	if _current_task != TaskState.TASK3_EVAC:
+		return false
+	if not _bridge_confirmed:
+		return false
+	return _is_surveyor_at_evac()
+
+
+func _is_surveyor_at_evac() -> bool:
+	for surveyor in [_survey_a, _survey_b]:
+		if is_instance_valid(surveyor) and surveyor is Unit:
+			var u := surveyor as Unit
+			if u.combat_stats and u.combat_stats.is_alive() and u.cell == EVAC_CELL:
+				return true
+	return false
 
 
 func _on_level_ready() -> void:
@@ -164,9 +200,200 @@ func _on_level_ready() -> void:
 	setup_unit_stats(_craftsman_b as Unit, "工匠", 110, 18, 90, 9)
 	_apply_persistent_growth_effects()
 
-	# ── 勘测点 ──
-	# _setup_survey_points() # todo: 根据地图设置勘测点
-	skill_executed.connect(_on_skill_executed)
+	# ── 关卡机制初始化 ──
+	_setup_survey_points()
+	_setup_evac_tile()
+	_setup_mission_hint()
+	_setup_survey_points_hint()
+	Notify.notify("任务目标一：派测量工前往 3 个勘测点施放「踏勘量址」。", Notify.Position.TOP_CENTER, Notify.Style.INFO, 4.0)
+
+
+func _setup_survey_points() -> void:
+	for cell in SURVEY_CELLS:
+		var tile := _make_survey_point_tile()
+		tile.name = "SurveyPoint_%d_%d" % [cell.x, cell.y]
+		register_special_tile(tile, cell)
+		_survey_points.append(tile)
+		tile.survey_completed.connect(_on_survey_point_completed)
+
+
+func _make_survey_point_tile() -> SurveyPointTile:
+	var tile := SurveyPointTile.new()
+	var visual := Polygon2D.new()
+	visual.name = "Visual"
+	visual.polygon = PackedVector2Array([0, -16, 16, -8, 0, 0, -16, -8])
+	tile.add_child(visual)
+	return tile
+
+
+func _setup_evac_tile() -> void:
+	_evac_tile = _make_special_tile(COLOR_EVAC)
+	_evac_tile.name = "EvacuationTile"
+	register_special_tile(_evac_tile, EVAC_CELL)
+
+
+func _make_special_tile(color: Color) -> SpecialTile:
+	var tile := SpecialTile.new()
+	var visual := Polygon2D.new()
+	visual.name = "Visual"
+	visual.polygon = PackedVector2Array([0, -16, 16, -8, 0, 0, -16, -8])
+	visual.color = color
+	tile.add_child(visual)
+	return tile
+
+
+func _setup_mission_hint() -> void:
+	_mission_hint_label = Label.new()
+	_mission_hint_label.name = "MissionHint"
+	_mission_hint_label.anchors_preset = Control.PRESET_TOP_WIDE
+	_mission_hint_label.offset_top = 36
+	_mission_hint_label.offset_bottom = 66
+	_mission_hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_mission_hint_label.add_theme_font_size_override("font_size", 18)
+	_mission_hint_label.add_theme_color_override("font_color", Color(1.0, 0.95, 0.8))
+	_mission_hint_label.add_theme_color_override("font_outline_color", Color(0.1, 0.1, 0.1))
+	_mission_hint_label.add_theme_constant_override("outline_size", 4)
+	gui.add_child(_mission_hint_label)
+	_update_mission_hint()
+
+
+func _setup_survey_points_hint() -> void:
+	_survey_points_label = Label.new()
+	_survey_points_label.name = "SurveyPointsHint"
+	_survey_points_label.anchors_preset = Control.PRESET_TOP_LEFT
+	_survey_points_label.offset_left = 18
+	_survey_points_label.offset_top = 84
+	_survey_points_label.offset_right = 320
+	_survey_points_label.offset_bottom = 200
+	_survey_points_label.vertical_alignment = VERTICAL_ALIGNMENT_TOP
+	_survey_points_label.add_theme_font_size_override("font_size", 16)
+	_survey_points_label.add_theme_color_override("font_color", Color(0.96, 0.94, 0.88))
+	_survey_points_label.add_theme_color_override("font_outline_color", Color(0.08, 0.08, 0.08))
+	_survey_points_label.add_theme_constant_override("outline_size", 3)
+	gui.add_child(_survey_points_label)
+	_update_survey_points_hint()
+
+
+func _update_mission_hint() -> void:
+	if _mission_hint_label == null:
+		return
+	match _current_task:
+		TaskState.TASK1_SURVEY:
+			_mission_hint_label.text = "任务目标一，完成3个勘测点【%d/%d】" % [_survey_completed_count, SURVEY_CELLS.size()]
+		TaskState.TASK2_BRIDGE:
+			_mission_hint_label.text = "任务目标二，李春前往地图中心使用「相水定址」【%s】" % ("0/1" if not _bridge_confirmed else "1/1")
+		TaskState.TASK3_EVAC:
+			var evac_done := _is_surveyor_at_evac()
+			_mission_hint_label.text = "任务目标三，至少让一名测量工人撤离【%s】" % ("0/1" if not evac_done else "1/1")
+
+
+func _update_survey_points_hint() -> void:
+	if _survey_points_label == null:
+		return
+	var lines: Array[String] = ["已勘测点位："]
+	for cell in SURVEY_CELLS:
+		var tile := _special_tile_map.get(cell) as SurveyPointTile
+		var done := tile != null and tile.completed
+		var prefix := "[已完成]" if done else "[未完成]"
+		lines.append("%s (%d, %d)" % [prefix, cell.x, cell.y])
+	_survey_points_label.text = "\n".join(lines)
+
+
+func _on_survey_point_completed(tile: SurveyPointTile) -> void:
+	_survey_completed_count += 1
+	_update_mission_hint()
+	_update_survey_points_hint()
+	Notify.notify("勘测点 %s 已完成！（%d/%d）" % [str(tile.cell), _survey_completed_count, SURVEY_CELLS.size()], Notify.Position.TOP_CENTER, Notify.Style.SUCCESS, 3.0)
+	if _survey_completed_count >= SURVEY_CELLS.size():
+		_advance_to_task2()
+
+
+func _advance_to_task2() -> void:
+	_current_task = TaskState.TASK2_BRIDGE
+	Notify.notify("所有勘测点已完成！新的候选桥位已出现在地图中心。", Notify.Position.TOP_CENTER, Notify.Style.SUCCESS, 4.0)
+	_spawn_bridge_tile()
+	_update_mission_hint()
+	_show_objectives_if_not_open()
+	_focus_camera_after_delay(BRIDGE_CELL)
+
+
+func _spawn_bridge_tile() -> void:
+	_bridge_tile = _make_special_tile(COLOR_BRIDGE)
+	_bridge_tile.name = "BridgeSiteTile"
+	register_special_tile(_bridge_tile, BRIDGE_CELL)
+
+
+func _advance_to_task3() -> void:
+	_current_task = TaskState.TASK3_EVAC
+	Notify.notify("相水定址完成！请指挥测量工前往撤离点 (23, 19)。", Notify.Position.TOP_CENTER, Notify.Style.SUCCESS, 4.0)
+	_update_mission_hint()
+	_show_objectives_if_not_open()
+	_focus_camera_after_delay(EVAC_CELL)
+
+
+func _show_objectives_if_not_open() -> void:
+	if not _objectives_open:
+		show_objectives()
+
+
+func _focus_camera_after_delay(cell: Vector2i) -> void:
+	# 延迟到技能演出结束后再移动镜头，避免与基类的镜头锁定冲突
+	await get_tree().create_timer(0.6).timeout
+	await _focus_camera_on_cell(cell, 1.3, 1.2)
+
+
+func _focus_camera_on_cell(cell: Vector2i, zoom: float = 1.3, duration: float = 1.0) -> void:
+	var lv_camera := camera as LevelCamera
+	if lv_camera == null:
+		return
+	var marker := Node2D.new()
+	add_child(marker)
+	marker.global_position = tilemap.map_to_local(cell)
+	lv_camera.lock_on(marker, zoom)
+	await get_tree().create_timer(duration).timeout
+	lv_camera.unlock()
+	marker.queue_free()
+
+
+func _on_skill_executed(caster: Unit, skill: SkillData, cast_cell: Vector2i, _exec_result: SkillExecutor.ExecuteResult) -> void:
+	if skill.extra_effect_id == "complete_survey":
+		if _current_task != TaskState.TASK1_SURVEY:
+			return
+		var tile := _special_tile_map.get(cast_cell) as SurveyPointTile
+		if caster.combat_stats.unit_name != "测量工":
+			Notify.notify("只有测量工可以完成勘测点。", Notify.Position.TOP_CENTER, Notify.Style.WARNING, 2.0)
+			return
+		if tile == null:
+			Notify.notify("此处不是勘测点，踏勘量址没有记录结果。", Notify.Position.TOP_CENTER, Notify.Style.WARNING, 2.5)
+			return
+		if tile.completed:
+			Notify.notify("该勘测点已经完成过了。", Notify.Position.TOP_CENTER, Notify.Style.INFO, 2.0)
+			return
+		tile.complete()
+
+	elif skill.extra_effect_id == "read_water":
+		if _current_task != TaskState.TASK2_BRIDGE:
+			return
+		if caster != _li_chun:
+			Notify.notify("只有李春可以执行「相水定址」。", Notify.Position.TOP_CENTER, Notify.Style.WARNING, 2.0)
+			return
+		if cast_cell != BRIDGE_CELL:
+			Notify.notify("请前往地图中心的候选桥位执行「相水定址」。", Notify.Position.TOP_CENTER, Notify.Style.WARNING, 2.5)
+			return
+		_bridge_confirmed = true
+		_advance_to_task3()
+
+
+func _on_unit_moved() -> void:
+	if _current_task == TaskState.TASK3_EVAC:
+		if _is_surveyor_at_evac():
+			_update_mission_hint()
+			if not _evac_notified:
+				_evac_notified = true
+				Notify.notify("测量工已抵达撤离点！", Notify.Position.TOP_CENTER, Notify.Style.SUCCESS, 3.0)
+			_check_win_lose()
+		else:
+			_update_mission_hint()
 
 
 func _nearest_walkable(target: Vector2i) -> Vector2i:
