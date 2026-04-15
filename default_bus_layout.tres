@@ -4,7 +4,6 @@
 
 [sub_resource type="AudioEffectLowPassFilter" id="AudioEffectLowPassFilter_4m1jd"]
 cutoff_hz = 12000.0
-resonance = 0.5
 
 [resource]
 bus/0/name = &"Master"

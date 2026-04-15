@@ -1,0 +1,1082 @@
+# 第一章第四关《敞肩试汛》设计稿
+
+## Godot实现取向版 / Godot-Oriented Markdown Draft
+
+---
+
+## 0. 本关定位 / Stage Role
+
+```text
+关卡ID / stage_id: chapter1_stage4
+关卡名称 / stage_name: 敞肩试汛
+定位 / stage_role: 最终关 + 环境终局关 + 桥体稳定关 + Boss高潮关
+Boss / boss: 怒水
+难度 / difficulty: 最高
+推荐回合上限 / turn_limit: 15
+```
+
+### 本关核心目标 / Core Goal
+
+本关的主问题不是单纯击败Boss，而是同时守住四件事：
+
+1. 桥体总稳定值 / overall_bridge_stability
+2. 左桥台稳定值 / left_pier_stability
+3. 右桥台稳定值 / right_pier_stability
+4. 四小拱泄洪状态 / side_arch_open_count
+
+玩家需要一边守桥台、一边开泄洪、一边处理桥面障碍和水压敌军，最后在泄洪条件足够稳定时击败怒水。
+
+---
+
+## 1. 核心机制：整桥稳定与四小拱泄洪 / Core Mechanic: Whole-Bridge Stability and Side-Arch Flood Release
+
+## 1.1 机制变量 / Core Variables
+
+```text
+桥体总稳定值 / overall_bridge_stability: int
+左桥台稳定值 / left_pier_stability: int
+右桥台稳定值 / right_pier_stability: int
+
+小拱1状态 / side_arch_1_state: closed | open | blocked
+小拱2状态 / side_arch_2_state: closed | open | blocked
+小拱3状态 / side_arch_3_state: closed | open | blocked
+小拱4状态 / side_arch_4_state: closed | open | blocked
+
+已开启小拱数 / side_arch_open_count: int
+怒水可受伤阶段 / flood_boss_exposed_level: int
+```
+
+### 初始值 / Initial Values
+
+```text
+桥体总稳定值 / overall_bridge_stability: 12
+左桥台稳定值 / left_pier_stability: 6
+右桥台稳定值 / right_pier_stability: 6
+
+小拱1状态 / side_arch_1_state: closed
+小拱2状态 / side_arch_2_state: closed
+小拱3状态 / side_arch_3_state: closed
+小拱4状态 / side_arch_4_state: closed
+```
+
+---
+
+## 1.2 四小拱泄洪判定 / Side-Arch Flood Release Rules
+
+```text
+已开启小拱数 / side_arch_open_count
+= count(open)
+```
+
+### 水压阶段 / Flood Pressure States
+
+#### 全闭 / fully_closed
+
+```text
+条件 / condition: side_arch_open_count == 0
+效果 / effect:
+    敌方回合结束时:
+        overall_bridge_stability -= 2
+        较低桥台稳定值一侧 pier_stability -= 1
+    怒水直接受到的伤害固定为 1
+```
+
+#### 初泄 / partially_open_1
+
+```text
+条件 / condition: side_arch_open_count == 1
+效果 / effect:
+    敌方回合结束时:
+        overall_bridge_stability -= 2
+    怒水直接受到的伤害上限 = 6
+```
+
+#### 分泄 / partially_open_2
+
+```text
+条件 / condition: side_arch_open_count == 2
+效果 / effect:
+    敌方回合结束时:
+        overall_bridge_stability -= 1
+    怒水直接受到的伤害上限 = 12
+```
+
+#### 通泄 / partially_open_3
+
+```text
+条件 / condition: side_arch_open_count == 3
+效果 / effect:
+    无固定桥体总稳定惩罚
+    怒水正常受到伤害
+```
+
+#### 全泄 / fully_open
+
+```text
+条件 / condition: side_arch_open_count == 4
+效果 / effect:
+    无固定桥体总稳定惩罚
+    怒水正常受到伤害
+    怒水造成的伤害 -15%
+```
+
+---
+
+## 1.3 桥台压力 / Pier Pressure Rules
+
+桥台是本关的第二条生命线。
+
+### 变化规则 / Pier Stability Changes
+
+```text
+若桥台噬者在敌方回合结束时相邻左桥台:
+    left_pier_stability -= 1
+
+若桥台噬者在敌方回合结束时相邻右桥台:
+    right_pier_stability -= 1
+
+若洪锋或漂木群·洪水版以冲撞效果命中桥台:
+    对应桥台稳定值 -= 1
+```
+
+### 失败联动 / Fail Link
+
+```text
+若 left_pier_stability <= 0:
+    立即判负
+
+若 right_pier_stability <= 0:
+    立即判负
+```
+
+---
+
+## 1.4 桥体总稳定值 / Overall Bridge Stability
+
+桥体总稳定值代表整桥在当前洪压下还能承受的总负荷。
+
+### 变化规则 / Overall Stability Changes
+
+```text
+按 side_arch_open_count 结算固定洪压损失
+
+若漂木群·洪水版封住已开启小拱:
+    不立即扣桥体总稳定值
+    但该小拱本回合不计入已开启数
+
+若泥沙魇结束行动时位于桥面关键格:
+    overall_bridge_stability -= 1
+```
+
+### 失败联动 / Fail Link
+
+```text
+若 overall_bridge_stability <= 0:
+    立即判负
+```
+
+---
+
+## 1.5 小拱交互与抢修 / Side-Arch Interaction and Emergency Repair
+
+这部分不额外设计辅助单位的新技能，统一作为关卡交互。
+
+### 启肩泄洪 / Open Side-Arch Release
+
+```text
+关卡交互ID / stage_interact_id: open_side_arch
+可执行者 / performers:
+    李春 li_chun
+    运石工 stone_carrier
+
+执行位置 / location:
+    与未开启或被堵塞的小拱节点相邻1格
+
+行动力消耗 / ap_cost:
+    李春 30
+    运石工 35
+
+效果 / effect:
+    若目标状态为 closed:
+        变为 open
+    若目标状态为 blocked:
+        变为 open
+```
+
+### 抢修桥台 / Repair Pier
+
+```text
+关卡交互ID / stage_interact_id: repair_pier
+可执行者 / performers:
+    运石工 stone_carrier
+
+执行位置 / location:
+    与左桥台或右桥台相邻1格
+
+行动力消耗 / ap_cost: 40
+效果 / effect:
+    目标桥台稳定值 +1
+    单侧上限不超过 6
+```
+
+---
+
+## 2. 地图结构 / Map Structure
+
+```text
+地图尺寸 / map_size: 19 x 13
+地图中轴 / center_axis: 主桥面
+左桥台 / left_pier: 地图左中
+右桥台 / right_pier: 地图右中
+小拱节点 / side_arch_nodes:
+    左前小拱
+    左后小拱
+    右前小拱
+    右后小拱
+Boss位置 / boss_position: 桥下洪心区域
+```
+
+### 关键点位 / Key Points
+
+```text
+主桥面 / main_bridge_deck
+左桥台 / left_pier
+右桥台 / right_pier
+左前小拱 / side_arch_left_front
+左后小拱 / side_arch_left_back
+右前小拱 / side_arch_right_front
+右后小拱 / side_arch_right_back
+桥心观察位 / bridge_center_watch_point
+```
+
+---
+
+## 3. 场景对象与地格 / Stage Objects and Tiles
+
+### 普通桥面 / bridge_tile
+
+* 无额外效果
+
+### 激流桥缘 / rapid_edge_tile
+
+* 不可主动结束行动
+* 被击退进入时立即受到12点无属性伤害，并继续沿流向位移1格
+
+### 淤泥格 / silt_tile
+
+* 进入时额外消耗4点行动力
+* 在其上结束行动时，下回合首次移动额外消耗2点行动力
+
+### 小拱节点 / side_arch_node
+
+* 可被“启肩泄洪”交互
+* 若被漂木群·洪水版占据，则视为 blocked
+
+### 左桥台 / left_pier
+
+* 可被“抢修桥台”交互
+* 可被桥台噬者持续攻击
+
+### 右桥台 / right_pier
+
+* 可被“抢修桥台”交互
+* 可被桥台噬者持续攻击
+
+### 桥心观察位 / bridge_center_watch_point
+
+* 李春站在此处时，新技能的作用范围最容易覆盖全桥
+* 不提供额外数值加成
+
+---
+
+## 4. 我方单位配置 / Ally Unit Setup
+
+## 4.1 出场编制 / Ally Lineup
+
+```text
+李春 / Li Chun ×1
+工匠 / Craftsman ×3
+运石工 / Stone Carrier ×2
+```
+
+这与前面的总表设定一致：第四关继续使用工匠与运石工，工匠负责桥面守卫与桥台防守，运石工从运输角色进一步转型为抢修与开泄辅助。
+
+---
+
+## 4.2 李春 / Li Chun
+
+李春沿用前三关技能池，并在本关新增1个最终阶段技能，用于体现“桥体稳定、范围支援、最终应急处理”。
+
+```text
+单位ID / unit_id: hero_li_chun
+名称 / name: 李春
+阵营 / camp: ally
+最大生命值 / max_hp: 138
+基础攻击力 / base_atk: 26
+行动力上限 / ap_max: 105
+每格移动消耗 / move_cost_per_tile: 8
+每回合攻击次数上限 / attack_limit_per_turn: unlimited
+每回合辅助次数上限 / assist_limit_per_turn: unlimited
+每回合交互次数上限 / interact_limit_per_turn: unlimited
+固有属性 / innate_element: none
+```
+
+### 可携带技能上限 / skill_loadout_limit
+
+```text
+5
+```
+
+### 推荐可用技能池 / Available Skill Pool
+
+#### 技能1：规尺击 / Rule-Measure Strike
+
+```text
+技能ID / skill_id: lc_rule_strike
+技能名称 / skill_name: 规尺击
+技能类别 / skill_type: attack
+施放距离 / cast_range: 1
+作用范围 / area_shape: single
+行动力消耗 / ap_cost: 20
+伤害倍率 / damage_ratio: 1.00
+伤害属性 / damage_element: none
+附着量 / attach_amount: 0
+附加效果 / extra_effect: 对无属性目标伤害×1.15
+```
+
+#### 技能2：木楔勘岸 / Wooden Wedge Survey
+
+```text
+技能ID / skill_id: lc_wedge_bank_probe
+技能名称 / skill_name: 木楔勘岸
+技能类别 / skill_type: attack
+施放距离 / cast_range: 3
+作用范围 / area_shape: single
+行动力消耗 / ap_cost: 25
+伤害倍率 / damage_ratio: 1.00
+伤害属性 / damage_element: wood
+附着量 / attach_amount: 1
+```
+
+#### 技能3：投石遏流 / Cast Stone to Arrest the Flow
+
+```text
+技能ID / skill_id: lc_cast_stone_arrest_flow
+技能名称 / skill_name: 投石遏流
+技能类别 / skill_type: attack
+施放距离 / cast_range: 3
+作用范围 / area_shape: single
+行动力消耗 / ap_cost: 35
+伤害倍率 / damage_ratio: 0.95
+伤害属性 / damage_element: earth
+附着量 / attach_amount: 2
+附加效果 / extra_effect: 命中后击退1格
+```
+
+#### 技能4：分规定弧 / Mark the Arc with Dividers
+
+```text
+技能ID / skill_id: lc_divider_mark_arc
+技能名称 / skill_name: 分规定弧
+技能类别 / skill_type: attack
+施放距离 / cast_range: 3
+作用范围 / area_shape: diamond
+作用半径 / area_radius: 1
+行动力消耗 / ap_cost: 40
+伤害倍率 / damage_ratio: 0.90
+伤害属性 / damage_element: none
+附着量 / attach_amount: 0
+附加效果 / extra_effect: 对范围内全部敌人结算伤害
+```
+
+#### 技能5：墨绳校券 / Ink-Line Arch Calibration
+
+```text
+技能ID / skill_id: lc_inkline_balance_arch
+技能名称 / skill_name: 墨绳校券
+技能类别 / skill_type: assist_interact
+施放距离 / cast_range: 4
+作用范围 / area_shape: single
+行动力消耗 / ap_cost: 35
+伤害倍率 / damage_ratio: 0.00
+伤害属性 / damage_element: none
+附着量 / attach_amount: 0
+冷却回合 / cooldown_turns: 2
+附加效果 / extra_effect:
+    若目标为可施工点，则执行对应阶段交互
+```
+
+#### 技能6：导汛开肩 / Guide the Flood Through the Side Arches
+
+这是第四关固定新增技能，既是范围控制，也是最终应急支援技能。
+
+```text
+技能ID / skill_id: lc_guide_flood_open_arch
+技能名称 / skill_name: 导汛开肩
+技能类别 / skill_type: attack_assist
+施放距离 / cast_range: 4
+作用范围 / area_shape: cross
+作用半径 / area_radius: 1
+行动力消耗 / ap_cost: 40
+伤害倍率 / damage_ratio: 0.90
+伤害属性 / damage_element: earth
+附着量 / attach_amount: 1
+冷却回合 / cooldown_turns: 2
+附加效果 / extra_effect:
+    1. 对范围内敌人结算伤害
+    2. 若中心格为小拱节点且状态为 closed 或 blocked，则将其改为 open
+    3. 若范围内存在友军，则赋予其“稳桥”1回合
+```
+
+### 稳桥 / steady_bridge
+
+```text
+状态ID / status_id: steady_bridge
+持续回合 / duration_turns: 1
+效果 / effect:
+    本回合首次受到由洪水、冲撞、击退造成的伤害 -8
+    本回合第一次被击退时距离 -1
+```
+
+### 本关推荐携带 / Recommended Loadout
+
+```text
+投石遏流
+分规定弧
+导汛开肩
+木楔勘岸 / 束桩缓波（二选一）
+规尺击 / 墨绳校券（二选一）
+```
+
+如果更偏输出，就带规尺击。
+如果更偏控场与救场，就带墨绳校券。
+
+---
+
+## 4.3 工匠 / Craftsman
+
+工匠继续只保留原有两项技能，不新增新技能，数值做小幅上调，确保能够承担桥台与桥面的最终正面压力。
+
+```text
+单位ID / unit_id: craftsman_guard
+名称 / name: 工匠
+阵营 / camp: ally
+最大生命值 / max_hp: 126
+基础攻击力 / base_atk: 22
+行动力上限 / ap_max: 95
+每格移动消耗 / move_cost_per_tile: 9
+每回合攻击次数上限 / attack_limit_per_turn: 1
+每回合辅助次数上限 / assist_limit_per_turn: 1
+每回合交互次数上限 / interact_limit_per_turn: 0
+固有属性 / innate_element: none
+```
+
+### 技能1：杵槌击 / Mallet Strike
+
+```text
+技能ID / skill_id: cg_mallet_strike
+技能名称 / skill_name: 杵槌击
+技能类别 / skill_type: attack
+施放距离 / cast_range: 1
+作用范围 / area_shape: single
+行动力消耗 / ap_cost: 25
+伤害倍率 / damage_ratio: 1.00
+伤害属性 / damage_element: none
+附着量 / attach_amount: 0
+```
+
+### 技能2：捍作护行 / Guard the Works
+
+```text
+技能ID / skill_id: cg_guard_the_works
+技能名称 / skill_name: 捍作护行
+技能类别 / skill_type: assist
+施放距离 / cast_range: 1
+作用范围 / area_shape: single
+行动力消耗 / ap_cost: 30
+伤害倍率 / damage_ratio: 0.00
+伤害属性 / damage_element: none
+附着量 / attach_amount: 0
+持续回合 / duration_turns: 2
+附加效果 / extra_effect: 赋予“护持”
+```
+
+---
+
+## 4.4 运石工 / Stone Carrier
+
+运石工延续第三关模板，不新增主动技能。第四关的开泄与抢修全部作为关卡交互处理，这样实现更干净。
+
+```text
+单位ID / unit_id: stone_carrier
+名称 / name: 运石工
+阵营 / camp: ally
+最大生命值 / max_hp: 100
+基础攻击力 / base_atk: 16
+行动力上限 / ap_max: 95
+每格移动消耗 / move_cost_per_tile: 9
+每回合攻击次数上限 / attack_limit_per_turn: 1
+每回合辅助次数上限 / assist_limit_per_turn: 0
+每回合交互次数上限 / interact_limit_per_turn: 1
+固有属性 / innate_element: none
+```
+
+### 技能1：扁杠自卫 / Pole Self-Defense
+
+```text
+技能ID / skill_id: sc_pole_self_defense
+技能名称 / skill_name: 扁杠自卫
+技能类别 / skill_type: attack
+施放距离 / cast_range: 1
+作用范围 / area_shape: single
+行动力消耗 / ap_cost: 25
+伤害倍率 / damage_ratio: 0.85
+伤害属性 / damage_element: none
+附着量 / attach_amount: 0
+```
+
+### 技能2：运石入券 / Carry Stone into the Arch
+
+本关不作为主要玩法，但保留底层兼容，不推荐高频使用。
+
+```text
+技能ID / skill_id: sc_transport_stone
+技能名称 / skill_name: 运石入券
+技能类别 / skill_type: interact
+施放距离 / cast_range: 0
+作用范围 / area_shape: self_tile
+行动力消耗 / ap_cost: 40
+伤害倍率 / damage_ratio: 0.00
+伤害属性 / damage_element: none
+附着量 / attach_amount: 0
+附加效果 / extra_effect: 本关默认不启用主流程施工推进
+```
+
+---
+
+## 5. 敌方单位配置 / Enemy Unit Setup
+
+## 5.1 洪锋 / Flood Spear
+
+洪锋是本关主体小怪，负责从正面冲击桥面和桥台，构成持续水压军。
+
+```text
+单位ID / unit_id: flood_spear
+名称 / name: 洪锋
+阵营 / camp: enemy
+最大生命值 / max_hp: 98
+基础攻击力 / base_atk: 24
+固有属性 / innate_element: water
+固有属性量 / innate_element_amount: 2
+敌方行为模板 / ai_type: frontal_charge
+```
+
+### 主动技能：激湍冲桥 / Torrent Ram
+
+```text
+技能ID / skill_id: fs_torrent_ram
+技能名称 / skill_name: 激湍冲桥
+技能类别 / skill_type: attack
+施放距离 / cast_range: line_2
+作用范围 / area_shape: line
+伤害倍率 / damage_ratio: 1.00
+伤害属性 / damage_element: water
+附着量 / attach_amount: 1
+附加效果 / extra_effect:
+    命中后击退1格
+    若命中对象为左桥台或右桥台，则对应桥台稳定值 -1
+```
+
+### 被动：涌锋 / Surging Front
+
+```text
+效果 / effect:
+    本回合首次移动 +1格
+```
+
+### AI优先级 / AI Priority
+
+```text
+桥台相邻位置 pier_adjacent_tile
+> 主桥面上的我方单位 ally_on_bridge
+> 最近单位 nearest_target
+```
+
+---
+
+## 5.2 泥沙魇 / Siltmare
+
+泥沙魇是地格污染型敌人，主要价值是降低机动性并拖慢开泄和抢修。
+
+```text
+单位ID / unit_id: siltmare
+名称 / name: 泥沙魇
+阵营 / camp: enemy
+最大生命值 / max_hp: 84
+基础攻击力 / base_atk: 18
+固有属性 / innate_element: earth
+固有属性量 / innate_element_amount: 2
+敌方行为模板 / ai_type: terrain_polluter
+```
+
+### 主动技能：浊潮覆步 / Mire the Steps
+
+```text
+技能ID / skill_id: sm_mire_steps
+技能名称 / skill_name: 浊潮覆步
+技能类别 / skill_type: attack
+施放距离 / cast_range: 1
+作用范围 / area_shape: single
+伤害倍率 / damage_ratio: 0.90
+伤害属性 / damage_element: earth
+附着量 / attach_amount: 1
+```
+
+### 被动：淤行 / Silt Spread
+
+```text
+效果 / effect:
+    每次结束行动后，
+    自身所在格变为淤泥格，持续2回合
+
+    若自身位于小拱节点结束行动，
+    则该小拱状态改为 blocked
+```
+
+### AI优先级 / AI Priority
+
+```text
+未开启或已开启的小拱节点 side_arch_node
+> 运石工 stone_carrier
+> 最近单位 nearest_target
+```
+
+---
+
+## 5.3 桥台噬者 / Pier Gnawer
+
+桥台噬者是本关少量但最高优先级的桥体破坏型敌人，专门逼迫玩家分兵。
+
+```text
+单位ID / unit_id: pier_gnawer
+名称 / name: 桥台噬者
+阵营 / camp: enemy
+最大生命值 / max_hp: 116
+基础攻击力 / base_atk: 22
+固有属性 / innate_element: earth
+固有属性量 / innate_element_amount: 2
+敌方行为模板 / ai_type: pier_breaker
+```
+
+### 主动技能：啮台重凿 / Gnaw the Pier
+
+```text
+技能ID / skill_id: pg_gnaw_pier
+技能名称 / skill_name: 啮台重凿
+技能类别 / skill_type: attack
+施放距离 / cast_range: 1
+作用范围 / area_shape: single
+伤害倍率 / damage_ratio: 1.05
+伤害属性 / damage_element: earth
+附着量 / attach_amount: 1
+```
+
+### 被动：蚀基 / Erode the Base
+
+```text
+效果 / effect:
+    若在敌方回合结束时相邻左桥台:
+        left_pier_stability -= 1
+
+    若在敌方回合结束时相邻右桥台:
+        right_pier_stability -= 1
+```
+
+### AI优先级 / AI Priority
+
+```text
+较低稳定值桥台 lower_stability_pier
+> 任意桥台 any_pier
+> 运石工 stone_carrier
+```
+
+---
+
+## 5.4 漂木群·洪水版 / Flood Driftwood Pack
+
+这是强化障碍型敌人，负责封桥面、堵小拱和撞退我方。
+
+```text
+单位ID / unit_id: flood_driftwood_pack
+名称 / name: 漂木群·洪水版
+阵营 / camp: enemy
+最大生命值 / max_hp: 58
+基础攻击力 / base_atk: 20
+固有属性 / innate_element: wood
+固有属性量 / innate_element_amount: 2
+敌方行为模板 / ai_type: hazard_charge
+```
+
+### 主动技能：漂槎压浪 / Driftwood Surge
+
+```text
+技能ID / skill_id: fdp_driftwood_surge
+技能名称 / skill_name: 漂槎压浪
+技能类别 / skill_type: attack
+施放距离 / cast_range: line_5
+作用范围 / area_shape: line
+伤害倍率 / damage_ratio: 1.00
+伤害属性 / damage_element: wood
+附着量 / attach_amount: 1
+附加效果 / extra_effect:
+    命中后击退1格
+```
+
+### 被动：塞肩 / Choke the Side Arch
+
+```text
+效果 / effect:
+    若本回合结束时位于小拱节点，
+    则该小拱状态改为 blocked
+```
+
+### AI行为 / AI Behavior
+
+```text
+沿固定洪道直线前进
+优先经过小拱节点
+不追人
+不转向
+```
+
+---
+
+## 5.5 怒水 / Wrathful Flood
+
+怒水是最终Boss，代表全图水压、改写流势、压桥台、封桥面的终局威胁。
+
+```text
+单位ID / unit_id: wrathful_flood
+名称 / name: 怒水
+阵营 / camp: enemy
+最大生命值 / max_hp: 360
+基础攻击力 / base_atk: 24
+固有属性 / innate_element: water
+固有属性量 / innate_element_amount: 2
+敌方行为模板 / ai_type: fixed_global_boss
+固定位置 / fixed_position: true
+```
+
+### 主动技能：翻潮压桥 / Overturning Flood
+
+```text
+技能ID / skill_id: wf_overturn_bridge
+技能名称 / skill_name: 翻潮压桥
+技能类别 / skill_type: special
+施放距离 / cast_range: global
+作用范围 / area_shape: special
+伤害倍率 / damage_ratio: 0.00
+伤害属性 / damage_element: water
+附着量 / attach_amount: 0
+附加效果 / extra_effect:
+    1. 对较低稳定值桥台施加 1 点稳定伤害
+    2. 若 side_arch_open_count <= 1，则 overall_bridge_stability -= 1
+    3. 将一条桥面边缘线标记为激流压区，持续1回合
+```
+
+### 被动：洪心难撼 / Flood Core
+
+```text
+效果 / effect:
+    若 side_arch_open_count == 0:
+        直接受到的伤害固定为 1
+
+    若 side_arch_open_count == 1:
+        直接受到的伤害上限 = 6
+
+    若 side_arch_open_count == 2:
+        直接受到的伤害上限 = 12
+
+    若 side_arch_open_count >= 3:
+        正常受到伤害
+```
+
+### 被动：怒涛拍面 / Slam the Deck
+
+```text
+效果 / effect:
+    敌方回合结束时，
+    若主桥面上存在未被护持或稳桥保护的我方单位，
+    则其中1名最近单位受到基础攻击力×0.50的无属性伤害
+```
+
+---
+
+## 6. 敌方波次配置 / Enemy Waves
+
+本关采用“固定Boss + 定时洪峰波次”的模式，不再使用第二关那种召唤型逻辑。
+
+### 开局配置 / Opening Setup
+
+```text
+洪锋 flood_spear ×2
+泥沙魇 siltmare ×1
+怒水 wrathful_flood ×1
+```
+
+### 回合波次 / Turn Waves
+
+```text
+第2回合敌方开始前 / wave_1:
+    洪锋 flood_spear ×1
+
+第3回合敌方开始前 / wave_2:
+    漂木群·洪水版 flood_driftwood_pack ×1
+
+第4回合敌方开始前 / wave_3:
+    桥台噬者 pier_gnawer ×1
+
+第5回合敌方开始前 / wave_4:
+    泥沙魇 siltmare ×1
+
+第7回合敌方开始前 / wave_5:
+    洪锋 flood_spear ×1
+    漂木群·洪水版 flood_driftwood_pack ×1
+
+第9回合敌方开始前 / wave_6:
+    桥台噬者 pier_gnawer ×1
+
+第11回合敌方开始前 / wave_7:
+    洪锋 flood_spear ×1
+```
+
+### 敌方总数 / Total Enemy Count
+
+```text
+洪锋 flood_spear ×5
+泥沙魇 siltmare ×2
+桥台噬者 pier_gnawer ×2
+漂木群·洪水版 flood_driftwood_pack ×2
+怒水 wrathful_flood ×1
+```
+
+这个配比对应你总表里“洪锋为主，泥沙魇和漂木群·洪水版中量，桥台噬者少量高威胁，怒水1”的结构。
+
+---
+
+## 7. 开局站位建议 / Opening Placement Suggestion
+
+```text
+李春 / Li Chun:
+    主桥面中后段，接近桥心观察位
+
+工匠A / Craftsman_A:
+    左桥台前
+
+工匠B / Craftsman_B:
+    右桥台前
+
+工匠C / Craftsman_C:
+    主桥面中央
+
+运石工A / StoneCarrier_A:
+    左后小拱附近
+
+运石工B / StoneCarrier_B:
+    右后小拱附近
+```
+
+### 敌方初始站位 / Enemy Opening
+
+```text
+怒水:
+    桥下洪心固定区域
+
+洪锋A:
+    主桥面正前洪道
+
+洪锋B:
+    右前桥缘洪道
+
+泥沙魇:
+    左前小拱外侧淤道
+```
+
+---
+
+## 8. 胜负条件 / Win and Fail Conditions
+
+### 胜利条件 / Victory Conditions
+
+```text
+1. 怒水生命值归零
+2. overall_bridge_stability > 0
+3. left_pier_stability > 0
+4. right_pier_stability > 0
+```
+
+### 失败条件 / Fail Conditions
+
+```text
+1. 李春死亡
+2. overall_bridge_stability <= 0
+3. left_pier_stability <= 0
+4. right_pier_stability <= 0
+5. 超过第15回合仍未通关
+```
+
+---
+
+## 9. 章节结算 / Chapter Completion
+
+第四关结束后不再提供下一关成长，而直接进入章节完成结算。
+
+### 章节完成标记 / Chapter Clear Flags
+
+```text
+chapter_1_clear = true
+li_chun_stage_title = 安桥者
+```
+
+### 可记录结算项 / Summary Records
+
+```text
+通关回合数 / clear_turn_count
+剩余桥体总稳定值 / remaining_overall_bridge_stability
+剩余左桥台稳定值 / remaining_left_pier_stability
+剩余右桥台稳定值 / remaining_right_pier_stability
+已开启小拱数 / opened_side_arch_count
+怒水击破时是否为全泄状态 / boss_defeated_under_full_release
+```
+
+---
+
+## 10. Godot拆表建议 / Godot Implementation Notes
+
+### 推荐资源拆分 / Suggested Resource Split
+
+```text
+res://data/stages/chapter1_stage4/
+    stage_config.tres
+    bridge_stability_config.tres
+    side_arch_config.tres
+    wave_spawns.tres
+
+res://data/units/
+    hero_li_chun.tres
+    craftsman_guard.tres
+    stone_carrier.tres
+    flood_spear.tres
+    siltmare.tres
+    pier_gnawer.tres
+    flood_driftwood_pack.tres
+    wrathful_flood.tres
+
+res://data/skills/
+    lc_guide_flood_open_arch.tres
+    fs_torrent_ram.tres
+    sm_mire_steps.tres
+    pg_gnaw_pier.tres
+    fdp_driftwood_surge.tres
+    wf_overturn_bridge.tres
+```
+
+### 关卡变量 / Stage Variables
+
+```text
+桥体总稳定值 / overall_bridge_stability: int
+左桥台稳定值 / left_pier_stability: int
+右桥台稳定值 / right_pier_stability: int
+
+小拱1状态 / side_arch_1_state: String
+小拱2状态 / side_arch_2_state: String
+小拱3状态 / side_arch_3_state: String
+小拱4状态 / side_arch_4_state: String
+
+已开启小拱数 / side_arch_open_count: int
+```
+
+### 小拱开启数结算 / Side-Arch Count Resolve
+
+```text
+resolve_side_arch_open_count():
+    side_arch_open_count = 0
+    for arch_state in [side_arch_1_state, side_arch_2_state, side_arch_3_state, side_arch_4_state]:
+        if arch_state == "open":
+            side_arch_open_count += 1
+```
+
+### 洪压结算伪逻辑 / Flood Pressure Resolve
+
+```text
+resolve_flood_pressure():
+    resolve_side_arch_open_count()
+
+    if side_arch_open_count == 0:
+        overall_bridge_stability -= 2
+        damage_lower_pier(1)
+    elif side_arch_open_count == 1:
+        overall_bridge_stability -= 2
+    elif side_arch_open_count == 2:
+        overall_bridge_stability -= 1
+```
+
+### Boss受伤判定伪逻辑 / Boss Damage Gate
+
+```text
+apply_damage_to_wrathful_flood(damage):
+    resolve_side_arch_open_count()
+
+    if side_arch_open_count == 0:
+        return 1
+    elif side_arch_open_count == 1:
+        return min(damage, 6)
+    elif side_arch_open_count == 2:
+        return min(damage, 12)
+    else:
+        return damage
+```
+
+### 关卡交互伪逻辑 / Stage Interaction Pseudo Logic
+
+```text
+open_side_arch(unit, target_arch):
+    if unit is li_chun:
+        spend_ap(30)
+    elif unit is stone_carrier:
+        spend_ap(35)
+
+    if target_arch.state == "closed" or target_arch.state == "blocked":
+        target_arch.state = "open"
+```
+
+```text
+repair_pier(unit, target_pier):
+    if unit is stone_carrier:
+        spend_ap(40)
+        target_pier.stability = min(target_pier.stability + 1, 6)
+```
+
+### 失败判定伪逻辑 / Fail Check
+
+```text
+check_stage_fail():
+    if li_chun.hp <= 0:
+        fail_stage()
+    if overall_bridge_stability <= 0:
+        fail_stage()
+    if left_pier_stability <= 0:
+        fail_stage()
+    if right_pier_stability <= 0:
+        fail_stage()
+```
+
+---
+
+## 11. 这版第四关的平衡抓手 / Balance Anchors
+
+这一关的操作重心会自然分成三层：
+
+第一层是工匠守桥台和桥面正压。
+第二层是运石工跑小拱和抢修。
+第三层是李春在桥心位置做范围清场、远程启肩和最终压制怒水。

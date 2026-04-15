@@ -46,7 +46,9 @@ layout_mode = 2
 theme_override_constants/separation = 8
 
 [node name="SettingsTitle" type="Label" parent="Backdrop/Panel/Content" unique_id=1536546068]
+unique_name_in_owner = true
 layout_mode = 2
+mouse_filter = 1
 text = "设置"
 horizontal_alignment = 1
 
@@ -144,6 +146,13 @@ text = "存档管理"
 [node name="Separator4" type="HSeparator" parent="Backdrop/Panel/Content" unique_id=1735054454]
 layout_mode = 2
 
+[node name="ProgressButton" type="Button" parent="Backdrop/Panel/Content" unique_id=1735054455]
+layout_mode = 2
+text = "进度"
+
+[node name="Separator5" type="HSeparator" parent="Backdrop/Panel/Content" unique_id=1735054456]
+layout_mode = 2
+
 [node name="QuickSaveButton" type="Button" parent="Backdrop/Panel/Content" unique_id=1955564325]
 unique_name_in_owner = true
 visible = false
@@ -171,8 +180,10 @@ text = "关闭"
 [connection signal="value_changed" from="Backdrop/Panel/Content/AudioSection/UiRow/UiSlider" to="." method="_on_ui_slider_value_changed"]
 [connection signal="value_changed" from="Backdrop/Panel/Content/AudioSection/VoiceRow/VoiceSlider" to="." method="_on_voice_slider_value_changed"]
 [connection signal="value_changed" from="Backdrop/Panel/Content/AudioSection/AmbienceRow/AmbienceSlider" to="." method="_on_ambience_slider_value_changed"]
+[connection signal="gui_input" from="Backdrop/Panel/Content/SettingsTitle" to="." method="_on_settings_title_gui_input"]
 [connection signal="pressed" from="Backdrop/Panel/Content/SaveSettingsButton" to="." method="_on_save_settings_button_pressed"]
 [connection signal="pressed" from="Backdrop/Panel/Content/SaveManagerButton" to="." method="_on_save_manager_pressed"]
+[connection signal="pressed" from="Backdrop/Panel/Content/ProgressButton" to="." method="_on_progress_button_pressed"]
 [connection signal="pressed" from="Backdrop/Panel/Content/QuickSaveButton" to="." method="_on_quick_save_pressed"]
 [connection signal="pressed" from="Backdrop/Panel/Content/RestartButton" to="." method="_on_restart_pressed"]
 [connection signal="pressed" from="Backdrop/Panel/Content/BackToMenuButton" to="." method="_on_back_to_menu_pressed"]

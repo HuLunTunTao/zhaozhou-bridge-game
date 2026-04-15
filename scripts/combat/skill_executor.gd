@@ -88,8 +88,12 @@ static func _apply_extra_effect(
 			_effect_apply_status(targets, "guarded_cover", skill.duration_turns, 0, caster.combat_stats.unit_name)
 		"hindered_cross":
 			_effect_aoe_status(cast_cell, all_units, caster_faction, "hindered_step", 2, caster.combat_stats.unit_name)
+		"line_bind":
+			_effect_first_target_status(targets, "overgrow_bind", skill.duration_turns, caster.combat_stats.unit_name)
 		"read_water":
 			_effect_read_water(cast_cell, all_units, caster_faction, caster.combat_stats.unit_name)
+		"stage_balance_arch", "stage_open_arch":
+			CombatLog.msg("  额外效果: 关卡机制技能命中")
 		"complete_survey":
 			CombatLog.msg("  额外效果: 踏勘量址 → 完成勘测点 (预留)")
 		_:
@@ -143,6 +147,19 @@ static func _effect_apply_status(targets: Array, status_id: String, duration: in
 		names.append(tu.combat_stats.unit_name)
 	if names.size() > 0:
 		CombatLog.msg("  额外效果: 赋予【%s】%d回合 (目标: %s)" % [status_id, duration, ", ".join(names)])
+
+
+static func _effect_first_target_status(targets: Array, status_id: String, duration: int, _caster_name: String) -> void:
+	if targets.is_empty():
+		return
+	var first := targets[0] as Unit
+	if first == null or first.combat_stats == null:
+		return
+	var si := CombatResolver.StatusInstance.new()
+	si.status_id = status_id
+	si.remaining_turns = duration
+	first.combat_stats.statuses.append(si)
+	CombatLog.msg("  额外效果: %s 获得【%s】%d回合" % [first.combat_stats.unit_name, status_id, duration])
 
 
 ## 对释放点十字范围内的敌方单位施加状态（如迟滞）。

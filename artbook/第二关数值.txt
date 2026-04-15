@@ -1,0 +1,878 @@
+# 第一章第二关《弧拱定式》设计稿
+
+## Godot实现取向版 / Godot-Oriented Markdown Draft
+
+---
+
+## 0. 本关平衡基线 / Balance Baseline
+
+本关不再整体上调我方基础面板，而是按“玩家已通过第一关，并获得4选1中的任意一项成长”来做平衡。也就是说，李春、测量工、工匠默认沿用上一关的基础数值与技能框架，难度增长主要来自敌方类型、人形压点、固定召唤Boss和中央绘样台争夺，而不是我方面板硬抬。
+
+```text
+李春基线 / li_chun_base:
+max_hp 130
+base_atk 24
+ap_max 100
+move_cost_per_tile 8
+
+测量工基线 / survey_worker_base:
+max_hp 80
+base_atk 12
+ap_max 85
+move_cost_per_tile 10
+
+工匠基线 / craftsman_base:
+max_hp 110
+base_atk 18
+ap_max 90
+move_cost_per_tile 9
+```
+
+上一关结算成长直接继承到本关，不重置。
+
+---
+
+## 1. 关卡定位 / Stage Role
+
+```text
+关卡ID / stage_id: chapter1_stage2
+关卡名称 / stage_name: 弧拱定式
+定位 / stage_role: 方案争夺关 + 中央据点防守关 + 固定召唤Boss关
+Boss / boss: 旧制监工
+难度 / difficulty: 中低
+推荐回合上限 / turn_limit: 12
+```
+
+### 本关核心目标 / Core Goal
+
+本关保留你原来定下的三层任务结构：
+
+第一层是取参。
+第二层是守住中央绘样台。
+第三层是完成定拱，并通过持续击破被Boss驱使的小怪来迫使Boss败退。
+
+---
+
+## 2. 关卡机制 / Stage Mechanics
+
+## 2.1 参数点机制 / Parameter Point Mechanic
+
+本关共有3个参数点：
+
+```text
+参数点A / parameter_a: 河宽
+参数点B / parameter_b: 坡度
+参数点C / parameter_c: 石重
+```
+
+完成全部3个参数点后，李春才能在中央绘样台执行最终关卡交互“执墨定拱”。
+
+### 参数点交互规则 / Parameter Interaction Rules
+
+```text
+测量工 / survey_worker:
+可在相邻1格使用交互技能完成参数采集
+交互消耗 ap_cost: 40
+
+李春 / li_chun:
+可代行参数确认
+不是技能，是关卡交互动作
+交互消耗 ap_cost: 45
+每回合最多1次
+```
+
+这样测量工仍然重要，但不会因为测量工阵亡而直接锁死流程。
+
+---
+
+## 2.2 绘样台机制 / Drafting Platform Mechanic
+
+中央绘样台是本关的核心争夺区域。
+
+```text
+绘样台 / drafting_platform:
+位置: 地图中央2x2区域
+用途:
+1. 李春执行“执墨定拱”的唯一地点
+2. Boss固定驻守区域
+3. 若敌方在敌方回合结束时占据绘样台，则Boss下回合召唤数+1
+```
+
+### 执墨定拱 / Final Drafting Action
+
+```text
+关卡交互ID / stage_interact_id: finalize_arch_design
+名称 / name: 执墨定拱
+执行者 / performer: 李春
+执行地点 / location: 绘样台
+前置条件 / requirements:
+    1. 三个参数点全部完成
+    2. 李春位于绘样台
+行动力消耗 / ap_cost: 35
+效果 / effect:
+    1. 本关进入“定拱完成”状态
+    2. Boss可被流程性击败
+```
+
+---
+
+## 2.3 固定召唤Boss机制 / Stationary Summon Boss Mechanic
+
+本关Boss旧制监工不移动，不参与普通近战推进，主要通过召唤与督令制造场面压力。
+
+### Boss败退条件 / Boss Defeat Condition
+
+```text
+胜利流程 / win_flow:
+1. 三个参数点全部完成
+2. 李春执行“执墨定拱”
+3. 累计击破 8 名受驱役敌人 / defeated_driven_enemy_count >= 8
+4. 旧制监工自动败退，关卡胜利
+```
+
+这里的“受驱役敌人”包括本关所有由Boss驱使出现的敌方单位，初始敌人与后续召唤敌人都计入累计击破数。
+
+### 场上敌人数上限 / Enemy Field Cap
+
+```text
+敌方场上人数上限 / enemy_field_cap: 5
+```
+
+Boss每回合优先召唤；若场上人数已满，则改为给现存敌军施加督令强化。
+
+---
+
+## 3. 地图结构 / Map Structure
+
+```text
+地图尺寸 / map_size: 15 x 17
+中央区域 / center_zone: 绘样台2x2 + 桥模区环形通道
+左侧区域 / left_zone: 河宽参数点
+右上区域 / right_upper_zone: 坡度参数点
+右下区域 / right_lower_zone: 石重参数点
+Boss位置 / boss_position: 绘样台中央后侧固定格
+```
+
+---
+
+## 4. 地格与场景对象 / Terrain and Stage Objects
+
+为了避免第二关机制过多，这一关只保留最少的场景对象。
+
+### 普通地格 / normal_tile
+
+* 无特殊效果
+
+### 绘样台 / drafting_platform
+
+* 李春可执行“执墨定拱”
+* 敌方占据时使Boss下回合召唤数+1
+
+### 桥模区 / bridge_model_zone
+
+* 无额外数值效果
+* 作为中央争夺与卡位核心区域
+
+### 参数点 / parameter_point
+
+* 可由测量工或李春交互
+* 完成后永久失效
+
+### 石料障碍 / stone_obstacle
+
+* 不可通行
+* 用于制造重墩石像的堵路价值
+
+---
+
+## 5. 我方单位配置 / Ally Unit Setup
+
+## 5.1 出场编制 / Ally Lineup
+
+本关固定采用这一版，更利于平衡：
+
+```text
+李春 / Li Chun ×1
+测量工 / Survey Worker ×1
+工匠 / Craftsman ×3
+```
+
+这与“第二关测量工1到2、工匠3”的总表口径是一致的；为了减少这一关的回合操作量，我这里取1名测量工、3名工匠作为正式数值版。
+
+---
+
+## 5.2 李春 / Li Chun
+
+李春沿用上一关基础面板和已习得技能，再新增1个本关固定技能，用来体现“定拱者”的范围处理能力。 
+
+```text
+单位ID / unit_id: hero_li_chun
+名称 / name: 李春
+阵营 / camp: ally
+最大生命值 / max_hp: 130
+基础攻击力 / base_atk: 24
+行动力上限 / ap_max: 100
+每格移动消耗 / move_cost_per_tile: 8
+每回合攻击次数上限 / attack_limit_per_turn: unlimited
+每回合辅助次数上限 / assist_limit_per_turn: unlimited
+每回合交互次数上限 / interact_limit_per_turn: unlimited
+固有属性 / innate_element: none
+```
+
+### 可携带技能上限 / skill_loadout_limit
+
+```text
+5
+```
+
+### 推荐可用技能池 / Available Skill Pool
+
+#### 技能1：规尺击 / Rule-Measure Strike
+
+```text
+技能ID / skill_id: lc_rule_strike
+技能类别 / skill_type: attack
+施放距离 / cast_range: 1
+作用范围 / area_shape: single
+行动力消耗 / ap_cost: 20
+伤害倍率 / damage_ratio: 1.00
+伤害属性 / damage_element: none
+附着量 / attach_amount: 0
+附加效果 / extra_effect: 对无属性目标伤害×1.15
+```
+
+#### 技能2：木楔勘岸 / Wooden Wedge Survey
+
+```text
+技能ID / skill_id: lc_wedge_bank_probe
+技能类别 / skill_type: attack
+施放距离 / cast_range: 3
+作用范围 / area_shape: single
+行动力消耗 / ap_cost: 25
+伤害倍率 / damage_ratio: 1.00
+伤害属性 / damage_element: wood
+附着量 / attach_amount: 1
+```
+
+#### 技能3：投石遏流 / Cast Stone to Arrest the Flow
+
+```text
+技能ID / skill_id: lc_cast_stone_arrest_flow
+技能类别 / skill_type: attack
+施放距离 / cast_range: 3
+作用范围 / area_shape: single
+行动力消耗 / ap_cost: 35
+伤害倍率 / damage_ratio: 0.95
+伤害属性 / damage_element: earth
+附着量 / attach_amount: 2
+附加效果 / extra_effect: 命中后击退1格
+```
+
+#### 技能4：相水定址 / Read Waters, Fix the Site
+
+```text
+技能ID / skill_id: lc_read_water_fix_site
+技能类别 / skill_type: assist
+施放距离 / cast_range: 3
+作用范围 / area_shape: cross
+作用半径 / area_radius: 1
+行动力消耗 / ap_cost: 30
+伤害倍率 / damage_ratio: 0.00
+伤害属性 / damage_element: none
+附着量 / attach_amount: 0
+附加效果 / extra_effect:
+    显示目标区域危险格2回合
+    赋予1名友军“稳步”1回合
+```
+
+#### 技能5：分规定弧 / Mark the Arc with Dividers
+
+这是第二关固定新增技能，用来补足范围输出和中央清场能力。
+
+```text
+技能ID / skill_id: lc_divider_mark_arc
+技能名称 / skill_name: 分规定弧
+技能类别 / skill_type: attack
+施放距离 / cast_range: 3
+作用范围 / area_shape: diamond
+作用半径 / area_radius: 1
+行动力消耗 / ap_cost: 40
+伤害倍率 / damage_ratio: 0.90
+伤害属性 / damage_element: none
+附着量 / attach_amount: 0
+附加效果 / extra_effect: 对范围内全部敌人结算伤害
+```
+
+#### 可继承技能：束桩缓波 / Bind Waves with Stakes
+
+若玩家上一关选择了“请益河工”，则这项技能继续可用。
+
+```text
+技能ID / skill_id: lc_pile_bind_wave
+技能类别 / skill_type: attack
+施放距离 / cast_range: 3
+作用范围 / area_shape: single
+行动力消耗 / ap_cost: 30
+伤害倍率 / damage_ratio: 0.95
+伤害属性 / damage_element: wood
+附着量 / attach_amount: 2
+附加效果 / extra_effect:
+    命中后对目标周围十字1格施加迟滞2回合
+```
+
+### 本关推荐携带 / Recommended Loadout
+
+默认推荐：
+
+```text
+规尺击
+木楔勘岸
+投石遏流
+分规定弧
+相水定址
+```
+
+若已解锁“束桩缓波”，则建议替换“规尺击”或“木楔勘岸”。
+
+---
+
+## 5.3 测量工 / Survey Worker
+
+测量工沿用上一关面板与技能模板，不新增技能；本关只把交互目标从“勘测点”改为“参数点”。
+
+```text
+单位ID / unit_id: survey_worker
+名称 / name: 测量工
+阵营 / camp: ally
+最大生命值 / max_hp: 80
+基础攻击力 / base_atk: 12
+行动力上限 / ap_max: 85
+每格移动消耗 / move_cost_per_tile: 10
+每回合攻击次数上限 / attack_limit_per_turn: 1
+每回合辅助次数上限 / assist_limit_per_turn: 0
+每回合交互次数上限 / interact_limit_per_turn: 1
+固有属性 / innate_element: none
+是否为护送目标 / is_escort_target: false
+```
+
+### 技能1：尺梢击 / Staff-End Strike
+
+```text
+技能ID / skill_id: sw_staff_end_strike
+技能类别 / skill_type: attack
+施放距离 / cast_range: 1
+作用范围 / area_shape: single
+行动力消耗 / ap_cost: 25
+伤害倍率 / damage_ratio: 0.90
+伤害属性 / damage_element: none
+附着量 / attach_amount: 0
+```
+
+### 技能2：测尺取参 / Take Structural Parameters
+
+```text
+技能ID / skill_id: sw_take_parameters
+技能类别 / skill_type: interact
+施放距离 / cast_range: 1
+作用范围 / area_shape: single
+行动力消耗 / ap_cost: 40
+伤害倍率 / damage_ratio: 0.00
+伤害属性 / damage_element: none
+附着量 / attach_amount: 0
+附加效果 / extra_effect: 对未完成参数点使用，使该参数点完成
+```
+
+---
+
+## 5.4 工匠 / Craftsman
+
+工匠沿用上一关面板与技能模板，本关不新增新技能。工匠的作用完全转向“守中央、卡线、护测量工”。 
+
+```text
+单位ID / unit_id: craftsman_guard
+名称 / name: 工匠
+阵营 / camp: ally
+最大生命值 / max_hp: 110
+基础攻击力 / base_atk: 18
+行动力上限 / ap_max: 90
+每格移动消耗 / move_cost_per_tile: 9
+每回合攻击次数上限 / attack_limit_per_turn: 1
+每回合辅助次数上限 / assist_limit_per_turn: 1
+每回合交互次数上限 / interact_limit_per_turn: 0
+固有属性 / innate_element: none
+```
+
+### 技能1：杵槌击 / Mallet Strike
+
+```text
+技能ID / skill_id: cg_mallet_strike
+技能类别 / skill_type: attack
+施放距离 / cast_range: 1
+作用范围 / area_shape: single
+行动力消耗 / ap_cost: 25
+伤害倍率 / damage_ratio: 1.00
+伤害属性 / damage_element: none
+附着量 / attach_amount: 0
+```
+
+### 技能2：捍作护行 / Guard the Works
+
+```text
+技能ID / skill_id: cg_guard_the_works
+技能类别 / skill_type: assist
+施放距离 / cast_range: 1
+作用范围 / area_shape: single
+行动力消耗 / ap_cost: 30
+伤害倍率 / damage_ratio: 0.00
+伤害属性 / damage_element: none
+附着量 / attach_amount: 0
+持续回合 / duration_turns: 2
+附加效果 / extra_effect: 赋予“护持”
+```
+
+---
+
+## 6. 敌方单位配置 / Enemy Unit Setup
+
+## 6.1 守法匠首 / Old-Rule Foreman Guard
+
+这是本关主体杂兵，数量最多，负责贴身冲点和妨碍参数采集。
+
+```text
+单位ID / unit_id: rule_guard_head
+名称 / name: 守法匠首
+阵营 / camp: enemy
+最大生命值 / max_hp: 84
+基础攻击力 / base_atk: 20
+固有属性 / innate_element: none
+固有属性量 / innate_element_amount: 0
+敌方行为模板 / ai_type: rush_point_melee
+```
+
+### 主动技能：执杖压阵 / Press the Line with Staff
+
+```text
+技能ID / skill_id: rgh_press_line_staff
+技能类别 / skill_type: attack
+施放距离 / cast_range: 1
+作用范围 / area_shape: single
+伤害倍率 / damage_ratio: 1.00
+伤害属性 / damage_element: none
+附着量 / attach_amount: 0
+```
+
+### 被动：守旧争位 / Hold Ground
+
+```text
+被动效果 / passive_effect:
+    若自身相邻绘样台或参数点，
+    本次伤害 +10%
+```
+
+### AI优先级 / AI Priority
+
+```text
+测量工 survey_worker
+> 已站上参数点的我方单位 ally_on_parameter
+> 最近单位 nearest_target
+```
+
+---
+
+## 6.2 重墩石像 / Heavy Pier Statue
+
+这是本关的高耐久堵路单位，数量少，但会压缩中央通路。
+
+```text
+单位ID / unit_id: heavy_pier_statue
+名称 / name: 重墩石像
+阵营 / camp: enemy
+最大生命值 / max_hp: 120
+基础攻击力 / base_atk: 16
+固有属性 / innate_element: earth
+固有属性量 / innate_element_amount: 2
+敌方行为模板 / ai_type: block_lane_guard
+```
+
+### 主动技能：镇基重压 / Foundation Crush
+
+```text
+技能ID / skill_id: hps_foundation_crush
+技能类别 / skill_type: attack
+施放距离 / cast_range: 1
+作用范围 / area_shape: single
+伤害倍率 / damage_ratio: 1.05
+伤害属性 / damage_element: earth
+附着量 / attach_amount: 1
+```
+
+### 被动：石墩不移 / Immovable Mass
+
+```text
+被动效果 / passive_effect:
+    每回合第一次受到击退或拖拽时无效化
+```
+
+### AI优先级 / AI Priority
+
+```text
+绘样台 drafting_platform
+> 桥模区 bridge_model_zone
+> 最近单位 nearest_target
+```
+
+---
+
+## 6.3 高拱幻影 / High-Arch Phantom
+
+这是本关的中距离干扰单位，主要负责骚扰绘样台和参数点，不堆复杂技能，只保留一个主动技能。
+
+```text
+单位ID / unit_id: high_arch_phantom
+名称 / name: 高拱幻影
+阵营 / camp: enemy
+最大生命值 / max_hp: 76
+基础攻击力 / base_atk: 18
+固有属性 / innate_element: none
+固有属性量 / innate_element_amount: 0
+敌方行为模板 / ai_type: ranged_disruptor
+```
+
+### 主动技能：虚弧乱样 / Distort the Drafted Arc
+
+```text
+技能ID / skill_id: hap_distort_arc
+技能类别 / skill_type: attack
+施放距离 / cast_range: 2
+作用范围 / area_shape: single
+伤害倍率 / damage_ratio: 0.95
+伤害属性 / damage_element: none
+附着量 / attach_amount: 0
+附加效果 / extra_effect:
+    若目标位于绘样台或参数点上，则本次伤害 +15%
+```
+
+### AI优先级 / AI Priority
+
+```text
+位于绘样台的我方单位 ally_on_drafting_platform
+> 位于参数点的我方单位 ally_on_parameter
+> 测量工 survey_worker
+```
+
+---
+
+## 6.4 旧制监工 / Supervisor of the Old Method
+
+这是本关固定Boss，不移动，不参与普通推进，核心就是召唤和督令。
+
+```text
+单位ID / unit_id: old_method_supervisor
+名称 / name: 旧制监工
+阵营 / camp: enemy
+最大生命值 / max_hp: 260
+基础攻击力 / base_atk: 0
+固有属性 / innate_element: none
+固有属性量 / innate_element_amount: 0
+敌方行为模板 / ai_type: fixed_summon_boss
+固定位置 / fixed_position: true
+```
+
+### 主动技能：督役旧制 / Drive the Old Method
+
+```text
+技能ID / skill_id: oms_drive_old_method
+技能类别 / skill_type: summon_or_order
+施放距离 / cast_range: global
+作用范围 / area_shape: special
+伤害倍率 / damage_ratio: 0.00
+伤害属性 / damage_element: none
+附着量 / attach_amount: 0
+```
+
+### 技能逻辑 / Skill Logic
+
+```text
+若场上敌人数 < 5:
+    召唤1名敌人
+
+若敌方回合结束时敌方占据绘样台:
+    本次改为召唤2名敌人
+
+若场上敌人数 >= 5:
+    改为对1名最近的敌军施加“督令”1回合
+```
+
+### 督令 / overseer_order
+
+```text
+状态ID / status_id: overseer_order
+持续回合 / duration_turns: 1
+效果 / effect:
+    造成的伤害 +15%
+    最大可移动格数 +1
+```
+
+### 被动：据台固守 / Hold the Platform
+
+```text
+被动效果 / passive_effect:
+    Boss不可移动
+    直接受到的伤害固定为1
+    不会因生命值归零而死亡
+    仅在满足关卡胜利流程时自动败退
+```
+
+### 召唤顺序 / Summon Cycle
+
+为了控制实现复杂度，采用固定轮转：
+
+```text
+第1次召唤: 守法匠首
+第2次召唤: 高拱幻影
+第3次召唤: 守法匠首
+第4次召唤: 守法匠首
+第5次召唤: 重墩石像
+之后循环
+```
+
+---
+
+## 7. 敌方初始配置与节奏 / Enemy Opening Setup and Rhythm
+
+### 开局配置 / Opening Setup
+
+```text
+守法匠首 ×2
+高拱幻影 ×1
+重墩石像 ×1
+旧制监工 ×1
+```
+
+### 场上上限 / Field Limit
+
+```text
+普通敌军上限 / normal_enemy_cap: 5
+Boss不计入上限 / boss_not_counted: true
+```
+
+### 推荐节奏 / Intended Rhythm
+
+前2回合主要是抢中央与试探参数路线。
+第3到6回合进入召唤高峰。
+若玩家已经完成2个参数点，李春就应该开始向绘样台集中。
+若第7回合前仍未完成2个参数点，敌方人数会开始压满场面。
+
+---
+
+## 8. 开局站位建议 / Opening Placement Suggestion
+
+```text
+李春 / Li Chun:
+    中路靠后，距离绘样台4格
+
+测量工 / Survey Worker:
+    左后侧，优先朝河宽参数点移动
+
+工匠A / Craftsman_A:
+    左前，负责护送测量工
+
+工匠B / Craftsman_B:
+    中前，负责抢中央桥模区
+
+工匠C / Craftsman_C:
+    右前，负责拦截绕后单位
+```
+
+敌方初始站位：
+
+```text
+旧制监工:
+    绘样台后侧固定格
+
+守法匠首×2:
+    绘样台左右前侧
+
+高拱幻影:
+    绘样台右后侧斜角
+
+重墩石像:
+    中路桥模区入口
+```
+
+---
+
+## 9. 胜负条件 / Win and Fail Conditions
+
+### 胜利条件 / victory_conditions
+
+```text
+1. 完成3个参数点
+2. 李春在绘样台执行“执墨定拱”
+3. 累计击破8名受驱役敌人
+4. 旧制监工自动败退
+```
+
+### 失败条件 / fail_conditions
+
+```text
+1. 李春死亡
+2. 超过第12回合未完成胜利流程
+3. 敌方连续2回合占据绘样台且我方未能夺回时，额外召唤压场导致判负（可选规则）
+```
+
+第三条如果你觉得太狠，可以在实现里删掉，保留前两条即可。
+
+---
+
+## 10. 第二关结算成长 / Stage 2 Post-Battle Growth
+
+这一关结束后，李春从“桥位选择者”成长为“桥法确定者”，所以成长项继续围绕“定拱”“区域支持”“范围处理”来给。
+
+### 本关成长形式 / Growth Format
+
+```text
+4选1
+```
+
+### 选项1 / option_1
+
+```text
+选项ID / option_id: growth_drawing_discipline
+名称 / name: 墨绳习算
+效果 / effect:
+    李春基础攻击力 +4
+    分规定弧 damage_ratio +0.05
+```
+
+### 选项2 / option_2
+
+```text
+选项ID / option_id: growth_center_hold
+名称 / name: 护模齐作
+效果 / effect:
+    全体工匠最大生命值 +10
+    全体工匠基础攻击力 +2
+```
+
+### 选项3 / option_3
+
+```text
+选项ID / option_id: growth_arch_refine
+名称 / name: 参校定弧
+效果 / effect:
+    李春获得新技能“绳准锁弧”
+    可替换规尺击或木楔勘岸
+```
+
+#### 新技能 / new_skill
+
+```text
+技能ID / skill_id: lc_line_lock_arc
+技能名称 / skill_name: 绳准锁弧
+技能类别 / skill_type: attack
+施放距离 / cast_range: 4
+作用范围 / area_shape: line
+作用半径 / area_radius: 4
+行动力消耗 / ap_cost: 35
+伤害倍率 / damage_ratio: 0.95
+伤害属性 / damage_element: wood
+附着量 / attach_amount: 1
+附加效果 / extra_effect:
+    命中的首个目标获得蔓缚2回合
+```
+
+### 选项4 / option_4
+
+```text
+选项ID / option_id: growth_quick_measure
+名称 / name: 熟尺知度
+效果 / effect:
+    测尺取参 ap_cost -10
+    相水定址 ap_cost -5
+    李春行动力上限 +5
+```
+
+---
+
+## 11. Godot拆表建议 / Godot Implementation Notes
+
+### 推荐资源拆分 / Suggested Resource Split
+
+```text
+res://data/stages/chapter1_stage2/
+    stage_config.tres
+    enemy_spawn_cycle.tres
+    parameter_points.tres
+
+res://data/units/
+    hero_li_chun.tres
+    survey_worker.tres
+    craftsman_guard.tres
+    rule_guard_head.tres
+    heavy_pier_statue.tres
+    high_arch_phantom.tres
+    old_method_supervisor.tres
+
+res://data/skills/
+    lc_divider_mark_arc.tres
+    rgh_press_line_staff.tres
+    hps_foundation_crush.tres
+    hap_distort_arc.tres
+    oms_drive_old_method.tres
+```
+
+### 关卡变量 / Stage Variables
+
+```text
+参数完成数 / parameter_complete_count: int
+已执行定拱 / arch_finalized: bool
+累计击破数 / defeated_driven_enemy_count: int
+场上敌军数 / current_enemy_count: int
+绘样台是否被敌方占据 / drafting_platform_enemy_controlled: bool
+Boss召唤轮次 / boss_summon_cycle_index: int
+```
+
+### Boss回合伪逻辑 / Boss Turn Pseudo Logic
+
+```text
+boss_turn():
+    if current_enemy_count < 5:
+        summon_count = 1
+        if drafting_platform_enemy_controlled:
+            summon_count = 2
+        summon_by_cycle(summon_count)
+    else:
+        apply_overseer_order_to_best_target()
+```
+
+### 敌人死亡伪逻辑 / On Enemy Death
+
+```text
+on_enemy_death(enemy):
+    if enemy.camp == enemy and enemy != old_method_supervisor:
+        defeated_driven_enemy_count += 1
+        check_stage_victory()
+```
+
+### 胜利判定伪逻辑 / Victory Check
+
+```text
+check_stage_victory():
+    if parameter_complete_count >= 3
+    and arch_finalized == true
+    and defeated_driven_enemy_count >= 8:
+        old_method_supervisor.retreat()
+        stage_clear()
+```
+
+---
+
+## 12. 这版第二关的平衡抓手 / Balance Anchors
+
+这一关真正拉开和第一关区别的，不是给所有单位加一堆新能力，而是三件事：
+
+第一，中央区域会反复被争夺，工匠从护卫单位正式变成主力前排。
+第二，李春开始拥有真正的范围清场手段，技能选择更接近“主导型战术核心”。
+第三，Boss本身不动，但会不断把场面推高，玩家必须一边取参、一边控中、一边清怪，才能把“旧制监工”从流程上击败。这个方向和你原来给第二关定下的“抢参数点”和“守中央”是完全一致的。
+

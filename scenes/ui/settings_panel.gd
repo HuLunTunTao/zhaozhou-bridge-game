@@ -13,9 +13,13 @@ signal closed
 @onready var ui_slider: HSlider = %UiSlider
 @onready var voice_slider: HSlider = %VoiceSlider
 @onready var ambience_slider: HSlider = %AmbienceSlider
+@onready var settings_title: Label = %SettingsTitle
 @onready var quick_save_button: Button = %QuickSaveButton
 @onready var restart_button: Button = %RestartButton
 @onready var back_to_menu_button: Button = %BackToMenuButton
+
+var _title_tap_count := 0
+var _title_tap_reset_timer: SceneTreeTimer
 
 
 func _ready() -> void:
@@ -75,11 +79,34 @@ func _on_save_settings_button_pressed() -> void:
 
 # Save Management
 const SaveManagerScene := preload("res://scenes/ui/save_manager.tscn")
+const ProgressPanelScene := preload("res://scenes/ui/progress_panel.tscn")
 
 func _on_save_manager_pressed() -> void:
 	var manager: SaveManager = SaveManagerScene.instantiate()
 	add_child(manager)
 	UiSounds.play_popup()
+
+
+func _on_progress_button_pressed() -> void:
+	var panel: Node = ProgressPanelScene.instantiate()
+	panel.set("show_debug_controls", Settings.debug_mode)
+	add_child(panel)
+	UiSounds.play_popup()
+
+
+func _on_settings_title_gui_input(event: InputEvent) -> void:
+	if not (event is InputEventMouseButton):
+		return
+	if event.button_index != MOUSE_BUTTON_LEFT or not event.pressed:
+		return
+	_title_tap_count += 1
+	_title_tap_reset_timer = get_tree().create_timer(1.2)
+	_title_tap_reset_timer.timeout.connect(func(): _title_tap_count = 0, CONNECT_ONE_SHOT)
+	if _title_tap_count < 7:
+		return
+	_title_tap_count = 0
+	Settings.set_debug_mode(not Settings.debug_mode)
+	Notify.notify("调试模式已%s" % ("开启" if Settings.debug_mode else "关闭"), Notify.Position.TOP_CENTER, Notify.Style.SUCCESS, 2.0)
 
 
 func _on_quick_save_pressed() -> void:
@@ -120,5 +147,3 @@ func _on_close_pressed() -> void:
 func _close() -> void:
 	closed.emit()
 	queue_free()
-
-

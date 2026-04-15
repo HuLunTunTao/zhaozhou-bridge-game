@@ -66,15 +66,13 @@ var _vp_size: Vector2
 
 func _ready() -> void:
 	layer = 95
-	_vp_size = Vector2(
-		ProjectSettings.get_setting("display/window/size/viewport_width"),
-		ProjectSettings.get_setting("display/window/size/viewport_height")
-	)
+	_update_viewport_size()
 	_root = Control.new()
 	_root.name = "NotificationRoot"
 	_root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_root)
+	get_viewport().size_changed.connect(_on_viewport_size_changed, CONNECT_REFERENCE_COUNTED)
 	for pos: int in Position.values():
 		_stacks[pos] = []
 
@@ -85,6 +83,7 @@ func notify(
 	style: Style = Style.INFO,
 	duration: float = DEFAULT_DURATION
 ) -> void:
+	_update_viewport_size()
 	var popup := _create_popup(text, style, pos)
 	_root.add_child(popup)
 
@@ -200,6 +199,7 @@ func _create_popup(text: String, style: Style, pos: Position) -> PanelContainer:
 
 
 func _position_popup(popup: Control, pos: Position) -> void:
+	_update_viewport_size()
 	var popup_size := popup.size
 	var stack_offset := _get_stack_offset(pos, popup)
 	# TOP_LEFT / TOP_RIGHT / TOP_CENTER 需要避开顶部 HudPanel
@@ -223,14 +223,24 @@ func _position_popup(popup: Control, pos: Position) -> void:
 
 
 func _get_stack_offset(pos: Position, current_popup: Control) -> float:
-	var offset := 0.0
+	var stack_offset := 0.0
 	for item: Control in _stacks[pos]:
 		if item == current_popup:
 			break
-		offset += item.size.y + SPACING
-	return offset
+		stack_offset += item.size.y + SPACING
+	return stack_offset
 
 
 func _reposition_stack(pos: Position) -> void:
 	for item: Control in _stacks[pos]:
 		_position_popup(item, pos)
+
+
+func _on_viewport_size_changed() -> void:
+	_update_viewport_size()
+	for pos: int in _stacks.keys():
+		_reposition_stack(pos)
+
+
+func _update_viewport_size() -> void:
+	_vp_size = get_viewport().get_visible_rect().size

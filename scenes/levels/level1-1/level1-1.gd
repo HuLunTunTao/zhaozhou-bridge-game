@@ -2,10 +2,6 @@ extends BaseLevel
 ## 第一关《踏勘洨河》
 
 # ── 预加载技能 ──
-var _sk_rule_strike: SkillData = preload("res://data/skills/lc_rule_strike.tres")
-var _sk_wedge: SkillData = preload("res://data/skills/lc_wedge_bank_probe.tres")
-var _sk_stone: SkillData = preload("res://data/skills/lc_cast_stone_arrest_flow.tres")
-var _sk_read_water: SkillData = preload("res://data/skills/lc_read_water_fix_site.tres")
 var _sk_staff: SkillData = preload("res://data/skills/sw_staff_end_strike.tres")
 var _sk_survey: SkillData = preload("res://data/skills/sw_field_measure_site.tres")
 var _sk_mallet: SkillData = preload("res://data/skills/cg_mallet_strike.tres")
@@ -149,7 +145,7 @@ func check_victory() -> bool:
 
 func _on_level_ready() -> void:
 	# ── 李春 ──
-	set_unit_skills(_li_chun as Unit, [_sk_rule_strike, _sk_wedge, _sk_stone, _sk_read_water])
+	set_unit_skills(_li_chun as Unit, Progress.get_battle_skill_resources(GameState.selected_level))
 	setup_unit_stats(_li_chun as Unit, "李春", 130, 24, 100, 8, Enums.Element.NONE, 0, true)
 
 	# ── 测量工 ──
@@ -165,6 +161,7 @@ func _on_level_ready() -> void:
 
 	set_unit_skills(_craftsman_b as Unit, [_sk_mallet, _sk_guard])
 	setup_unit_stats(_craftsman_b as Unit, "工匠", 110, 18, 90, 9)
+	_apply_persistent_growth_effects()
 
 	# ── 勘测点 ──
 	_setup_survey_points()
@@ -177,49 +174,24 @@ func _get_ai_context() -> Dictionary:
 	}
 
 
-# ─────────────────────────────────────────────
-# 勘测点
-# ─────────────────────────────────────────────
-
-## 从 check points TileMapLayer 读取格子并创建 SurveyPointTile。
-func _setup_survey_points() -> void:
-	var checkpoint_layer: TileMapLayer = null
-	for child in tilemap_container.get_children():
-		if child is TileMapLayer and child.name.begins_with("check points"):
-			checkpoint_layer = child
-			break
-	if checkpoint_layer == null:
-		push_warning("level1-1: 'check points' TileMapLayer not found")
-		return
-
-	for cell: Vector2i in checkpoint_layer.get_used_cells():
-		var tile := SurveyPointTile.new()
-		var visual := Polygon2D.new()
-		visual.name = "Visual"
-		visual.polygon = PackedVector2Array([
-			Vector2(0, -8), Vector2(16, 0), Vector2(0, 8), Vector2(-16, 0)
-		])
-		tile.add_child(visual)
-		register_special_tile(tile, cell)
-		tile.survey_completed.connect(_on_survey_point_completed)
-		_survey_points.append(tile)
-	CombatLog.msg("勘测点初始化: %d 个" % _survey_points.size())
+func get_post_level_growth_options() -> Array[Dictionary]:
+	return [
+		{"id": "growth_training_mobilize", "name": "操练与动员", "description": "全体我方最大生命值 +10，行动力上限 +5"},
+		{"id": "growth_maps_measures", "name": "习图记尺", "description": "李春基础攻击力 +4，规尺击伤害倍率 +0.05"},
+		{"id": "growth_river_master", "name": "请益河工", "description": "李春获得束桩缓波，可替换规尺击或木楔勘岸"},
+		{"id": "growth_stone_reinforce", "name": "备石加固", "description": "工匠的捍作护行持续时间 +1 回合"},
+	]
 
 
-func _on_skill_executed(caster: Unit, skill: SkillData, cast_cell: Vector2i) -> void:
-	if skill.extra_effect_id != "complete_survey":
-		return
-	var tile = _special_tile_map.get(cast_cell)
-	if tile == null or not tile is SurveyPointTile:
-		Notify.notify("此处没有勘测点", Notify.Position.TOP_RIGHT, Notify.Style.WARNING, 2.5)
-		return
-	var survey_tile := tile as SurveyPointTile
-	if not survey_tile.complete():
-		Notify.notify("此勘测点已完成", Notify.Position.TOP_RIGHT, Notify.Style.WARNING, 2.5)
-
-
-func _on_survey_point_completed(tile: SurveyPointTile) -> void:
-	_survey_completed_count += 1
-	Notify.notify("勘测点完成！(%d/%d)" % [_survey_completed_count, _survey_points.size()],
-		Notify.Position.TOP_RIGHT, Notify.Style.SUCCESS, 3.0)
-	CombatLog.msg("勘测点完成: cell=%s (%d/%d)" % [tile.cell, _survey_completed_count, _survey_points.size()])
+func _apply_persistent_growth_effects() -> void:
+	if Progress.has_growth_option("growth_training_mobilize"):
+		for unit in get_friendly_units():
+			apply_unit_growth_bonus(unit, 10, 0, 5)
+	if Progress.has_growth_option("growth_maps_measures"):
+		var hero_unit := get_hero_unit()
+		apply_unit_growth_bonus(hero_unit, 0, 4, 0)
+		modify_unit_skill(hero_unit, "lc_rule_strike", {"damage_ratio": 1.05})
+	if Progress.has_growth_option("growth_stone_reinforce"):
+		for unit in get_friendly_units():
+			if unit.combat_stats.unit_name == "工匠":
+				modify_unit_skill(unit, "cg_guard_the_works", {"duration_turns": 3})

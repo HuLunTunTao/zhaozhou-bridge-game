@@ -15,12 +15,17 @@ run/main_scene="res://scenes/menu/main_menu.tscn"
 config/features=PackedStringArray("4.6", "Forward Plus")
 config/icon="res://icon.svg"
 
+[audio]
+
+buses/default_bus_layout="uid://c6nl13ad7abrc"
+
 [autoload]
 
 GameState="*res://scripts/game_state.gd"
 Notify="*res://scripts/notification_manager.gd"
 TestBridge="*uid://iorf7f2xmkmt"
 Settings="*res://scripts/settings.gd"
+Progress="*res://scripts/progress.gd"
 BgmManager="*res://scripts/audio/bgm_manager.gd"
 SfxManager="*res://scripts/audio/sfx_manager.gd"
 UiSounds="*res://scripts/audio/ui_sounds.gd"

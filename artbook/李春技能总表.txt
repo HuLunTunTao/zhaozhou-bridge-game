@@ -1,0 +1,332 @@
+# 李春全章节技能池总表
+
+## Chapter 1 Li Chun Skill Pool Master List
+
+## 0. 技能池总规则 / Skill Pool Rules
+
+```text
+角色 / unit: 李春 hero_li_chun
+固定出战 / always_deployed: true
+可同时携带技能上限 / skill_loadout_limit: 5
+
+技能来源 / skill_source_types:
+1. 初始固定技能 / initial_fixed
+2. 关卡固定获得 / stage_fixed_unlock
+3. 关后成长可选获得 / post_stage_optional_unlock
+```
+
+### 技能定位分层 / Skill Role Layers
+
+```text
+1. 基础单体输出 / basic_single_target
+2. 属性单体压制 / elemental_single_target
+3. 范围清场 / area_damage
+4. 关卡机制辅助 / stage_mechanic_support
+5. 控场限制 / control_and_disruption
+```
+
+---
+
+## 1. 技能获得顺序总览 / Unlock Order Overview
+
+```text
+第一关初始 / stage_1_initial:
+- 规尺击 lc_rule_strike
+- 木楔勘岸 lc_wedge_bank_probe
+- 投石遏流 lc_cast_stone_arrest_flow
+- 相水定址 lc_read_water_fix_site
+
+第一关结算可选 / stage_1_optional:
+- 束桩缓波 lc_pile_bind_wave
+
+第二关固定获得 / stage_2_fixed:
+- 分规定弧 lc_divider_mark_arc
+
+第二关结算可选 / stage_2_optional:
+- 绳准锁弧 lc_line_lock_arc
+
+第三关固定获得 / stage_3_fixed:
+- 墨绳校券 lc_inkline_balance_arch
+
+第三关结算可选 / stage_3_optional:
+- 连楔并拱 lc_link_wedges_arch
+
+第四关固定获得 / stage_4_fixed:
+- 导汛开肩 lc_guide_flood_open_arch
+```
+
+---
+
+## 2. 完整技能池配置 / Full Skill Pool Config
+
+## 2.1 初始固定技能 / Initial Fixed Skills
+
+### 1）规尺击 / Rule-Measure Strike
+
+```text
+技能ID / skill_id: lc_rule_strike
+技能名称 / skill_name: 规尺击
+获得阶段 / unlock_stage: 第一关初始 stage_1_initial
+技能类别 / skill_type: attack
+施放距离 / cast_range: 1
+作用范围 / area_shape: single
+作用半径 / area_radius: 0
+行动力消耗 / ap_cost: 20
+伤害倍率 / damage_ratio: 1.00
+伤害属性 / damage_element: none
+附着量 / attach_amount: 0
+附加效果 / extra_effect: 对无属性目标伤害 ×1.15
+定位 / role: 基础单体近战
+```
+
+### 2）木楔勘岸 / Wooden Wedge Survey
+
+```text
+技能ID / skill_id: lc_wedge_bank_probe
+技能名称 / skill_name: 木楔勘岸
+获得阶段 / unlock_stage: 第一关初始 stage_1_initial
+技能类别 / skill_type: attack
+施放距离 / cast_range: 3
+作用范围 / area_shape: single
+作用半径 / area_radius: 0
+行动力消耗 / ap_cost: 25
+伤害倍率 / damage_ratio: 1.00
+伤害属性 / damage_element: wood
+附着量 / attach_amount: 1
+附加效果 / extra_effect: 适合触发木行化势·穿垠
+定位 / role: 木属性单体压制
+```
+
+### 3）投石遏流 / Cast Stone to Arrest the Flow
+
+```text
+技能ID / skill_id: lc_cast_stone_arrest_flow
+技能名称 / skill_name: 投石遏流
+获得阶段 / unlock_stage: 第一关初始 stage_1_initial
+技能类别 / skill_type: attack
+施放距离 / cast_range: 3
+作用范围 / area_shape: single
+作用半径 / area_radius: 0
+行动力消耗 / ap_cost: 35
+伤害倍率 / damage_ratio: 0.95
+伤害属性 / damage_element: earth
+附着量 / attach_amount: 2
+附加效果 / extra_effect: 命中后击退1格
+定位 / role: 土属性强单体 / 水系对策
+```
+
+### 4）相水定址 / Read Waters, Fix the Site
+
+```text
+技能ID / skill_id: lc_read_water_fix_site
+技能名称 / skill_name: 相水定址
+获得阶段 / unlock_stage: 第一关初始 stage_1_initial
+技能类别 / skill_type: assist_interact
+施放距离 / cast_range: 3
+作用范围 / area_shape: cross
+作用半径 / area_radius: 1
+行动力消耗 / ap_cost: 30
+伤害倍率 / damage_ratio: 0.00
+伤害属性 / damage_element: none
+附着量 / attach_amount: 0
+附加效果 / extra_effect:
+1. 显示目标区域危险地格2回合
+2. 赋予1名友军“稳步”1回合
+3. 在对应关卡中可执行桥位确认类交互
+定位 / role: 关卡机制辅助
+```
+
+---
+
+## 2.2 第一关结算可选技能 / Stage 1 Optional Skill
+
+### 5）束桩缓波 / Bind Waves with Stakes
+
+```text
+技能ID / skill_id: lc_pile_bind_wave
+技能名称 / skill_name: 束桩缓波
+获得阶段 / unlock_stage: 第一关结算可选 stage_1_optional
+获得方式 / unlock_method: 请益河工 growth_river_master
+技能类别 / skill_type: attack
+施放距离 / cast_range: 3
+作用范围 / area_shape: single
+作用半径 / area_radius: 0
+行动力消耗 / ap_cost: 30
+伤害倍率 / damage_ratio: 0.95
+伤害属性 / damage_element: wood
+附着量 / attach_amount: 2
+附加效果 / extra_effect:
+命中后对目标周围十字1格施加“迟滞”2回合
+定位 / role: 木属性控场单体
+建议替换 / suggested_replace:
+- 规尺击 lc_rule_strike
+- 木楔勘岸 lc_wedge_bank_probe
+```
+
+这个技能来自第一关结算成长中的“请益河工”。
+
+---
+
+## 2.3 第二关固定获得技能 / Stage 2 Fixed Skill
+
+### 6）分规定弧 / Mark the Arc with Dividers
+
+```text
+技能ID / skill_id: lc_divider_mark_arc
+技能名称 / skill_name: 分规定弧
+获得阶段 / unlock_stage: 第二关固定获得 stage_2_fixed
+技能类别 / skill_type: attack
+施放距离 / cast_range: 3
+作用范围 / area_shape: diamond
+作用半径 / area_radius: 1
+行动力消耗 / ap_cost: 40
+伤害倍率 / damage_ratio: 0.90
+伤害属性 / damage_element: none
+附着量 / attach_amount: 0
+附加效果 / extra_effect: 对范围内全部敌人结算伤害
+定位 / role: 第一项稳定范围清场技
+```
+
+---
+
+## 2.4 第二关结算可选技能 / Stage 2 Optional Skill
+
+### 7）绳准锁弧 / Lock the Arc with Ink Line
+
+```text
+技能ID / skill_id: lc_line_lock_arc
+技能名称 / skill_name: 绳准锁弧
+获得阶段 / unlock_stage: 第二关结算可选 stage_2_optional
+获得方式 / unlock_method: 参校定弧 growth_arch_refine
+技能类别 / skill_type: attack
+施放距离 / cast_range: 4
+作用范围 / area_shape: line
+作用半径 / area_radius: 4
+行动力消耗 / ap_cost: 35
+伤害倍率 / damage_ratio: 0.95
+伤害属性 / damage_element: wood
+附着量 / attach_amount: 1
+附加效果 / extra_effect:
+命中的首个目标获得“蔓缚”2回合
+定位 / role: 直线压制 / 先手锁位
+建议替换 / suggested_replace:
+- 规尺击 lc_rule_strike
+- 木楔勘岸 lc_wedge_bank_probe
+```
+
+---
+
+## 2.5 第三关固定获得技能 / Stage 3 Fixed Skill
+
+### 8）墨绳校券 / Ink-Line Arch Calibration
+
+```text
+技能ID / skill_id: lc_inkline_balance_arch
+技能名称 / skill_name: 墨绳校券
+获得阶段 / unlock_stage: 第三关固定获得 stage_3_fixed
+技能类别 / skill_type: assist_interact
+施放距离 / cast_range: 4
+作用范围 / area_shape: single
+作用半径 / area_radius: 0
+行动力消耗 / ap_cost: 35
+伤害倍率 / damage_ratio: 0.00
+伤害属性 / damage_element: none
+附着量 / attach_amount: 0
+冷却回合 / cooldown_turns: 2
+附加效果 / extra_effect:
+目标必须为左券台或右券台
+若目标侧 arch_value < 8，则该侧 arch_value +1
+定位 / role: 第三关核心机制技 / 平衡修正
+```
+
+---
+
+## 2.6 第三关结算可选技能 / Stage 3 Optional Skill
+
+### 9）连楔并拱 / Link Wedges and Join the Arch
+
+```text
+技能ID / skill_id: lc_link_wedges_arch
+技能名称 / skill_name: 连楔并拱
+获得阶段 / unlock_stage: 第三关结算可选 stage_3_optional
+获得方式 / unlock_method: 连楔并拱 growth_link_arch
+技能类别 / skill_type: attack
+施放距离 / cast_range: 4
+作用范围 / area_shape: line
+作用半径 / area_radius: 4
+行动力消耗 / ap_cost: 35
+伤害倍率 / damage_ratio: 0.95
+伤害属性 / damage_element: wood
+附着量 / attach_amount: 1
+附加效果 / extra_effect:
+命中的所有目标获得“蔓缚”2回合
+定位 / role: 高级直线控场 / 群体压线
+建议替换 / suggested_replace:
+- 绳准锁弧 lc_line_lock_arc
+- 规尺击 lc_rule_strike
+- 木楔勘岸 lc_wedge_bank_probe
+```
+
+它和“绳准锁弧”的关系可以理解成上位替代：前者偏单点锁位，后者偏整线封锁。
+
+---
+
+## 2.7 第四关固定获得技能 / Stage 4 Fixed Skill
+
+### 10）导汛开肩 / Guide the Flood Through the Side Arches
+
+```text
+技能ID / skill_id: lc_guide_flood_open_arch
+技能名称 / skill_name: 导汛开肩
+获得阶段 / unlock_stage: 第四关固定获得 stage_4_fixed
+技能类别 / skill_type: attack_assist
+施放距离 / cast_range: 4
+作用范围 / area_shape: cross
+作用半径 / area_radius: 1
+行动力消耗 / ap_cost: 40
+伤害倍率 / damage_ratio: 0.90
+伤害属性 / damage_element: earth
+附着量 / attach_amount: 1
+冷却回合 / cooldown_turns: 2
+附加效果 / extra_effect:
+1. 对范围内敌人结算伤害
+2. 若中心格为小拱节点且状态为 closed 或 blocked，则改为 open
+3. 若范围内存在友军，则赋予其“稳桥”1回合
+定位 / role: 最终关核心救场技 / 范围输出 + 机制联动 + 支援
+```
+
+---
+
+## 3. 技能池功能分类 / Functional Breakdown
+
+## 3.1 单体输出类 / Single Target Offense
+
+```text
+- 规尺击 lc_rule_strike
+- 木楔勘岸 lc_wedge_bank_probe
+- 投石遏流 lc_cast_stone_arrest_flow
+- 束桩缓波 lc_pile_bind_wave
+```
+
+## 3.2 范围输出类 / Area Damage
+
+```text
+- 分规定弧 lc_divider_mark_arc
+- 导汛开肩 lc_guide_flood_open_arch
+```
+
+## 3.3 直线控场类 / Line Control
+
+```text
+- 绳准锁弧 lc_line_lock_arc
+- 连楔并拱 lc_link_wedges_arch
+```
+
+## 3.4 关卡机制类 / Stage Mechanic Support
+
+```text
+- 相水定址 lc_read_water_fix_site
+- 墨绳校券 lc_inkline_balance_arch
+- 导汛开肩 lc_guide_flood_open_arch
+```
+

@@ -1,50 +1,67 @@
 extends BaseLevel
 ## 第二关《弧拱定式》
 
-# ── 预加载技能 ──
-var _sk_rule_strike: SkillData = preload("res://data/skills/lc_rule_strike.tres")
-var _sk_wedge: SkillData = preload("res://data/skills/lc_wedge_bank_probe.tres")
-var _sk_stone: SkillData = preload("res://data/skills/lc_cast_stone_arrest_flow.tres")
-var _sk_pile_bind: SkillData = preload("res://data/skills/lc_pile_bind_wave.tres")
-var _sk_staff: SkillData = preload("res://data/skills/sw_staff_end_strike.tres")
-var _sk_survey: SkillData = preload("res://data/skills/sw_field_measure_site.tres")
-var _sk_mallet: SkillData = preload("res://data/skills/cg_mallet_strike.tres")
-var _sk_guard: SkillData = preload("res://data/skills/cg_guard_the_works.tres")
-var _sk_lunge: SkillData = preload("res://data/skills/dc_hidden_current_lunge.tres")
-var _sk_pull: SkillData = preload("res://data/skills/wp_spiral_pull.tres")
-var _sk_crush: SkillData = preload("res://data/skills/bmw_crumbling_bank_crush.tres")
-var _sk_timber: SkillData = preload("res://data/skills/dlp_drifting_timber_crash.tres")
-
-# ── 预加载敌方单位数据 ──
-var _ud_dark_current: UnitData = preload("res://data/units/dark_current.tres")
-var _ud_whirl_pool: UnitData = preload("res://data/units/whirl_pool.tres")
-var _ud_mud_wraith: UnitData = preload("res://data/units/bank_mud_wraith.tres")
-var _ud_drift_log: UnitData = preload("res://data/units/drift_log_pack.tres")
-
-# ── 敌方队伍索引 ──
+const PLAYER_TEAM := 0
 const ENEMY_TEAM := 1
+const ENEMY_FIELD_CAP := 5
+const REQUIRED_DEFEATS := 8
 
-# ── 敌方颜色 ──
-const COLOR_DARK_CURRENT := Color(0.3, 0.4, 0.9)
-const COLOR_WHIRL_POOL := Color(0.6, 0.3, 0.9)
-const COLOR_MUD_WRAITH := Color(0.7, 0.5, 0.25)
-const COLOR_DRIFT_LOG := Color(0.5, 0.65, 0.2)
+const PARAMETER_NAMES := {
+	"width": "河宽",
+	"slope": "坡度",
+	"weight": "石重",
+}
 
-# ── 单位引用 ──
-var _li_chun: Node2D
+var _li_chun: Unit
+var _survey_worker: Unit
+var _craftsmen: Array[Unit] = []
+var _boss: Unit
+
+var _parameter_cells: Dictionary = {}
+var _drafting_cells: Array[Vector2i] = []
+var _parameters_done := {
+	"width": false,
+	"slope": false,
+	"weight": false,
+}
+var _finalized := false
+var _driven_enemy_defeats := 0
+var _summon_cycle := ["守法匠首", "高拱幻影", "守法匠首", "守法匠首", "重墩石像"]
+var _summon_index := 0
+var _li_chun_parameter_round := -1
+var _bonus_summon_next_turn := 0
+var _ordered_enemy: Unit
+var _ordered_enemy_base_atk := 0
+var _ordered_enemy_move_cost := 0
+var _survey_parameter_cost := 40
+var _li_chun_parameter_cost := 45
+
+var _hero_data: UnitData = preload("res://data/units/hero_li_chun.tres")
+var _hero_visual: PackedScene = preload("res://scenes/unit/visual/human/li_chun/li_chun_visual.tscn")
+var _survey_data: UnitData = preload("res://data/units/survey_worker.tres")
+var _craftsman_data: UnitData = preload("res://data/units/craftsman_guard.tres")
+var _mud_data: UnitData = preload("res://data/units/bank_mud_wraith.tres")
+var _whirl_data: UnitData = preload("res://data/units/whirl_pool.tres")
+
+var _staff: SkillData = preload("res://data/skills/sw_staff_end_strike.tres")
+var _survey_skill: SkillData = preload("res://data/skills/sw_field_measure_site.tres")
+var _mallet: SkillData = preload("res://data/skills/cg_mallet_strike.tres")
+var _guard: SkillData = preload("res://data/skills/cg_guard_the_works.tres")
+var _pull: SkillData = preload("res://data/skills/wp_spiral_pull.tres")
+var _crush: SkillData = preload("res://data/skills/bmw_crumbling_bank_crush.tres")
 
 
 func get_teams_config() -> Array:
-	_li_chun = $"Entities/Units/Player"
+	_li_chun = $"Entities/Units/Player" as Unit
 	return [
 		{
-			"name": "玩家",
+			"name": "营造队",
 			"faction": "好人",
 			"controller": "player",
 			"units": [_li_chun],
 		},
 		{
-			"name": "敌方",
+			"name": "旧制势力",
 			"faction": "坏人",
 			"controller": "ai",
 			"units": [],
@@ -52,37 +69,12 @@ func get_teams_config() -> Array:
 	]
 
 
-func get_wave_config() -> Dictionary:
-	return {
-		1: [
-			{"unit_data": _ud_mud_wraith, "cell": Vector2i(6, -3), "team_index": ENEMY_TEAM,
-			 "skills": [_sk_crush], "color": COLOR_MUD_WRAITH},
-		],
-		2: [
-			{"unit_data": _ud_dark_current, "cell": Vector2i(8, -4), "team_index": ENEMY_TEAM,
-			 "skills": [_sk_lunge], "color": COLOR_DARK_CURRENT},
-			{"unit_data": _ud_dark_current, "cell": Vector2i(10, -3), "team_index": ENEMY_TEAM,
-			 "skills": [_sk_lunge], "color": COLOR_DARK_CURRENT},
-		],
-		4: [
-			{"unit_data": _ud_whirl_pool, "cell": Vector2i(9, -2), "team_index": ENEMY_TEAM,
-			 "skills": [_sk_pull], "color": COLOR_WHIRL_POOL},
-			{"unit_data": _ud_drift_log, "cell": Vector2i(7, -6), "team_index": ENEMY_TEAM,
-			 "skills": [_sk_timber], "color": COLOR_DRIFT_LOG},
-		],
-		6: [
-			{"unit_data": _ud_mud_wraith, "cell": Vector2i(5, -3), "team_index": ENEMY_TEAM,
-			 "skills": [_sk_crush], "color": COLOR_MUD_WRAITH},
-			{"unit_data": _ud_dark_current, "cell": Vector2i(11, -4), "team_index": ENEMY_TEAM,
-			 "skills": [_sk_lunge], "color": COLOR_DARK_CURRENT},
-		],
-	}
-
-
 func get_objectives_text() -> Dictionary:
 	return {
 		"victory": [
-			"- 击败所有敌人",
+			"- 完成 3 个参数点",
+			"- 李春在绘样台完成执墨定拱",
+			"- 累计击破 8 名受驱役敌人",
 		],
 		"defeat": [
 			"- 李春死亡",
@@ -92,21 +84,11 @@ func get_objectives_text() -> Dictionary:
 
 
 func check_victory() -> bool:
-	if teams.size() <= ENEMY_TEAM:
-		return false
-	var enemy_team: TeamData = teams[ENEMY_TEAM]
-	for unit: Node2D in enemy_team.units:
-		if is_instance_valid(unit) and unit is Unit:
-			if (unit as Unit).combat_stats and (unit as Unit).combat_stats.is_alive():
-				return false
-	return round_number > 1
+	return _finalized and _driven_enemy_defeats >= REQUIRED_DEFEATS
 
 
 func check_defeat() -> String:
-	if not is_instance_valid(_li_chun):
-		return "李春阵亡"
-	var lc := _li_chun as Unit
-	if lc.combat_stats and not lc.combat_stats.is_alive():
+	if _li_chun == null or _li_chun.combat_stats == null or not _li_chun.combat_stats.is_alive():
 		return "李春阵亡"
 	if round_number > 12:
 		return "超过第 12 回合"
@@ -114,7 +96,288 @@ func check_defeat() -> String:
 
 
 func _on_level_ready() -> void:
-	# ── 李春 ──
-	set_unit_skills(_li_chun as Unit, [_sk_rule_strike, _sk_wedge, _sk_stone, _sk_pile_bind])
-	setup_unit_stats(_li_chun as Unit, "李春", 130, 24, 100, 8, Enums.Element.NONE, 0, true)
+	_setup_anchor_cells()
+	_setup_li_chun()
+	_spawn_allies()
+	_spawn_initial_enemies()
+	unit_died.connect(_on_stage_unit_died)
+	unit_hp_changed.connect(_on_stage_hp_changed)
+	team_turn_started.connect(_on_stage_team_turn_started)
+	Notify.notify("完成 3 个参数点后，将李春送上绘样台", Notify.Position.TOP_CENTER, Notify.Style.INFO, 3.0)
 
+
+func _on_unit_moved() -> void:
+	if selected_unit == null or not (selected_unit is Unit):
+		return
+	var unit := selected_unit as Unit
+	_try_collect_parameter(unit)
+	_try_finalize_design(unit)
+
+
+func _on_stage_team_turn_started(team_index: int) -> void:
+	if team_index == ENEMY_TEAM:
+		if _boss == null or not _boss.combat_stats.is_alive():
+			return
+		var summon_count := 1 + _bonus_summon_next_turn
+		_bonus_summon_next_turn = 0
+		for i in range(summon_count):
+			if _count_driven_enemies() >= ENEMY_FIELD_CAP:
+				_apply_overseer_order()
+				break
+			_spawn_next_summon()
+	elif team_index == PLAYER_TEAM:
+		_clear_overseer_order()
+		_bonus_summon_next_turn = 1 if _enemy_controls_drafting_platform() else 0
+
+
+func _on_stage_unit_died(unit: Unit) -> void:
+	if unit == _ordered_enemy:
+		_clear_overseer_order()
+	if unit == _boss:
+		return
+	if unit.team_index == ENEMY_TEAM:
+		_driven_enemy_defeats += 1
+		Notify.notify("受驱役敌人击破数 %d / %d" % [_driven_enemy_defeats, REQUIRED_DEFEATS], Notify.Position.TOP_RIGHT, Notify.Style.INFO, 2.0)
+		_check_win_lose()
+
+
+func _on_stage_hp_changed(unit: Unit, old_hp: int, new_hp: int) -> void:
+	if unit != _boss or old_hp <= new_hp:
+		return
+	unit.combat_stats.current_hp = old_hp
+	unit.refresh_overhead_bars()
+
+
+func _setup_anchor_cells() -> void:
+	var anchor := _li_chun.cell
+	_parameter_cells = {
+		"width": _nearest_walkable(anchor + Vector2i(-3, 1)),
+		"slope": _nearest_walkable(anchor + Vector2i(2, -3)),
+		"weight": _nearest_walkable(anchor + Vector2i(4, 1)),
+	}
+	_drafting_cells = [
+		_nearest_walkable(anchor + Vector2i(2, -1)),
+		_nearest_walkable(anchor + Vector2i(3, -1)),
+		_nearest_walkable(anchor + Vector2i(2, -2)),
+		_nearest_walkable(anchor + Vector2i(3, -2)),
+	]
+
+
+func _setup_li_chun() -> void:
+	_li_chun.apply_runtime_setup(_hero_data, _hero_visual, Color(1, 0.85, 0, 1))
+	set_unit_skills(_li_chun, Progress.get_battle_skill_resources(GameState.selected_level))
+	setup_unit_stats(_li_chun, "李春", 130, 24, 100, 8, Enums.Element.NONE, 0, true)
+
+
+func _spawn_allies() -> void:
+	_survey_worker = _spawn_ally(_make_unit_data(_survey_data, "测量工", 80, 12, 85, 10), _nearest_walkable(_li_chun.cell + Vector2i(-3, 2)), [_staff, _survey_skill])
+	_craftsmen = [
+		_spawn_ally(_make_unit_data(_craftsman_data, "工匠", 110, 18, 90, 9), _nearest_walkable(_li_chun.cell + Vector2i(-2, 1)), [_mallet, _guard]),
+		_spawn_ally(_make_unit_data(_craftsman_data, "工匠", 110, 18, 90, 9), _nearest_walkable(_li_chun.cell + Vector2i(0, 1)), [_mallet, _guard]),
+		_spawn_ally(_make_unit_data(_craftsman_data, "工匠", 110, 18, 90, 9), _nearest_walkable(_li_chun.cell + Vector2i(2, 1)), [_mallet, _guard]),
+	]
+	_apply_persistent_growth_effects()
+
+
+func _spawn_initial_enemies() -> void:
+	_boss = _spawn_enemy(_make_unit_data(_craftsman_data, "旧制监工", 260, 0, 1, 99), _drafting_cells[1] + Vector2i(0, -1), [])
+	_spawn_enemy(_make_unit_data(_craftsman_data, "守法匠首", 120, 20, 90, 9), _drafting_cells[0] + Vector2i(-1, 0), [_mallet, _guard])
+	_spawn_enemy(_make_unit_data(_craftsman_data, "守法匠首", 120, 20, 90, 9), _drafting_cells[1] + Vector2i(1, 0), [_mallet, _guard])
+	_spawn_enemy(_make_unit_data(_whirl_data, "高拱幻影", 95, 18, 90, 8), _drafting_cells[3] + Vector2i(1, -1), [_pull])
+	_spawn_enemy(_make_unit_data(_mud_data, "重墩石像", 165, 22, 85, 14), _nearest_walkable(_drafting_cells[2] + Vector2i(0, 2)), [_crush])
+
+
+func _spawn_next_summon() -> void:
+	var summon_name: String = _summon_cycle[_summon_index % _summon_cycle.size()]
+	_summon_index += 1
+	match summon_name:
+		"守法匠首":
+			_spawn_enemy(_make_unit_data(_craftsman_data, "守法匠首", 120, 20, 90, 9), _random_enemy_spawn_cell(), [_mallet, _guard])
+		"高拱幻影":
+			_spawn_enemy(_make_unit_data(_whirl_data, "高拱幻影", 95, 18, 90, 8), _random_enemy_spawn_cell(), [_pull])
+		"重墩石像":
+			_spawn_enemy(_make_unit_data(_mud_data, "重墩石像", 165, 22, 85, 14), _random_enemy_spawn_cell(), [_crush])
+
+
+func _try_collect_parameter(unit: Unit) -> void:
+	var key := ""
+	for parameter_key in _parameter_cells.keys():
+		if _parameters_done[parameter_key]:
+			continue
+		if _is_adjacent_or_same(unit.cell, _parameter_cells[parameter_key]):
+			key = parameter_key
+			break
+	if key.is_empty():
+		return
+	var ap_cost := _survey_parameter_cost if unit == _survey_worker else _li_chun_parameter_cost
+	if unit != _survey_worker and unit != _li_chun:
+		return
+	if unit == _li_chun and _li_chun_parameter_round == round_number:
+		return
+	if unit.combat_stats.ap_current < ap_cost:
+		return
+	unit.combat_stats.ap_current -= ap_cost
+	_parameters_done[key] = true
+	if unit == _li_chun:
+		_li_chun_parameter_round = round_number
+	unit.refresh_overhead_bars()
+	Notify.notify("%s 完成参数点：%s" % [unit.combat_stats.unit_name, PARAMETER_NAMES[key]], Notify.Position.TOP_CENTER, Notify.Style.SUCCESS, 2.5)
+
+
+func _try_finalize_design(unit: Unit) -> void:
+	if unit != _li_chun or _finalized or not _all_parameters_done():
+		return
+	if unit.cell not in _drafting_cells:
+		return
+	if unit.combat_stats.ap_current < 35:
+		return
+	unit.combat_stats.ap_current -= 35
+	unit.refresh_overhead_bars()
+	_finalized = true
+	Notify.notify("执墨定拱完成，继续击退旧制驱役之敌", Notify.Position.TOP_CENTER, Notify.Style.SUCCESS, 3.0)
+
+
+func _all_parameters_done() -> bool:
+	for done in _parameters_done.values():
+		if not done:
+			return false
+	return true
+
+
+func _enemy_controls_drafting_platform() -> bool:
+	for enemy in teams[ENEMY_TEAM].units:
+		if enemy is Unit and enemy.combat_stats and enemy.combat_stats.is_alive() and enemy.cell in _drafting_cells:
+			return true
+	return false
+
+
+func _count_driven_enemies() -> int:
+	var count := 0
+	for enemy in teams[ENEMY_TEAM].units:
+		if enemy != _boss and enemy is Unit and enemy.combat_stats and enemy.combat_stats.is_alive():
+			count += 1
+	return count
+
+
+func _apply_overseer_order() -> void:
+	_clear_overseer_order()
+	var candidate: Unit = null
+	var best_distance: float = INF
+	for enemy in teams[ENEMY_TEAM].units:
+		if enemy == _boss or not (enemy is Unit) or enemy.combat_stats == null or not enemy.combat_stats.is_alive():
+			continue
+		var distance: float = enemy.cell.distance_to(_li_chun.cell)
+		if distance < best_distance:
+			best_distance = distance
+			candidate = enemy
+	if candidate == null:
+		return
+	_ordered_enemy = candidate
+	_ordered_enemy_base_atk = candidate.combat_stats.base_atk
+	_ordered_enemy_move_cost = candidate.combat_stats.move_cost_per_tile
+	candidate.combat_stats.base_atk = roundi(float(candidate.combat_stats.base_atk) * 1.15)
+	candidate.combat_stats.move_cost_per_tile = maxi(candidate.combat_stats.move_cost_per_tile - 1, 1)
+	Notify.notify("旧制监工下达督令：%s 获得强化" % candidate.combat_stats.unit_name, Notify.Position.TOP_CENTER, Notify.Style.WARNING, 2.0)
+
+
+func _clear_overseer_order() -> void:
+	if _ordered_enemy == null or _ordered_enemy.combat_stats == null:
+		_ordered_enemy = null
+		return
+	_ordered_enemy.combat_stats.base_atk = _ordered_enemy_base_atk
+	_ordered_enemy.combat_stats.move_cost_per_tile = _ordered_enemy_move_cost
+	_ordered_enemy = null
+
+
+func _random_enemy_spawn_cell() -> Vector2i:
+	var candidates := [
+		_nearest_walkable(_drafting_cells[0] + Vector2i(-2, 0)),
+		_nearest_walkable(_drafting_cells[1] + Vector2i(2, 0)),
+		_nearest_walkable(_drafting_cells[2] + Vector2i(-1, -2)),
+		_nearest_walkable(_drafting_cells[3] + Vector2i(1, -2)),
+	]
+	for cell in candidates:
+		if not _cell_occupied(cell):
+			return cell
+	return candidates[0]
+
+
+func _spawn_ally(data: UnitData, cell: Vector2i, skills: Array[SkillData]) -> Unit:
+	var unit := spawn_unit(data, cell, PLAYER_TEAM)
+	set_unit_skills(unit, skills)
+	setup_unit_stats(unit, data.unit_name, data.max_hp, data.base_atk, data.ap_max, data.move_cost_per_tile)
+	return unit
+
+
+func _spawn_enemy(data: UnitData, cell: Vector2i, skills: Array[SkillData]) -> Unit:
+	var unit := spawn_unit(data, _nearest_walkable(cell), ENEMY_TEAM)
+	set_unit_skills(unit, skills)
+	setup_unit_stats(unit, data.unit_name, data.max_hp, data.base_atk, data.ap_max, data.move_cost_per_tile, data.innate_element, data.innate_element_amount)
+	return unit
+
+
+func _make_unit_data(base: UnitData, unit_name: String, max_hp: int, base_atk: int, ap_max: int, move_cost: int, element: Enums.Element = Enums.Element.NONE, element_amount: int = 0) -> UnitData:
+	var data := base.duplicate(true) as UnitData
+	data.resource_local_to_scene = true
+	data.unit_name = unit_name
+	data.max_hp = max_hp
+	data.base_atk = base_atk
+	data.ap_max = ap_max
+	data.move_cost_per_tile = move_cost
+	data.innate_element = element
+	data.innate_element_amount = element_amount
+	return data
+
+
+func _nearest_walkable(target: Vector2i) -> Vector2i:
+	if movement_manager.get_movement_cost(target) != TileType.IMPASSABLE:
+		return target
+	for radius in range(1, 4):
+		for dx in range(-radius, radius + 1):
+			for dy in range(-radius, radius + 1):
+				var candidate := target + Vector2i(dx, dy)
+				if movement_manager.get_movement_cost(candidate) != TileType.IMPASSABLE:
+					return candidate
+	return target
+
+
+func _is_adjacent_or_same(a: Vector2i, b: Vector2i) -> bool:
+	return absi(a.x - b.x) + absi(a.y - b.y) <= 1
+
+
+func _cell_occupied(cell: Vector2i) -> bool:
+	for unit in _get_all_units():
+		if unit is Unit and unit.combat_stats and unit.combat_stats.is_alive() and unit.cell == cell:
+			return true
+	return false
+
+
+func get_post_level_growth_options() -> Array[Dictionary]:
+	return [
+		{"id": "growth_drawing_discipline", "name": "墨绳习算", "description": "李春基础攻击力 +4，分规定弧伤害倍率 +0.05"},
+		{"id": "growth_center_hold", "name": "护模齐作", "description": "全体工匠最大生命值 +10，基础攻击力 +2"},
+		{"id": "growth_arch_refine", "name": "参校定弧", "description": "李春获得绳准锁弧，可替换规尺击或木楔勘岸"},
+		{"id": "growth_quick_measure", "name": "熟尺知度", "description": "测尺取参消耗 -10，李春取参消耗 -5，李春行动力上限 +5"},
+	]
+
+
+func _apply_persistent_growth_effects() -> void:
+	if Progress.has_growth_option("growth_training_mobilize"):
+		for unit in get_friendly_units():
+			apply_unit_growth_bonus(unit, 10, 0, 5)
+	if Progress.has_growth_option("growth_maps_measures"):
+		apply_unit_growth_bonus(get_hero_unit(), 0, 4, 0)
+		modify_unit_skill(get_hero_unit(), "lc_rule_strike", {"damage_ratio": 1.05})
+	if Progress.has_growth_option("growth_stone_reinforce"):
+		for craftsman in _craftsmen:
+			modify_unit_skill(craftsman, "cg_guard_the_works", {"duration_turns": 3})
+	if Progress.has_growth_option("growth_drawing_discipline"):
+		apply_unit_growth_bonus(get_hero_unit(), 0, 4, 0)
+		modify_unit_skill(get_hero_unit(), "lc_divider_mark_arc", {"damage_ratio": 0.95})
+	if Progress.has_growth_option("growth_center_hold"):
+		for craftsman in _craftsmen:
+			apply_unit_growth_bonus(craftsman, 10, 2, 0)
+	if Progress.has_growth_option("growth_quick_measure"):
+		_survey_parameter_cost = 30
+		_li_chun_parameter_cost = 40
+		apply_unit_growth_bonus(get_hero_unit(), 0, 0, 5)

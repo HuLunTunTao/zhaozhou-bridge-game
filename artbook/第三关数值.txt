@@ -1,0 +1,1058 @@
+# 第一章第三关《二十八券》设计稿
+
+## Godot实现取向版 / Godot-Oriented Markdown Draft
+
+---
+
+## 0. 本关定位 / Stage Role
+
+```text
+关卡ID / stage_id: chapter1_stage3
+关卡名称 / stage_name: 二十八券
+定位 / stage_role: 结构施工关 + 左右平衡机制关 + Boss机制关
+Boss / boss: 偏载傀
+难度 / difficulty: 中高
+推荐回合上限 / turn_limit: 14
+```
+
+### 本关核心目标 / Core Goal
+
+本关的核心不是单纯清空敌人，而是同时完成三件事：
+
+1. 推进左券与右券的施工值
+2. 维持左右两边的券值差不失衡
+3. 完成合龙后击败偏载傀
+
+这一定位与前面总表中“维持左右施工平衡、修正失衡、完成合龙”的任务描述一致。
+
+---
+
+## 1. 核心机制：左右券值 / Core Mechanic: Left and Right Arch Values
+
+## 1.1 机制变量 / Core Variables
+
+```text
+左券值 / left_arch_value: int
+右券值 / right_arch_value: int
+桥体稳定值 / bridge_stability: int
+是否完成合龙 / arch_closed: bool
+```
+
+### 初始值 / Initial Values
+
+```text
+左券值 / left_arch_value: 2
+右券值 / right_arch_value: 2
+桥体稳定值 / bridge_stability: 6
+是否完成合龙 / arch_closed: false
+```
+
+### 目标值 / Target Values
+
+```text
+左券目标 / left_target: 8
+右券目标 / right_target: 8
+```
+
+---
+
+## 1.2 左右差值判定 / Balance Difference Rules
+
+```text
+差值 / arch_gap = abs(left_arch_value - right_arch_value)
+```
+
+### 平衡状态 / Balance States
+
+#### 均衡 / balanced
+
+```text
+条件 / condition: arch_gap <= 1
+效果 / effect:
+    无额外惩罚
+    合龙后Boss可正常受伤
+```
+
+#### 偏衡 / tilted
+
+```text
+条件 / condition: arch_gap == 2 or arch_gap == 3
+效果 / effect:
+    Boss获得“偏载护核”
+    直接受到的伤害上限 = 8
+```
+
+#### 失衡 / unstable
+
+```text
+条件 / condition: arch_gap >= 4
+效果 / effect:
+    Boss获得“偏载护核”
+    直接受到的伤害上限 = 1
+    每次敌方回合结束后，桥体稳定值 -1
+```
+
+这套规则把第三关的压力集中在“差值”本身上，玩家每回合都要看左右值，而不是只看清怪速度。
+
+---
+
+## 1.3 桥体稳定值 / Bridge Stability
+
+桥体稳定值代表整座拱桥当前能承受的施工误差与破坏压力。
+
+### 变化规则 / Stability Changes
+
+```text
+当 arch_gap >= 4 且敌方回合结束时:
+    bridge_stability -= 1
+
+当脱缝鬼在缝口位结束敌方回合时:
+    bridge_stability -= 1
+```
+
+### 失败条件关联 / Fail Link
+
+```text
+若 bridge_stability <= 0:
+    立即判负
+```
+
+---
+
+## 1.4 施工推进 / Construction Progress
+
+本关推进券值的主要方式是运石工完成搬运与入券。
+
+### 单次推进规则 / Single Progress Rule
+
+```text
+运石工携石后，在左券台或右券台执行“运石入券”：
+    对应侧 arch_value +1
+    单侧最大不超过 8
+```
+
+### 额外限制 / Limits
+
+```text
+若某侧 arch_value 已达到 8:
+    该侧不能继续加值
+```
+
+这样就不会出现一边无限堆高、另一边严重落后的玩法漏洞。
+
+---
+
+## 1.5 合龙条件 / Arch Closure Conditions
+
+```text
+前置条件 / requirements:
+    left_arch_value >= 8
+    right_arch_value >= 8
+    arch_gap <= 1
+    李春位于拱冠点 / crown_point
+```
+
+满足以上条件后，李春可执行关卡交互“收缝合龙”。
+
+### 收缝合龙 / Close the Crown Joint
+
+```text
+关卡交互ID / stage_interact_id: close_crown_joint
+名称 / name: 收缝合龙
+执行者 / performer: 李春
+地点 / location: 拱冠点 crown_point
+行动力消耗 / ap_cost: 35
+效果 / effect:
+    arch_closed = true
+    偏载傀进入可击破状态
+```
+
+---
+
+## 2. 地图结构 / Map Structure
+
+```text
+地图尺寸 / map_size: 17 x 15
+地图结构 / structure:
+    中央为拱冠与桥心通道
+    左右各有一条施工券线
+    左右两端各有券台
+    中后场为石料场
+```
+
+### 关键点位 / Key Points
+
+```text
+左券台 / left_arch_platform
+右券台 / right_arch_platform
+拱冠点 / crown_point
+石料场 / stone_yard
+左缝口 / left_joint_tile
+右缝口 / right_joint_tile
+```
+
+---
+
+## 3. 场景对象与地格 / Stage Objects and Tiles
+
+### 普通地格 / normal_tile
+
+* 无特殊效果
+
+### 石料场 / stone_yard
+
+* 运石工可在此执行“运石入券”的取石阶段
+* 不限制取石总量
+
+### 左券台 / left_arch_platform
+
+* 运石工可在此交付石料，使左券值+1
+
+### 右券台 / right_arch_platform
+
+* 运石工可在此交付石料，使右券值+1
+
+### 拱冠点 / crown_point
+
+* 李春可执行“收缝合龙”
+
+### 缝口位 / joint_tile
+
+* 脱缝鬼在其上结束敌方回合时，桥体稳定值-1
+
+### 狭道施工位 / narrow_scaffold_tile
+
+* 无特殊数值
+* 用于卡位、防守、阻断敌方贴近券台
+
+---
+
+## 4. 我方单位配置 / Ally Unit Setup
+
+## 4.1 出场编制 / Ally Lineup
+
+```text
+李春 / Li Chun ×1
+工匠 / Craftsman ×3
+运石工 / Stone Carrier ×2
+```
+
+这与总设计里的第三关出场结构一致。
+
+---
+
+## 4.2 李春 / Li Chun
+
+李春沿用前两关基础面板与已习得技能池，并在本关新增1个强关联机制技能，使他真正进入“合券者”阶段。
+
+```text
+单位ID / unit_id: hero_li_chun
+名称 / name: 李春
+阵营 / camp: ally
+最大生命值 / max_hp: 130
+基础攻击力 / base_atk: 24
+行动力上限 / ap_max: 100
+每格移动消耗 / move_cost_per_tile: 8
+每回合攻击次数上限 / attack_limit_per_turn: unlimited
+每回合辅助次数上限 / assist_limit_per_turn: unlimited
+每回合交互次数上限 / interact_limit_per_turn: unlimited
+固有属性 / innate_element: none
+```
+
+### 可携带技能上限 / skill_loadout_limit
+
+```text
+5
+```
+
+### 可用技能池 / Available Skill Pool
+
+#### 技能1：规尺击 / Rule-Measure Strike
+
+```text
+技能ID / skill_id: lc_rule_strike
+技能名称 / skill_name: 规尺击
+技能类别 / skill_type: attack
+施放距离 / cast_range: 1
+作用范围 / area_shape: single
+行动力消耗 / ap_cost: 20
+伤害倍率 / damage_ratio: 1.00
+伤害属性 / damage_element: none
+附着量 / attach_amount: 0
+附加效果 / extra_effect: 对无属性目标伤害×1.15
+```
+
+#### 技能2：木楔勘岸 / Wooden Wedge Survey
+
+```text
+技能ID / skill_id: lc_wedge_bank_probe
+技能名称 / skill_name: 木楔勘岸
+技能类别 / skill_type: attack
+施放距离 / cast_range: 3
+作用范围 / area_shape: single
+行动力消耗 / ap_cost: 25
+伤害倍率 / damage_ratio: 1.00
+伤害属性 / damage_element: wood
+附着量 / attach_amount: 1
+```
+
+#### 技能3：投石遏流 / Cast Stone to Arrest the Flow
+
+```text
+技能ID / skill_id: lc_cast_stone_arrest_flow
+技能名称 / skill_name: 投石遏流
+技能类别 / skill_type: attack
+施放距离 / cast_range: 3
+作用范围 / area_shape: single
+行动力消耗 / ap_cost: 35
+伤害倍率 / damage_ratio: 0.95
+伤害属性 / damage_element: earth
+附着量 / attach_amount: 2
+附加效果 / extra_effect: 命中后击退1格
+```
+
+#### 技能4：分规定弧 / Mark the Arc with Dividers
+
+```text
+技能ID / skill_id: lc_divider_mark_arc
+技能名称 / skill_name: 分规定弧
+技能类别 / skill_type: attack
+施放距离 / cast_range: 3
+作用范围 / area_shape: diamond
+作用半径 / area_radius: 1
+行动力消耗 / ap_cost: 40
+伤害倍率 / damage_ratio: 0.90
+伤害属性 / damage_element: none
+附着量 / attach_amount: 0
+附加效果 / extra_effect: 对范围内全部敌人结算伤害
+```
+
+#### 技能5：墨绳校券 / Ink-Line Arch Calibration
+
+这是第三关固定新增技能，直接服务左右平衡。
+
+```text
+技能ID / skill_id: lc_inkline_balance_arch
+技能名称 / skill_name: 墨绳校券
+技能类别 / skill_type: assist_interact
+施放距离 / cast_range: 4
+作用范围 / area_shape: single
+行动力消耗 / ap_cost: 35
+伤害倍率 / damage_ratio: 0.00
+伤害属性 / damage_element: none
+附着量 / attach_amount: 0
+冷却回合 / cooldown_turns: 2
+附加效果 / extra_effect:
+    目标必须为左券台或右券台
+    若目标侧 arch_value < 8，则该侧 arch_value +1
+    该技能不能使单侧 arch_value 超过 8
+```
+
+#### 可继承技能：束桩缓波 / Bind Waves with Stakes
+
+若上一关前已解锁，则本关仍可用。
+
+```text
+技能ID / skill_id: lc_pile_bind_wave
+技能名称 / skill_name: 束桩缓波
+技能类别 / skill_type: attack
+施放距离 / cast_range: 3
+作用范围 / area_shape: single
+行动力消耗 / ap_cost: 30
+伤害倍率 / damage_ratio: 0.95
+伤害属性 / damage_element: wood
+附着量 / attach_amount: 2
+附加效果 / extra_effect:
+    命中后对目标周围十字1格施加“迟滞”2回合
+```
+
+### 本关推荐携带 / Recommended Loadout
+
+```text
+木楔勘岸
+投石遏流
+分规定弧
+墨绳校券
+规尺击 / 束桩缓波（二选一）
+```
+
+---
+
+## 4.3 工匠 / Craftsman
+
+工匠继续沿用第二关的定位与技能，不新增主动技能，数值只做小幅抬升，以匹配第三关中高难度的前排需求。
+
+```text
+单位ID / unit_id: craftsman_guard
+名称 / name: 工匠
+阵营 / camp: ally
+最大生命值 / max_hp: 118
+基础攻击力 / base_atk: 20
+行动力上限 / ap_max: 90
+每格移动消耗 / move_cost_per_tile: 9
+每回合攻击次数上限 / attack_limit_per_turn: 1
+每回合辅助次数上限 / assist_limit_per_turn: 1
+每回合交互次数上限 / interact_limit_per_turn: 0
+固有属性 / innate_element: none
+```
+
+### 技能1：杵槌击 / Mallet Strike
+
+```text
+技能ID / skill_id: cg_mallet_strike
+技能名称 / skill_name: 杵槌击
+技能类别 / skill_type: attack
+施放距离 / cast_range: 1
+作用范围 / area_shape: single
+行动力消耗 / ap_cost: 25
+伤害倍率 / damage_ratio: 1.00
+伤害属性 / damage_element: none
+附着量 / attach_amount: 0
+```
+
+### 技能2：捍作护行 / Guard the Works
+
+```text
+技能ID / skill_id: cg_guard_the_works
+技能名称 / skill_name: 捍作护行
+技能类别 / skill_type: assist
+施放距离 / cast_range: 1
+作用范围 / area_shape: single
+行动力消耗 / ap_cost: 30
+伤害倍率 / damage_ratio: 0.00
+伤害属性 / damage_element: none
+附着量 / attach_amount: 0
+持续回合 / duration_turns: 2
+附加效果 / extra_effect: 赋予“护持”
+```
+
+---
+
+## 4.4 运石工 / Stone Carrier
+
+这是第三关第一次正式上场的关键功能单位，技能保持极简，只保留1个自卫攻击和1个施工交互动作。总设计里他本来就是“第三关开始成为关键单位”的结构辅助。
+
+```text
+单位ID / unit_id: stone_carrier
+名称 / name: 运石工
+阵营 / camp: ally
+最大生命值 / max_hp: 92
+基础攻击力 / base_atk: 14
+行动力上限 / ap_max: 90
+每格移动消耗 / move_cost_per_tile: 9
+每回合攻击次数上限 / attack_limit_per_turn: 1
+每回合辅助次数上限 / assist_limit_per_turn: 0
+每回合交互次数上限 / interact_limit_per_turn: 1
+固有属性 / innate_element: none
+携石状态 / carrying_stone: bool
+```
+
+### 技能1：扁杠自卫 / Pole Self-Defense
+
+```text
+技能ID / skill_id: sc_pole_self_defense
+技能名称 / skill_name: 扁杠自卫
+技能类别 / skill_type: attack
+施放距离 / cast_range: 1
+作用范围 / area_shape: single
+行动力消耗 / ap_cost: 25
+伤害倍率 / damage_ratio: 0.85
+伤害属性 / damage_element: none
+附着量 / attach_amount: 0
+```
+
+### 技能2：运石入券 / Carry Stone into the Arch
+
+```text
+技能ID / skill_id: sc_transport_stone
+技能名称 / skill_name: 运石入券
+技能类别 / skill_type: interact
+施放距离 / cast_range: 0
+作用范围 / area_shape: self_tile
+行动力消耗 / ap_cost: 40
+伤害倍率 / damage_ratio: 0.00
+伤害属性 / damage_element: none
+附着量 / attach_amount: 0
+附加效果 / extra_effect:
+    若当前位于石料场且 carrying_stone == false:
+        carrying_stone = true
+    若当前位于左券台且 carrying_stone == true:
+        left_arch_value += 1
+        carrying_stone = false
+    若当前位于右券台且 carrying_stone == true:
+        right_arch_value += 1
+        carrying_stone = false
+```
+
+### 被动：负石稳步 / Steady under Load
+
+```text
+效果 / effect:
+    carrying_stone == true 时：
+        每格移动额外消耗 +1
+        本回合第一次被击退时距离 -1
+```
+
+---
+
+## 5. 敌方单位配置 / Enemy Unit Setup
+
+## 5.1 裂石兽 / Stone-Splitting Beast
+
+这是本关的高伤近战破坏单位，负责冲击施工前线和运石路线。
+
+```text
+单位ID / unit_id: stone_split_beast
+名称 / name: 裂石兽
+阵营 / camp: enemy
+最大生命值 / max_hp: 108
+基础攻击力 / base_atk: 24
+固有属性 / innate_element: earth
+固有属性量 / innate_element_amount: 2
+敌方行为模板 / ai_type: rush_breaker
+```
+
+### 主动技能：碎垒裂击 / Break the Masonry
+
+```text
+技能ID / skill_id: ssb_break_masonry
+技能名称 / skill_name: 碎垒裂击
+技能类别 / skill_type: attack
+施放距离 / cast_range: 1
+作用范围 / area_shape: single
+伤害倍率 / damage_ratio: 1.10
+伤害属性 / damage_element: earth
+附着量 / attach_amount: 1
+```
+
+### 被动：袭石 / Strike the Carrier
+
+```text
+效果 / effect:
+    若攻击目标为 carrying_stone == true 的运石工，
+    则本次伤害 +15%
+```
+
+### AI优先级 / AI Priority
+
+```text
+携石中的运石工 carrying_stone_worker
+> 最近工匠 nearest_craftsman
+> 最近单位 nearest_target
+```
+
+---
+
+## 5.2 断索鬼 / Rope-Severing Wraith
+
+这是本关的高速骚扰单位，优先切运石节奏，而不是拼正面输出。
+
+```text
+单位ID / unit_id: rope_sever_wraith
+名称 / name: 断索鬼
+阵营 / camp: enemy
+最大生命值 / max_hp: 72
+基础攻击力 / base_atk: 18
+固有属性 / innate_element: wood
+固有属性量 / innate_element_amount: 2
+敌方行为模板 / ai_type: fast_harass
+```
+
+### 主动技能：断索掠影 / Severing Shadow
+
+```text
+技能ID / skill_id: rsw_severing_shadow
+技能名称 / skill_name: 断索掠影
+技能类别 / skill_type: attack
+施放距离 / cast_range: 1
+作用范围 / area_shape: single
+伤害倍率 / damage_ratio: 0.95
+伤害属性 / damage_element: wood
+附着量 / attach_amount: 1
+附加效果 / extra_effect:
+    若目标为 carrying_stone == true 的运石工，
+    则其 carrying_stone 变为 false
+```
+
+### 被动：疾掠 / Swift Glide
+
+```text
+效果 / effect:
+    本回合首次移动 +1格
+```
+
+### AI优先级 / AI Priority
+
+```text
+携石中的运石工 carrying_stone_worker
+> 未携石的运石工 stone_carrier
+> 最近单位 nearest_target
+```
+
+---
+
+## 5.3 错券兵 / Misaligned Arch Soldier
+
+这是本关最直接干扰左右平衡的机制敌人。
+
+```text
+单位ID / unit_id: misaligned_arch_soldier
+名称 / name: 错券兵
+阵营 / camp: enemy
+最大生命值 / max_hp: 86
+基础攻击力 / base_atk: 17
+固有属性 / innate_element: none
+固有属性量 / innate_element_amount: 0
+敌方行为模板 / ai_type: platform_disruptor
+```
+
+### 主动技能：偏线撞击 / Misdrawn Line Strike
+
+```text
+技能ID / skill_id: mas_misdrawn_line_strike
+技能名称 / skill_name: 偏线撞击
+技能类别 / skill_type: attack
+施放距离 / cast_range: 1
+作用范围 / area_shape: single
+伤害倍率 / damage_ratio: 0.95
+伤害属性 / damage_element: none
+附着量 / attach_amount: 0
+```
+
+### 被动：扰券 / Disturb the Arch
+
+```text
+效果 / effect:
+    若在敌方回合结束时位于左券台相邻格，
+    则 left_arch_value = max(left_arch_value - 1, 0)
+
+    若在敌方回合结束时位于右券台相邻格，
+    则 right_arch_value = max(right_arch_value - 1, 0)
+```
+
+### AI优先级 / AI Priority
+
+```text
+较低券值一侧的平台 lower_side_platform
+> 任意券台 any_platform
+> 最近单位 nearest_target
+```
+
+---
+
+## 5.4 脱缝鬼 / Joint-Eroding Shade
+
+这是本关的持续压力单位，不以高伤害见长，而是不断侵蚀桥体整体稳定。
+
+```text
+单位ID / unit_id: joint_eroding_shade
+名称 / name: 脱缝鬼
+阵营 / camp: enemy
+最大生命值 / max_hp: 64
+基础攻击力 / base_atk: 15
+固有属性 / innate_element: water
+固有属性量 / innate_element_amount: 2
+敌方行为模板 / ai_type: seam_pressure
+```
+
+### 主动技能：蚀缝冷侵 / Cold Seep into the Joint
+
+```text
+技能ID / skill_id: jes_cold_seep_joint
+技能名称 / skill_name: 蚀缝冷侵
+技能类别 / skill_type: attack
+施放距离 / cast_range: 1
+作用范围 / area_shape: single
+伤害倍率 / damage_ratio: 0.90
+伤害属性 / damage_element: water
+附着量 / attach_amount: 1
+```
+
+### 被动：缝蚀 / Joint Erosion
+
+```text
+效果 / effect:
+    若在敌方回合结束时位于左缝口或右缝口，
+    则 bridge_stability -= 1
+```
+
+### AI优先级 / AI Priority
+
+```text
+最近缝口位 nearest_joint_tile
+> 李春 li_chun
+> 最近单位 nearest_target
+```
+
+---
+
+## 5.5 偏载傀 / Unbalanced Load Puppet
+
+这是本关Boss，直接围绕“拉大左右差值”这一主题展开，是第三关真正的机制终极考验。
+
+```text
+单位ID / unit_id: unbalanced_load_puppet
+名称 / name: 偏载傀
+阵营 / camp: enemy
+最大生命值 / max_hp: 320
+基础攻击力 / base_atk: 22
+固有属性 / innate_element: earth
+固有属性量 / innate_element_amount: 2
+敌方行为模板 / ai_type: fixed_balance_boss
+固定位置 / fixed_position: true
+```
+
+### 位置 / Position
+
+```text
+固定于拱冠后侧重压台
+不移动
+```
+
+### 主动技能：偏压移衡 / Shift the Load
+
+```text
+技能ID / skill_id: ulp_shift_the_load
+技能名称 / skill_name: 偏压移衡
+技能类别 / skill_type: special
+施放距离 / cast_range: global
+作用范围 / area_shape: special
+伤害倍率 / damage_ratio: 0.00
+伤害属性 / damage_element: earth
+附着量 / attach_amount: 0
+附加效果 / extra_effect:
+    若 left_arch_value == right_arch_value:
+        随机选择一侧 arch_value -1
+    若 left_arch_value > right_arch_value:
+        right_arch_value -= 1
+    若 right_arch_value > left_arch_value:
+        left_arch_value -= 1
+    结果最低不小于 0
+```
+
+### 被动：偏载护核 / Core of Uneven Weight
+
+```text
+效果 / effect:
+    若 arch_closed == false:
+        直接受到的伤害固定为 1
+
+    若 arch_closed == true 且 arch_gap <= 1:
+        正常受到伤害
+
+    若 arch_closed == true 且 arch_gap == 2 or arch_gap == 3:
+        直接受到的伤害上限 = 8
+
+    若 arch_closed == true 且 arch_gap >= 4:
+        直接受到的伤害固定为 1
+```
+
+### 被动：压台 / Load on the Crown
+
+```text
+效果 / effect:
+    敌方回合结束时，
+    若偏载傀周围1格内存在我方单位，
+    则该单位受到基础攻击力×0.50的无属性伤害
+```
+
+---
+
+## 6. 敌方波次配置 / Enemy Waves
+
+本关不采用第二关那种强召唤型Boss，而是采用“固定Boss+定时波次”模式，这样更利于围绕左右券值做节奏设计。
+
+### 开局配置 / Opening Setup
+
+```text
+裂石兽 stone_split_beast ×1
+错券兵 misaligned_arch_soldier ×2
+偏载傀 unbalanced_load_puppet ×1
+```
+
+### 回合波次 / Turn Waves
+
+```text
+第2回合敌方开始前 / wave_1:
+    断索鬼 rope_sever_wraith ×1
+
+第3回合敌方开始前 / wave_2:
+    裂石兽 stone_split_beast ×1
+
+第4回合敌方开始前 / wave_3:
+    脱缝鬼 joint_eroding_shade ×1
+
+第6回合敌方开始前 / wave_4:
+    错券兵 misaligned_arch_soldier ×1
+    断索鬼 rope_sever_wraith ×1
+
+第8回合敌方开始前 / wave_5:
+    脱缝鬼 joint_eroding_shade ×1
+
+第10回合敌方开始前 / wave_6:
+    裂石兽 stone_split_beast ×1
+```
+
+### 敌方总数 / Total Enemy Count
+
+```text
+裂石兽 ×3
+断索鬼 ×2
+错券兵 ×3
+脱缝鬼 ×2
+偏载傀 ×1
+```
+
+这个结构对应总表里“裂石兽和错券兵为核心，断索鬼少量机动干扰，脱缝鬼作持续压迫，偏载傀1”的配比。
+
+---
+
+## 7. 开局站位建议 / Opening Placement Suggestion
+
+```text
+李春 / Li Chun:
+    中后场偏左，距拱冠点3格
+
+工匠A / Craftsman_A:
+    左券线入口
+
+工匠B / Craftsman_B:
+    中央桥心通道
+
+工匠C / Craftsman_C:
+    右券线入口
+
+运石工A / StoneCarrier_A:
+    石料场左侧
+
+运石工B / StoneCarrier_B:
+    石料场右侧
+```
+
+### 敌方初始站位 / Enemy Opening
+
+```text
+偏载傀:
+    拱冠后侧固定台
+
+错券兵A:
+    左券台前方通道
+
+错券兵B:
+    右券台前方通道
+
+裂石兽:
+    中央桥心通道前压位
+```
+
+---
+
+## 8. 胜负条件 / Win and Fail Conditions
+
+### 胜利条件 / Victory Conditions
+
+```text
+1. left_arch_value >= 8
+2. right_arch_value >= 8
+3. arch_gap <= 1
+4. 李春在拱冠点执行“收缝合龙”
+5. 击败偏载傀
+```
+
+### 失败条件 / Fail Conditions
+
+```text
+1. 李春死亡
+2. bridge_stability <= 0
+3. 超过第14回合仍未通关
+```
+
+---
+
+## 9. 第三关结算成长 / Stage 3 Post-Battle Growth
+
+本关结束后，李春从“会画桥的人”成长为“能让桥真正站起来的人”，成长项继续围绕合券、稳拱、范围控制来给。
+
+### 本关成长形式 / Growth Format
+
+```text
+4选1
+```
+
+### 选项1 / option_1
+
+```text
+选项ID / option_id: growth_balance_method
+名称 / name: 校券有法
+效果 / effect:
+    墨绳校券 cooldown_turns -1
+    李春行动力上限 +5
+```
+
+### 选项2 / option_2
+
+```text
+选项ID / option_id: growth_joint_finish
+名称 / name: 收缝习熟
+效果 / effect:
+    收缝合龙 ap_cost -10
+    李春基础攻击力 +4
+```
+
+### 选项3 / option_3
+
+```text
+选项ID / option_id: growth_link_arch
+名称 / name: 连楔并拱
+效果 / effect:
+    李春获得新技能“连楔并拱”
+    可替换规尺击或木楔勘岸
+```
+
+#### 新技能 / new_skill
+
+```text
+技能ID / skill_id: lc_link_wedges_arch
+技能名称 / skill_name: 连楔并拱
+技能类别 / skill_type: attack
+施放距离 / cast_range: 4
+作用范围 / area_shape: line
+作用半径 / area_radius: 4
+行动力消耗 / ap_cost: 35
+伤害倍率 / damage_ratio: 0.95
+伤害属性 / damage_element: wood
+附着量 / attach_amount: 1
+附加效果 / extra_effect:
+    命中的所有目标获得蔓缚2回合
+```
+
+### 选项4 / option_4
+
+```text
+选项ID / option_id: growth_team_hold
+名称 / name: 立券同力
+效果 / effect:
+    全体工匠最大生命值 +10
+    全体运石工行动力上限 +5
+```
+
+---
+
+## 10. Godot拆表建议 / Godot Implementation Notes
+
+### 推荐资源拆分 / Suggested Resource Split
+
+```text
+res://data/stages/chapter1_stage3/
+    stage_config.tres
+    arch_balance_config.tres
+    wave_spawns.tres
+
+res://data/units/
+    hero_li_chun.tres
+    craftsman_guard.tres
+    stone_carrier.tres
+    stone_split_beast.tres
+    rope_sever_wraith.tres
+    misaligned_arch_soldier.tres
+    joint_eroding_shade.tres
+    unbalanced_load_puppet.tres
+
+res://data/skills/
+    lc_inkline_balance_arch.tres
+    sc_transport_stone.tres
+    ssb_break_masonry.tres
+    rsw_severing_shadow.tres
+    mas_misdrawn_line_strike.tres
+    jes_cold_seep_joint.tres
+    ulp_shift_the_load.tres
+```
+
+### 关卡变量 / Stage Variables
+
+```text
+左券值 / left_arch_value: int
+右券值 / right_arch_value: int
+差值 / arch_gap: int
+桥体稳定值 / bridge_stability: int
+是否完成合龙 / arch_closed: bool
+```
+
+### 施工交互伪逻辑 / Construction Interaction Pseudo Logic
+
+```text
+use_transport_stone(unit):
+    if unit is stone_carrier:
+        if unit.on_tile == stone_yard and unit.carrying_stone == false:
+            unit.carrying_stone = true
+        elif unit.on_tile == left_arch_platform and unit.carrying_stone == true:
+            left_arch_value = min(left_arch_value + 1, 8)
+            unit.carrying_stone = false
+        elif unit.on_tile == right_arch_platform and unit.carrying_stone == true:
+            right_arch_value = min(right_arch_value + 1, 8)
+            unit.carrying_stone = false
+```
+
+### 差值结算伪逻辑 / Gap Resolve Pseudo Logic
+
+```text
+resolve_arch_gap():
+    arch_gap = abs(left_arch_value - right_arch_value)
+
+    if arch_gap >= 4:
+        boss_damage_cap = 1
+    elif arch_gap >= 2:
+        boss_damage_cap = 8
+    else:
+        boss_damage_cap = normal
+```
+
+### Boss技能伪逻辑 / Boss Skill Pseudo Logic
+
+```text
+boss_use_shift_the_load():
+    if left_arch_value == right_arch_value:
+        random_side -= 1
+    elif left_arch_value > right_arch_value:
+        right_arch_value -= 1
+    else:
+        left_arch_value -= 1
+
+    left_arch_value = max(left_arch_value, 0)
+    right_arch_value = max(right_arch_value, 0)
+```
+
+### 敌方回合结束伪逻辑 / Enemy Turn End Pseudo Logic
+
+```text
+enemy_turn_end():
+    arch_gap = abs(left_arch_value - right_arch_value)
+
+    if arch_gap >= 4:
+        bridge_stability -= 1
+
+    for each joint_eroding_shade:
+        if unit.on_left_joint or unit.on_right_joint:
+            bridge_stability -= 1
+```
+
+### 合龙伪逻辑 / Crown Closure Pseudo Logic
+
+```text
+close_crown_joint():
+    if left_arch_value >= 8 and right_arch_value >= 8 and abs(left_arch_value - right_arch_value) <= 1:
+        arch_closed = true
+```
+
+---
+
+## 11. 这版第三关的平衡抓手 / Balance Anchors
+
+这一关真正的压迫感来自三条线同时拉扯：
+一条是运石工推进左右券值，
+一条是错券兵和偏载傀持续把差值拉开，
+一条是脱缝鬼和失衡状态不断消耗桥体稳定值。
+
+这样玩家不会只盯着Boss血条，而会一直围绕“哪一边落后、谁去补、谁去守、什么时候合龙”来做判断。这也正好对应你给第三关定下的“边打边维持结构平衡”的总方向。
+
+
