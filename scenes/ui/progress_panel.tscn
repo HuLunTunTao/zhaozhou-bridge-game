@@ -68,7 +68,7 @@ text = "李春技能配置"
 [node name="EquippedCountLabel" type="Label" parent="Backdrop/Panel/Content"]
 unique_name_in_owner = true
 layout_mode = 2
-text = "已装备 0 / 4"
+text = "已装备 0 / 3"
 
 [node name="Scroll" type="ScrollContainer" parent="Backdrop/Panel/Content"]
 custom_minimum_size = Vector2(0, 180)

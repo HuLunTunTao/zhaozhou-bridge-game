@@ -15,7 +15,6 @@ const INITIAL_SKILL_IDS: Array[String] = [
 	"lc_rule_strike",
 	"lc_wedge_bank_probe",
 	"lc_cast_stone_arrest_flow",
-	"lc_read_water_fix_site",
 ]
 
 const SKILL_PATHS := {
@@ -32,6 +31,7 @@ const SKILL_PATHS := {
 }
 
 const LEVEL_STAGE_SKILLS := {
+	"关卡1-1": "lc_read_water_fix_site",
 	"关卡1-2": "lc_divider_mark_arc",
 	"关卡1-3": "lc_inkline_balance_arch",
 	"关卡1-4": "lc_guide_flood_open_arch",
@@ -163,6 +163,14 @@ func get_unlocked_skill_ids() -> Array[String]:
 
 func get_equipped_skill_ids() -> Array[String]:
 	return equipped_skill_ids.duplicate()
+
+
+func get_effective_max_equipped() -> int:
+	var equippable_count := 0
+	for skill_id in unlocked_skill_ids:
+		if not is_stage_limited_skill(skill_id):
+			equippable_count += 1
+	return mini(MAX_EQUIPPED_SKILLS, equippable_count)
 
 
 func get_level_growth_options(level_name: String) -> Array[Dictionary]:

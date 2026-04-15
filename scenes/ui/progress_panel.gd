@@ -77,7 +77,7 @@ func _rebuild_skills() -> void:
 	for child in skill_list.get_children():
 		child.queue_free()
 	var equipped_ids := Progress.get_equipped_skill_ids()
-	equipped_count_label.text = "已装备 %d / %d" % [equipped_ids.size(), Progress.MAX_EQUIPPED_SKILLS]
+	equipped_count_label.text = "已装备 %d / %d" % [equipped_ids.size(), Progress.get_effective_max_equipped()]
 
 	for skill_id in Progress.get_unlocked_skill_ids():
 		var skill := Progress.get_skill_resource(skill_id)
@@ -204,7 +204,7 @@ func _on_card_input(event: InputEvent, skill_id: String) -> void:
 		var is_equipped := Progress.is_skill_equipped(skill_id)
 		var ok := Progress.set_skill_equipped(skill_id, not is_equipped)
 		if not ok:
-			Notify.notify("最多装配 %d 个自选技能" % Progress.MAX_EQUIPPED_SKILLS, Notify.Position.TOP_CENTER, Notify.Style.WARNING, 2.0)
+			Notify.notify("最多装配 %d 个自选技能" % Progress.get_effective_max_equipped(), Notify.Position.TOP_CENTER, Notify.Style.WARNING, 2.0)
 
 
 func _on_card_hover(skill_id: String, entered: bool) -> void:
