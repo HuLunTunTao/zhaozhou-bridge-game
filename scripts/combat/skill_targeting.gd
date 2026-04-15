@@ -5,6 +5,7 @@ extends Node2D
 
 var tilemap: TileMapLayer
 var half_tile := Vector2(16, 8)
+var _coord_font: Font = null
 
 var _cast_cells: Array[Vector2i] = []      # 可选释放点（绝对坐标）
 var _effect_cells: Array[Vector2i] = []    # 当前悬停的影响区域（绝对坐标）
@@ -19,11 +20,15 @@ const COLOR_ATTACK := Color(1.0, 0.2, 0.2, 0.35)       # 红色 — 伤害（有
 const COLOR_ATTACK_NO_TARGET := Color(0.5, 0.5, 0.5, 0.25) # 灰色 — 伤害（无目标）
 const COLOR_ASSIST := Color(0.2, 0.8, 0.2, 0.35)       # 绿色 — 增益
 const COLOR_INTERACT := Color(1.0, 0.9, 0.2, 0.35)     # 黄色 — 交互
+const COLOR_COORD_TEXT := Color(1.0, 0.98, 0.88, 0.95)
+const COLOR_COORD_OUTLINE := Color(0.08, 0.08, 0.08, 0.95)
+const COORD_FONT_SIZE := 10
 
 
 func _ready() -> void:
 	# 必须高于所有 TileMapLayer 的 z_index（Obstacle z=2），否则会被地形图层遮挡。
 	z_index = 5
+	_coord_font = Fonts.PIXEL_10
 
 
 ## 显示技能释放范围。caster_cell = 施法者格子坐标。
@@ -111,6 +116,9 @@ func _draw() -> void:
 			var center := tilemap.map_to_local(cell)
 			draw_colored_polygon(_diamond(center), color)
 
+	if _hovered_cast_cell in _cast_cells:
+		_draw_cell_coordinate(_hovered_cast_cell, tilemap.map_to_local(_hovered_cast_cell))
+
 
 func _get_effect_color() -> Color:
 	if _skill == null:
@@ -131,3 +139,14 @@ func _diamond(center: Vector2) -> PackedVector2Array:
 		center + Vector2(0, half_tile.y),
 		center + Vector2(-half_tile.x, 0),
 	])
+
+
+func _draw_cell_coordinate(cell: Vector2i, center: Vector2) -> void:
+	if _coord_font == null:
+		return
+	var text := "%d,%d" % [cell.x, cell.y]
+	var text_width := _coord_font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, COORD_FONT_SIZE).x
+	var pos := center + Vector2(-text_width * 0.5, -11)
+	for offset in [Vector2(-1, 0), Vector2(1, 0), Vector2(0, -1), Vector2(0, 1)]:
+		draw_string(_coord_font, pos + offset, text, HORIZONTAL_ALIGNMENT_LEFT, -1, COORD_FONT_SIZE, COLOR_COORD_OUTLINE)
+	draw_string(_coord_font, pos, text, HORIZONTAL_ALIGNMENT_LEFT, -1, COORD_FONT_SIZE, COLOR_COORD_TEXT)

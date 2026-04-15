@@ -45,6 +45,7 @@ const SURVEY_CELLS: Array[Vector2i] = [Vector2i(-11, 12), Vector2i(-1, 2), Vecto
 # ── 候选桥位 ──
 var _bridge_confirmed: bool = false
 var _bridge_tile: SpecialTile = null
+var _bridge_marker: Node2D = null
 const BRIDGE_CELL: Vector2i = Vector2i(0, 0)
 const COLOR_BRIDGE := Color(0.2, 0.6, 0.95, 0.75)
 
@@ -321,6 +322,7 @@ func _spawn_bridge_tile() -> void:
 	_bridge_tile = _make_bridge_tile()
 	_bridge_tile.name = "BridgeSiteTile"
 	register_special_tile(_bridge_tile, BRIDGE_CELL)
+	_spawn_bridge_marker()
 
 
 func _make_bridge_tile() -> SpecialTile:
@@ -340,6 +342,44 @@ func _make_bridge_tile() -> SpecialTile:
 	tile.add_child(inner)
 
 	return tile
+
+
+func _spawn_bridge_marker() -> void:
+	if _bridge_marker != null and is_instance_valid(_bridge_marker):
+		_bridge_marker.queue_free()
+
+	_bridge_marker = Node2D.new()
+	_bridge_marker.name = "BridgeSiteMarker"
+	_bridge_marker.z_as_relative = false
+	_bridge_marker.z_index = 120
+	_bridge_marker.position = tilemap.map_to_local(BRIDGE_CELL) + Vector2(0, -18)
+	add_child(_bridge_marker)
+
+	var halo := Polygon2D.new()
+	halo.polygon = PackedVector2Array([0, -30, 30, -15, 0, 0, -30, -15])
+	halo.color = Color(0.18, 0.72, 1.0, 0.42)
+	_bridge_marker.add_child(halo)
+
+	var core := Polygon2D.new()
+	core.polygon = PackedVector2Array([0, -18, 18, -9, 0, 0, -18, -9])
+	core.color = Color(1.0, 0.97, 0.78, 0.95)
+	core.position = Vector2(0, -2)
+	_bridge_marker.add_child(core)
+
+	var pole := Line2D.new()
+	pole.points = PackedVector2Array([Vector2(0, -32), Vector2(0, -4)])
+	pole.width = 3.0
+	pole.default_color = Color(0.96, 0.93, 0.78, 0.95)
+	_bridge_marker.add_child(pole)
+
+	var flag := Polygon2D.new()
+	flag.polygon = PackedVector2Array([0, -32, 18, -26, 0, -20])
+	flag.color = Color(0.98, 0.68, 0.2, 0.95)
+	_bridge_marker.add_child(flag)
+
+	var tween := create_tween().set_loops()
+	tween.tween_property(_bridge_marker, "position:y", _bridge_marker.position.y - 6.0, 0.7).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	tween.tween_property(_bridge_marker, "position:y", _bridge_marker.position.y, 0.7).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 
 
 func _advance_to_task3() -> void:
@@ -400,6 +440,9 @@ func _on_skill_executed(caster: Unit, skill: SkillData, cast_cell: Vector2i, _ex
 			Notify.notify("请前往地图中心的候选桥位执行「相水定址」。", Notify.Position.TOP_CENTER, Notify.Style.WARNING, 2.5)
 			return
 		_bridge_confirmed = true
+		if _bridge_marker != null and is_instance_valid(_bridge_marker):
+			_bridge_marker.queue_free()
+			_bridge_marker = null
 		_advance_to_task3()
 
 
