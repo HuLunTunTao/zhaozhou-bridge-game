@@ -15,6 +15,7 @@ var _bridge_stability := 6
 var _arch_closed := false
 var _pending_enemy_resolution := false
 var _carrying_stone: Dictionary = {}
+var _carrier_base_move_cost: Dictionary = {}
 
 var _left_platform: Vector2i
 var _right_platform: Vector2i
@@ -170,14 +171,16 @@ func _setup_li_chun() -> void:
 
 func _spawn_allies() -> void:
 	_craftsmen = [
-		_spawn_ally(_make_unit_data(_craftsman_data, "工匠", 118, 20, 92, 9), _nearest_walkable(_left_platform + Vector2i(-2, 1)), [_mallet, _guard]),
+		_spawn_ally(_make_unit_data(_craftsman_data, "工匠", 118, 20, 92, 9), _nearest_walkable(_left_platform + Vector2i(-2, 0)), [_mallet, _guard]),
 		_spawn_ally(_make_unit_data(_craftsman_data, "工匠", 118, 20, 92, 9), _nearest_walkable(_crown_point + Vector2i(0, 2)), [_mallet, _guard]),
-		_spawn_ally(_make_unit_data(_craftsman_data, "工匠", 118, 20, 92, 9), _nearest_walkable(_right_platform + Vector2i(2, 1)), [_mallet, _guard]),
+		_spawn_ally(_make_unit_data(_craftsman_data, "工匠", 118, 20, 92, 9), _nearest_walkable(_right_platform + Vector2i(2, 0)), [_mallet, _guard]),
 	]
 	_stone_carriers = [
-		_spawn_ally(_make_unit_data(_survey_data, "运石工", 88, 13, 90, 9), _stone_yard_cells[0], [_staff]),
-		_spawn_ally(_make_unit_data(_survey_data, "运石工", 88, 13, 90, 9), _stone_yard_cells[1], [_staff]),
+		_spawn_ally(_make_unit_data(_survey_data, "运石工", 88, 13, 90, 9), _nearest_walkable(_stone_yard_cells[0] + Vector2i(-1, 0)), [_staff]),
+		_spawn_ally(_make_unit_data(_survey_data, "运石工", 88, 13, 90, 9), _nearest_walkable(_stone_yard_cells[1] + Vector2i(1, 0)), [_staff]),
 	]
+	for carrier in _stone_carriers:
+		_carrier_base_move_cost[carrier.get_instance_id()] = carrier.combat_stats.move_cost_per_tile
 
 
 func _spawn_enemies() -> void:
@@ -192,17 +195,32 @@ func _try_pick_or_deliver_stone(unit: Unit) -> void:
 		return
 	var key := unit.get_instance_id()
 	if _is_adjacent_to_any(unit.cell, _stone_yard_cells) and not _carrying_stone.get(key, false):
+		if unit.combat_stats.ap_current < 40:
+			return
+		unit.combat_stats.ap_current -= 40
 		_carrying_stone[key] = true
+		_set_carrier_loaded(unit, true)
+		unit.refresh_overhead_bars()
 		Notify.notify("%s 已取石" % unit.combat_stats.unit_name, Notify.Position.TOP_RIGHT, Notify.Style.INFO, 1.5)
 		return
 	if not _carrying_stone.get(key, false):
 		return
 	if _is_adjacent_or_same(unit.cell, _left_platform):
+		if unit.combat_stats.ap_current < 40:
+			return
+		unit.combat_stats.ap_current -= 40
 		_adjust_arch_value(true, 1, "%s 运石入左券" % unit.combat_stats.unit_name)
 		_carrying_stone[key] = false
+		_set_carrier_loaded(unit, false)
+		unit.refresh_overhead_bars()
 	elif _is_adjacent_or_same(unit.cell, _right_platform):
+		if unit.combat_stats.ap_current < 40:
+			return
+		unit.combat_stats.ap_current -= 40
 		_adjust_arch_value(false, 1, "%s 运石入右券" % unit.combat_stats.unit_name)
 		_carrying_stone[key] = false
+		_set_carrier_loaded(unit, false)
+		unit.refresh_overhead_bars()
 
 
 func _try_close_arch(unit: Unit) -> void:
@@ -262,6 +280,12 @@ func _adjust_arch_value(is_left: bool, delta: int, reason: String) -> void:
 	else:
 		_right_arch_value = clampi(_right_arch_value + delta, 0, 8)
 	Notify.notify("%s  左券:%d 右券:%d 稳定:%d" % [reason, _left_arch_value, _right_arch_value, _bridge_stability], Notify.Position.TOP_RIGHT, Notify.Style.INFO, 2.5)
+
+
+func _set_carrier_loaded(unit: Unit, loaded: bool) -> void:
+	var key := unit.get_instance_id()
+	var base_cost := int(_carrier_base_move_cost.get(key, unit.combat_stats.move_cost_per_tile))
+	unit.combat_stats.move_cost_per_tile = base_cost + 1 if loaded else base_cost
 
 
 func _spawn_ally(data: UnitData, cell: Vector2i, skills: Array[SkillData]) -> Unit:

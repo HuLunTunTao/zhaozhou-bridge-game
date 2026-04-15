@@ -30,6 +30,9 @@ var _summon_cycle := ["守法匠首", "高拱幻影", "守法匠首", "守法匠
 var _summon_index := 0
 var _li_chun_parameter_round := -1
 var _bonus_summon_next_turn := 0
+var _ordered_enemy: Unit
+var _ordered_enemy_base_atk := 0
+var _ordered_enemy_move_cost := 0
 
 var _hero_data: UnitData = preload("res://data/units/hero_li_chun.tres")
 var _hero_visual: PackedScene = preload("res://scenes/unit/visual/human/li_chun/li_chun_visual.tscn")
@@ -117,13 +120,17 @@ func _on_stage_team_turn_started(team_index: int) -> void:
 		_bonus_summon_next_turn = 0
 		for i in range(summon_count):
 			if _count_driven_enemies() >= ENEMY_FIELD_CAP:
+				_apply_overseer_order()
 				break
 			_spawn_next_summon()
 	elif team_index == PLAYER_TEAM:
+		_clear_overseer_order()
 		_bonus_summon_next_turn = 1 if _enemy_controls_drafting_platform() else 0
 
 
 func _on_stage_unit_died(unit: Unit) -> void:
+	if unit == _ordered_enemy:
+		_clear_overseer_order()
 	if unit == _boss:
 		return
 	if unit.team_index == ENEMY_TEAM:
@@ -161,11 +168,11 @@ func _setup_li_chun() -> void:
 
 
 func _spawn_allies() -> void:
-	_survey_worker = _spawn_ally(_make_unit_data(_survey_data, "测量工", 80, 12, 85, 10), _nearest_walkable(_li_chun.cell + Vector2i(-2, 2)), [_staff, _survey_skill])
+	_survey_worker = _spawn_ally(_make_unit_data(_survey_data, "测量工", 80, 12, 85, 10), _nearest_walkable(_li_chun.cell + Vector2i(-3, 2)), [_staff, _survey_skill])
 	_craftsmen = [
-		_spawn_ally(_make_unit_data(_craftsman_data, "工匠", 110, 18, 90, 9), _nearest_walkable(_li_chun.cell + Vector2i(-1, 1)), [_mallet, _guard]),
-		_spawn_ally(_make_unit_data(_craftsman_data, "工匠", 110, 18, 90, 9), _nearest_walkable(_li_chun.cell + Vector2i(1, 1)), [_mallet, _guard]),
-		_spawn_ally(_make_unit_data(_craftsman_data, "工匠", 110, 18, 90, 9), _nearest_walkable(_li_chun.cell + Vector2i(2, 0)), [_mallet, _guard]),
+		_spawn_ally(_make_unit_data(_craftsman_data, "工匠", 110, 18, 90, 9), _nearest_walkable(_li_chun.cell + Vector2i(-2, 1)), [_mallet, _guard]),
+		_spawn_ally(_make_unit_data(_craftsman_data, "工匠", 110, 18, 90, 9), _nearest_walkable(_li_chun.cell + Vector2i(0, 1)), [_mallet, _guard]),
+		_spawn_ally(_make_unit_data(_craftsman_data, "工匠", 110, 18, 90, 9), _nearest_walkable(_li_chun.cell + Vector2i(2, 1)), [_mallet, _guard]),
 	]
 
 
@@ -174,7 +181,7 @@ func _spawn_initial_enemies() -> void:
 	_spawn_enemy(_make_unit_data(_craftsman_data, "守法匠首", 120, 20, 90, 9), _drafting_cells[0] + Vector2i(-1, 0), [_mallet, _guard])
 	_spawn_enemy(_make_unit_data(_craftsman_data, "守法匠首", 120, 20, 90, 9), _drafting_cells[1] + Vector2i(1, 0), [_mallet, _guard])
 	_spawn_enemy(_make_unit_data(_whirl_data, "高拱幻影", 95, 18, 90, 8), _drafting_cells[3] + Vector2i(1, -1), [_pull])
-	_spawn_enemy(_make_unit_data(_mud_data, "重墩石像", 165, 22, 85, 14), _nearest_walkable(_li_chun.cell + Vector2i(1, -1)), [_crush])
+	_spawn_enemy(_make_unit_data(_mud_data, "重墩石像", 165, 22, 85, 14), _nearest_walkable(_drafting_cells[2] + Vector2i(0, 2)), [_crush])
 
 
 func _spawn_next_summon() -> void:
@@ -247,6 +254,36 @@ func _count_driven_enemies() -> int:
 		if enemy != _boss and enemy is Unit and enemy.combat_stats and enemy.combat_stats.is_alive():
 			count += 1
 	return count
+
+
+func _apply_overseer_order() -> void:
+	_clear_overseer_order()
+	var candidate: Unit = null
+	var best_distance := 9999
+	for enemy in teams[ENEMY_TEAM].units:
+		if enemy == _boss or not (enemy is Unit) or enemy.combat_stats == null or not enemy.combat_stats.is_alive():
+			continue
+		var distance := enemy.cell.distance_to(_li_chun.cell)
+		if distance < best_distance:
+			best_distance = distance
+			candidate = enemy
+	if candidate == null:
+		return
+	_ordered_enemy = candidate
+	_ordered_enemy_base_atk = candidate.combat_stats.base_atk
+	_ordered_enemy_move_cost = candidate.combat_stats.move_cost_per_tile
+	candidate.combat_stats.base_atk = roundi(float(candidate.combat_stats.base_atk) * 1.15)
+	candidate.combat_stats.move_cost_per_tile = maxi(candidate.combat_stats.move_cost_per_tile - 1, 1)
+	Notify.notify("旧制监工下达督令：%s 获得强化" % candidate.combat_stats.unit_name, Notify.Position.TOP_CENTER, Notify.Style.WARNING, 2.0)
+
+
+func _clear_overseer_order() -> void:
+	if _ordered_enemy == null or _ordered_enemy.combat_stats == null:
+		_ordered_enemy = null
+		return
+	_ordered_enemy.combat_stats.base_atk = _ordered_enemy_base_atk
+	_ordered_enemy.combat_stats.move_cost_per_tile = _ordered_enemy_move_cost
+	_ordered_enemy = null
 
 
 func _random_enemy_spawn_cell() -> Vector2i:

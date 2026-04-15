@@ -182,13 +182,13 @@ func _setup_li_chun() -> void:
 
 func _spawn_allies() -> void:
 	_craftsmen = [
-		_spawn_ally(_make_unit_data(_craftsman_data, "工匠", 120, 20, 95, 9), _nearest_walkable(_left_pier + Vector2i(1, 0)), [_mallet, _guard]),
-		_spawn_ally(_make_unit_data(_craftsman_data, "工匠", 120, 20, 95, 9), _nearest_walkable(_right_pier + Vector2i(-1, 0)), [_mallet, _guard]),
+		_spawn_ally(_make_unit_data(_craftsman_data, "工匠", 120, 20, 95, 9), _nearest_walkable(_left_pier + Vector2i(0, -1)), [_mallet, _guard]),
+		_spawn_ally(_make_unit_data(_craftsman_data, "工匠", 120, 20, 95, 9), _nearest_walkable(_right_pier + Vector2i(0, -1)), [_mallet, _guard]),
 		_spawn_ally(_make_unit_data(_craftsman_data, "工匠", 120, 20, 95, 9), _nearest_walkable(_watch_point + Vector2i(0, 1)), [_mallet, _guard]),
 	]
 	_stone_carriers = [
-		_spawn_ally(_make_unit_data(_survey_data, "运石工", 92, 14, 95, 9), _side_arch_cells["left_back"], [_staff]),
-		_spawn_ally(_make_unit_data(_survey_data, "运石工", 92, 14, 95, 9), _side_arch_cells["right_back"], [_staff]),
+		_spawn_ally(_make_unit_data(_survey_data, "运石工", 92, 14, 95, 9), _nearest_walkable(_side_arch_cells["left_back"] + Vector2i(-1, 1)), [_staff]),
+		_spawn_ally(_make_unit_data(_survey_data, "运石工", 92, 14, 95, 9), _nearest_walkable(_side_arch_cells["right_back"] + Vector2i(1, 1)), [_staff]),
 	]
 
 
@@ -196,7 +196,7 @@ func _spawn_enemies() -> void:
 	_boss = _spawn_enemy(_make_unit_data(_dark_data, "怒水", 360, 24, 1, 99, Enums.Element.WATER, 2), _watch_point + Vector2i(0, -3), [_divider], preload("res://scenes/unit/visual/monster/洪峰/洪峰_visual.tscn"))
 	_spawn_enemy(_make_unit_data(_dark_data, "洪峰", 135, 22, 90, 8, Enums.Element.WATER, 1), _watch_point + Vector2i(0, -1), [_staff], preload("res://scenes/unit/visual/monster/洪峰/洪峰_visual.tscn"))
 	_spawn_enemy(_make_unit_data(_dark_data, "洪峰", 135, 22, 90, 8, Enums.Element.WATER, 1), _right_pier + Vector2i(1, -1), [_staff], preload("res://scenes/unit/visual/monster/洪峰/洪峰_visual.tscn"))
-	_spawn_enemy(_make_unit_data(_mud_data, "泥沙魇", 110, 18, 90, 9, Enums.Element.EARTH, 1), _watch_point + Vector2i(-1, 0), [_guard], preload("res://scenes/unit/visual/monster/泥沙魇/泥沙魇_visual.tscn"))
+	_spawn_enemy(_make_unit_data(_mud_data, "泥沙魇", 110, 18, 90, 9, Enums.Element.EARTH, 1), _side_arch_cells["left_front"] + Vector2i(-1, 0), [_guard], preload("res://scenes/unit/visual/monster/泥沙魇/泥沙魇_visual.tscn"))
 
 
 func _try_open_side_arch(unit: Unit) -> void:
