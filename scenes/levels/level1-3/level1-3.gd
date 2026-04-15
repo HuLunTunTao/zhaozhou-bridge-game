@@ -64,10 +64,10 @@ func get_wave_config() -> Dictionary:
 			{"unit_data": _make_unit_data(_mud_data, "裂石兽", 145, 22, 90, 10, Enums.Element.EARTH, 1), "cell": _nearest_walkable(_left_platform + Vector2i(-2, 0)), "team_index": ENEMY_TEAM, "skills": [_crush]},
 		],
 		5: [
-			{"unit_data": _make_unit_data(_dark_data, "脱缝鬼", 95, 18, 95, 8, Enums.Element.WATER, 1), "cell": _joint_cells[0], "team_index": ENEMY_TEAM, "skills": [_lunge]},
+			{"unit_data": _make_unit_data(_dark_data, "脱缝潮", 95, 18, 95, 8, Enums.Element.WATER, 1), "cell": _joint_cells[0], "team_index": ENEMY_TEAM, "skills": [_lunge]},
 		],
 		7: [
-			{"unit_data": _make_unit_data(_dark_data, "脱缝鬼", 95, 18, 95, 8, Enums.Element.WATER, 1), "cell": _joint_cells[1], "team_index": ENEMY_TEAM, "skills": [_lunge]},
+			{"unit_data": _make_unit_data(_dark_data, "脱缝潮", 95, 18, 95, 8, Enums.Element.WATER, 1), "cell": _joint_cells[1], "team_index": ENEMY_TEAM, "skills": [_lunge]},
 			{"unit_data": _make_unit_data(_mud_data, "裂石兽", 145, 22, 90, 10, Enums.Element.EARTH, 1), "cell": _nearest_walkable(_right_platform + Vector2i(2, 0)), "team_index": ENEMY_TEAM, "skills": [_crush]},
 		],
 	}
@@ -78,10 +78,10 @@ func get_objectives_text() -> Dictionary:
 		"victory": [
 			"- 左右券值均达到 8",
 			"- 李春在拱冠点完成收缝合龙",
-			"- 击败偏载傀",
+			"- 击退偏载傀",
 		],
 		"defeat": [
-			"- 李春死亡",
+			"- 李春倒下",
 			"- 桥体稳定值归零",
 			"- 超过第 14 回合",
 		],
@@ -94,7 +94,7 @@ func check_victory() -> bool:
 
 func check_defeat() -> String:
 	if _li_chun == null or _li_chun.combat_stats == null or not _li_chun.combat_stats.is_alive():
-		return "李春阵亡"
+		return "李春倒下"
 	if _bridge_stability <= 0:
 		return "桥体稳定值耗尽"
 	if round_number > 14:
@@ -256,9 +256,9 @@ func _resolve_enemy_pressure() -> void:
 		_bridge_stability -= 1
 		Notify.notify("左右失衡过大，桥体稳定值 -1", Notify.Position.TOP_CENTER, Notify.Style.WARNING, 2.0)
 	for enemy in teams[ENEMY_TEAM].units:
-		if enemy is Unit and enemy.combat_stats and enemy.combat_stats.is_alive() and enemy.cell in _joint_cells and enemy.combat_stats.unit_name == "脱缝鬼":
+		if enemy is Unit and enemy.combat_stats and enemy.combat_stats.is_alive() and enemy.cell in _joint_cells and enemy.combat_stats.unit_name == "脱缝潮":
 			_bridge_stability -= 1
-			Notify.notify("脱缝鬼撕扯缝口，桥体稳定值 -1", Notify.Position.TOP_CENTER, Notify.Style.WARNING, 2.0)
+			Notify.notify("脱缝潮侵蚀缝口，桥体稳定值 -1", Notify.Position.TOP_CENTER, Notify.Style.WARNING, 2.0)
 	_check_win_lose()
 
 

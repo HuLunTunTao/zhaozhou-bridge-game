@@ -80,5 +80,5 @@ func _on_level_ready() -> void:
 	setup_unit_stats(_ally2 as Unit, "队友2", 100, 10, 100, 10, Enums.Element.WOOD, 0, false)
 	setup_unit_stats(_enemy1 as Unit, "暗涌", 68, 17, 100, 10, Enums.Element.WATER, 2, false)
 	setup_unit_stats(_enemy2 as Unit, "火鸟", 75, 14, 100, 10, Enums.Element.FIRE, 2, false)
-	setup_unit_stats(_enemy3 as Unit, "坍岸泥鬼", 92, 15, 100, 10, Enums.Element.EARTH, 2, false)
+	setup_unit_stats(_enemy3 as Unit, "坍岸泥流", 92, 15, 100, 10, Enums.Element.EARTH, 2, false)
 	setup_unit_stats(_enemy4 as Unit, "暗涌2", 68, 17, 100, 10, Enums.Element.WATER, 2, false)

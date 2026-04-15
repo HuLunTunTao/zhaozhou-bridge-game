@@ -49,7 +49,7 @@ const LEVEL_SCENES: Dictionary = {
 	"关卡1-3": "res://scenes/levels/level1-3/level1-3.tscn",
 	"关卡1-4": "res://scenes/levels/level1-4/level1-4.tscn",
 	"关卡测试": "res://scenes/levels/test/test.tscn",
-	"怪物全展示": "res://scenes/levels/monster_showcase/monster_showcase.tscn",
+	"敌方全展示": "res://scenes/levels/monster_showcase/monster_showcase.tscn",
 }
 
 ## 过场动画内容，按关卡名和时机（"pre" / "post"）索引。

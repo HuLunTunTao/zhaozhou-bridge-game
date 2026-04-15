@@ -23,7 +23,7 @@ const ENEMY_TEAM := 2
 # ── 敌方颜色 ──
 const COLOR_DARK_CURRENT := Color(0.3, 0.4, 0.9)    # 蓝 - 暗涌（水）
 const COLOR_WHIRL_POOL := Color(0.6, 0.3, 0.9)       # 紫蓝 - 水旋（水/控制）
-const COLOR_MUD_WRAITH := Color(0.7, 0.5, 0.25)      # 棕 - 坍岸泥鬼（土）
+const COLOR_MUD_WRAITH := Color(0.7, 0.5, 0.25)      # 棕 - 坍岸泥流（土）
 const COLOR_DRIFT_LOG := Color(0.5, 0.65, 0.2)       # 黄绿 - 浮木群（木）
 
 # ── 单位引用 ──
@@ -108,25 +108,25 @@ func get_objectives_text() -> Dictionary:
 			"- 至少 1 名测量工进入撤离区并结束回合",
 		],
 		"defeat": [
-			"- 李春死亡",
-			"- 两名测量工全部死亡",
+			"- 李春倒下",
+			"- 两名测量工全部倒下",
 			"- 超过第 10 回合仍未完成撤离",
 		],
 	}
 
 
 func check_defeat() -> String:
-	# 李春死亡
+	# 李春倒下
 	if not is_instance_valid(_li_chun):
-		return "李春阵亡"
+		return "李春倒下"
 	var lc := _li_chun as Unit
 	if lc.combat_stats and not lc.combat_stats.is_alive():
-		return "李春阵亡"
-	# 两名测量工全部死亡
+		return "李春倒下"
+	# 两名测量工全部倒下
 	var a_dead := not is_instance_valid(_survey_a) or not (_survey_a as Unit).combat_stats.is_alive()
 	var b_dead := not is_instance_valid(_survey_b) or not (_survey_b as Unit).combat_stats.is_alive()
 	if a_dead and b_dead:
-		return "两名测量工全部阵亡"
+		return "两名测量工全部倒下"
 	# 超过第 10 回合
 	if round_number > 10:
 		return "超过第 10 回合仍未完成撤离"
