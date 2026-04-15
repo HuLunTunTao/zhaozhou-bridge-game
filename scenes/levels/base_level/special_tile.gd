@@ -17,6 +17,9 @@ var cell: Vector2i
 
 
 func _ready() -> void:
+	z_as_relative = false
+	z_index = 40
+	y_sort_enabled = false
 	_apply_color()
 
 
