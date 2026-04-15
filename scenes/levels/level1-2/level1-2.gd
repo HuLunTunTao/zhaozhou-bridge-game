@@ -259,11 +259,11 @@ func _count_driven_enemies() -> int:
 func _apply_overseer_order() -> void:
 	_clear_overseer_order()
 	var candidate: Unit = null
-	var best_distance := 9999
+	var best_distance: float = INF
 	for enemy in teams[ENEMY_TEAM].units:
 		if enemy == _boss or not (enemy is Unit) or enemy.combat_stats == null or not enemy.combat_stats.is_alive():
 			continue
-		var distance := enemy.cell.distance_to(_li_chun.cell)
+		var distance: float = enemy.cell.distance_to(_li_chun.cell)
 		if distance < best_distance:
 			best_distance = distance
 			candidate = enemy
