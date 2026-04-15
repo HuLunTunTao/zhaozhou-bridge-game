@@ -139,7 +139,7 @@ func get_objectives_text() -> Dictionary:
 		"defeat": [
 			"- 李春倒下",
 			"- 两名测量工全部倒下",
-			"- 超过第 10 回合仍未完成撤离",
+			"- 超过第 20 回合仍未完成撤离",
 		],
 	}
 
@@ -156,9 +156,9 @@ func check_defeat() -> String:
 	var b_dead := not is_instance_valid(_survey_b) or not (_survey_b as Unit).combat_stats.is_alive()
 	if a_dead and b_dead:
 		return "两名测量工全部倒下"
-	# 超过第 10 回合
-	if round_number > 10:
-		return "超过第 10 回合仍未完成撤离"
+	# 超过第 20 回合
+	if round_number > 20:
+		return "超过第 20 回合仍未完成撤离"
 	return ""
 
 
@@ -318,9 +318,28 @@ func _advance_to_task2() -> void:
 
 
 func _spawn_bridge_tile() -> void:
-	_bridge_tile = _make_special_tile(COLOR_BRIDGE)
+	_bridge_tile = _make_bridge_tile()
 	_bridge_tile.name = "BridgeSiteTile"
 	register_special_tile(_bridge_tile, BRIDGE_CELL)
+
+
+func _make_bridge_tile() -> SpecialTile:
+	var tile := SpecialTile.new()
+	tile.tile_color = COLOR_BRIDGE
+
+	var outer := Polygon2D.new()
+	outer.name = "Visual"
+	outer.polygon = PackedVector2Array([0, -22, 22, -10, 0, 2, -22, -10])
+	outer.color = COLOR_BRIDGE
+	tile.add_child(outer)
+
+	var inner := Polygon2D.new()
+	inner.polygon = PackedVector2Array([0, -14, 14, -7, 0, 0, -14, -7])
+	inner.color = Color(1.0, 0.97, 0.75, 0.92)
+	inner.position = Vector2(0, -2)
+	tile.add_child(inner)
+
+	return tile
 
 
 func _advance_to_task3() -> void:
