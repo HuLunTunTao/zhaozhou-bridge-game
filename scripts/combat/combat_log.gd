@@ -72,8 +72,8 @@ static func log_unit_move(unit_name: String, from_cell: Vector2i, to_cell: Vecto
 	msg("%s 移动 %s → %s (消耗%dAP 剩余%dAP)" % [unit_name, from_cell, to_cell, ap_cost, ap_remaining])
 
 
-static func log_kill(attacker_name: String, target_name: String) -> void:
-	msg("  击杀: %s 被 %s 击败!" % [target_name, attacker_name])
+static func log_defeat(attacker_name: String, target_name: String) -> void:
+	msg("  击败: %s 被 %s 击退!" % [target_name, attacker_name])
 
 
 static func _elem_name(elem: int) -> String:

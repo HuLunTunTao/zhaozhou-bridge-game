@@ -95,7 +95,7 @@ static func resolve_hit(attacker: CombatStats, target: CombatStats, skill: Skill
 	)
 
 	if result.is_kill:
-		CombatLog.log_kill(attacker.unit_name, target.unit_name)
+		CombatLog.log_defeat(attacker.unit_name, target.unit_name)
 
 	# 8. 化势施加状态
 	if phase.phase_data != null and phase.phase_data.apply_status_id != "":

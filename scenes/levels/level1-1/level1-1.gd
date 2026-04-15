@@ -23,7 +23,7 @@ const ENEMY_TEAM := 2
 # ── 敌方颜色 ──
 const COLOR_DARK_CURRENT := Color(0.3, 0.4, 0.9)    # 蓝 - 暗涌（水）
 const COLOR_WHIRL_POOL := Color(0.6, 0.3, 0.9)       # 紫蓝 - 水旋（水/控制）
-const COLOR_MUD_WRAITH := Color(0.7, 0.5, 0.25)      # 棕 - 坍岸泥鬼（土）
+const COLOR_MUD_WRAITH := Color(0.7, 0.5, 0.25)      # 棕 - 坍岸泥流（土）
 const COLOR_DRIFT_LOG := Color(0.5, 0.65, 0.2)       # 黄绿 - 浮木群（木）
 
 # ── 单位引用 ──
@@ -108,25 +108,25 @@ func get_objectives_text() -> Dictionary:
 			"- 至少 1 名测量工进入撤离区并结束回合",
 		],
 		"defeat": [
-			"- 李春死亡",
-			"- 两名测量工全部死亡",
+			"- 李春倒下",
+			"- 两名测量工全部倒下",
 			"- 超过第 10 回合仍未完成撤离",
 		],
 	}
 
 
 func check_defeat() -> String:
-	# 李春死亡
+	# 李春倒下
 	if not is_instance_valid(_li_chun):
-		return "李春阵亡"
+		return "李春倒下"
 	var lc := _li_chun as Unit
 	if lc.combat_stats and not lc.combat_stats.is_alive():
-		return "李春阵亡"
-	# 两名测量工全部死亡
+		return "李春倒下"
+	# 两名测量工全部倒下
 	var a_dead := not is_instance_valid(_survey_a) or not (_survey_a as Unit).combat_stats.is_alive()
 	var b_dead := not is_instance_valid(_survey_b) or not (_survey_b as Unit).combat_stats.is_alive()
 	if a_dead and b_dead:
-		return "两名测量工全部阵亡"
+		return "两名测量工全部倒下"
 	# 超过第 10 回合
 	if round_number > 10:
 		return "超过第 10 回合仍未完成撤离"
@@ -144,6 +144,9 @@ func check_victory() -> bool:
 
 
 func _on_level_ready() -> void:
+	# ── 将友方单位移动到地图左上角 ──
+	_place_friendlies_top_left()
+
 	# ── 李春 ──
 	set_unit_skills(_li_chun as Unit, Progress.get_battle_skill_resources(GameState.selected_level))
 	setup_unit_stats(_li_chun as Unit, "李春", 130, 24, 100, 8, Enums.Element.NONE, 0, true)
@@ -166,6 +169,39 @@ func _on_level_ready() -> void:
 	# ── 勘测点 ──
 	# _setup_survey_points() # todo: 根据地图设置勘测点
 	skill_executed.connect(_on_skill_executed)
+
+
+func _place_friendlies_top_left() -> void:
+	var used_rect: Rect2i = tilemap.get_used_rect()
+	var top_left_tile := used_rect.position + Vector2i(2, 3)
+	var anchor := _nearest_walkable(top_left_tile)
+	var units: Array[Node2D] = [_li_chun, _survey_a, _survey_b, _craftsman_a, _craftsman_b]
+	var offsets: Array[Vector2i] = [
+		Vector2i(0, 0),
+		Vector2i(3, 0),
+		Vector2i(0, 3),
+		Vector2i(2, 2),
+		Vector2i(3, 3),
+	]
+	var occupied: Array[Vector2i] = []
+	for i in range(units.size()):
+		var cell := _nearest_walkable(anchor + offsets[i])
+		while cell in occupied:
+			cell = _nearest_walkable(cell + Vector2i(1, 0))
+		occupied.append(cell)
+		(units[i] as Unit).set_cell(cell, tilemap)
+
+
+func _nearest_walkable(target: Vector2i) -> Vector2i:
+	if movement_manager.get_movement_cost(target) != TileType.IMPASSABLE:
+		return target
+	for radius in range(1, 6):
+		for dx in range(-radius, radius + 1):
+			for dy in range(-radius, radius + 1):
+				var candidate := target + Vector2i(dx, dy)
+				if movement_manager.get_movement_cost(candidate) != TileType.IMPASSABLE:
+					return candidate
+	return target
 
 
 func _get_ai_context() -> Dictionary:

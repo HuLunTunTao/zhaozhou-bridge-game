@@ -7,7 +7,7 @@ const OUTLINE_COLOR_ALLY := Color(0.0, 1.0, 0.0, 0.5)   # 绿色
 const OUTLINE_COLOR_ENEMY := Color(1.0, 0.0, 0.0, 0.5)  # 红色
 
 signal move_finished
-## 单位死亡时发出（HP 降为 0，退场动画播完后触发）。
+## 单位倒下时发出（HP 降为 0，退场动画播完后触发）。
 signal died
 ## 单位被右键点击时发出。
 signal clicked
@@ -179,7 +179,7 @@ func apply_faction_outline() -> void:
 	_visual.set_outline_color(color)
 
 
-## 单位死亡：播放淡出动画后从场景树移除，并发出 died 信号。
+## 单位倒下：播放淡出动画后从场景树移除，并发出 died 信号。
 func die() -> void:
 	# 防止重复调用
 	if not is_inside_tree():
