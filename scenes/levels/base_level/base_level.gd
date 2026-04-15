@@ -75,6 +75,7 @@ signal unit_lost_skill(unit: Unit, skill: SkillData)
 
 const SettingsPanelScene := preload("res://scenes/ui/settings_panel.tscn")
 const ObjectivesPanelScene := preload("res://scenes/ui/objectives_panel.tscn")
+const GrowthChoicePanelScript := preload("res://scenes/ui/growth_choice_panel.gd")
 
 var tilemap: TileMapLayer
 ## 化势提示 UI（运行时创建，挂在 GUI 层）。
@@ -85,6 +86,8 @@ var unit_selected := false
 var _mid_cutscene_active := false
 var _settings_open := false
 var _objectives_open := false
+var _growth_panel_open := false
+var _round_growth_selected_rounds: Array[int] = []
 
 ## 输入状态机。
 enum InputState { IDLE, UNIT_SELECTED, TARGETING_MOVE, TARGETING_SKILL, ANIMATING }
@@ -259,6 +262,16 @@ func get_teams_config() -> Array:
 ## 覆盖以设置旧版单玩家的起始位置（仅在 get_teams_config() 为空时使用）。
 func get_hero_start_cell() -> Vector2i:
 	return Vector2i(0, 0)
+
+
+## 返回本关可用的回合成长选项。默认无。
+func get_round_growth_options() -> Array[Dictionary]:
+	return []
+
+
+## 应用一个回合成长选项。子关卡按 option_id 自行实现。
+func apply_round_growth_option(_option_id: String) -> void:
+	pass
 
 
 ## 在基类 _ready 完成后调用，子关卡在此做额外初始化。
@@ -534,6 +547,8 @@ func end_team_turn() -> void:
 		return
 	if _mid_cutscene_active:
 		return
+	if _try_prompt_round_growth():
+		return
 	_do_end_turn()
 
 
@@ -591,6 +606,49 @@ func _on_end_turn_button_pressed() -> void:
 	_end_turn_pending_confirm = false
 	_set_end_turn_button_highlight(false)
 	end_team_turn()
+
+
+func _try_prompt_round_growth() -> bool:
+	if _growth_panel_open:
+		return true
+	if current_team_index < 0 or current_team_index >= teams.size():
+		return false
+	var team: TeamData = teams[current_team_index]
+	if team.controller != "player":
+		return false
+	if not _is_player_side_ending_turn():
+		return false
+	if round_number in _round_growth_selected_rounds:
+		return false
+	var options := get_round_growth_options()
+	if options.is_empty():
+		return false
+	var panel := GrowthChoicePanelScript.new()
+	panel.panel_title = "回合成长"
+	panel.options = options
+	panel.required_selection_count = 2
+	panel.options_confirmed.connect(_on_round_growth_options_confirmed)
+	add_child(panel)
+	_growth_panel_open = true
+	return true
+
+
+func _on_round_growth_options_confirmed(option_ids: Array[String]) -> void:
+	_growth_panel_open = false
+	if round_number not in _round_growth_selected_rounds:
+		_round_growth_selected_rounds.append(round_number)
+	for option_id in option_ids:
+		apply_round_growth_option(option_id)
+	_do_end_turn()
+
+
+func _is_player_side_ending_turn() -> bool:
+	if current_team_index < 0 or current_team_index >= teams.size():
+		return false
+	var next_index := (current_team_index + 1) % teams.size()
+	if next_index < teams.size() and teams[next_index].controller == "player":
+		return false
+	return true
 
 
 ## 结束回合按钮高亮配置（"待确认"态）。
@@ -1667,6 +1725,80 @@ func query_units() -> Array:
 				info["skills"] = skills_info
 			result.append(info)
 	return result
+
+
+func get_friendly_units() -> Array[Unit]:
+	var result: Array[Unit] = []
+	for team in teams:
+		if team.controller != "player":
+			continue
+		for unit in team.units:
+			if unit is Unit and unit.combat_stats != null and unit.combat_stats.is_alive():
+				result.append(unit)
+	return result
+
+
+func get_hero_unit() -> Unit:
+	return hero as Unit if hero is Unit else null
+
+
+func apply_unit_growth_bonus(unit: Unit, hp_delta: int = 0, atk_delta: int = 0, ap_delta: int = 0) -> void:
+	if unit == null or unit.combat_stats == null:
+		return
+	unit.combat_stats.max_hp += hp_delta
+	unit.combat_stats.current_hp += hp_delta
+	unit.combat_stats.base_atk += atk_delta
+	unit.combat_stats.ap_max += ap_delta
+	unit.combat_stats.ap_current += ap_delta
+	unit.refresh_overhead_bars()
+	if selected_unit == unit:
+		_update_status_bar_for_unit(unit, true)
+
+
+func modify_unit_skill(unit: Unit, skill_id: String, changes: Dictionary) -> bool:
+	if unit == null or unit.unit_data == null:
+		return false
+	for i in range(unit.unit_data.skills.size()):
+		var skill := unit.unit_data.skills[i] as SkillData
+		if skill == null or skill.skill_id != skill_id:
+			continue
+		var local_skill := skill.duplicate(true) as SkillData
+		local_skill.resource_local_to_scene = true
+		if changes.has("ap_cost"):
+			local_skill.ap_cost = maxi(int(changes["ap_cost"]), 0)
+		if changes.has("damage_ratio"):
+			local_skill.damage_ratio = float(changes["damage_ratio"])
+		if changes.has("duration_turns"):
+			local_skill.duration_turns = maxi(int(changes["duration_turns"]), 0)
+		if changes.has("cooldown_turns"):
+			local_skill.cooldown_turns = maxi(int(changes["cooldown_turns"]), 0)
+		unit.unit_data.skills[i] = local_skill
+		if selected_unit == unit:
+			_update_status_bar_for_unit(unit, true)
+		return true
+	return false
+
+
+func add_skill_to_unit(unit: Unit, skill: SkillData, replace_candidates: Array[String] = []) -> void:
+	if unit == null or unit.unit_data == null or skill == null:
+		return
+	for existing in unit.unit_data.skills:
+		var existing_skill := existing as SkillData
+		if existing_skill != null and existing_skill.skill_id == skill.skill_id:
+			return
+	var new_skills: Array[SkillData] = []
+	for existing in unit.unit_data.skills:
+		new_skills.append(existing)
+	if new_skills.size() >= 5:
+		for replace_skill_id in replace_candidates:
+			for i in range(new_skills.size()):
+				if new_skills[i].skill_id == replace_skill_id:
+					new_skills.remove_at(i)
+					break
+			if new_skills.size() < 5:
+				break
+	new_skills.append(skill)
+	set_unit_skills(unit, new_skills)
 
 
 ## 查询当前可移动范围（TARGETING_MOVE 时有效）。

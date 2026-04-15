@@ -2,7 +2,7 @@ extends Node
 ## 全局章节进度。负责关卡解锁、李春技能池解锁、5技能战斗配置与测试控制。
 
 const PROGRESS_PATH := "user://progress.json"
-const MAX_EQUIPPED_SKILLS := 5
+const MAX_EQUIPPED_SKILLS := 4
 
 const LEVEL_ORDER: Array[String] = [
 	"关卡1-1",
@@ -29,6 +29,13 @@ const SKILL_PATHS := {
 	"lc_inkline_balance_arch": "res://data/skills/lc_inkline_balance_arch.tres",
 	"lc_link_wedges_arch": "res://data/skills/lc_link_wedges_arch.tres",
 	"lc_guide_flood_open_arch": "res://data/skills/lc_guide_flood_open_arch.tres",
+}
+
+const LEVEL_STAGE_SKILLS := {
+	"关卡1-1": "lc_read_water_fix_site",
+	"关卡1-2": "lc_divider_mark_arc",
+	"关卡1-3": "lc_inkline_balance_arch",
+	"关卡1-4": "lc_guide_flood_open_arch",
 }
 
 const CLEAR_REWARDS := {
@@ -137,8 +144,18 @@ func is_skill_equipped(skill_id: String) -> bool:
 	return skill_id in equipped_skill_ids
 
 
+func is_stage_limited_skill(skill_id: String) -> bool:
+	return skill_id in LEVEL_STAGE_SKILLS.values()
+
+
+func get_stage_skill_id(level_name: String = GameState.selected_level) -> String:
+	return str(LEVEL_STAGE_SKILLS.get(level_name, ""))
+
+
 func set_skill_equipped(skill_id: String, equipped: bool) -> bool:
 	if not is_skill_unlocked(skill_id):
+		return false
+	if is_stage_limited_skill(skill_id):
 		return false
 	if equipped:
 		if is_skill_equipped(skill_id):
@@ -157,6 +174,8 @@ func set_equipped_skill_ids(skill_ids: Array[String]) -> void:
 	for skill_id in skill_ids:
 		if not is_skill_unlocked(skill_id):
 			continue
+		if is_stage_limited_skill(skill_id):
+			continue
 		if equipped_skill_ids.size() >= MAX_EQUIPPED_SKILLS:
 			break
 		if skill_id in equipped_skill_ids:
@@ -168,6 +187,28 @@ func set_equipped_skill_ids(skill_ids: Array[String]) -> void:
 func get_equipped_skill_resources() -> Array[SkillData]:
 	var skills: Array[SkillData] = []
 	for skill_id in equipped_skill_ids:
+		var skill := get_skill_resource(skill_id)
+		if skill != null:
+			skills.append(skill)
+	return skills
+
+
+func get_battle_skill_ids(level_name: String = GameState.selected_level) -> Array[String]:
+	var battle_ids: Array[String] = []
+	for skill_id in equipped_skill_ids:
+		if is_stage_limited_skill(skill_id):
+			continue
+		if skill_id not in battle_ids:
+			battle_ids.append(skill_id)
+	var stage_skill_id := get_stage_skill_id(level_name)
+	if not stage_skill_id.is_empty() and stage_skill_id not in battle_ids:
+		battle_ids.append(stage_skill_id)
+	return battle_ids
+
+
+func get_battle_skill_resources(level_name: String = GameState.selected_level) -> Array[SkillData]:
+	var skills: Array[SkillData] = []
+	for skill_id in get_battle_skill_ids(level_name):
 		var skill := get_skill_resource(skill_id)
 		if skill != null:
 			skills.append(skill)
@@ -214,6 +255,8 @@ func unlock_all_progress() -> void:
 	unlocked_skill_ids.sort()
 	equipped_skill_ids = []
 	for skill_id in unlocked_skill_ids:
+		if is_stage_limited_skill(skill_id):
+			continue
 		if equipped_skill_ids.size() >= MAX_EQUIPPED_SKILLS:
 			break
 		equipped_skill_ids.append(skill_id)
@@ -277,12 +320,16 @@ func _normalize_progress() -> void:
 	for skill_id in equipped_skill_ids:
 		if skill_id not in unlocked_skill_ids:
 			continue
+		if is_stage_limited_skill(skill_id):
+			continue
 		if skill_id in normalized_equipped:
 			continue
 		if normalized_equipped.size() >= MAX_EQUIPPED_SKILLS:
 			break
 		normalized_equipped.append(skill_id)
 	for skill_id in INITIAL_SKILL_IDS:
+		if is_stage_limited_skill(skill_id):
+			continue
 		if normalized_equipped.size() >= MAX_EQUIPPED_SKILLS:
 			break
 		if skill_id in unlocked_skill_ids and skill_id not in normalized_equipped:

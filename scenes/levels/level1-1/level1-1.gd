@@ -6,6 +6,7 @@ var _sk_rule_strike: SkillData = preload("res://data/skills/lc_rule_strike.tres"
 var _sk_wedge: SkillData = preload("res://data/skills/lc_wedge_bank_probe.tres")
 var _sk_stone: SkillData = preload("res://data/skills/lc_cast_stone_arrest_flow.tres")
 var _sk_read_water: SkillData = preload("res://data/skills/lc_read_water_fix_site.tres")
+var _sk_pile_bind: SkillData = preload("res://data/skills/lc_pile_bind_wave.tres")
 var _sk_staff: SkillData = preload("res://data/skills/sw_staff_end_strike.tres")
 var _sk_survey: SkillData = preload("res://data/skills/sw_field_measure_site.tres")
 var _sk_mallet: SkillData = preload("res://data/skills/cg_mallet_strike.tres")
@@ -134,7 +135,7 @@ func check_defeat() -> String:
 
 func _on_level_ready() -> void:
 	# ── 李春 ──
-	set_unit_skills(_li_chun as Unit, Progress.get_equipped_skill_resources())
+	set_unit_skills(_li_chun as Unit, Progress.get_battle_skill_resources(GameState.selected_level))
 	setup_unit_stats(_li_chun as Unit, "李春", 130, 24, 100, 8, Enums.Element.NONE, 0, true)
 
 	# ── 测量工 ──
@@ -156,3 +157,32 @@ func _get_ai_context() -> Dictionary:
 	return {
 		"escort_units": [_survey_a, _survey_b],
 	}
+
+
+func get_round_growth_options() -> Array[Dictionary]:
+	return [
+		{"id": "growth_training_mobilize", "name": "操练与动员", "description": "全体我方最大生命值 +10，行动力上限 +5"},
+		{"id": "growth_maps_measures", "name": "习图记尺", "description": "李春基础攻击力 +4，规尺击伤害倍率 +0.05"},
+		{"id": "growth_river_master", "name": "请益河工", "description": "李春获得束桩缓波，可替换规尺击或木楔勘岸"},
+		{"id": "growth_stone_reinforce", "name": "备石加固", "description": "工匠的捍作护行持续时间 +1 回合"},
+	]
+
+
+func apply_round_growth_option(option_id: String) -> void:
+	match option_id:
+		"growth_training_mobilize":
+			for unit in get_friendly_units():
+				apply_unit_growth_bonus(unit, 10, 0, 5)
+		"growth_maps_measures":
+			var hero_unit := get_hero_unit()
+			apply_unit_growth_bonus(hero_unit, 0, 4, 0)
+			modify_unit_skill(hero_unit, "lc_rule_strike", {"damage_ratio": 1.05})
+		"growth_river_master":
+			add_skill_to_unit(get_hero_unit(), _sk_pile_bind, ["lc_rule_strike", "lc_wedge_bank_probe"])
+		"growth_stone_reinforce":
+			for unit in get_friendly_units():
+				if unit.combat_stats.unit_name == "工匠":
+					modify_unit_skill(unit, "cg_guard_the_works", {"duration_turns": 3})
+		_:
+			return
+	Notify.notify("本回合成长：%s" % option_id, Notify.Position.TOP_CENTER, Notify.Style.SUCCESS, 2.0)

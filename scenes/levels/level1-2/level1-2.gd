@@ -33,6 +33,8 @@ var _bonus_summon_next_turn := 0
 var _ordered_enemy: Unit
 var _ordered_enemy_base_atk := 0
 var _ordered_enemy_move_cost := 0
+var _survey_parameter_cost := 40
+var _li_chun_parameter_cost := 45
 
 var _hero_data: UnitData = preload("res://data/units/hero_li_chun.tres")
 var _hero_visual: PackedScene = preload("res://scenes/unit/visual/human/li_chun/li_chun_visual.tscn")
@@ -163,7 +165,7 @@ func _setup_anchor_cells() -> void:
 
 func _setup_li_chun() -> void:
 	_li_chun.apply_runtime_setup(_hero_data, _hero_visual, Color(1, 0.85, 0, 1))
-	set_unit_skills(_li_chun, Progress.get_equipped_skill_resources())
+	set_unit_skills(_li_chun, Progress.get_battle_skill_resources(GameState.selected_level))
 	setup_unit_stats(_li_chun, "李春", 130, 24, 100, 8, Enums.Element.NONE, 0, true)
 
 
@@ -206,7 +208,7 @@ func _try_collect_parameter(unit: Unit) -> void:
 			break
 	if key.is_empty():
 		return
-	var ap_cost := 40 if unit == _survey_worker else 45
+	var ap_cost := _survey_parameter_cost if unit == _survey_worker else _li_chun_parameter_cost
 	if unit != _survey_worker and unit != _li_chun:
 		return
 	if unit == _li_chun and _li_chun_parameter_round == round_number:
@@ -347,3 +349,32 @@ func _cell_occupied(cell: Vector2i) -> bool:
 		if unit is Unit and unit.combat_stats and unit.combat_stats.is_alive() and unit.cell == cell:
 			return true
 	return false
+
+
+func get_round_growth_options() -> Array[Dictionary]:
+	return [
+		{"id": "growth_drawing_discipline", "name": "墨绳习算", "description": "李春基础攻击力 +4，分规定弧伤害倍率 +0.05"},
+		{"id": "growth_center_hold", "name": "护模齐作", "description": "全体工匠最大生命值 +10，基础攻击力 +2"},
+		{"id": "growth_arch_refine", "name": "参校定弧", "description": "李春获得绳准锁弧，可替换规尺击或木楔勘岸"},
+		{"id": "growth_quick_measure", "name": "熟尺知度", "description": "测尺取参消耗 -10，李春取参消耗 -5，李春行动力上限 +5"},
+	]
+
+
+func apply_round_growth_option(option_id: String) -> void:
+	match option_id:
+		"growth_drawing_discipline":
+			apply_unit_growth_bonus(get_hero_unit(), 0, 4, 0)
+			modify_unit_skill(get_hero_unit(), "lc_divider_mark_arc", {"damage_ratio": 0.95})
+		"growth_center_hold":
+			for unit in get_friendly_units():
+				if unit.combat_stats.unit_name == "工匠":
+					apply_unit_growth_bonus(unit, 10, 2, 0)
+		"growth_arch_refine":
+			add_skill_to_unit(get_hero_unit(), Progress.get_skill_resource("lc_line_lock_arc"), ["lc_rule_strike", "lc_wedge_bank_probe"])
+		"growth_quick_measure":
+			_survey_parameter_cost = 30
+			_li_chun_parameter_cost = 40
+			apply_unit_growth_bonus(get_hero_unit(), 0, 0, 5)
+		_:
+			return
+	Notify.notify("本回合成长：%s" % option_id, Notify.Position.TOP_CENTER, Notify.Style.SUCCESS, 2.0)

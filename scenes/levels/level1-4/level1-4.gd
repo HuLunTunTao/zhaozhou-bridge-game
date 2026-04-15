@@ -176,7 +176,7 @@ func _setup_anchor_cells() -> void:
 
 func _setup_li_chun() -> void:
 	_li_chun.apply_runtime_setup(_hero_data, _hero_visual, Color(1, 0.85, 0, 1))
-	set_unit_skills(_li_chun, Progress.get_equipped_skill_resources())
+	set_unit_skills(_li_chun, Progress.get_battle_skill_resources(GameState.selected_level))
 	setup_unit_stats(_li_chun, "李春", 138, 26, 105, 8, Enums.Element.NONE, 0, true)
 
 

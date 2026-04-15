@@ -16,6 +16,7 @@ var _arch_closed := false
 var _pending_enemy_resolution := false
 var _carrying_stone: Dictionary = {}
 var _carrier_base_move_cost: Dictionary = {}
+var _close_arch_ap_cost := 35
 
 var _left_platform: Vector2i
 var _right_platform: Vector2i
@@ -165,7 +166,7 @@ func _setup_anchor_cells() -> void:
 
 func _setup_li_chun() -> void:
 	_li_chun.apply_runtime_setup(_hero_data, _hero_visual, Color(1, 0.85, 0, 1))
-	set_unit_skills(_li_chun, Progress.get_equipped_skill_resources())
+	set_unit_skills(_li_chun, Progress.get_battle_skill_resources(GameState.selected_level))
 	setup_unit_stats(_li_chun, "李春", 130, 24, 100, 8, Enums.Element.NONE, 0, true)
 
 
@@ -230,9 +231,9 @@ func _try_close_arch(unit: Unit) -> void:
 		return
 	if _left_arch_value < 8 or _right_arch_value < 8 or _arch_gap() > 1:
 		return
-	if unit.combat_stats.ap_current < 35:
+	if unit.combat_stats.ap_current < _close_arch_ap_cost:
 		return
-	unit.combat_stats.ap_current -= 35
+	unit.combat_stats.ap_current -= _close_arch_ap_cost
 	unit.refresh_overhead_bars()
 	_arch_closed = true
 	Notify.notify("收缝合龙完成，偏载傀的核心开始暴露", Notify.Position.TOP_CENTER, Notify.Style.SUCCESS, 3.0)
@@ -336,3 +337,33 @@ func _is_adjacent_to_any(cell: Vector2i, targets: Array[Vector2i]) -> bool:
 		if _is_adjacent_or_same(cell, target):
 			return true
 	return false
+
+
+func get_round_growth_options() -> Array[Dictionary]:
+	return [
+		{"id": "growth_balance_method", "name": "校券有法", "description": "墨绳校券冷却 -1，李春行动力上限 +5"},
+		{"id": "growth_joint_finish", "name": "收缝习熟", "description": "收缝合龙消耗 -10，李春基础攻击力 +4"},
+		{"id": "growth_link_arch", "name": "连楔并拱", "description": "李春获得连楔并拱，可替换规尺击或木楔勘岸"},
+		{"id": "growth_team_hold", "name": "立券同力", "description": "全体工匠最大生命值 +10，全体运石工行动力上限 +5"},
+	]
+
+
+func apply_round_growth_option(option_id: String) -> void:
+	match option_id:
+		"growth_balance_method":
+			apply_unit_growth_bonus(get_hero_unit(), 0, 0, 5)
+			modify_unit_skill(get_hero_unit(), "lc_inkline_balance_arch", {"cooldown_turns": 1})
+		"growth_joint_finish":
+			_close_arch_ap_cost = 25
+			apply_unit_growth_bonus(get_hero_unit(), 0, 4, 0)
+		"growth_link_arch":
+			add_skill_to_unit(get_hero_unit(), Progress.get_skill_resource("lc_link_wedges_arch"), ["lc_rule_strike", "lc_wedge_bank_probe"])
+		"growth_team_hold":
+			for unit in get_friendly_units():
+				if unit.combat_stats.unit_name == "工匠":
+					apply_unit_growth_bonus(unit, 10, 0, 0)
+				elif unit.combat_stats.unit_name == "运石工":
+					apply_unit_growth_bonus(unit, 0, 0, 5)
+		_:
+			return
+	Notify.notify("本回合成长：%s" % option_id, Notify.Position.TOP_CENTER, Notify.Style.SUCCESS, 2.0)

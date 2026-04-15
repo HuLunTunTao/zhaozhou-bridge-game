@@ -61,11 +61,17 @@ func _rebuild_skills() -> void:
 			continue
 		var row := HBoxContainer.new()
 		row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		var toggle := CheckButton.new()
-		toggle.text = skill.skill_name
-		toggle.button_pressed = skill_id in equipped_ids
-		toggle.toggled.connect(_on_skill_toggled.bind(skill_id, toggle))
-		row.add_child(toggle)
+		if Progress.is_stage_limited_skill(skill_id):
+			var badge := Label.new()
+			badge.text = "%s  [关卡限定]" % skill.skill_name
+			badge.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			row.add_child(badge)
+		else:
+			var toggle := CheckButton.new()
+			toggle.text = skill.skill_name
+			toggle.button_pressed = skill_id in equipped_ids
+			toggle.toggled.connect(_on_skill_toggled.bind(skill_id, toggle))
+			row.add_child(toggle)
 
 		var meta := Label.new()
 		meta.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -88,7 +94,7 @@ func _on_skill_toggled(pressed: bool, skill_id: String, toggle: CheckButton) -> 
 	var ok := Progress.set_skill_equipped(skill_id, pressed)
 	if not ok:
 		toggle.button_pressed = not pressed
-		Notify.notify("李春最多只能装备 5 个技能", Notify.Position.TOP_CENTER, Notify.Style.WARNING, 2.0)
+		Notify.notify("李春最多只能装备 4 个自选技能", Notify.Position.TOP_CENTER, Notify.Style.WARNING, 2.0)
 	_rebuild()
 
 
