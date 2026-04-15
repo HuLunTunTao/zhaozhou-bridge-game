@@ -26,7 +26,7 @@ var _parameters_done := {
 }
 var _finalized := false
 var _driven_enemy_defeats := 0
-var _summon_cycle := ["守法匠首", "高拱幻影", "守法匠首", "守法匠首", "重墩石像"]
+var _summon_cycle := ["循旧匠首", "高拱幻影", "循旧匠首", "循旧匠首", "重墩石像"]
 var _summon_index := 0
 var _li_chun_parameter_round := -1
 var _bonus_summon_next_turn := 0
@@ -74,10 +74,10 @@ func get_objectives_text() -> Dictionary:
 		"victory": [
 			"- 完成 3 个参数点",
 			"- 李春在绘样台完成执墨定拱",
-			"- 累计击破 8 名受驱役敌人",
+			"- 累计击退 8 名受驱役敌人",
 		],
 		"defeat": [
-			"- 李春死亡",
+			"- 李春倒下",
 			"- 超过第 12 回合",
 		],
 	}
@@ -89,7 +89,7 @@ func check_victory() -> bool:
 
 func check_defeat() -> String:
 	if _li_chun == null or _li_chun.combat_stats == null or not _li_chun.combat_stats.is_alive():
-		return "李春阵亡"
+		return "李春倒下"
 	if round_number > 12:
 		return "超过第 12 回合"
 	return ""
@@ -137,7 +137,7 @@ func _on_stage_unit_died(unit: Unit) -> void:
 		return
 	if unit.team_index == ENEMY_TEAM:
 		_driven_enemy_defeats += 1
-		Notify.notify("受驱役敌人击破数 %d / %d" % [_driven_enemy_defeats, REQUIRED_DEFEATS], Notify.Position.TOP_RIGHT, Notify.Style.INFO, 2.0)
+		Notify.notify("受驱役敌人击退数 %d / %d" % [_driven_enemy_defeats, REQUIRED_DEFEATS], Notify.Position.TOP_RIGHT, Notify.Style.INFO, 2.0)
 		_check_win_lose()
 
 
@@ -181,8 +181,8 @@ func _spawn_allies() -> void:
 
 func _spawn_initial_enemies() -> void:
 	_boss = _spawn_enemy(_make_unit_data(_craftsman_data, "旧制监工", 260, 0, 1, 99), _drafting_cells[1] + Vector2i(0, -1), [])
-	_spawn_enemy(_make_unit_data(_craftsman_data, "守法匠首", 120, 20, 90, 9), _drafting_cells[0] + Vector2i(-1, 0), [_mallet, _guard])
-	_spawn_enemy(_make_unit_data(_craftsman_data, "守法匠首", 120, 20, 90, 9), _drafting_cells[1] + Vector2i(1, 0), [_mallet, _guard])
+	_spawn_enemy(_make_unit_data(_craftsman_data, "循旧匠首", 120, 20, 90, 9), _drafting_cells[0] + Vector2i(-1, 0), [_mallet, _guard])
+	_spawn_enemy(_make_unit_data(_craftsman_data, "循旧匠首", 120, 20, 90, 9), _drafting_cells[1] + Vector2i(1, 0), [_mallet, _guard])
 	_spawn_enemy(_make_unit_data(_whirl_data, "高拱幻影", 95, 18, 90, 8), _drafting_cells[3] + Vector2i(1, -1), [_pull])
 	_spawn_enemy(_make_unit_data(_mud_data, "重墩石像", 165, 22, 85, 14), _nearest_walkable(_drafting_cells[2] + Vector2i(0, 2)), [_crush])
 
@@ -191,8 +191,8 @@ func _spawn_next_summon() -> void:
 	var summon_name: String = _summon_cycle[_summon_index % _summon_cycle.size()]
 	_summon_index += 1
 	match summon_name:
-		"守法匠首":
-			_spawn_enemy(_make_unit_data(_craftsman_data, "守法匠首", 120, 20, 90, 9), _random_enemy_spawn_cell(), [_mallet, _guard])
+		"循旧匠首":
+			_spawn_enemy(_make_unit_data(_craftsman_data, "循旧匠首", 120, 20, 90, 9), _random_enemy_spawn_cell(), [_mallet, _guard])
 		"高拱幻影":
 			_spawn_enemy(_make_unit_data(_whirl_data, "高拱幻影", 95, 18, 90, 8), _random_enemy_spawn_cell(), [_pull])
 		"重墩石像":

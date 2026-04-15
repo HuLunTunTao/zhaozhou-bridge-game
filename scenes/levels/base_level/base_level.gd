@@ -17,18 +17,18 @@ const _AIBrain := preload("res://scripts/combat/ai_brain.gd")
 ##   - 角色节点挂载在场景中，颜色与初始格子通过 @export 在编辑器中设置。
 ##   - 若不覆盖 get_teams_config()，则沿用旧的单玩家行为。
 
-## 怪物名称 → Visual 场景映射表。spawn_unit 会根据 unit_data.unit_name 自动应用外观。
+## 敌方名称 → Visual 场景映射表。spawn_unit 会根据 unit_data.unit_name 自动应用外观。
 const MONSTER_VISUALS: Dictionary = {
 	"暗涌": preload("res://scenes/unit/visual/monster/暗涌/暗涌_visual.tscn"),
 	"水旋": preload("res://scenes/unit/visual/monster/水旋/水旋_visual.tscn"),
-	"坍岸泥鬼": preload("res://scenes/unit/visual/monster/泥沙魇/泥沙魇_visual.tscn"),
+	"坍岸泥流": preload("res://scenes/unit/visual/monster/泥沙魇/泥沙魇_visual.tscn"),
 	"浮木群": preload("res://scenes/unit/visual/monster/浮木群/浮木群_visual.tscn"),
 	"洪峰": preload("res://scenes/unit/visual/monster/洪峰/洪峰_visual.tscn"),
-	"断索鬼": preload("res://scenes/unit/visual/monster/断索鬼/断索鬼_visual.tscn"),
-	"桥台噬者": preload("res://scenes/unit/visual/monster/桥台噬者/桥台噬者_visual.tscn"),
-	"脱缝鬼": preload("res://scenes/unit/visual/monster/脱缝鬼/脱缝鬼_visual.tscn"),
+	"断索风": preload("res://scenes/unit/visual/monster/断索鬼/断索鬼_visual.tscn"),
+	"桥台侵蚀": preload("res://scenes/unit/visual/monster/桥台噬者/桥台噬者_visual.tscn"),
+	"脱缝潮": preload("res://scenes/unit/visual/monster/脱缝鬼/脱缝鬼_visual.tscn"),
 	"旧制监工": preload("res://scenes/unit/visual/monster/旧制监工/旧制监工_visual.tscn"),
-	"守法匠首": preload("res://scenes/unit/visual/monster/守法匠首/守法匠首_visual.tscn"),
+	"循旧匠首": preload("res://scenes/unit/visual/monster/守法匠首/守法匠首_visual.tscn"),
 	"重墩石像": preload("res://scenes/unit/visual/monster/重墩石像/重墩石像_visual.tscn"),
 	"裂石兽": preload("res://scenes/unit/visual/monster/裂石兽/裂石兽_visual.tscn"),
 	"错券兵": preload("res://scenes/unit/visual/monster/错券兵/错券兵_visual.tscn"),
@@ -44,7 +44,7 @@ const MONSTER_VISUALS: Dictionary = {
 # 关卡事件信号（供关卡脚本 connect）
 # ─────────────────────────────────────────────
 
-## 某单位死亡（HP 降到 0）。每个单位只会触发一次。
+## 某单位倒下（HP 降到 0）。每个单位只会触发一次。
 signal unit_died(unit: Unit)
 
 ## 某单位 HP 变化（受伤/治疗/DoT/休息恢复）。可用于 HP 阈值监控。
@@ -188,7 +188,7 @@ func _ready() -> void:
 	_on_level_ready()
 	_init_turn_system()
 	_apply_tilemap_texture_filter()
-	# 连接死亡处理
+	# 连接倒下处理
 	unit_died.connect(_on_unit_died)
 	# 胜负条件检查
 	unit_died.connect(_check_win_lose)
@@ -345,7 +345,7 @@ func _process_wave(round_num: int) -> Array[Unit]:
 
 var _level_ended := false
 
-## 执行胜负条件检查。在关键事件（死亡、回合开始）后自动调用。
+## 执行胜负条件检查。在关键事件（倒下、回合开始）后自动调用。
 func _check_win_lose(_arg = null) -> void:
 	if _level_ended:
 		return
@@ -978,7 +978,7 @@ func spawn_unit(unit_data: UnitData, cell: Vector2i, team_index: int, visual: Pa
 	return unit
 
 
-## 单位死亡处理：从队伍名单中移除，取消选中，播放退场动画。
+## 单位倒下处理：从队伍名单中移除，取消选中，播放退场动画。
 func _on_unit_died(unit: Unit) -> void:
 	# 从队伍名单中移除
 	for team: TeamData in teams:
@@ -986,7 +986,7 @@ func _on_unit_died(unit: Unit) -> void:
 	# 若正选中该单位，取消选中
 	if selected_unit == unit:
 		_go_idle()
-	# TODO: 替换为实际死亡音效
+	# TODO: 替换为实际倒下音效
 	# SfxManager.play_sfx(preload("res://assets/audio/sfx/death.wav"), "SFX")
 	# 播放退场动画并移除节点
 	unit.die()
@@ -1566,7 +1566,7 @@ func _show_combat_feedback(exec_result: SkillExecutor.ExecuteResult, _caster_nam
 		if target_unit is Unit:
 			(target_unit as Unit).refresh_overhead_bars()
 
-		# 关卡事件信号：HP 变化 + 死亡
+		# 关卡事件信号：HP 变化 + 倒下
 		if target_unit is Unit and hit.damage > 0:
 			var stats := (target_unit as Unit).combat_stats
 			var new_hp: int = stats.current_hp

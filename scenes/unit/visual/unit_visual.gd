@@ -15,7 +15,7 @@ enum Facing { RIGHT_FRONT, RIGHT_BACK, LEFT_FRONT, LEFT_BACK }
 @export var flip_h_for_turning: bool = false
 ## 精灵图的原始朝向是否朝左。启用后翻转逻辑会取反。
 @export var default_facing_left: bool = false
-## HP 条距脚底的高度（像素）。不同体型的怪物可调整此值。
+## HP 条距脚底的高度（像素）。不同体型的单位可调整此值。
 @export var hp_bar_height: float = 40.0
 
 var _current_facing: Facing = Facing.RIGHT_FRONT

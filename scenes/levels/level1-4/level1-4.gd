@@ -62,16 +62,16 @@ func get_teams_config() -> Array:
 func get_wave_config() -> Dictionary:
 	return {
 		3: [
-			{"unit_data": _make_unit_data(_mud_data, "桥台噬者", 150, 22, 90, 9, Enums.Element.EARTH, 1), "cell": _nearest_walkable(_left_pier + Vector2i(-2, 0)), "team_index": ENEMY_TEAM, "skills": [_mallet]},
+			{"unit_data": _make_unit_data(_mud_data, "桥台侵蚀", 150, 22, 90, 9, Enums.Element.EARTH, 1), "cell": _nearest_walkable(_left_pier + Vector2i(-2, 0)), "team_index": ENEMY_TEAM, "skills": [_mallet]},
 		],
 		5: [
-			{"unit_data": _make_unit_data(_mud_data, "泥沙魇", 110, 18, 90, 9, Enums.Element.EARTH, 1), "cell": _watch_point + Vector2i(0, -2), "team_index": ENEMY_TEAM, "skills": [_guard]},
+			{"unit_data": _make_unit_data(_mud_data, "泥沙流", 110, 18, 90, 9, Enums.Element.EARTH, 1), "cell": _watch_point + Vector2i(0, -2), "team_index": ENEMY_TEAM, "skills": [_guard]},
 		],
 		6: [
 			{"unit_data": _make_unit_data(_drift_data, "漂木群洪水版", 70, 18, 100, 10, Enums.Element.WOOD, 2), "cell": _side_arch_cells["left_front"] + Vector2i(0, -2), "team_index": ENEMY_TEAM, "skills": [_timber]},
 		],
 		7: [
-			{"unit_data": _make_unit_data(_mud_data, "桥台噬者", 150, 22, 90, 9, Enums.Element.EARTH, 1), "cell": _nearest_walkable(_right_pier + Vector2i(2, 0)), "team_index": ENEMY_TEAM, "skills": [_mallet]},
+			{"unit_data": _make_unit_data(_mud_data, "桥台侵蚀", 150, 22, 90, 9, Enums.Element.EARTH, 1), "cell": _nearest_walkable(_right_pier + Vector2i(2, 0)), "team_index": ENEMY_TEAM, "skills": [_mallet]},
 		],
 		9: [
 			{"unit_data": _make_unit_data(_drift_data, "漂木群洪水版", 70, 18, 100, 10, Enums.Element.WOOD, 2), "cell": _side_arch_cells["right_front"] + Vector2i(0, -2), "team_index": ENEMY_TEAM, "skills": [_timber]},
@@ -84,10 +84,10 @@ func get_objectives_text() -> Dictionary:
 		"victory": [
 			"- 开启更多小拱以减轻洪压",
 			"- 保护左右桥台与整桥稳定值",
-			"- 击败怒水",
+			"- 击退怒水",
 		],
 		"defeat": [
-			"- 李春死亡",
+			"- 李春倒下",
 			"- 左右桥台任一崩溃",
 			"- 整桥稳定值归零",
 			"- 超过第 15 回合",
@@ -101,7 +101,7 @@ func check_victory() -> bool:
 
 func check_defeat() -> String:
 	if _li_chun == null or _li_chun.combat_stats == null or not _li_chun.combat_stats.is_alive():
-		return "李春阵亡"
+		return "李春倒下"
 	if _overall_stability <= 0:
 		return "整桥稳定值耗尽"
 	if _left_pier_stability <= 0:
@@ -225,7 +225,7 @@ func _spawn_enemies() -> void:
 	_boss = _spawn_enemy(_make_unit_data(_dark_data, "怒水", 360, 24, 1, 99, Enums.Element.WATER, 2), _watch_point + Vector2i(0, -3), [_divider], preload("res://scenes/unit/visual/monster/洪峰/洪峰_visual.tscn"))
 	_spawn_enemy(_make_unit_data(_dark_data, "洪峰", 135, 22, 90, 8, Enums.Element.WATER, 1), _watch_point + Vector2i(0, -1), [_staff], preload("res://scenes/unit/visual/monster/洪峰/洪峰_visual.tscn"))
 	_spawn_enemy(_make_unit_data(_dark_data, "洪峰", 135, 22, 90, 8, Enums.Element.WATER, 1), _right_pier + Vector2i(1, -1), [_staff], preload("res://scenes/unit/visual/monster/洪峰/洪峰_visual.tscn"))
-	_spawn_enemy(_make_unit_data(_mud_data, "泥沙魇", 110, 18, 90, 9, Enums.Element.EARTH, 1), _side_arch_cells["left_front"] + Vector2i(-1, 0), [_guard], preload("res://scenes/unit/visual/monster/泥沙魇/泥沙魇_visual.tscn"))
+	_spawn_enemy(_make_unit_data(_mud_data, "泥沙流", 110, 18, 90, 9, Enums.Element.EARTH, 1), _side_arch_cells["left_front"] + Vector2i(-1, 0), [_guard], preload("res://scenes/unit/visual/monster/泥沙魇/泥沙魇_visual.tscn"))
 
 
 func _try_open_side_arch(unit: Unit) -> void:
@@ -296,12 +296,12 @@ func _resolve_enemy_pressure() -> void:
 	for enemy in teams[ENEMY_TEAM].units:
 		if not (enemy is Unit) or enemy.combat_stats == null or not enemy.combat_stats.is_alive():
 			continue
-		if enemy.combat_stats.unit_name == "桥台噬者":
+		if enemy.combat_stats.unit_name == "桥台侵蚀":
 			if _is_adjacent_or_same(enemy.cell, _left_pier):
 				_left_pier_stability -= 1
 			if _is_adjacent_or_same(enemy.cell, _right_pier):
 				_right_pier_stability -= 1
-		if enemy.combat_stats.unit_name == "泥沙魇" and _is_adjacent_or_same(enemy.cell, _watch_point):
+		if enemy.combat_stats.unit_name == "泥沙流" and _is_adjacent_or_same(enemy.cell, _watch_point):
 			_overall_stability -= 1
 
 	Notify.notify("整桥:%d 左桥台:%d 右桥台:%d 小拱:%d/4" % [_overall_stability, _left_pier_stability, _right_pier_stability, open_count], Notify.Position.TOP_RIGHT, Notify.Style.WARNING, 2.5)

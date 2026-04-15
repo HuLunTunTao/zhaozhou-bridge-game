@@ -5,7 +5,7 @@
 [resource]
 script = ExtResource("1")
 unit_id = "bank_mud_wraith"
-unit_name = "坍岸泥鬼"
+unit_name = "坍岸泥流"
 camp = 1
 max_hp = 92
 base_atk = 15
