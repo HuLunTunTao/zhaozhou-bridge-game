@@ -43,9 +43,17 @@ func get_movement_cost(cell: Vector2i) -> int:
 	return tile.get_movement_cost()
 
 
+## 指定格是否为水类地块。用于 hazard_charge 等依赖地形的 AI。
+func is_water_cell(cell: Vector2i) -> bool:
+	var tile := _get_tile_type(cell)
+	return tile != null and tile.is_water()
+
+
 ## 障碍物检测：obstacle_tilemaps 中有地块即视为不可通行。
 func is_blocked(cell: Vector2i) -> bool:
 	for layer: TileMapLayer in obstacle_tilemaps:
+		if layer == null:
+			continue
 		if layer.get_cell_source_id(cell) != -1:
 			return true
 	return false
@@ -76,6 +84,8 @@ func on_tile_enter(cell: Vector2i, entity: Node2D) -> void:
 ## 若地块存在但无 terrain 数据，回退为 earth（消耗1）。
 func _get_tile_type(cell: Vector2i) -> TileType:
 	for layer: TileMapLayer in movement_tilemaps:
+		if layer == null:
+			continue
 		if layer.get_cell_source_id(cell) == -1:
 			continue
 		var tile_data: TileData = layer.get_cell_tile_data(cell)

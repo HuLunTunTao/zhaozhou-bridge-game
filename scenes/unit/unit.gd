@@ -2,7 +2,9 @@
 class_name Unit
 extends Node2D
 
-const UnitHpBarScene := preload("res://scenes/ui/combat/unit_hp_bar.tscn")
+const OUTLINE_COLOR_HERO := Color(1.0, 1.0, 0.0, 0.5)   # 黄色
+const OUTLINE_COLOR_ALLY := Color(0.0, 1.0, 0.0, 0.5)   # 绿色
+const OUTLINE_COLOR_ENEMY := Color(1.0, 0.0, 0.0, 0.5)  # 红色
 
 signal move_finished
 ## 单位死亡时发出（HP 降为 0，退场动画播完后触发）。
@@ -14,6 +16,11 @@ signal clicked
 @export var move_speed: float = 100.0  # pixels per second
 ## 单位数据（在编辑器中指定 .tres 文件）。
 @export var unit_data: UnitData
+## 单位外观场景。修改后立即替换 Visual 节点（编辑器中可预览）。
+@export var visual_scene: PackedScene:
+	set(value):
+		visual_scene = value
+		_replace_visual()
 ## 单位叠加颜色，用于区分阵营。修改后在编辑器中实时预览。
 @export var unit_color: Color = Color(1, 1, 1, 1):
 	set(value):
@@ -38,30 +45,59 @@ var has_acted: bool = false:
 		has_acted = value
 		_update_acted_visual()
 
-
-func _update_acted_visual() -> void:
-	if not is_inside_tree():
-		return
-	var visual := get_node_or_null("Visual")
-	if visual:
-		if has_acted:
-			visual.modulate = Color(0.5, 0.5, 0.55, 0.75)
-		else:
-			visual.modulate = Color.WHITE
-
-## 当前朝向前缀，用于拼接动画名。
-var _facing: StringName = &"right_front"
+## 当前朝向。
+var _facing: UnitVisual.Facing = UnitVisual.Facing.RIGHT_FRONT
+## 动画视觉组件。
+var _visual: UnitVisual = null
 ## 头顶血条。
 var _hp_bar: UnitHpBar = null
 
 
 func _ready() -> void:
-	_make_sprite_frames_unique()
+	if visual_scene:
+		_replace_visual()
+	else:
+		_visual = get_node_or_null("Visual") as UnitVisual
 	_apply_color()
-	_play_anim(&"idle")
+	_align_visual()
+	if _visual:
+		_visual.set_facing(_facing)
+		_visual.play_state(&"idle")
 	_init_combat_stats()
 	_init_hp_bar()
 	_init_click_button()
+
+
+## 将 visual_scene 的属性复制到当前 Visual 节点（不替换节点）。
+func _replace_visual() -> void:
+	if not is_inside_tree():
+		return
+	var visual := get_node_or_null("Visual")
+	if visual == null or visual_scene == null:
+		return
+	var source := visual_scene.instantiate()
+	visual.sprite_frames = source.sprite_frames
+	if source.material:
+		visual.material = source.material.duplicate()
+	visual.scale = source.scale
+	visual.flip_h = source.flip_h
+	visual.flip_v = source.flip_v
+	visual.set_script(source.get_script())
+	for prop in ["move_is_idle", "flip_h_for_turning", "default_facing_left", "hp_bar_height"]:
+		if prop in source:
+			visual.set(prop, source.get(prop))
+	# 复制 FootMarker 位置
+	var src_marker := source.get_node_or_null("FootMarker") as Marker2D
+	var dst_marker := visual.get_node_or_null("FootMarker") as Marker2D
+	if src_marker and dst_marker:
+		dst_marker.position = src_marker.position
+	source.free()
+	# 重新播放动画以刷新显示
+	if visual.sprite_frames and visual.sprite_frames.get_animation_names().size() > 0:
+		visual.play(visual.sprite_frames.get_animation_names()[0])
+	_visual = visual as UnitVisual
+	_apply_color()
+	_align_visual()
 
 
 ## 从 unit_data 初始化 combat_stats。
@@ -74,30 +110,73 @@ func _init_combat_stats() -> void:
 		movement_points = combat_stats.ap_current
 
 
+## 运行时为占位单位补齐真实角色数据、外观和颜色。
+## 用于关卡场景里先放一个通用 Unit，再在 _on_level_ready() 中指定具体角色。
+func apply_runtime_setup(data: UnitData, visual: PackedScene = null, color: Color = Color(1, 1, 1, 1)) -> void:
+	if data == null:
+		return
+	unit_data = data.duplicate(true)
+	unit_data.resource_local_to_scene = true
+	if visual != null:
+		visual_scene = visual
+	unit_color = color
+	_init_combat_stats()
+	_init_hp_bar()
+	refresh_overhead_bars()
+
+
+## 根据 FootMarker 定位 Visual（脚底对齐 Unit 原点）和 HpBar。
+func _align_visual() -> void:
+	if _visual:
+		_visual.position = -_visual.get_foot_offset()
+
+
 ## 初始化头顶血条。
 func _init_hp_bar() -> void:
 	if Engine.is_editor_hint():
 		return
-	_hp_bar = UnitHpBarScene.instantiate()
-	add_child(_hp_bar)
-	# 初始刷新属性显示
-	if combat_stats:
+	_hp_bar = get_node_or_null("HpBar") as UnitHpBar
+	if _hp_bar:
+		# HpBar 位于脚底上方 hp_bar_height 像素处
+		var h := _visual.hp_bar_height if _visual else 40.0
+		_hp_bar.position = Vector2(0, -h)
+	if _hp_bar and combat_stats:
 		_hp_bar.update_element(combat_stats.current_element, combat_stats.current_element_amount)
 
 
-## 初始化透明点击按钮（响应右键点击）。
+## 初始化透明点击按钮（不再拦截左键，选择改由地块点击处理）。
 func _init_click_button() -> void:
 	if Engine.is_editor_hint():
 		return
 	var btn := get_node_or_null("Button") as Button
 	if btn:
-		btn.gui_input.connect(_on_button_input)
+		btn.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 
-func _on_button_input(event: InputEvent) -> void:
-	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
-		clicked.emit()
-		get_viewport().set_input_as_handled()
+func _update_acted_visual() -> void:
+	if not is_inside_tree():
+		return
+	if _visual:
+		_visual.set_acted(has_acted)
+
+
+func _apply_color() -> void:
+	if _visual:
+		_visual.set_unit_color(unit_color)
+
+
+## 根据阵营设置描边颜色。主角黄色，友方绿色，敌方红色。
+func apply_faction_outline() -> void:
+	if _visual == null:
+		return
+	var color: Color
+	if combat_stats and combat_stats.is_hero:
+		color = OUTLINE_COLOR_HERO
+	elif faction == "好人":
+		color = OUTLINE_COLOR_ALLY
+	else:
+		color = OUTLINE_COLOR_ENEMY
+	_visual.set_outline_color(color)
 
 
 ## 单位死亡：播放淡出动画后从场景树移除，并发出 died 信号。
@@ -134,45 +213,17 @@ func refresh_overhead_bars() -> void:
 		_hp_bar.update_element(combat_stats.current_element, combat_stats.current_element_amount)
 
 
-## 让 SpriteFrames 资源唯一化，避免修改颜色时影响其他单位实例。
-func _make_sprite_frames_unique() -> void:
-	var visual := get_node_or_null("Visual")
-	if visual is AnimatedSprite2D:
-		var sprite := visual as AnimatedSprite2D
-		if sprite.sprite_frames:
-			sprite.sprite_frames = sprite.sprite_frames.duplicate()
-
-
-func _apply_color() -> void:
-	var visual := get_node_or_null("Visual")
-	if visual is AnimatedSprite2D:
-		(visual as AnimatedSprite2D).self_modulate = unit_color
-	elif visual is Polygon2D:
-		(visual as Polygon2D).color = unit_color
-
-
 ## 根据等距坐标步进方向确定朝向。
 ## +x = 右前(SE), -x = 左后(NW), +y = 左前(SW), -y = 右后(NE)
-func _facing_from_step(step: Vector2i) -> StringName:
+func _facing_from_step(step: Vector2i) -> UnitVisual.Facing:
 	if step.x > 0:
-		return &"right_front"
+		return UnitVisual.Facing.RIGHT_FRONT
 	elif step.x < 0:
-		return &"left_back"
+		return UnitVisual.Facing.LEFT_BACK
 	elif step.y > 0:
-		return &"left_front"
+		return UnitVisual.Facing.LEFT_FRONT
 	else:
-		return &"right_back"
-
-
-## 播放当前朝向下的指定状态动画（"idle" 或 "move"）。
-func _play_anim(state: StringName) -> void:
-	var visual := get_node_or_null("Visual")
-	if not visual is AnimatedSprite2D:
-		return
-	var sprite := visual as AnimatedSprite2D
-	var anim_name := StringName(String(_facing) + "_" + String(state))
-	if sprite.sprite_frames and sprite.sprite_frames.has_animation(anim_name):
-		sprite.play(anim_name)
+		return UnitVisual.Facing.RIGHT_BACK
 
 
 func set_cell(new_cell: Vector2i, tilemap: TileMapLayer) -> void:
@@ -187,7 +238,9 @@ func move_along_path(path: Array[Vector2i], tilemap: TileMapLayer) -> void:
 	for i in range(1, path.size()):
 		var step := path[i] - path[i - 1]
 		_facing = _facing_from_step(step)
-		_play_anim(&"move")
+		if _visual:
+			_visual.set_facing(_facing)
+			_visual.play_state(&"move")
 
 		if movement_manager:
 			movement_manager.on_tile_exit(path[i - 1], self)
@@ -200,7 +253,18 @@ func move_along_path(path: Array[Vector2i], tilemap: TileMapLayer) -> void:
 
 		if movement_manager:
 			movement_manager.on_tile_enter(path[i], self)
-	_play_anim(&"idle")
+	if _visual:
+		_visual.play_state(&"idle")
 	cell = path[path.size() - 1]
 	is_moving = false
 	move_finished.emit()
+
+
+func face_towards_cell(target_cell: Vector2i) -> void:
+	var step := target_cell - cell
+	if step == Vector2i.ZERO:
+		return
+	_facing = _facing_from_step(step)
+	if _visual:
+		_visual.set_facing(_facing)
+		_visual.play_state(&"idle")

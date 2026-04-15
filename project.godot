@@ -15,19 +15,30 @@ run/main_scene="res://scenes/menu/main_menu.tscn"
 config/features=PackedStringArray("4.6", "Forward Plus")
 config/icon="res://icon.svg"
 
+[audio]
+
+buses/default_bus_layout="uid://c6nl13ad7abrc"
+
 [autoload]
 
 GameState="*res://scripts/game_state.gd"
 Notify="*res://scripts/notification_manager.gd"
 TestBridge="*uid://iorf7f2xmkmt"
+Settings="*res://scripts/settings.gd"
+Progress="*res://scripts/progress.gd"
+BgmManager="*res://scripts/audio/bgm_manager.gd"
+SfxManager="*res://scripts/audio/sfx_manager.gd"
+UiSounds="*res://scripts/audio/ui_sounds.gd"
 
 [display]
 
-window/size/viewport_width=960
-window/size/viewport_height=540
+window/size/viewport_width=1920
+window/size/viewport_height=1080
 window/size/window_width_override=1920
 window/size/window_height_override=1080
-window/stretch/mode="viewport"
+window/stretch/mode="canvas_items"
+window/stretch/scale=2.0
+window/stretch/scale_mode="integer"
 
 [dotnet]
 
@@ -74,6 +85,5 @@ locale/include_text_server_data=true
 
 [rendering]
 
-textures/canvas_textures/default_texture_filter=0
 rendering_device/driver.windows="d3d12"
 textures/vram_compression/import_etc2_astc=true

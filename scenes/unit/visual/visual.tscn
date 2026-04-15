@@ -1,0 +1,19 @@
+[gd_scene format=3 uid="uid://cbjso0lvbcag1"]
+
+[ext_resource type="Shader" uid="uid://w8w41kw1kylj" path="res://scenes/unit/shader/unit_edge_light.gdshader" id="1_l6c2v"]
+[ext_resource type="Script" uid="uid://c8la6q4g3vnfb" path="res://scenes/unit/visual/unit_visual.gd" id="3_visual_script"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_3po7s"]
+resource_local_to_scene = true
+shader = ExtResource("1_l6c2v")
+shader_parameter/outline_color = Color(1, 1, 0, 0.3)
+shader_parameter/outline_width = 7.0
+
+[node name="Visual" type="AnimatedSprite2D" unique_id=1878430534]
+texture_filter = 1
+material = SubResource("ShaderMaterial_3po7s")
+scale = Vector2(0.15, 0.15)
+script = ExtResource("3_visual_script")
+
+[node name="FootMarker" type="Marker2D" parent="."]
+position = Vector2(0, 0)

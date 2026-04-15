@@ -49,7 +49,7 @@ static func element_logo(e: Enums.Element) -> String:
 static func element_tag(e: Enums.Element, amount: int) -> String:
 	if e == Enums.Element.NONE or amount <= 0:
 		return ""
-	return "%s×%d" % [LOGOS.get(e, "?"), amount]
+	return "%s%d" % [LOGOS.get(e, "?"), amount]
 
 
 ## BBCode 便捷包装：返回 "[color=#rrggbb]text[/color]"，供 RichTextLabel 使用。

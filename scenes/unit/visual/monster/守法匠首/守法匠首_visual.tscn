@@ -1,0 +1,61 @@
+[gd_scene format=3 uid="uid://csh2aaob15upx"]
+
+[ext_resource type="PackedScene" uid="uid://cbjso0lvbcag1" path="res://scenes/unit/visual/visual.tscn" id="1_ihq7b"]
+[ext_resource type="Shader" uid="uid://w8w41kw1kylj" path="res://scenes/unit/shader/unit_edge_light.gdshader" id="2_1yol1"]
+[ext_resource type="Texture2D" uid="uid://c4htoc51wkaho" path="res://assets/character/monster/守法匠首.png" id="3_1yol1"]
+[ext_resource type="Script" path="res://scenes/unit/visual/monster/守法匠首/守法匠首_visual.gd" id="4_script"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_7b0e6"]
+resource_local_to_scene = true
+shader = ExtResource("2_1yol1")
+shader_parameter/outline_color = Color(1, 1, 0, 0.3)
+shader_parameter/outline_width = 7.0
+shader_parameter/frame_uv_rect = Vector4(0, 0, 1, 1)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_al2aa"]
+atlas = ExtResource("3_1yol1")
+region = Rect2(0, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_c2qk5"]
+atlas = ExtResource("3_1yol1")
+region = Rect2(64, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_elj7t"]
+atlas = ExtResource("3_1yol1")
+region = Rect2(0, 64, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_pyrxv"]
+atlas = ExtResource("3_1yol1")
+region = Rect2(64, 64, 64, 64)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_n3vh5"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_al2aa")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_c2qk5")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_elj7t")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_pyrxv")
+}],
+"loop": true,
+"name": &"default",
+"speed": 5.0
+}]
+
+[node name="Visual" unique_id=1878430534 instance=ExtResource("1_ihq7b")]
+material = SubResource("ShaderMaterial_7b0e6")
+scale = Vector2(0.51, 0.51)
+sprite_frames = SubResource("SpriteFrames_n3vh5")
+script = ExtResource("4_script")
+move_is_idle = true
+flip_h_for_turning = true
+default_facing_left = true
+
+[node name="FootMarker" parent="." index="0"]
+position = Vector2(0, 26.470585)

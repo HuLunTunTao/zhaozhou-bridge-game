@@ -2,10 +2,6 @@ extends BaseLevel
 ## 第一关《踏勘洨河》
 
 # ── 预加载技能 ──
-var _sk_rule_strike: SkillData = preload("res://data/skills/lc_rule_strike.tres")
-var _sk_wedge: SkillData = preload("res://data/skills/lc_wedge_bank_probe.tres")
-var _sk_stone: SkillData = preload("res://data/skills/lc_cast_stone_arrest_flow.tres")
-var _sk_read_water: SkillData = preload("res://data/skills/lc_read_water_fix_site.tres")
 var _sk_staff: SkillData = preload("res://data/skills/sw_staff_end_strike.tres")
 var _sk_survey: SkillData = preload("res://data/skills/sw_field_measure_site.tres")
 var _sk_mallet: SkillData = preload("res://data/skills/cg_mallet_strike.tres")
@@ -20,9 +16,6 @@ var _ud_dark_current: UnitData = preload("res://data/units/dark_current.tres")
 var _ud_whirl_pool: UnitData = preload("res://data/units/whirl_pool.tres")
 var _ud_mud_wraith: UnitData = preload("res://data/units/bank_mud_wraith.tres")
 var _ud_drift_log: UnitData = preload("res://data/units/drift_log_pack.tres")
-
-# ── 占位纹理（运行时生成）──
-var _placeholder_tex: Texture2D
 
 # ── 敌方队伍索引 ──
 const ENEMY_TEAM := 2
@@ -39,6 +32,10 @@ var _survey_a: Node2D
 var _survey_b: Node2D
 var _craftsman_a: Node2D
 var _craftsman_b: Node2D
+
+# ── 勘测点 ──
+var _survey_points: Array[SurveyPointTile] = []
+var _survey_completed_count: int = 0
 
 
 func get_teams_config() -> Array:
@@ -103,9 +100,10 @@ func get_wave_config() -> Dictionary:
 
 
 func get_objectives_text() -> Dictionary:
+	var survey_status := " (%d/%d)" % [_survey_completed_count, _survey_points.size()] if _survey_points.size() > 0 else ""
 	return {
 		"victory": [
-			"- 完成 3 个勘测点",
+			"- 完成 3 个勘测点%s" % survey_status,
 			"- 李春在候选桥位执行「相水定址」",
 			"- 至少 1 名测量工进入撤离区并结束回合",
 		],
@@ -135,30 +133,39 @@ func check_defeat() -> String:
 	return ""
 
 
-func _on_level_ready() -> void:
-	_placeholder_tex = _create_placeholder_texture()
+func check_victory() -> bool:
+	# 条件 1：完成所有勘测点
+	var surveys_done := _survey_completed_count >= _survey_points.size() and _survey_points.size() > 0
+	# 条件 2：李春在候选桥位执行「相水定址」（待实现）
+	var bridge_done := false
+	# 条件 3：至少 1 名测量工进入撤离区并结束回合（待实现）
+	var evac_done := false
+	return surveys_done and bridge_done and evac_done
 
+
+func _on_level_ready() -> void:
 	# ── 李春 ──
-	set_unit_skills(_li_chun as Unit, [_sk_rule_strike, _sk_wedge, _sk_stone, _sk_read_water])
+	set_unit_skills(_li_chun as Unit, Progress.get_battle_skill_resources(GameState.selected_level))
 	setup_unit_stats(_li_chun as Unit, "李春", 130, 24, 100, 8, Enums.Element.NONE, 0, true)
 
 	# ── 测量工 ──
 	set_unit_skills(_survey_a as Unit, [_sk_staff, _sk_survey])
 	setup_unit_stats(_survey_a as Unit, "测量工", 80, 12, 85, 10)
-	_set_placeholder_sprite(_survey_a as Unit)
 
 	set_unit_skills(_survey_b as Unit, [_sk_staff, _sk_survey])
 	setup_unit_stats(_survey_b as Unit, "测量工", 80, 12, 85, 10)
-	_set_placeholder_sprite(_survey_b as Unit)
 
 	# ── 工匠 ──
 	set_unit_skills(_craftsman_a as Unit, [_sk_mallet, _sk_guard])
 	setup_unit_stats(_craftsman_a as Unit, "工匠", 110, 18, 90, 9)
-	_set_placeholder_sprite(_craftsman_a as Unit)
 
 	set_unit_skills(_craftsman_b as Unit, [_sk_mallet, _sk_guard])
 	setup_unit_stats(_craftsman_b as Unit, "工匠", 110, 18, 90, 9)
-	_set_placeholder_sprite(_craftsman_b as Unit)
+	_apply_persistent_growth_effects()
+
+	# ── 勘测点 ──
+	_setup_survey_points()
+	skill_executed.connect(_on_skill_executed)
 
 
 func _get_ai_context() -> Dictionary:
@@ -167,59 +174,24 @@ func _get_ai_context() -> Dictionary:
 	}
 
 
-## 覆写波次处理：生成敌人后设置占位精灵和颜色。
-func _process_wave(round_num: int) -> void:
-	var waves := get_wave_config()
-	if not waves.has(round_num):
-		return
-	for entry: Dictionary in waves[round_num]:
-		var unit := spawn_unit(entry["unit_data"], entry["cell"], entry["team_index"])
-		if entry.has("skills"):
-			set_unit_skills(unit, entry["skills"])
-		if entry.has("color"):
-			unit.unit_color = entry["color"]
-		_set_placeholder_sprite(unit)
+func get_post_level_growth_options() -> Array[Dictionary]:
+	return [
+		{"id": "growth_training_mobilize", "name": "操练与动员", "description": "全体我方最大生命值 +10，行动力上限 +5"},
+		{"id": "growth_maps_measures", "name": "习图记尺", "description": "李春基础攻击力 +4，规尺击伤害倍率 +0.05"},
+		{"id": "growth_river_master", "name": "请益河工", "description": "李春获得束桩缓波，可替换规尺击或木楔勘岸"},
+		{"id": "growth_stone_reinforce", "name": "备石加固", "description": "工匠的捍作护行持续时间 +1 回合"},
+	]
 
 
-# ─────────────────────────────────────────────
-# 占位精灵
-# ─────────────────────────────────────────────
-
-## 生成人形占位纹理（中性浅灰，由 unit_color 上色）。
-func _create_placeholder_texture() -> ImageTexture:
-	var size := 256
-	var img := Image.create(size, size, false, Image.FORMAT_RGBA8)
-	var head := Color(0.95, 0.95, 0.95)
-	var body := Color(0.85, 0.85, 0.85)
-	var limb := Color(0.75, 0.75, 0.75)
-	@warning_ignore("integer_division")
-	var cx: int = size / 2
-	var foot_y := 200
-	_fill_rect(img, cx - 6, foot_y - 80, 12, 12, head)
-	_fill_rect(img, cx - 12, foot_y - 66, 24, 32, body)
-	_fill_rect(img, cx - 20, foot_y - 62, 8, 28, limb)
-	_fill_rect(img, cx + 12, foot_y - 62, 8, 28, limb)
-	_fill_rect(img, cx - 11, foot_y - 32, 10, 32, limb)
-	_fill_rect(img, cx + 1, foot_y - 32, 10, 32, limb)
-	return ImageTexture.create_from_image(img)
-
-
-func _fill_rect(img: Image, x0: int, y0: int, w: int, h: int, color: Color) -> void:
-	for x in range(maxi(x0, 0), mini(x0 + w, img.get_width())):
-		for y in range(maxi(y0, 0), mini(y0 + h, img.get_height())):
-			img.set_pixel(x, y, color)
-
-
-## 用占位纹理替换单位的动画精灵。
-func _set_placeholder_sprite(unit: Unit) -> void:
-	var visual := unit.get_node_or_null("Visual")
-	if not visual is AnimatedSprite2D:
-		return
-	var sprite := visual as AnimatedSprite2D
-	var frames := SpriteFrames.new()
-	for anim_name in ["SE_idle", "SW_idle", "NE_idle", "NW_idle",
-			"SE_walk", "SW_walk", "NE_walk", "NW_walk"]:
-		frames.add_animation(anim_name)
-		frames.add_frame(anim_name, _placeholder_tex)
-	sprite.sprite_frames = frames
-	sprite.play(&"SE_idle")
+func _apply_persistent_growth_effects() -> void:
+	if Progress.has_growth_option("growth_training_mobilize"):
+		for unit in get_friendly_units():
+			apply_unit_growth_bonus(unit, 10, 0, 5)
+	if Progress.has_growth_option("growth_maps_measures"):
+		var hero_unit := get_hero_unit()
+		apply_unit_growth_bonus(hero_unit, 0, 4, 0)
+		modify_unit_skill(hero_unit, "lc_rule_strike", {"damage_ratio": 1.05})
+	if Progress.has_growth_option("growth_stone_reinforce"):
+		for unit in get_friendly_units():
+			if unit.combat_stats.unit_name == "工匠":
+				modify_unit_skill(unit, "cg_guard_the_works", {"duration_turns": 3})

@@ -1,0 +1,60 @@
+[gd_scene format=3 uid="uid://1tcp0sqfu6y5"]
+
+[ext_resource type="PackedScene" uid="uid://cbjso0lvbcag1" path="res://scenes/unit/visual/visual.tscn" id="1_th70v"]
+[ext_resource type="Shader" uid="uid://w8w41kw1kylj" path="res://scenes/unit/shader/unit_edge_light.gdshader" id="2_rpo3g"]
+[ext_resource type="Texture2D" uid="uid://b7ioke0q6sh3b" path="res://assets/character/monster/坍岸泥鬼.png" id="3_rpo3g"]
+[ext_resource type="Script" path="res://scenes/unit/visual/monster/坍岸泥鬼/坍岸泥鬼_visual.gd" id="4_script"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_g28qf"]
+resource_local_to_scene = true
+shader = ExtResource("2_rpo3g")
+shader_parameter/outline_color = Color(1, 1, 0, 0.3)
+shader_parameter/outline_width = 7.0
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_g28qf"]
+atlas = ExtResource("3_rpo3g")
+region = Rect2(0, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_47woj"]
+atlas = ExtResource("3_rpo3g")
+region = Rect2(32, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_4uk6n"]
+atlas = ExtResource("3_rpo3g")
+region = Rect2(0, 32, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ktlau"]
+atlas = ExtResource("3_rpo3g")
+region = Rect2(32, 32, 32, 32)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_mwyou"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_g28qf")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_47woj")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_4uk6n")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_ktlau")
+}],
+"loop": true,
+"name": &"default",
+"speed": 5.0
+}]
+
+[node name="Visual" unique_id=1878430534 instance=ExtResource("1_th70v")]
+material = SubResource("ShaderMaterial_g28qf")
+scale = Vector2(0.75, 0.75)
+sprite_frames = SubResource("SpriteFrames_mwyou")
+script = ExtResource("4_script")
+move_is_idle = true
+flip_h_for_turning = true
+default_facing_left = true
+
+[node name="FootMarker" parent="." index="0"]
+position = Vector2(0, 10.666667)

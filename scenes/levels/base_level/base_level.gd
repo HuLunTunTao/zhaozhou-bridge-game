@@ -1,5 +1,12 @@
 class_name BaseLevel
 extends Node2D
+
+const LEVEL_BGM_BY_LEVEL := {
+	"关卡1-1": "res://assets/audio/music/1：踏勘洨河(Charting_the_Hidden_Shore).mp3",
+	"关卡1-2": "res://assets/audio/music/2：弧拱定式(Geometry_of_the_Arch).mp3",
+	"关卡1-3": "res://assets/audio/music/3：二十八券(The_Twenty_Eighth_Arch).mp3",
+	"关卡1-4": "res://assets/audio/music/4：敞肩试汛(Against_the_Angry_Tide).mp3",
+}
 ## Base class for all battle levels.
 const _AIBrain := preload("res://scripts/combat/ai_brain.gd")
 ## Inherited scenes should add TileMapLayers under the TileMaps node,
@@ -9,6 +16,24 @@ const _AIBrain := preload("res://scripts/combat/ai_brain.gd")
 ##   - 子关卡覆盖 get_teams_config() 返回队伍配置。
 ##   - 角色节点挂载在场景中，颜色与初始格子通过 @export 在编辑器中设置。
 ##   - 若不覆盖 get_teams_config()，则沿用旧的单玩家行为。
+
+## 怪物名称 → Visual 场景映射表。spawn_unit 会根据 unit_data.unit_name 自动应用外观。
+const MONSTER_VISUALS: Dictionary = {
+	"暗涌": preload("res://scenes/unit/visual/monster/暗涌/暗涌_visual.tscn"),
+	"水旋": preload("res://scenes/unit/visual/monster/水旋/水旋_visual.tscn"),
+	"坍岸泥鬼": preload("res://scenes/unit/visual/monster/泥沙魇/泥沙魇_visual.tscn"),
+	"浮木群": preload("res://scenes/unit/visual/monster/浮木群/浮木群_visual.tscn"),
+	"洪峰": preload("res://scenes/unit/visual/monster/洪峰/洪峰_visual.tscn"),
+	"断索鬼": preload("res://scenes/unit/visual/monster/断索鬼/断索鬼_visual.tscn"),
+	"桥台噬者": preload("res://scenes/unit/visual/monster/桥台噬者/桥台噬者_visual.tscn"),
+	"脱缝鬼": preload("res://scenes/unit/visual/monster/脱缝鬼/脱缝鬼_visual.tscn"),
+	"旧制监工": preload("res://scenes/unit/visual/monster/旧制监工/旧制监工_visual.tscn"),
+	"守法匠首": preload("res://scenes/unit/visual/monster/守法匠首/守法匠首_visual.tscn"),
+	"重墩石像": preload("res://scenes/unit/visual/monster/重墩石像/重墩石像_visual.tscn"),
+	"裂石兽": preload("res://scenes/unit/visual/monster/裂石兽/裂石兽_visual.tscn"),
+	"错券兵": preload("res://scenes/unit/visual/monster/错券兵/错券兵_visual.tscn"),
+	"漂木群洪水版": preload("res://scenes/unit/visual/monster/漂木群洪水版/漂木群洪水版_visual.tscn"),
+}
 
 @export var obstacles_tilemap_layer: TileMapLayer  # 障碍物所在的层，必须在编辑器中指定
 ## AI 回合中每个敌人一轮内最多走几步（每步 = 向相邻格移动一次）。
@@ -37,6 +62,9 @@ signal unit_gained_skill(unit: Unit, skill: SkillData)
 ## 某单位失去一个技能（通过 revoke_skill 移除）。
 signal unit_lost_skill(unit: Unit, skill: SkillData)
 
+## 技能成功执行后发射。用于关卡响应技能副作用（如勘测点完成）。
+signal skill_executed(caster: Unit, skill: SkillData, cast_cell: Vector2i)
+
 
 @onready var tilemap_container: Node2D = $TileMaps
 @onready var units_container: Node2D = $Entities/Units
@@ -46,9 +74,11 @@ signal unit_lost_skill(unit: Unit, skill: SkillData)
 @onready var camera: Camera2D = $Camera2D
 @onready var gui: CanvasLayer = $GUI
 @onready var status_bar: HBoxContainer = $StatusBarScene/PanelContainer/MarginContainer/StatusBar
+@onready var win_button: Button = $GUI/WinButton
 
 const SettingsPanelScene := preload("res://scenes/ui/settings_panel.tscn")
 const ObjectivesPanelScene := preload("res://scenes/ui/objectives_panel.tscn")
+const GrowthChoicePanelScript := preload("res://scenes/ui/growth_choice_panel.gd")
 
 var tilemap: TileMapLayer
 ## 化势提示 UI（运行时创建，挂在 GUI 层）。
@@ -59,6 +89,8 @@ var unit_selected := false
 var _mid_cutscene_active := false
 var _settings_open := false
 var _objectives_open := false
+var _growth_panel_open := false
+var _round_growth_selected_rounds: Array[int] = []
 
 ## 输入状态机。
 enum InputState { IDLE, UNIT_SELECTED, TARGETING_MOVE, TARGETING_SKILL, ANIMATING }
@@ -84,6 +116,11 @@ const WALKABLE_LAYER_NAMES: Array[String] = [
 # ─────────────────────────────────────────────
 
 ## 单个队伍的运行时数据。
+
+
+
+
+
 class TeamData:
 	var team_name: String
 	var faction: String
@@ -117,6 +154,9 @@ var _pending_special_enter: Dictionary = {}
 
 
 func _ready() -> void:
+	Settings.settings_changed.connect(_refresh_debug_ui, CONNECT_REFERENCE_COUNTED)
+	_refresh_debug_ui()
+	_play_level_bgm()
 	tilemap = _find_walkable_tilemap()
 	if tilemap == null:
 		push_error("No walkable tilemap found in level")
@@ -147,6 +187,7 @@ func _ready() -> void:
 		(camera as LevelCamera).set_level_bounds(get_tilemap_bounds())
 	_on_level_ready()
 	_init_turn_system()
+	_apply_tilemap_texture_filter()
 	# 连接死亡处理
 	unit_died.connect(_on_unit_died)
 	# 胜负条件检查
@@ -165,6 +206,20 @@ func _ready() -> void:
 		_update_status_bar_for_unit(hero, false)
 	# 进入关卡时自动弹出本关目标
 	show_objectives.call_deferred()
+
+
+func _play_level_bgm() -> void:
+	var path: String = LEVEL_BGM_BY_LEVEL.get(GameState.selected_level, "")
+	if path.is_empty() or not ResourceLoader.exists(path, "AudioStream"):
+		return
+	var stream: AudioStream = load(path)
+	if stream != null:
+		BgmManager.play(stream)
+
+
+func _refresh_debug_ui() -> void:
+	if win_button:
+		win_button.visible = Settings.debug_mode
 
 
 func _process(_delta: float) -> void:
@@ -212,6 +267,21 @@ func get_hero_start_cell() -> Vector2i:
 	return Vector2i(0, 0)
 
 
+## 返回本关可用的回合成长选项。默认无。
+func get_round_growth_options() -> Array[Dictionary]:
+	return []
+
+
+## 应用一个回合成长选项。子关卡按 option_id 自行实现。
+func apply_round_growth_option(_option_id: String) -> void:
+	pass
+
+
+## 返回本关胜利后的结算成长选项。默认无。
+func get_post_level_growth_options() -> Array[Dictionary]:
+	return []
+
+
 ## 在基类 _ready 完成后调用，子关卡在此做额外初始化。
 func _on_level_ready() -> void:
 	pass
@@ -251,15 +321,26 @@ func _get_ai_context() -> Dictionary:
 	return {}
 
 
+## 子类覆写：技能成功执行后的关卡机制钩子。
+func _on_skill_executed(_caster: Unit, _skill: SkillData, _cast_cell: Vector2i, _exec_result: SkillExecutor.ExecuteResult) -> void:
+	pass
+
+
 ## 处理波次生成。在每大回合开始时调用。
-func _process_wave(round_num: int) -> void:
+func _process_wave(round_num: int) -> Array[Unit]:
 	var waves := get_wave_config()
 	if not waves.has(round_num):
-		return
+		return [] as Array[Unit]
+	var spawned: Array[Unit] = []
 	for entry: Dictionary in waves[round_num]:
-		var unit := spawn_unit(entry["unit_data"], entry["cell"], entry["team_index"])
+		var vis: PackedScene = entry.get("visual", null)
+		var unit := spawn_unit(entry["unit_data"], entry["cell"], entry["team_index"], vis)
 		if entry.has("skills"):
 			set_unit_skills(unit, entry["skills"])
+		if entry.has("color"):
+			unit.unit_color = entry["color"]
+		spawned.append(unit)
+	return spawned
 
 
 var _level_ended := false
@@ -280,6 +361,9 @@ func _check_win_lose(_arg = null) -> void:
 		_level_ended = true
 		complete_level()
 
+# 用于测试的一键胜利按钮
+func _on_win_button_pressed() -> void:
+	complete_level()
 
 # ─────────────────────────────────────────────
 # 队伍初始化（读取场景已有节点）
@@ -301,8 +385,6 @@ func _setup_teams_from_config(configs: Array) -> void:
 			var snapped_cell := tilemap.local_to_map(tilemap.to_local(unit.global_position))
 			unit.set_cell(snapped_cell, tilemap)
 			team.units.append(unit)
-			if unit is Unit and unit.has_signal("clicked"):
-				unit.clicked.connect(_on_unit_clicked.bind(unit))
 		teams.append(team)
 
 	# 向后兼容：hero 指向第一个玩家控制队伍的第一个单位
@@ -315,6 +397,15 @@ func _setup_teams_from_config(configs: Array) -> void:
 # ─────────────────────────────────────────────
 # 回合系统初始化
 # ─────────────────────────────────────────────
+
+func _apply_tilemap_texture_filter() -> void:
+	if tilemap_container == null:
+		return
+	tilemap_container.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	for node: Node in tilemap_container.find_children("*", "TileMapLayer", true):
+		if node is TileMapLayer:
+			node.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+
 
 func _init_turn_system() -> void:
 	# 若未通过 get_teams_config() 创建队伍，则将旧版 player 包装为单队伍
@@ -340,7 +431,10 @@ func _start_team_turn(index: int) -> void:
 	team_turn_started.emit(index)
 	# 波次生成：在每大回合第一个队伍开始时处理
 	if index == 0:
-		_process_wave(round_number)
+		var spawned := _process_wave(round_number)
+		# 第一回合不播镜头演出（初始敌人已在场）；后续波次刷新时聚焦新敌人
+		if not spawned.is_empty() and round_number > 1:
+			await _camera_focus_spawned(spawned)
 	for unit: Node2D in team.units:
 		unit.has_acted = false
 		if unit is Unit and unit.combat_stats != null:
@@ -367,6 +461,7 @@ func _start_team_turn(index: int) -> void:
 		_end_turn_pending_confirm = false
 		_set_end_turn_button_highlight(false)
 		_waiting_for_player_input = true
+		UiSounds.play_turn_start()
 		# 玩家回合开始时把镜头平滑拉到主角，给本回合一个明确的起点。
 		_focus_camera_on_team(team)
 		# 玩家回合开始时刷新状态栏，确保显示 AP 恢复后的最新数据
@@ -391,6 +486,36 @@ func _update_round_label(round_num: int) -> void:
 	if _round_label == null:
 		return
 	_round_label.text = "第 %d 回合" % round_num
+
+
+## 波次刷新敌人时的镜头演出：锁定到刷新单位的中心，拉近，停留后解锁。
+const _WAVE_CAMERA_ZOOM: float = 1.4
+const _WAVE_CAMERA_SETTLE_TIME: float = 0.4
+const _WAVE_CAMERA_LINGER_TIME: float = 0.8
+
+func _camera_focus_spawned(spawned: Array[Unit]) -> void:
+	var lv_camera := camera as LevelCamera
+	if lv_camera == null:
+		return
+	# 计算所有刷新单位的中心点
+	var center := Vector2.ZERO
+	var count := 0
+	for u in spawned:
+		if is_instance_valid(u):
+			center += u.global_position
+			count += 1
+	if count == 0:
+		return
+	center /= count
+	# 用临时节点作为锁定目标
+	var marker := Node2D.new()
+	add_child(marker)
+	marker.global_position = center
+	lv_camera.lock_on(marker, _WAVE_CAMERA_ZOOM)
+	await get_tree().create_timer(_WAVE_CAMERA_SETTLE_TIME).timeout
+	await get_tree().create_timer(_WAVE_CAMERA_LINGER_TIME).timeout
+	lv_camera.unlock()
+	marker.queue_free()
 
 
 ## 把镜头平滑拉到队伍"代表单位"（优先 hero，否则队里第一个存活单位）。
@@ -489,6 +614,49 @@ func _on_end_turn_button_pressed() -> void:
 	end_team_turn()
 
 
+func _try_prompt_round_growth() -> bool:
+	if _growth_panel_open:
+		return true
+	if current_team_index < 0 or current_team_index >= teams.size():
+		return false
+	var team: TeamData = teams[current_team_index]
+	if team.controller != "player":
+		return false
+	if not _is_player_side_ending_turn():
+		return false
+	if round_number in _round_growth_selected_rounds:
+		return false
+	var options := get_round_growth_options()
+	if options.is_empty():
+		return false
+	var panel := GrowthChoicePanelScript.new()
+	panel.panel_title = "回合成长"
+	panel.options = options
+	panel.required_selection_count = 2
+	panel.options_confirmed.connect(_on_round_growth_options_confirmed)
+	add_child(panel)
+	_growth_panel_open = true
+	return true
+
+
+func _on_round_growth_options_confirmed(option_ids: Array[String]) -> void:
+	_growth_panel_open = false
+	if round_number not in _round_growth_selected_rounds:
+		_round_growth_selected_rounds.append(round_number)
+	for option_id in option_ids:
+		apply_round_growth_option(option_id)
+	_do_end_turn()
+
+
+func _is_player_side_ending_turn() -> bool:
+	if current_team_index < 0 or current_team_index >= teams.size():
+		return false
+	var next_index := (current_team_index + 1) % teams.size()
+	if next_index < teams.size() and teams[next_index].controller == "player":
+		return false
+	return true
+
+
 ## 结束回合按钮高亮配置（"待确认"态）。
 const _END_TURN_HIGHLIGHT_MODULATE: Color = Color(1.8, 1.1, 0.4, 1.0)
 ## 边框颜色偏近白，被 modulate 乘完后正好变成更亮的暖橙，和按钮面形成层次。
@@ -563,8 +731,9 @@ func _run_ai_turn(team: TeamData) -> void:
 
 		# 决策
 		var enemies := _get_alive_enemies_of(u.faction)
-		var occupied := _get_occupied_cells_except(u)
-		var action := _AIBrain.decide_action(u, enemies, tilemap, movement_manager, occupied, context)
+		var friendly_cells := _get_friendly_cells_except(u)
+		var enemy_cells := _get_enemy_cells_except(u)
+		var action := _AIBrain.decide_action(u, enemies, tilemap, movement_manager, friendly_cells, enemy_cells, context)
 
 		# 执行移动
 		if action["move_path"].size() >= 2:
@@ -608,11 +777,13 @@ func _execute_ai_skill(unit: Unit, skill: SkillData, cast_cell: Vector2i) -> voi
 		await get_tree().create_timer(_SKILL_CAMERA_SETTLE_TIME).timeout
 
 	# 执行技能
+	unit.face_towards_cell(cast_cell)
 	var all_units: Array = _get_all_units()
 	var caster_faction: String = unit.faction if "faction" in unit else ""
 	var exec_result := SkillExecutor.execute(unit, skill, cast_cell, all_units, caster_faction)
 
 	if exec_result.success:
+		SfxManager.play_skill_cast(skill)
 		CombatLog.msg("    技能: %s → %s" % [skill.skill_name, cast_cell])
 		# 技能释放播报
 		var caster_name: String = unit.combat_stats.unit_name if unit.combat_stats else unit.name
@@ -630,6 +801,9 @@ func _execute_ai_skill(unit: Unit, skill: SkillData, cast_cell: Vector2i) -> voi
 				if not target_names.is_empty():
 					Notify.notify("%s 触发额外效果：%s" % ["、".join(target_names), effect_name], Notify.Position.TOP_RIGHT, Notify.Style.INFO, 3.0)
 		unit.refresh_overhead_bars()
+		# 技能执行通知
+		skill_executed.emit(unit, skill, cast_cell)
+		_check_win_lose()
 
 	# 镜头恢复
 	if lv_camera and focus_marker:
@@ -716,7 +890,7 @@ func _reset_status_bar() -> void:
 # ─────────────────────────────────────────────
 
 ## Play a mid-battle cutscene as an overlay. Blocks until finished.
-func play_mid_cutscene(pages: Array[String]) -> void:
+func play_mid_cutscene(pages: Array) -> void:
 	_mid_cutscene_active = true
 	var cutscene: CutscenePlayer = preload("res://scenes/cutscene/cutscene_player.tscn").instantiate()
 	add_child(cutscene)
@@ -727,7 +901,32 @@ func play_mid_cutscene(pages: Array[String]) -> void:
 
 ## Call when the level is won. Handles post-cutscene or returns to menu.
 func complete_level() -> void:
+	UiSounds.play_victory()
 	var level := GameState.selected_level
+	var growth_options := get_post_level_growth_options()
+	if not growth_options.is_empty() and not Progress.has_level_growth_choices(level):
+		_growth_panel_open = true
+		var panel := GrowthChoicePanelScript.new()
+		panel.panel_title = "结算成长"
+		panel.options = growth_options
+		panel.required_selection_count = 2
+		panel.options_confirmed.connect(func(option_ids: Array[String]):
+			_growth_panel_open = false
+			Progress.complete_level(level, option_ids)
+			var chosen_names: Array[String] = []
+			for option_id in option_ids:
+				chosen_names.append(Progress.get_growth_option_name(option_id))
+			if not chosen_names.is_empty():
+				Notify.notify("已选择结算成长：%s" % "、".join(chosen_names), Notify.Position.TOP_CENTER, Notify.Style.SUCCESS, 3.0)
+			_continue_after_level_completion(level)
+		, CONNECT_ONE_SHOT)
+		add_child(panel)
+		return
+	Progress.complete_level(level)
+	_continue_after_level_completion(level)
+
+
+func _continue_after_level_completion(level: String) -> void:
 	if GameState.has_cutscene(level, "post"):
 		GameState.pending_cutscene_pages = GameState.get_cutscene_pages(level, "post")
 		GameState.pending_next_scene = "res://scenes/menu/main_menu.tscn"
@@ -739,6 +938,7 @@ func complete_level() -> void:
 ## 关卡失败。显示失败面板，玩家选择重试或返回主菜单。
 ## reason: 失败原因文本（显示在面板中）。
 func defeat_level(reason: String = "任务失败") -> void:
+	UiSounds.play_defeat()
 	var panel: Node = preload("res://scenes/ui/defeat_panel.tscn").instantiate()
 	panel.defeat_reason = reason
 	panel.retry_pressed.connect(_on_defeat_retry)
@@ -755,11 +955,17 @@ func _on_defeat_main_menu() -> void:
 
 
 ## 运行时生成一个单位。加入指定队伍，放置在指定 cell 的脚下。
-## 返回生成的 Unit 节点供进一步操作。
-func spawn_unit(unit_data: UnitData, cell: Vector2i, team_index: int) -> Unit:
+## visual 可选：传入 PackedScene 直接指定外观，否则根据 unit_data.unit_name 自动查表。
+func spawn_unit(unit_data: UnitData, cell: Vector2i, team_index: int, visual: PackedScene = null) -> Unit:
 	var UnitScene := preload("res://scenes/unit/unit.tscn")
 	var unit: Unit = UnitScene.instantiate()
 	unit.unit_data = unit_data
+	# 应用外观：优先使用传入的 visual，否则根据名称自动查表
+	var visual_to_use: PackedScene = visual
+	if visual_to_use == null and unit_data and MONSTER_VISUALS.has(unit_data.unit_name):
+		visual_to_use = MONSTER_VISUALS[unit_data.unit_name]
+	if visual_to_use:
+		unit.visual_scene = visual_to_use
 	obstacles_tilemap_layer.add_child(unit)
 	unit.movement_manager = movement_manager
 	unit.set_cell(cell, tilemap)
@@ -768,6 +974,7 @@ func spawn_unit(unit_data: UnitData, cell: Vector2i, team_index: int) -> Unit:
 		unit.team_index = team_index
 		unit.faction = team.faction
 		team.units.append(unit)
+	unit.apply_faction_outline()
 	return unit
 
 
@@ -779,6 +986,8 @@ func _on_unit_died(unit: Unit) -> void:
 	# 若正选中该单位，取消选中
 	if selected_unit == unit:
 		_go_idle()
+	# TODO: 替换为实际死亡音效
+	# SfxManager.play_sfx(preload("res://assets/audio/sfx/death.wav"), "SFX")
 	# 播放退场动画并移除节点
 	unit.die()
 
@@ -857,6 +1066,8 @@ func setup_unit_stats(unit: Unit, uname: String, hp: int, atk: int,
 	s.current_element_amount = elem_amt
 	s.is_hero = is_hero_flag
 	unit.refresh_overhead_bars()
+	if unit.has_method("apply_faction_outline"):
+		unit.apply_faction_outline()
 
 
 func _on_settings_button_pressed() -> void:
@@ -896,7 +1107,11 @@ func _unhandled_input(event: InputEvent) -> void:
 	if not _can_accept_command():
 		return
 	if event.is_action_pressed("ui_cancel"):
-		_on_settings_button_pressed()
+		# ESC：如果当前有选中/瞄准状态，先取消；否则打开设置
+		if _input_state != InputState.IDLE:
+			cancel_action()
+		else:
+			_on_settings_button_pressed()
 		return
 	if _mid_cutscene_active:
 		return
@@ -909,15 +1124,14 @@ func _unhandled_input(event: InputEvent) -> void:
 	if not (event is InputEventMouseButton and event.pressed):
 		return
 
-	if event.button_index == MOUSE_BUTTON_RIGHT:
+	if event.button_index == MOUSE_BUTTON_LEFT:
+		# 左键确认：选择单位 / 移动 / 释放技能
 		var clicked_cell := tilemap.local_to_map(tilemap.get_local_mouse_position())
 		confirm_cell(clicked_cell)
-	elif event.button_index == MOUSE_BUTTON_LEFT:
-		# 左键取消（ESC 也可以）
-		cancel_action()
-
-	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
-		cancel_action()
+	elif event.button_index == MOUSE_BUTTON_RIGHT:
+		# 右键取消：移动或技能瞄准状态下回到选中状态
+		if _input_state == InputState.TARGETING_MOVE or _input_state == InputState.TARGETING_SKILL:
+			cancel_action()
 
 
 ## 是否允许接收命令（非过场、非动画、玩家回合中）。
@@ -1013,38 +1227,26 @@ func _go_idle() -> void:
 	_reset_status_bar()
 
 
-func _confirm_idle(_cell: Vector2i, local_mouse: Vector2, _current_team: TeamData) -> void:
+func _confirm_idle(cell: Vector2i, _local_mouse: Vector2, current_team: TeamData) -> void:
 	_clear_end_turn_pending()
-	# 右键空地：显示最近单位的信息（不选中）
-	var any_unit := _find_nearest_any_unit(local_mouse)
-	if any_unit != null:
-		_update_status_bar_for_unit(any_unit, false)
-	else:
-		_reset_status_bar()
-
-
-func _on_unit_clicked(unit: Unit) -> void:
-	if not _can_accept_command():
-		return
-	var current_team: TeamData = teams[current_team_index] if current_team_index >= 0 else null
-	if current_team == null:
-		return
-
-	match _input_state:
-		InputState.IDLE, InputState.UNIT_SELECTED:
-			_clear_end_turn_pending()
-			if unit.team_index == current_team_index and not unit.has_acted and not unit.is_moving:
-				selected_unit = unit
-				unit_selected = true
-				_input_state = InputState.UNIT_SELECTED
-				_update_status_bar_for_unit(unit, true)
-				_enter_targeting_move()
-			else:
-				_update_status_bar_for_unit(unit, false)
-		InputState.TARGETING_MOVE:
-			confirm_cell(unit.cell)
-		InputState.TARGETING_SKILL:
-			confirm_cell(unit.cell)
+	# 检查点击格子上是否有当前队伍的可行动单位
+	var clicked_unit := _get_unit_at_cell(cell, current_team)
+	if clicked_unit != null and clicked_unit is Unit:
+		var u := clicked_unit as Unit
+		if not u.has_acted and not u.is_moving:
+			selected_unit = u
+			unit_selected = true
+			_input_state = InputState.UNIT_SELECTED
+			_update_status_bar_for_unit(u, true)
+			_enter_targeting_move()
+			return
+	# 检查是否点击了其他队伍的单位（仅显示信息）
+	for team: TeamData in teams:
+		var unit_on_cell := _get_unit_at_cell(cell, team)
+		if unit_on_cell != null:
+			_update_status_bar_for_unit(unit_on_cell, false)
+			return
+	_reset_status_bar()
 
 
 func _enter_targeting_move() -> void:
@@ -1056,10 +1258,11 @@ func _enter_targeting_move() -> void:
 		var stats: CombatStats = unit.combat_stats
 		if not stats.can_move():
 			return
-		var occupied: Array[Vector2i] = _get_occupied_cells_except(unit)
+		var friendly: Array[Vector2i] = _get_friendly_cells_except(unit)
+		var enemy: Array[Vector2i] = _get_enemy_cells_except(unit)
 		# 每格消耗 = 基础消耗 + 状态修正
 		var effective_cost := stats.move_cost_per_tile + stats.get_move_ap_modifier()
-		move_overlay.show_range_ap(tilemap, movement_manager, unit.cell, stats.ap_current, effective_cost, occupied)
+		move_overlay.show_range_ap(tilemap, movement_manager, unit.cell, stats.ap_current, effective_cost, friendly, enemy)
 	else:
 		move_overlay.show_range(tilemap, movement_manager, unit.cell, unit.movement_points)
 
@@ -1079,6 +1282,8 @@ func _confirm_targeting_move(cell: Vector2i, local_mouse: Vector2, current_team:
 		_input_state = InputState.ANIMATING
 		moving_unit.move_along_path(path, tilemap)
 		await moving_unit.move_finished
+		# TODO: 替换为实际脚步声资源
+		# SfxManager.play_sfx(preload("res://assets/audio/sfx/footstep.wav"), "SFX")
 		# 扣除 AP
 		if moving_unit is Unit and moving_unit.combat_stats != null:
 			var from_cell := path[0]
@@ -1104,11 +1309,10 @@ func _confirm_targeting_move(cell: Vector2i, local_mouse: Vector2, current_team:
 		moving_unit.has_acted = true
 		_go_idle()
 	else:
-		# 点击范围外：显示附近单位信息并回到 IDLE
-		var any_unit := _find_nearest_any_unit(local_mouse)
-		if any_unit != null:
-			_update_status_bar_for_unit(any_unit, false)
+		# 点击范围外：检查是否点击了其他友方单位，切换选中
 		_go_idle()
+		if current_team:
+			_confirm_idle(cell, local_mouse, current_team)
 
 
 ## 获取除指定单位外所有被占据的格子。
@@ -1117,6 +1321,32 @@ func _get_occupied_cells_except(exclude: Node2D) -> Array[Vector2i]:
 	for team: TeamData in teams:
 		for unit: Node2D in team.units:
 			if unit != exclude:
+				result.append(unit.cell)
+	return result
+
+
+## 获取敌方占据的格子（faction 不同），排除指定单位。用于寻路阻挡。
+func _get_enemy_cells_except(exclude: Node2D) -> Array[Vector2i]:
+	var exclude_faction: String = exclude.faction if exclude is Unit else ""
+	var result: Array[Vector2i] = []
+	for team: TeamData in teams:
+		if team.faction == exclude_faction:
+			continue
+		for unit: Node2D in team.units:
+			if unit != exclude and unit is Unit and unit.combat_stats and unit.combat_stats.is_alive():
+				result.append(unit.cell)
+	return result
+
+
+## 获取友方占据的格子（faction 相同），排除指定单位。友方可穿越但不可停留。
+func _get_friendly_cells_except(exclude: Node2D) -> Array[Vector2i]:
+	var exclude_faction: String = exclude.faction if exclude is Unit else ""
+	var result: Array[Vector2i] = []
+	for team: TeamData in teams:
+		if team.faction != exclude_faction:
+			continue
+		for unit: Node2D in team.units:
+			if unit != exclude and unit is Unit and unit.combat_stats and unit.combat_stats.is_alive():
 				result.append(unit.cell)
 	return result
 
@@ -1148,10 +1378,12 @@ func _has_usable_attack(unit: Unit, enemy_cells: Dictionary) -> bool:
 	if unit.combat_stats == null or unit.unit_data == null:
 		return false
 	for skill: SkillData in unit.unit_data.skills:
-		if skill.skill_type != Enums.SkillType.ATTACK:
-			continue
 		if not unit.combat_stats.can_use_skill(skill):
 			continue
+		# 非攻击技能（辅助/交互）只需 AP 和次数足够即可使用
+		if skill.skill_type != Enums.SkillType.ATTACK:
+			return true
+		# 攻击技能需要敌人在施法+效果范围内
 		for cast_offset in skill.cast_offsets:
 			var cast_cell := unit.cell + cast_offset
 			for effect_offset in skill.effect_offsets:
@@ -1231,6 +1463,7 @@ func _confirm_targeting_skill(cell: Vector2i) -> void:
 	var all_units: Array = _get_all_units()
 	var caster_faction: String = selected_unit.faction if "faction" in selected_unit else ""
 
+	selected_unit.face_towards_cell(cell)
 	var exec_result := SkillExecutor.execute(selected_unit, _current_skill, cell, all_units, caster_faction)
 	var used_skill: SkillData = _current_skill
 	_clear_skill_targeting()
@@ -1244,6 +1477,8 @@ func _confirm_targeting_skill(cell: Vector2i) -> void:
 		_go_idle()
 		return
 
+	SfxManager.play_skill_cast(used_skill)
+
 	# ── 技能释放播报 ──
 	var caster_name := ""
 	if selected_unit is Unit and (selected_unit as Unit).combat_stats:
@@ -1252,6 +1487,8 @@ func _confirm_targeting_skill(cell: Vector2i) -> void:
 
 	# ── UI 反馈 ──
 	_show_combat_feedback(exec_result, caster_name)
+	if selected_unit is Unit:
+		_on_skill_executed(selected_unit as Unit, used_skill, cell, exec_result)
 
 	# ── 额外效果播报 ──
 	if used_skill.extra_effect_id != "" and not exec_result.hit_results.is_empty():
@@ -1264,6 +1501,10 @@ func _confirm_targeting_skill(cell: Vector2i) -> void:
 					target_names.append((tu as Unit).combat_stats.unit_name)
 			if not target_names.is_empty():
 				Notify.notify("%s 触发额外效果：%s" % ["、".join(target_names), effect_name], Notify.Position.TOP_RIGHT, Notify.Style.INFO, 3.0)
+
+	# ── 技能执行通知（关卡可响应副作用）──
+	skill_executed.emit(selected_unit as Unit, used_skill, cell)
+	_check_win_lose()
 
 	# 镜头停留片刻后恢复
 	if lv_camera and focus_marker:
@@ -1380,7 +1621,10 @@ const _EXTRA_EFFECT_NAMES: Dictionary = {
 	"pull_1": "拖拽1格",
 	"guarded_cover": "护持",
 	"hindered_cross": "十字迟滞",
+	"line_bind": "蔓缚",
 	"read_water": "相水定址",
+	"stage_balance_arch": "校券",
+	"stage_open_arch": "启肩泄洪",
 	"complete_survey": "踏勘量址",
 	"non_element_bonus": "无属性加成",
 }
@@ -1521,6 +1765,80 @@ func query_units() -> Array:
 	return result
 
 
+func get_friendly_units() -> Array[Unit]:
+	var result: Array[Unit] = []
+	for team in teams:
+		if team.controller != "player":
+			continue
+		for unit in team.units:
+			if unit is Unit and unit.combat_stats != null and unit.combat_stats.is_alive():
+				result.append(unit)
+	return result
+
+
+func get_hero_unit() -> Unit:
+	return hero as Unit if hero is Unit else null
+
+
+func apply_unit_growth_bonus(unit: Unit, hp_delta: int = 0, atk_delta: int = 0, ap_delta: int = 0) -> void:
+	if unit == null or unit.combat_stats == null:
+		return
+	unit.combat_stats.max_hp += hp_delta
+	unit.combat_stats.current_hp += hp_delta
+	unit.combat_stats.base_atk += atk_delta
+	unit.combat_stats.ap_max += ap_delta
+	unit.combat_stats.ap_current += ap_delta
+	unit.refresh_overhead_bars()
+	if selected_unit == unit:
+		_update_status_bar_for_unit(unit, true)
+
+
+func modify_unit_skill(unit: Unit, skill_id: String, changes: Dictionary) -> bool:
+	if unit == null or unit.unit_data == null:
+		return false
+	for i in range(unit.unit_data.skills.size()):
+		var skill := unit.unit_data.skills[i] as SkillData
+		if skill == null or skill.skill_id != skill_id:
+			continue
+		var local_skill := skill.duplicate(true) as SkillData
+		local_skill.resource_local_to_scene = true
+		if changes.has("ap_cost"):
+			local_skill.ap_cost = maxi(int(changes["ap_cost"]), 0)
+		if changes.has("damage_ratio"):
+			local_skill.damage_ratio = float(changes["damage_ratio"])
+		if changes.has("duration_turns"):
+			local_skill.duration_turns = maxi(int(changes["duration_turns"]), 0)
+		if changes.has("cooldown_turns"):
+			local_skill.cooldown_turns = maxi(int(changes["cooldown_turns"]), 0)
+		unit.unit_data.skills[i] = local_skill
+		if selected_unit == unit:
+			_update_status_bar_for_unit(unit, true)
+		return true
+	return false
+
+
+func add_skill_to_unit(unit: Unit, skill: SkillData, replace_candidates: Array[String] = []) -> void:
+	if unit == null or unit.unit_data == null or skill == null:
+		return
+	for existing in unit.unit_data.skills:
+		var existing_skill := existing as SkillData
+		if existing_skill != null and existing_skill.skill_id == skill.skill_id:
+			return
+	var new_skills: Array[SkillData] = []
+	for existing in unit.unit_data.skills:
+		new_skills.append(existing)
+	if new_skills.size() >= 5:
+		for replace_skill_id in replace_candidates:
+			for i in range(new_skills.size()):
+				if new_skills[i].skill_id == replace_skill_id:
+					new_skills.remove_at(i)
+					break
+			if new_skills.size() < 5:
+				break
+	new_skills.append(skill)
+	set_unit_skills(unit, new_skills)
+
+
 ## 查询当前可移动范围（TARGETING_MOVE 时有效）。
 func query_move_range() -> Array:
 	if _input_state != InputState.TARGETING_MOVE:
@@ -1590,6 +1908,16 @@ func _on_unit_move_finished_special(entity: Node2D) -> void:
 		if cell in _special_tile_map:
 			_special_tile_map[cell]._on_unit_arrive(entity)
 		_pending_special_enter.erase(entity)
+
+
+## 在 _on_level_ready() 中程序化注册一个 SpecialTile（跳过 _setup_special_tiles 自动扫描）。
+func register_special_tile(tile: SpecialTile, cell: Vector2i) -> void:
+	tile.cell = cell
+	if not tile.is_inside_tree():
+		special_tiles_container.add_child(tile)
+	tile.reparent(obstacles_tilemap_layer)
+	tile.position = tilemap.map_to_local(cell)
+	_special_tile_map[cell] = tile
 
 
 # ─────────────────────────────────────────────

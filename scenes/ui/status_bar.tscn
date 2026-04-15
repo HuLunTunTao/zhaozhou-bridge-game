@@ -65,18 +65,23 @@ layout_mode = 2
 theme_override_constants/separation = 4
 script = ExtResource("1_script")
 
-[node name="PortraitFrame" type="PanelContainer" parent="PanelContainer/MarginContainer/StatusBar" unique_id=1233971562]
+[node name="PortraitSlot" type="CenterContainer" parent="PanelContainer/MarginContainer/StatusBar" unique_id=174693580]
+custom_minimum_size = Vector2(94, 74)
+layout_mode = 2
+
+[node name="PortraitFrame" type="PanelContainer" parent="PanelContainer/MarginContainer/StatusBar/PortraitSlot" unique_id=1233971562]
 clip_contents = true
+custom_minimum_size = Vector2(74, 94)
 layout_mode = 2
 theme_override_styles/panel = SubResource("portrait_frame")
 
-[node name="Portrait" type="TextureRect" parent="PanelContainer/MarginContainer/StatusBar/PortraitFrame" unique_id=1746247231]
+[node name="Portrait" type="TextureRect" parent="PanelContainer/MarginContainer/StatusBar/PortraitSlot/PortraitFrame" unique_id=1746247231]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(90, 70)
+custom_minimum_size = Vector2(70, 90)
 layout_mode = 2
 texture = ExtResource("2_2t4m1")
 expand_mode = 1
-stretch_mode = 6
+stretch_mode = 5
 
 [node name="Info" type="VBoxContainer" parent="PanelContainer/MarginContainer/StatusBar" unique_id=1436875321]
 custom_minimum_size = Vector2(180, 0)
@@ -89,12 +94,26 @@ layout_mode = 2
 theme_override_colors/font_color = Color(1, 1, 1, 1)
 theme_override_font_sizes/font_size = 16
 
-[node name="ActionsLabel" type="Label" parent="PanelContainer/MarginContainer/StatusBar/Info" unique_id=717327333]
+[node name="StatsRow" type="HBoxContainer" parent="PanelContainer/MarginContainer/StatusBar/Info" unique_id=1883649012]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="AtkLabel" type="Label" parent="PanelContainer/MarginContainer/StatusBar/Info/StatsRow" unique_id=166984740]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.7, 0.4, 1)
+theme_override_fonts/font = ExtResource("2_pixel10")
+theme_override_font_sizes/font_size = 10
+text = "攻击力24"
+horizontal_alignment = 2
+
+[node name="ActionsLabel" type="Label" parent="PanelContainer/MarginContainer/StatusBar/Info/StatsRow" unique_id=717327333]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.65, 0.75, 0.9, 1)
 theme_override_fonts/font = ExtResource("2_pixel10")
 theme_override_font_sizes/font_size = 10
+text = "移动:1/1 技能:1/1"
 
 [node name="HpRow" type="HBoxContainer" parent="PanelContainer/MarginContainer/StatusBar/Info" unique_id=219493527]
 layout_mode = 2
@@ -210,6 +229,14 @@ theme_override_font_sizes/font_size = 10
 text = "--"
 vertical_alignment = 1
 
+[node name="BuffLabel" type="Label" parent="PanelContainer/MarginContainer/StatusBar/Info" unique_id=671284550]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.95, 0.85, 0.5, 1)
+theme_override_fonts/font = ExtResource("2_pixel10")
+theme_override_font_sizes/font_size = 10
+autowrap_mode = 3
+
 [node name="Sep" type="VSeparator" parent="PanelContainer/MarginContainer/StatusBar" unique_id=440374274]
 layout_mode = 2
 
@@ -239,7 +266,7 @@ theme_override_fonts/font = ExtResource("2_pixel10")
 theme_override_font_sizes/font_size = 10
 horizontal_alignment = 1
 
-[node name="Desc" type="Label" parent="PanelContainer/MarginContainer/StatusBar/Slot0" unique_id=37640432]
+[node name="Desc" type="RichTextLabel" parent="PanelContainer/MarginContainer/StatusBar/Slot0" unique_id=37640432]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -248,11 +275,14 @@ offset_left = 2.0
 offset_top = 29.84
 offset_right = -2.0
 offset_bottom = -2.8700104
-theme_override_colors/font_color = Color(0.7, 0.75, 0.85, 1)
-theme_override_fonts/font = ExtResource("2_pixel10")
-theme_override_font_sizes/font_size = 10
-horizontal_alignment = 1
-autowrap_mode = 3
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 1
+theme_override_colors/default_color = Color(0.7, 0.75, 0.85, 1)
+theme_override_fonts/normal_font = ExtResource("2_pixel10")
+theme_override_font_sizes/normal_font_size = 10
+bbcode_enabled = true
+scroll_active = false
 
 [node name="Slot1" type="Button" parent="PanelContainer/MarginContainer/StatusBar" unique_id=302448838]
 unique_name_in_owner = true
@@ -280,7 +310,7 @@ theme_override_fonts/font = ExtResource("2_pixel10")
 theme_override_font_sizes/font_size = 10
 horizontal_alignment = 1
 
-[node name="Desc" type="Label" parent="PanelContainer/MarginContainer/StatusBar/Slot1" unique_id=1600880446]
+[node name="Desc" type="RichTextLabel" parent="PanelContainer/MarginContainer/StatusBar/Slot1" unique_id=1600880446]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -289,11 +319,14 @@ offset_left = 2.0
 offset_top = 29.84
 offset_right = -2.0
 offset_bottom = -2.8700104
-theme_override_colors/font_color = Color(0.7, 0.75, 0.85, 1)
-theme_override_fonts/font = ExtResource("2_pixel10")
-theme_override_font_sizes/font_size = 10
-horizontal_alignment = 1
-autowrap_mode = 3
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 1
+theme_override_colors/default_color = Color(0.7, 0.75, 0.85, 1)
+theme_override_fonts/normal_font = ExtResource("2_pixel10")
+theme_override_font_sizes/normal_font_size = 10
+bbcode_enabled = true
+scroll_active = false
 
 [node name="Slot2" type="Button" parent="PanelContainer/MarginContainer/StatusBar" unique_id=383423528]
 unique_name_in_owner = true
@@ -321,7 +354,7 @@ theme_override_fonts/font = ExtResource("2_pixel10")
 theme_override_font_sizes/font_size = 10
 horizontal_alignment = 1
 
-[node name="Desc" type="Label" parent="PanelContainer/MarginContainer/StatusBar/Slot2" unique_id=32013042]
+[node name="Desc" type="RichTextLabel" parent="PanelContainer/MarginContainer/StatusBar/Slot2" unique_id=32013042]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -330,12 +363,14 @@ offset_left = 2.0
 offset_top = 29.84
 offset_right = -2.0
 offset_bottom = -2.8700104
-theme_override_colors/font_color = Color(0.7, 0.75, 0.85, 1)
-theme_override_fonts/font = ExtResource("2_pixel10")
-theme_override_font_sizes/font_size = 10
-text = "啊啊啊啊啊啊啊啊啊啊啊啊啊啊啊啊啊啊啊啊啊"
-horizontal_alignment = 1
-autowrap_mode = 3
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 1
+theme_override_colors/default_color = Color(0.7, 0.75, 0.85, 1)
+theme_override_fonts/normal_font = ExtResource("2_pixel10")
+theme_override_font_sizes/normal_font_size = 10
+bbcode_enabled = true
+scroll_active = false
 
 [node name="Slot3" type="Button" parent="PanelContainer/MarginContainer/StatusBar" unique_id=1430313674]
 unique_name_in_owner = true
@@ -363,7 +398,7 @@ theme_override_fonts/font = ExtResource("2_pixel10")
 theme_override_font_sizes/font_size = 10
 horizontal_alignment = 1
 
-[node name="Desc" type="Label" parent="PanelContainer/MarginContainer/StatusBar/Slot3" unique_id=165518383]
+[node name="Desc" type="RichTextLabel" parent="PanelContainer/MarginContainer/StatusBar/Slot3" unique_id=165518383]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -372,11 +407,14 @@ offset_left = 2.0
 offset_top = 29.84
 offset_right = -2.0
 offset_bottom = -2.8700104
-theme_override_colors/font_color = Color(0.7, 0.75, 0.85, 1)
-theme_override_fonts/font = ExtResource("2_pixel10")
-theme_override_font_sizes/font_size = 10
-horizontal_alignment = 1
-autowrap_mode = 3
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 1
+theme_override_colors/default_color = Color(0.7, 0.75, 0.85, 1)
+theme_override_fonts/normal_font = ExtResource("2_pixel10")
+theme_override_font_sizes/normal_font_size = 10
+bbcode_enabled = true
+scroll_active = false
 
 [node name="Slot4" type="Button" parent="PanelContainer/MarginContainer/StatusBar" unique_id=2118249000]
 unique_name_in_owner = true
@@ -404,7 +442,7 @@ theme_override_fonts/font = ExtResource("2_pixel10")
 theme_override_font_sizes/font_size = 10
 horizontal_alignment = 1
 
-[node name="Desc" type="Label" parent="PanelContainer/MarginContainer/StatusBar/Slot4" unique_id=1858521350]
+[node name="Desc" type="RichTextLabel" parent="PanelContainer/MarginContainer/StatusBar/Slot4" unique_id=1858521350]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -413,11 +451,14 @@ offset_left = 2.0
 offset_top = 29.84
 offset_right = -2.0
 offset_bottom = -2.8700104
-theme_override_colors/font_color = Color(0.7, 0.75, 0.85, 1)
-theme_override_fonts/font = ExtResource("2_pixel10")
-theme_override_font_sizes/font_size = 10
-horizontal_alignment = 1
-autowrap_mode = 3
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 1
+theme_override_colors/default_color = Color(0.7, 0.75, 0.85, 1)
+theme_override_fonts/normal_font = ExtResource("2_pixel10")
+theme_override_font_sizes/normal_font_size = 10
+bbcode_enabled = true
+scroll_active = false
 
 [node name="Slot5" type="Button" parent="PanelContainer/MarginContainer/StatusBar" unique_id=1656135758]
 unique_name_in_owner = true
@@ -445,7 +486,7 @@ theme_override_fonts/font = ExtResource("2_pixel10")
 theme_override_font_sizes/font_size = 10
 horizontal_alignment = 1
 
-[node name="Desc" type="Label" parent="PanelContainer/MarginContainer/StatusBar/Slot5" unique_id=1723339324]
+[node name="Desc" type="RichTextLabel" parent="PanelContainer/MarginContainer/StatusBar/Slot5" unique_id=1723339324]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -454,11 +495,14 @@ offset_left = 2.0
 offset_top = 29.84
 offset_right = -2.0
 offset_bottom = -2.8700104
-theme_override_colors/font_color = Color(0.7, 0.75, 0.85, 1)
-theme_override_fonts/font = ExtResource("2_pixel10")
-theme_override_font_sizes/font_size = 10
-horizontal_alignment = 1
-autowrap_mode = 3
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 1
+theme_override_colors/default_color = Color(0.7, 0.75, 0.85, 1)
+theme_override_fonts/normal_font = ExtResource("2_pixel10")
+theme_override_font_sizes/normal_font_size = 10
+bbcode_enabled = true
+scroll_active = false
 
 [connection signal="pressed" from="PanelContainer/MarginContainer/StatusBar/Slot0" to="PanelContainer/MarginContainer/StatusBar" method="_on_move_pressed"]
 [connection signal="pressed" from="PanelContainer/MarginContainer/StatusBar/Slot1" to="PanelContainer/MarginContainer/StatusBar" method="_on_skill_pressed" binds= [0]]

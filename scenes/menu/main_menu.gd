@@ -5,15 +5,24 @@ extends Control
 @onready var level_grid: GridContainer = $LevelSelectPage/LevelGrid
 @onready var test_select_page: Control = $TestSelectPage
 @onready var test_grid: GridContainer = $TestSelectPage/TestGrid
+@onready var test_button: Button = $MainPage/TestButton
 
 const SettingsPanelScene := preload("res://scenes/ui/settings_panel.tscn")
+const ProgressPanelScene := preload("res://scenes/ui/progress_panel.tscn")
+const MAIN_MENU_BGM_PATH := "res://assets/audio/music/主：桥起千秋(Before_the_First_Stone).mp3"
 var _settings_open := false
+var _progress_open := false
 
 
 # TODO: 主菜单背景美术替换（赵州桥像素画）
 # TODO: 标题字体和字号美化
 func _ready() -> void:
+	_play_menu_bgm()
+	Progress.progress_changed.connect(_build_level_buttons, CONNECT_REFERENCE_COUNTED)
+	Settings.settings_changed.connect(_refresh_debug_visibility, CONNECT_REFERENCE_COUNTED)
 	_build_level_buttons()
+	_bind_static_button_sounds()
+	_refresh_debug_visibility()
 	_show_page(main_page)
 
 
@@ -22,16 +31,40 @@ func _build_level_buttons() -> void:
 		child.queue_free()
 	for level_name: String in GameState.LEVEL_SCENES.keys():
 		var btn := Button.new()
-		btn.text = level_name
+		var label := level_name
+		if Progress.is_level_completed(level_name):
+			label += "  已完成"
+		elif not Progress.is_level_unlocked(level_name):
+			label += "  未解锁"
+		btn.text = label
 		btn.custom_minimum_size = Vector2(56, 32)
 		btn.pressed.connect(_on_level_selected.bind(level_name))
+		btn.disabled = not Progress.is_level_unlocked(level_name)
+		UiSounds.bind_button(btn)
 		level_grid.add_child(btn)
+
+
+func _bind_static_button_sounds() -> void:
+	for button in find_children("*", "BaseButton", true, false):
+		UiSounds.bind_button(button as BaseButton)
+
+
+func _play_menu_bgm() -> void:
+	if not ResourceLoader.exists(MAIN_MENU_BGM_PATH, "AudioStream"):
+		return
+	BgmManager.play(load(MAIN_MENU_BGM_PATH), false)
 
 
 func _show_page(page: Control) -> void:
 	main_page.visible = page == main_page
 	level_select_page.visible = page == level_select_page
 	test_select_page.visible = page == test_select_page
+
+
+func _refresh_debug_visibility() -> void:
+	test_button.visible = Settings.debug_mode
+	if not Settings.debug_mode and test_select_page.visible:
+		_show_page(main_page)
 
 
 # Main page buttons
@@ -52,18 +85,30 @@ func _on_quit_pressed() -> void:
 	get_tree().quit()
 
 
+func _on_progress_pressed() -> void:
+	if _progress_open:
+		return
+	_progress_open = true
+	var panel: Node = ProgressPanelScene.instantiate()
+	add_child(panel)
+	panel.closed.connect(func(): _progress_open = false)
+
+
 # Level select
 func _on_level_selected(level: String) -> void:
+	if not Progress.is_level_unlocked(level):
+		return
 	GameState.selected_level = level
 	var battle_path := GameState.get_level_scene_path(level)
 	if battle_path == "":
 		return
+	GameState.pending_battle_scene = battle_path
 	if GameState.has_cutscene(level, "pre"):
 		GameState.pending_cutscene_pages = GameState.get_cutscene_pages(level, "pre")
-		GameState.pending_next_scene = battle_path
+		GameState.pending_next_scene = "res://scenes/ui/prebattle_setup.tscn"
 		GameState.transition_to_scene("res://scenes/cutscene/cutscene_scene.tscn")
 	else:
-		GameState.transition_to_scene(battle_path)
+		GameState.transition_to_scene("res://scenes/ui/prebattle_setup.tscn")
 	# TODO: 关卡锁定机制——未通关的关卡按钮置灰
 	# TODO: 已通关关卡显示评价（星级或其他标记）
 
@@ -88,10 +133,13 @@ func _ready_test_buttons() -> void:
 		btn.text = test_name
 		btn.custom_minimum_size = Vector2(56, 32)
 		btn.pressed.connect(func(): GameState.transition_to_scene(TEST_SCENES[test_name]))
+		UiSounds.bind_button(btn)
 		test_grid.add_child(btn)
 
 
 func _on_test_pressed() -> void:
+	if not Settings.debug_mode:
+		return
 	_ready_test_buttons()
 	_show_page(test_select_page)
 

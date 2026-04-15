@@ -1,0 +1,60 @@
+[gd_scene format=3 uid="uid://ctpdow12bxwih"]
+
+[ext_resource type="PackedScene" uid="uid://cbjso0lvbcag1" path="res://scenes/unit/visual/visual.tscn" id="1_rppma"]
+[ext_resource type="Shader" uid="uid://w8w41kw1kylj" path="res://scenes/unit/shader/unit_edge_light.gdshader" id="2_n1dur"]
+[ext_resource type="Texture2D" uid="uid://3037tfvc7jy6" path="res://assets/character/monster/旧制监工.png" id="3_n1dur"]
+[ext_resource type="Script" path="res://scenes/unit/visual/monster/旧制监工/旧制监工_visual.gd" id="4_script"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_gkjg0"]
+resource_local_to_scene = true
+shader = ExtResource("2_n1dur")
+shader_parameter/outline_color = Color(1, 1, 0, 0.3)
+shader_parameter/outline_width = 7.0
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_gkjg0"]
+atlas = ExtResource("3_n1dur")
+region = Rect2(0, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_nn2xu"]
+atlas = ExtResource("3_n1dur")
+region = Rect2(64, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ohe3x"]
+atlas = ExtResource("3_n1dur")
+region = Rect2(0, 64, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ftt14"]
+atlas = ExtResource("3_n1dur")
+region = Rect2(64, 64, 64, 64)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_l60ap"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_gkjg0")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_nn2xu")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_ohe3x")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_ftt14")
+}],
+"loop": true,
+"name": &"default",
+"speed": 5.0
+}]
+
+[node name="Visual" unique_id=1878430534 instance=ExtResource("1_rppma")]
+material = SubResource("ShaderMaterial_gkjg0")
+scale = Vector2(0.8, 0.8)
+sprite_frames = SubResource("SpriteFrames_l60ap")
+script = ExtResource("4_script")
+move_is_idle = true
+flip_h_for_turning = true
+default_facing_left = true
+
+[node name="FootMarker" parent="." index="0"]
+position = Vector2(0, 29.999996)

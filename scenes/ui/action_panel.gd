@@ -48,8 +48,8 @@ func _on_action_pressed(action_id: String) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if not visible:
 		return
-	# Close on right-click outside panel
-	if event is InputEventMouseButton and event.pressed:
+	# 左键点击面板外部：关闭面板
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		var local := get_local_mouse_position()
 		if not Rect2(Vector2.ZERO, size).has_point(local):
 			close()
