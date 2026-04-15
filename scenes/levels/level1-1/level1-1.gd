@@ -144,8 +144,6 @@ func check_victory() -> bool:
 
 
 func _on_level_ready() -> void:
-	# ── 将友方单位移动到地图左上角 ──
-	_place_friendlies_top_left()
 
 	# ── 李春 ──
 	set_unit_skills(_li_chun as Unit, Progress.get_battle_skill_resources(GameState.selected_level))
@@ -169,27 +167,6 @@ func _on_level_ready() -> void:
 	# ── 勘测点 ──
 	# _setup_survey_points() # todo: 根据地图设置勘测点
 	skill_executed.connect(_on_skill_executed)
-
-
-func _place_friendlies_top_left() -> void:
-	var used_rect: Rect2i = tilemap.get_used_rect()
-	var top_left_tile := used_rect.position + Vector2i(2, 3)
-	var anchor := _nearest_walkable(top_left_tile)
-	var units: Array[Node2D] = [_li_chun, _survey_a, _survey_b, _craftsman_a, _craftsman_b]
-	var offsets: Array[Vector2i] = [
-		Vector2i(0, 0),
-		Vector2i(3, 0),
-		Vector2i(0, 3),
-		Vector2i(2, 2),
-		Vector2i(3, 3),
-	]
-	var occupied: Array[Vector2i] = []
-	for i in range(units.size()):
-		var cell := _nearest_walkable(anchor + offsets[i])
-		while cell in occupied:
-			cell = _nearest_walkable(cell + Vector2i(1, 0))
-		occupied.append(cell)
-		(units[i] as Unit).set_cell(cell, tilemap)
 
 
 func _nearest_walkable(target: Vector2i) -> Vector2i:
