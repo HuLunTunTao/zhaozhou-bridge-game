@@ -164,7 +164,7 @@ func _on_level_ready() -> void:
 	_apply_persistent_growth_effects()
 
 	# ── 勘测点 ──
-	_setup_survey_points()
+	# _setup_survey_points() # todo: 根据地图设置勘测点
 	skill_executed.connect(_on_skill_executed)
 
 
