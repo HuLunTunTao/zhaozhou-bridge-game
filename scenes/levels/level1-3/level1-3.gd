@@ -182,6 +182,7 @@ func _spawn_allies() -> void:
 	]
 	for carrier in _stone_carriers:
 		_carrier_base_move_cost[carrier.get_instance_id()] = carrier.combat_stats.move_cost_per_tile
+	_apply_persistent_growth_effects()
 
 
 func _spawn_enemies() -> void:
@@ -339,7 +340,7 @@ func _is_adjacent_to_any(cell: Vector2i, targets: Array[Vector2i]) -> bool:
 	return false
 
 
-func get_round_growth_options() -> Array[Dictionary]:
+func get_post_level_growth_options() -> Array[Dictionary]:
 	return [
 		{"id": "growth_balance_method", "name": "校券有法", "description": "墨绳校券冷却 -1，李春行动力上限 +5"},
 		{"id": "growth_joint_finish", "name": "收缝习熟", "description": "收缝合龙消耗 -10，李春基础攻击力 +4"},
@@ -348,22 +349,30 @@ func get_round_growth_options() -> Array[Dictionary]:
 	]
 
 
-func apply_round_growth_option(option_id: String) -> void:
-	match option_id:
-		"growth_balance_method":
-			apply_unit_growth_bonus(get_hero_unit(), 0, 0, 5)
-			modify_unit_skill(get_hero_unit(), "lc_inkline_balance_arch", {"cooldown_turns": 1})
-		"growth_joint_finish":
-			_close_arch_ap_cost = 25
-			apply_unit_growth_bonus(get_hero_unit(), 0, 4, 0)
-		"growth_link_arch":
-			add_skill_to_unit(get_hero_unit(), Progress.get_skill_resource("lc_link_wedges_arch"), ["lc_rule_strike", "lc_wedge_bank_probe"])
-		"growth_team_hold":
-			for unit in get_friendly_units():
-				if unit.combat_stats.unit_name == "工匠":
-					apply_unit_growth_bonus(unit, 10, 0, 0)
-				elif unit.combat_stats.unit_name == "运石工":
-					apply_unit_growth_bonus(unit, 0, 0, 5)
-		_:
-			return
-	Notify.notify("本回合成长：%s" % option_id, Notify.Position.TOP_CENTER, Notify.Style.SUCCESS, 2.0)
+func _apply_persistent_growth_effects() -> void:
+	if Progress.has_growth_option("growth_training_mobilize"):
+		for unit in get_friendly_units():
+			apply_unit_growth_bonus(unit, 10, 0, 5)
+	if Progress.has_growth_option("growth_maps_measures"):
+		apply_unit_growth_bonus(get_hero_unit(), 0, 4, 0)
+		modify_unit_skill(get_hero_unit(), "lc_rule_strike", {"damage_ratio": 1.05})
+	if Progress.has_growth_option("growth_stone_reinforce"):
+		for craftsman in _craftsmen:
+			modify_unit_skill(craftsman, "cg_guard_the_works", {"duration_turns": 3})
+	if Progress.has_growth_option("growth_drawing_discipline"):
+		apply_unit_growth_bonus(get_hero_unit(), 0, 4, 0)
+		modify_unit_skill(get_hero_unit(), "lc_divider_mark_arc", {"damage_ratio": 0.95})
+	if Progress.has_growth_option("growth_center_hold"):
+		for craftsman in _craftsmen:
+			apply_unit_growth_bonus(craftsman, 10, 2, 0)
+	if Progress.has_growth_option("growth_balance_method"):
+		apply_unit_growth_bonus(get_hero_unit(), 0, 0, 5)
+		modify_unit_skill(get_hero_unit(), "lc_inkline_balance_arch", {"cooldown_turns": 1})
+	if Progress.has_growth_option("growth_joint_finish"):
+		_close_arch_ap_cost = 25
+		apply_unit_growth_bonus(get_hero_unit(), 0, 4, 0)
+	if Progress.has_growth_option("growth_team_hold"):
+		for craftsman in _craftsmen:
+			apply_unit_growth_bonus(craftsman, 10, 0, 0)
+		for carrier in _stone_carriers:
+			apply_unit_growth_bonus(carrier, 0, 0, 5)

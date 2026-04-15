@@ -102,12 +102,13 @@ func _on_level_selected(level: String) -> void:
 	var battle_path := GameState.get_level_scene_path(level)
 	if battle_path == "":
 		return
+	GameState.pending_battle_scene = battle_path
 	if GameState.has_cutscene(level, "pre"):
 		GameState.pending_cutscene_pages = GameState.get_cutscene_pages(level, "pre")
-		GameState.pending_next_scene = battle_path
+		GameState.pending_next_scene = "res://scenes/ui/prebattle_setup.tscn"
 		GameState.transition_to_scene("res://scenes/cutscene/cutscene_scene.tscn")
 	else:
-		GameState.transition_to_scene(battle_path)
+		GameState.transition_to_scene("res://scenes/ui/prebattle_setup.tscn")
 	# TODO: 关卡锁定机制——未通关的关卡按钮置灰
 	# TODO: 已通关关卡显示评价（星级或其他标记）
 

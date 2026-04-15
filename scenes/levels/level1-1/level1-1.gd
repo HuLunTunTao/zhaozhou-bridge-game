@@ -2,11 +2,6 @@ extends BaseLevel
 ## 第一关《踏勘洨河》
 
 # ── 预加载技能 ──
-var _sk_rule_strike: SkillData = preload("res://data/skills/lc_rule_strike.tres")
-var _sk_wedge: SkillData = preload("res://data/skills/lc_wedge_bank_probe.tres")
-var _sk_stone: SkillData = preload("res://data/skills/lc_cast_stone_arrest_flow.tres")
-var _sk_read_water: SkillData = preload("res://data/skills/lc_read_water_fix_site.tres")
-var _sk_pile_bind: SkillData = preload("res://data/skills/lc_pile_bind_wave.tres")
 var _sk_staff: SkillData = preload("res://data/skills/sw_staff_end_strike.tres")
 var _sk_survey: SkillData = preload("res://data/skills/sw_field_measure_site.tres")
 var _sk_mallet: SkillData = preload("res://data/skills/cg_mallet_strike.tres")
@@ -151,6 +146,7 @@ func _on_level_ready() -> void:
 
 	set_unit_skills(_craftsman_b as Unit, [_sk_mallet, _sk_guard])
 	setup_unit_stats(_craftsman_b as Unit, "工匠", 110, 18, 90, 9)
+	_apply_persistent_growth_effects()
 
 
 func _get_ai_context() -> Dictionary:
@@ -159,7 +155,7 @@ func _get_ai_context() -> Dictionary:
 	}
 
 
-func get_round_growth_options() -> Array[Dictionary]:
+func get_post_level_growth_options() -> Array[Dictionary]:
 	return [
 		{"id": "growth_training_mobilize", "name": "操练与动员", "description": "全体我方最大生命值 +10，行动力上限 +5"},
 		{"id": "growth_maps_measures", "name": "习图记尺", "description": "李春基础攻击力 +4，规尺击伤害倍率 +0.05"},
@@ -168,21 +164,15 @@ func get_round_growth_options() -> Array[Dictionary]:
 	]
 
 
-func apply_round_growth_option(option_id: String) -> void:
-	match option_id:
-		"growth_training_mobilize":
-			for unit in get_friendly_units():
-				apply_unit_growth_bonus(unit, 10, 0, 5)
-		"growth_maps_measures":
-			var hero_unit := get_hero_unit()
-			apply_unit_growth_bonus(hero_unit, 0, 4, 0)
-			modify_unit_skill(hero_unit, "lc_rule_strike", {"damage_ratio": 1.05})
-		"growth_river_master":
-			add_skill_to_unit(get_hero_unit(), _sk_pile_bind, ["lc_rule_strike", "lc_wedge_bank_probe"])
-		"growth_stone_reinforce":
-			for unit in get_friendly_units():
-				if unit.combat_stats.unit_name == "工匠":
-					modify_unit_skill(unit, "cg_guard_the_works", {"duration_turns": 3})
-		_:
-			return
-	Notify.notify("本回合成长：%s" % option_id, Notify.Position.TOP_CENTER, Notify.Style.SUCCESS, 2.0)
+func _apply_persistent_growth_effects() -> void:
+	if Progress.has_growth_option("growth_training_mobilize"):
+		for unit in get_friendly_units():
+			apply_unit_growth_bonus(unit, 10, 0, 5)
+	if Progress.has_growth_option("growth_maps_measures"):
+		var hero_unit := get_hero_unit()
+		apply_unit_growth_bonus(hero_unit, 0, 4, 0)
+		modify_unit_skill(hero_unit, "lc_rule_strike", {"damage_ratio": 1.05})
+	if Progress.has_growth_option("growth_stone_reinforce"):
+		for unit in get_friendly_units():
+			if unit.combat_stats.unit_name == "工匠":
+				modify_unit_skill(unit, "cg_guard_the_works", {"duration_turns": 3})

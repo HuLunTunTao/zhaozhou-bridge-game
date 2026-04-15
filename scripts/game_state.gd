@@ -5,6 +5,7 @@ var selected_level: String = ""
 ## Transient data for passing cutscene info across scene changes.
 var pending_cutscene_pages: Array = []
 var pending_next_scene: String = ""
+var pending_battle_scene: String = ""
 
 ## 场景切换过渡层。
 var _transition_layer: CanvasLayer

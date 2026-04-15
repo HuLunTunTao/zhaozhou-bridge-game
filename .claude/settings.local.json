@@ -26,7 +26,13 @@
       "Bash(xargs -I {} sh -c 'grep -l \"description = \" {} && echo \"---\"')",
       "Bash(timeout 10 godot --headless --quit-after 3)",
       "Bash(timeout 10 godot --headless --path . --check-only --script scripts/description_formatter.gd)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "mcp__godot-mcp__get_debug_output",
+      "mcp__godot-test-mcp__get_scene_tree",
+      "mcp__godot-test-mcp__click_control",
+      "mcp__godot-test-mcp__action_press",
+      "mcp__godot-test-mcp__action_release",
+      "mcp__godot-test-mcp__get_property"
     ]
   }
 }

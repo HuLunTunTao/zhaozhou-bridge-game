@@ -223,12 +223,12 @@ func _position_popup(popup: Control, pos: Position) -> void:
 
 
 func _get_stack_offset(pos: Position, current_popup: Control) -> float:
-	var offset := 0.0
+	var stack_offset := 0.0
 	for item: Control in _stacks[pos]:
 		if item == current_popup:
 			break
-		offset += item.size.y + SPACING
-	return offset
+		stack_offset += item.size.y + SPACING
+	return stack_offset
 
 
 func _reposition_stack(pos: Position) -> void:

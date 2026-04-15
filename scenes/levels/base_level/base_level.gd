@@ -274,6 +274,11 @@ func apply_round_growth_option(_option_id: String) -> void:
 	pass
 
 
+## 返回本关胜利后的结算成长选项。默认无。
+func get_post_level_growth_options() -> Array[Dictionary]:
+	return []
+
+
 ## 在基类 _ready 完成后调用，子关卡在此做额外初始化。
 func _on_level_ready() -> void:
 	pass
@@ -546,8 +551,6 @@ func end_team_turn() -> void:
 	if team.controller == "player" and not _waiting_for_player_input:
 		return
 	if _mid_cutscene_active:
-		return
-	if _try_prompt_round_growth():
 		return
 	_do_end_turn()
 
@@ -892,9 +895,32 @@ func play_mid_cutscene(pages: Array) -> void:
 
 ## Call when the level is won. Handles post-cutscene or returns to menu.
 func complete_level() -> void:
-	Progress.complete_level(GameState.selected_level)
 	UiSounds.play_victory()
 	var level := GameState.selected_level
+	var growth_options := get_post_level_growth_options()
+	if not growth_options.is_empty() and not Progress.has_level_growth_choices(level):
+		_growth_panel_open = true
+		var panel := GrowthChoicePanelScript.new()
+		panel.panel_title = "结算成长"
+		panel.options = growth_options
+		panel.required_selection_count = 2
+		panel.options_confirmed.connect(func(option_ids: Array[String]):
+			_growth_panel_open = false
+			Progress.complete_level(level, option_ids)
+			var chosen_names: Array[String] = []
+			for option_id in option_ids:
+				chosen_names.append(Progress.get_growth_option_name(option_id))
+			if not chosen_names.is_empty():
+				Notify.notify("已选择结算成长：%s" % "、".join(chosen_names), Notify.Position.TOP_CENTER, Notify.Style.SUCCESS, 3.0)
+			_continue_after_level_completion(level)
+		, CONNECT_ONE_SHOT)
+		add_child(panel)
+		return
+	Progress.complete_level(level)
+	_continue_after_level_completion(level)
+
+
+func _continue_after_level_completion(level: String) -> void:
 	if GameState.has_cutscene(level, "post"):
 		GameState.pending_cutscene_pages = GameState.get_cutscene_pages(level, "post")
 		GameState.pending_next_scene = "res://scenes/menu/main_menu.tscn"

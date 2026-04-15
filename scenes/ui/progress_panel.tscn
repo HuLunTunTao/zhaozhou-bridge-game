@@ -3,16 +3,20 @@
 [ext_resource type="Script" path="res://scenes/ui/progress_panel.gd" id="1"]
 
 [sub_resource type="StyleBoxFlat" id="panel_bg"]
-content_margin_left = 18.0
-content_margin_top = 14.0
-content_margin_right = 18.0
-content_margin_bottom = 14.0
-bg_color = Color(0.11, 0.13, 0.16, 0.96)
+content_margin_left = 24.0
+content_margin_top = 18.0
+content_margin_right = 24.0
+content_margin_bottom = 18.0
+bg_color = Color(0.09, 0.10, 0.13, 0.97)
 border_width_left = 1
 border_width_top = 1
 border_width_right = 1
 border_width_bottom = 1
-border_color = Color(0.35, 0.4, 0.45, 1)
+border_color = Color(0.30, 0.35, 0.40, 1)
+corner_radius_left_top = 8
+corner_radius_right_top = 8
+corner_radius_left_bottom = 8
+corner_radius_right_bottom = 8
 
 [node name="ProgressPanel" type="CanvasLayer"]
 script = ExtResource("1")
@@ -32,10 +36,10 @@ anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -300.0
-offset_top = -220.0
-offset_right = 300.0
-offset_bottom = 220.0
+offset_left = -400.0
+offset_top = -260.0
+offset_right = 400.0
+offset_bottom = 260.0
 grow_horizontal = 2
 grow_vertical = 2
 theme_override_styles/panel = SubResource("panel_bg")
@@ -64,18 +68,20 @@ text = "李春技能配置"
 [node name="EquippedCountLabel" type="Label" parent="Backdrop/Panel/Content"]
 unique_name_in_owner = true
 layout_mode = 2
-text = "已装备 0 / 5"
+text = "已装备 0 / 4"
 
 [node name="Scroll" type="ScrollContainer" parent="Backdrop/Panel/Content"]
 custom_minimum_size = Vector2(0, 180)
 layout_mode = 2
 size_flags_vertical = 3
 
-[node name="SkillList" type="VBoxContainer" parent="Backdrop/Panel/Content/Scroll"]
+[node name="SkillList" type="GridContainer" parent="Backdrop/Panel/Content/Scroll"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_constants/separation = 6
+columns = 2
+theme_override_constants/h_separation = 10
+theme_override_constants/v_separation = 10
 
 [node name="DebugRow" type="HBoxContainer" parent="Backdrop/Panel/Content"]
 unique_name_in_owner = true
