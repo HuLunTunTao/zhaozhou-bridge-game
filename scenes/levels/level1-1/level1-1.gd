@@ -49,14 +49,14 @@ func get_teams_config() -> Array:
 			"name": "玩家队伍",
 			"faction": "好人",
 			"controller": "player",
-			"units": [_li_chun],
+			"units": [_li_chun,_survey_a, _survey_b, _craftsman_a, _craftsman_b],
 		},
-		{
-			"name": "辅助队伍",
-			"faction": "好人",
-			"controller": "player",
-			"units": [_survey_a, _survey_b, _craftsman_a, _craftsman_b],
-		},
+		# {
+		# 	"name": "辅助队伍",
+		# 	"faction": "好人",
+		# 	"controller": "player",
+		# 	"units": [_survey_a, _survey_b, _craftsman_a, _craftsman_b],
+		# },
 		{
 			"name": "敌方",
 			"faction": "坏人",
