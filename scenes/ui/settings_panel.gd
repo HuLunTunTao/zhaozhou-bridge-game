@@ -79,18 +79,10 @@ func _on_save_settings_button_pressed() -> void:
 
 # Save Management
 const SaveManagerScene := preload("res://scenes/ui/save_manager.tscn")
-const ProgressPanelScene := preload("res://scenes/ui/progress_panel.tscn")
 
 func _on_save_manager_pressed() -> void:
 	var manager: SaveManager = SaveManagerScene.instantiate()
 	add_child(manager)
-	UiSounds.play_popup()
-
-
-func _on_progress_button_pressed() -> void:
-	var panel: Node = ProgressPanelScene.instantiate()
-	panel.set("show_debug_controls", Settings.debug_mode)
-	add_child(panel)
 	UiSounds.play_popup()
 
 

@@ -78,6 +78,7 @@ signal skill_executed(caster: Unit, skill: SkillData, cast_cell: Vector2i)
 
 const SettingsPanelScene := preload("res://scenes/ui/settings_panel.tscn")
 const ObjectivesPanelScene := preload("res://scenes/ui/objectives_panel.tscn")
+const ProgressPanelScene := preload("res://scenes/ui/progress_panel.tscn")
 const GrowthChoicePanelScript := preload("res://scenes/ui/growth_choice_panel.gd")
 
 var tilemap: TileMapLayer
@@ -89,6 +90,7 @@ var unit_selected := false
 var _mid_cutscene_active := false
 var _settings_open := false
 var _objectives_open := false
+var _progress_open := false
 var _growth_panel_open := false
 var _round_growth_selected_rounds: Array[int] = []
 
@@ -1082,6 +1084,17 @@ func _on_settings_button_pressed() -> void:
 
 func _on_objectives_button_pressed() -> void:
 	show_objectives()
+
+
+func _on_progress_button_pressed() -> void:
+	if _progress_open:
+		return
+	_progress_open = true
+	var panel: Node = ProgressPanelScene.instantiate()
+	panel.set("show_debug_controls", Settings.debug_mode)
+	add_child(panel)
+	panel.closed.connect(func(): _progress_open = false)
+	UiSounds.play_popup()
 
 
 ## 弹出本关目标面板。进入关卡时自动调用一次，也可通过按钮随时查看。
