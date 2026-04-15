@@ -18,6 +18,8 @@ extends Resource
 @export var innate_element: Enums.Element = Enums.Element.NONE
 @export var innate_element_amount: int = 0
 @export var ai_type: String = ""
+## 仅限水域移动。为 true 时 AI 只在 is_water() 地块上移动。
+@export var water_only: bool = false
 @export var is_escort_target: bool = false
 ## 技能列表，上限 5 个。
 @export var skills: Array[SkillData] = []:

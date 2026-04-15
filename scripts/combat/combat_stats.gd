@@ -50,6 +50,7 @@ var camp: Enums.Camp
 var ai_type: String
 var is_hero: bool = false
 var is_escort_target: bool = false
+var water_only: bool = false
 var unit_name: String
 
 
@@ -72,6 +73,7 @@ func init_from(data: UnitData) -> void:
 	camp = data.camp
 	ai_type = data.ai_type
 	is_escort_target = data.is_escort_target
+	water_only = data.water_only
 	statuses = []
 	moves_used = 0
 	skills_used = 0

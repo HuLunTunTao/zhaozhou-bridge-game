@@ -14,5 +14,6 @@ move_cost_per_tile = 10
 innate_element = 2
 innate_element_amount = 2
 ai_type = "hazard_charge"
+water_only = true
 is_escort_target = false
 skills = []

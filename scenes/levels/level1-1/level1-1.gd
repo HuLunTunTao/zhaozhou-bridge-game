@@ -178,10 +178,10 @@ func _place_friendlies_top_left() -> void:
 	var units: Array[Node2D] = [_li_chun, _survey_a, _survey_b, _craftsman_a, _craftsman_b]
 	var offsets: Array[Vector2i] = [
 		Vector2i(0, 0),
-		Vector2i(2, 0),
-		Vector2i(0, 2),
-		Vector2i(1, 1),
+		Vector2i(3, 0),
+		Vector2i(0, 3),
 		Vector2i(2, 2),
+		Vector2i(3, 3),
 	]
 	var occupied: Array[Vector2i] = []
 	for i in range(units.size()):

@@ -342,6 +342,7 @@ static func _decide_hazard_charge(
 	var blocked_set: Dictionary = {}
 	for c in blocked:
 		blocked_set[c] = true
+	var water_only: bool = stats.water_only
 
 	# 1. 原地攻击检查
 	var standing_hit: Dictionary = _find_best_skill_hit(unit, unit.cell, target.cell)
@@ -369,7 +370,7 @@ static func _decide_hazard_charge(
 		for dir: Vector2i in DIRS:
 			var line_reach: Dictionary = _compute_straight_reach(
 					unit.cell, dir, move_budget, effective_move_cost,
-					movement_manager, occupied_set, blocked_set)
+					movement_manager, occupied_set, blocked_set, water_only)
 			var attack_cell: Vector2i = _find_attack_cell(unit.cell, target.cell, skill, line_reach)
 			if attack_cell != _INVALID_CELL:
 				var dist: int = _manhattan(attack_cell, target.cell)
@@ -394,7 +395,7 @@ static func _decide_hazard_charge(
 	for dir: Vector2i in DIRS:
 		var full_reach: Dictionary = _compute_straight_reach(
 				unit.cell, dir, stats.ap_current, effective_move_cost,
-				movement_manager, occupied_set, blocked_set)
+				movement_manager, occupied_set, blocked_set, water_only)
 		for cell: Vector2i in full_reach["cells"]:
 			var dist: int = _manhattan(cell, target.cell)
 			if dist < best_move_dist:
@@ -417,7 +418,8 @@ static func _compute_straight_reach(
 		base_move_cost: int,
 		movement_manager,
 		occupied_set: Dictionary,
-		blocked_set: Dictionary
+		blocked_set: Dictionary,
+		water_only: bool = false
 ) -> Dictionary:
 	var costs: Dictionary = {origin: 0}
 	var parents: Dictionary = {}
@@ -430,6 +432,8 @@ static func _compute_straight_reach(
 		if tile_cost == -1:
 			break
 		if blocked_set.has(next_cell):  # 敌方单位阻挡
+			break
+		if water_only and not movement_manager.is_water_cell(next_cell):
 			break
 		var step_cost: int
 		if base_move_cost > 0:
