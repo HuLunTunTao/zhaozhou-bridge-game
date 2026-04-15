@@ -37,6 +37,10 @@ var _survey_b: Node2D
 var _craftsman_a: Node2D
 var _craftsman_b: Node2D
 
+# ── 勘测点 ──
+var _survey_points: Array[SurveyPointTile] = []
+var _survey_completed_count: int = 0
+
 
 func get_teams_config() -> Array:
 	_li_chun = $"Entities/Units/LiChun"
@@ -100,9 +104,10 @@ func get_wave_config() -> Dictionary:
 
 
 func get_objectives_text() -> Dictionary:
+	var survey_status := " (%d/%d)" % [_survey_completed_count, _survey_points.size()] if _survey_points.size() > 0 else ""
 	return {
 		"victory": [
-			"- 完成 3 个勘测点",
+			"- 完成 3 个勘测点%s" % survey_status,
 			"- 李春在候选桥位执行「相水定址」",
 			"- 至少 1 名测量工进入撤离区并结束回合",
 		],
@@ -132,6 +137,16 @@ func check_defeat() -> String:
 	return ""
 
 
+func check_victory() -> bool:
+	# 条件 1：完成所有勘测点
+	var surveys_done := _survey_completed_count >= _survey_points.size() and _survey_points.size() > 0
+	# 条件 2：李春在候选桥位执行「相水定址」（待实现）
+	var bridge_done := false
+	# 条件 3：至少 1 名测量工进入撤离区并结束回合（待实现）
+	var evac_done := false
+	return surveys_done and bridge_done and evac_done
+
+
 func _on_level_ready() -> void:
 	# ── 李春 ──
 	set_unit_skills(_li_chun as Unit, [_sk_rule_strike, _sk_wedge, _sk_stone, _sk_read_water])
@@ -151,8 +166,60 @@ func _on_level_ready() -> void:
 	set_unit_skills(_craftsman_b as Unit, [_sk_mallet, _sk_guard])
 	setup_unit_stats(_craftsman_b as Unit, "工匠", 110, 18, 90, 9)
 
+	# ── 勘测点 ──
+	_setup_survey_points()
+	skill_executed.connect(_on_skill_executed)
+
 
 func _get_ai_context() -> Dictionary:
 	return {
 		"escort_units": [_survey_a, _survey_b],
 	}
+
+
+# ─────────────────────────────────────────────
+# 勘测点
+# ─────────────────────────────────────────────
+
+## 从 check points TileMapLayer 读取格子并创建 SurveyPointTile。
+func _setup_survey_points() -> void:
+	var checkpoint_layer: TileMapLayer = null
+	for child in tilemap_container.get_children():
+		if child is TileMapLayer and child.name.begins_with("check points"):
+			checkpoint_layer = child
+			break
+	if checkpoint_layer == null:
+		push_warning("level1-1: 'check points' TileMapLayer not found")
+		return
+
+	for cell: Vector2i in checkpoint_layer.get_used_cells():
+		var tile := SurveyPointTile.new()
+		var visual := Polygon2D.new()
+		visual.name = "Visual"
+		visual.polygon = PackedVector2Array([
+			Vector2(0, -8), Vector2(16, 0), Vector2(0, 8), Vector2(-16, 0)
+		])
+		tile.add_child(visual)
+		register_special_tile(tile, cell)
+		tile.survey_completed.connect(_on_survey_point_completed)
+		_survey_points.append(tile)
+	CombatLog.msg("勘测点初始化: %d 个" % _survey_points.size())
+
+
+func _on_skill_executed(caster: Unit, skill: SkillData, cast_cell: Vector2i) -> void:
+	if skill.extra_effect_id != "complete_survey":
+		return
+	var tile = _special_tile_map.get(cast_cell)
+	if tile == null or not tile is SurveyPointTile:
+		Notify.notify("此处没有勘测点", Notify.Position.TOP_RIGHT, Notify.Style.WARNING, 2.5)
+		return
+	var survey_tile := tile as SurveyPointTile
+	if not survey_tile.complete():
+		Notify.notify("此勘测点已完成", Notify.Position.TOP_RIGHT, Notify.Style.WARNING, 2.5)
+
+
+func _on_survey_point_completed(tile: SurveyPointTile) -> void:
+	_survey_completed_count += 1
+	Notify.notify("勘测点完成！(%d/%d)" % [_survey_completed_count, _survey_points.size()],
+		Notify.Position.TOP_RIGHT, Notify.Style.SUCCESS, 3.0)
+	CombatLog.msg("勘测点完成: cell=%s (%d/%d)" % [tile.cell, _survey_completed_count, _survey_points.size()])
