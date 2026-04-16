@@ -1,0 +1,59 @@
+[gd_scene format=3 uid="uid://bduapoxoulhyt"]
+
+[ext_resource type="PackedScene" uid="uid://cbjso0lvbcag1" path="res://scenes/unit/visual/visual.tscn" id="1_kb2mm"]
+[ext_resource type="Script" path="res://scenes/unit/visual/monster/高拱幻影/高拱幻影_visual.gd" id="2_script"]
+[ext_resource type="Shader" uid="uid://w8w41kw1kylj" path="res://scenes/unit/shader/unit_edge_light.gdshader" id="2_sr2sh"]
+[ext_resource type="Texture2D" uid="uid://ch3g1qni20t7t" path="res://assets/character/monster/高拱幻影.png" id="3_sr2sh"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_7moel"]
+resource_local_to_scene = true
+shader = ExtResource("2_sr2sh")
+shader_parameter/outline_color = Color(1, 1, 0, 0.3)
+shader_parameter/outline_width = 7.0
+shader_parameter/frame_uv_rect = Vector4(0, 0, 1, 1)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_7moel"]
+atlas = ExtResource("3_sr2sh")
+region = Rect2(0, 0, 136, 136)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_1mu0s"]
+atlas = ExtResource("3_sr2sh")
+region = Rect2(136, 0, 136, 136)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_g8t54"]
+atlas = ExtResource("3_sr2sh")
+region = Rect2(0, 136, 136, 136)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_la0et"]
+atlas = ExtResource("3_sr2sh")
+region = Rect2(136, 136, 136, 136)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_m7ywh"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_7moel")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_1mu0s")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_g8t54")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_la0et")
+}],
+"loop": true,
+"name": &"default",
+"speed": 5.0
+}]
+
+[node name="Visual" unique_id=1878430534 instance=ExtResource("1_kb2mm")]
+script = ExtResource("2_script")
+material = SubResource("ShaderMaterial_7moel")
+sprite_frames = SubResource("SpriteFrames_m7ywh")
+move_is_idle = true
+flip_h_for_turning = true
+
+[node name="FootMarker" parent="." index="0"]
+position = Vector2(0, 26.666666)

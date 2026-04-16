@@ -48,6 +48,10 @@ const LEVEL_SCENES: Dictionary = {
 	"关卡1-2": "res://scenes/levels/level1-2/level1-2.tscn",
 	"关卡1-3": "res://scenes/levels/level1-3/level1-3.tscn",
 	"关卡1-4": "res://scenes/levels/level1-4/level1-4.tscn",
+}
+
+## 仅在测试模式下显示的关卡，始终解锁。
+const TEST_LEVEL_SCENES: Dictionary = {
 	"关卡测试": "res://scenes/levels/test/test.tscn",
 	"敌方全展示": "res://scenes/levels/monster_showcase/monster_showcase.tscn",
 }
@@ -133,7 +137,10 @@ const CUTSCENE_DATA: Dictionary = {
 
 
 func get_level_scene_path(level_name: String) -> String:
-	return LEVEL_SCENES.get(level_name, "")
+	var path: String = LEVEL_SCENES.get(level_name, "")
+	if path.is_empty():
+		path = TEST_LEVEL_SCENES.get(level_name, "")
+	return path
 
 
 func get_cutscene_pages(level_name: String, timing: String) -> Array:
