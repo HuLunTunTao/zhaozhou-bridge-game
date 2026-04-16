@@ -46,7 +46,7 @@ const SURVEY_CELLS: Array[Vector2i] = [Vector2i(-11, 12), Vector2i(-1, 2), Vecto
 var _bridge_confirmed: bool = false
 var _bridge_tile: SpecialTile = null
 var _bridge_marker: Node2D = null
-const BRIDGE_CELL: Vector2i = Vector2i(0, 0)
+const BRIDGE_CELL: Vector2i = Vector2i(-1, 2)
 const COLOR_BRIDGE := Color(0.2, 0.6, 0.95, 0.75)
 
 # ── 撤离点 ──
@@ -122,16 +122,16 @@ func get_objectives_text() -> Dictionary:
 		TaskState.TASK1_SURVEY:
 			var status := " (%d/%d)" % [_survey_completed_count, SURVEY_CELLS.size()]
 			lines.append("- 完成 3 个勘测点%s" % status)
-			lines.append("- 李春在候选桥位执行「相水定址」")
+			lines.append("- 李春在勘测点 (-1, 2) 执行「相水定址」")
 			lines.append("- 至少 1 名测量工进入撤离区并结束回合")
 		TaskState.TASK2_BRIDGE:
 			lines.append("- 完成 3 个勘测点 (3/3)")
 			var status := " (0/1)" if not _bridge_confirmed else " (1/1)"
-			lines.append("- 李春在候选桥位执行「相水定址」%s" % status)
+			lines.append("- 李春在勘测点 (-1, 2) 执行「相水定址」%s" % status)
 			lines.append("- 至少 1 名测量工进入撤离区并结束回合")
 		TaskState.TASK3_EVAC:
 			lines.append("- 完成 3 个勘测点 (3/3)")
-			lines.append("- 李春在候选桥位执行「相水定址」 (1/1)")
+			lines.append("- 李春在勘测点 (-1, 2) 执行「相水定址」 (1/1)")
 			var evac_done := _is_surveyor_at_evac()
 			var status := " (0/1)" if not evac_done else " (1/1)"
 			lines.append("- 至少 1 名测量工进入撤离区并结束回合%s" % status)
@@ -282,7 +282,7 @@ func _update_mission_hint() -> void:
 		TaskState.TASK1_SURVEY:
 			_mission_hint_label.text = "任务目标一，完成3个勘测点【%d/%d】" % [_survey_completed_count, SURVEY_CELLS.size()]
 		TaskState.TASK2_BRIDGE:
-			_mission_hint_label.text = "任务目标二，李春前往地图中心使用「相水定址」【%s】" % ("0/1" if not _bridge_confirmed else "1/1")
+			_mission_hint_label.text = "任务目标二，李春前往勘测点 (-1, 2) 使用「相水定址」【%s】" % ("0/1" if not _bridge_confirmed else "1/1")
 		TaskState.TASK3_EVAC:
 			var evac_done := _is_surveyor_at_evac()
 			_mission_hint_label.text = "任务目标三，至少让一名测量工人撤离【%s】" % ("0/1" if not evac_done else "1/1")
@@ -311,7 +311,7 @@ func _on_survey_point_completed(tile: SurveyPointTile) -> void:
 
 func _advance_to_task2() -> void:
 	_current_task = TaskState.TASK2_BRIDGE
-	Notify.notify("所有勘测点已完成！新的候选桥位已出现在地图中心。", Notify.Position.TOP_CENTER, Notify.Style.SUCCESS, 4.0)
+	Notify.notify("所有勘测点已完成！请李春前往勘测点 (-1, 2) 执行「相水定址」。", Notify.Position.TOP_CENTER, Notify.Style.SUCCESS, 4.0)
 	_spawn_bridge_tile()
 	_update_mission_hint()
 	_show_objectives_if_not_open()
@@ -319,6 +319,9 @@ func _advance_to_task2() -> void:
 
 
 func _spawn_bridge_tile() -> void:
+	var old_tile = _special_tile_map.get(BRIDGE_CELL)
+	if old_tile != null and is_instance_valid(old_tile):
+		old_tile.queue_free()
 	_bridge_tile = _make_bridge_tile()
 	_bridge_tile.name = "BridgeSiteTile"
 	register_special_tile(_bridge_tile, BRIDGE_CELL)
@@ -437,7 +440,7 @@ func _on_skill_executed(caster: Unit, skill: SkillData, cast_cell: Vector2i, _ex
 			Notify.notify("只有李春可以执行「相水定址」。", Notify.Position.TOP_CENTER, Notify.Style.WARNING, 2.0)
 			return
 		if cast_cell != BRIDGE_CELL:
-			Notify.notify("请前往地图中心的候选桥位执行「相水定址」。", Notify.Position.TOP_CENTER, Notify.Style.WARNING, 2.5)
+			Notify.notify("请前往勘测点 (-1, 2) 执行「相水定址」。", Notify.Position.TOP_CENTER, Notify.Style.WARNING, 2.5)
 			return
 		_bridge_confirmed = true
 		if _bridge_marker != null and is_instance_valid(_bridge_marker):
