@@ -406,7 +406,7 @@ Boss / boss: 偏载傀
 作用范围 / area_shape: single
 行动力消耗 / ap_cost: 25
 伤害倍率 / damage_ratio: 1.00
-伤害属性 / damage_element: none
+伤害属性 / damage_element: metal
 附着量 / attach_amount: 0
 ```
 
