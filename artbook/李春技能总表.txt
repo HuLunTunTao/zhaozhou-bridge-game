@@ -87,14 +87,14 @@
 获得阶段 / unlock_stage: 第一关初始 stage_1_initial
 技能类别 / skill_type: attack
 施放距离 / cast_range: 3
-作用范围 / area_shape: single
+作用范围 / area_shape: lines_4dir
 作用半径 / area_radius: 0
 行动力消耗 / ap_cost: 25
 伤害倍率 / damage_ratio: 1.00
 伤害属性 / damage_element: wood
 附着量 / attach_amount: 1
-附加效果 / extra_effect: 适合触发木行化势·穿垠
-定位 / role: 木属性单体压制
+附加效果 / extra_effect: 只沿四方向直线释放（无对角线），适合触发木行化势·穿垠
+定位 / role: 木属性直线单体压制
 ```
 
 ### 3）投石遏流 / Cast Stone to Arrest the Flow
@@ -104,15 +104,15 @@
 技能名称 / skill_name: 投石遏流
 获得阶段 / unlock_stage: 第一关初始 stage_1_initial
 技能类别 / skill_type: attack
-施放距离 / cast_range: 3
+施放距离 / cast_range: 4
 作用范围 / area_shape: single
 作用半径 / area_radius: 0
 行动力消耗 / ap_cost: 35
 伤害倍率 / damage_ratio: 0.95
 伤害属性 / damage_element: earth
 附着量 / attach_amount: 2
-附加效果 / extra_effect: 命中后击退1格
-定位 / role: 土属性强单体 / 水系对策
+附加效果 / extra_effect: 高抛至4格菱形范围内任意格，命中后击退1格
+定位 / role: 土属性长距单体 / 水系对策
 ```
 
 ### 4）相水定址 / Read Waters, Fix the Site
@@ -148,7 +148,7 @@
 获得阶段 / unlock_stage: 第一关结算可选 stage_1_optional
 获得方式 / unlock_method: 请益河工 growth_river_master
 技能类别 / skill_type: attack
-施放距离 / cast_range: 3
+施放距离 / cast_range: 2
 作用范围 / area_shape: single
 作用半径 / area_radius: 0
 行动力消耗 / ap_cost: 30
@@ -156,8 +156,8 @@
 伤害属性 / damage_element: wood
 附着量 / attach_amount: 2
 附加效果 / extra_effect:
-命中后对目标周围十字1格施加“迟滞”2回合
-定位 / role: 木属性控场单体
+近距释放，命中后对目标周围十字1格施加"迟滞"2回合
+定位 / role: 木属性近距控场单体
 建议替换 / suggested_replace:
 - 规尺击 lc_rule_strike
 - 木楔勘岸 lc_wedge_bank_probe
@@ -207,8 +207,11 @@
 伤害属性 / damage_element: wood
 附着量 / attach_amount: 1
 附加效果 / extra_effect:
-命中的首个目标获得“蔓缚”2回合
-定位 / role: 直线压制 / 先手锁位
+墨绳骤收，将命中的首个目标沿直线拖拽1格至施术者方向
+定位 / role: 直线穿透 / 首目标位移
+说明 / notes:
+- 木属性技能，打到水属性目标会触发滋蔓化势自动施加蔓缚
+- 技能本身不再重复施加蔓缚，改为机制性拖拽，与化势效果互补
 建议替换 / suggested_replace:
 - 规尺击 lc_rule_strike
 - 木楔勘岸 lc_wedge_bank_probe
@@ -259,15 +262,18 @@
 伤害属性 / damage_element: wood
 附着量 / attach_amount: 1
 附加效果 / extra_effect:
-命中的所有目标获得“蔓缚”2回合
-定位 / role: 高级直线控场 / 群体压线
+楔节连通成拱，整条直线上命中的所有敌人获得"脆裂"2回合（一次性，下次受击×1.2）
+定位 / role: 高级直线压制 / 群体脆裂准备
+说明 / notes:
+- 木属性技能，打到水/土属性目标会触发滋蔓/穿垠化势，自动施加蔓缚/陷裂
+- 本技能主动给的脆裂不与这两种化势状态重复，且为友军后续收割创造窗口
 建议替换 / suggested_replace:
 - 绳准锁弧 lc_line_lock_arc
 - 规尺击 lc_rule_strike
 - 木楔勘岸 lc_wedge_bank_probe
 ```
 
-它和“绳准锁弧”的关系可以理解成上位替代：前者偏单点锁位，后者偏整线封锁。
+它和"绳准锁弧"的关系是上位替代：前者偏首目标位移锁定，后者偏整线脆裂准备（配合友军二次收割）。
 
 ---
 
@@ -315,11 +321,11 @@
 - 导汛开肩 lc_guide_flood_open_arch
 ```
 
-## 3.3 直线控场类 / Line Control
+## 3.3 直线穿透类 / Line Penetration
 
 ```text
-- 绳准锁弧 lc_line_lock_arc
-- 连楔并拱 lc_link_wedges_arch
+- 绳准锁弧 lc_line_lock_arc（首目标拖拽）
+- 连楔并拱 lc_link_wedges_arch（整线脆裂）
 ```
 
 ## 3.4 关卡机制类 / Stage Mechanic Support

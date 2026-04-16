@@ -50,10 +50,10 @@
 | 文件名 | skill_id | 名称 | 类型 | AP | 倍率 | 属性 | 附着 | 射程 | 影响范围 | 描述 |
 |--------|----------|------|------|------|------|------|------|------|----------|------|
 | `lc_rule_strike.tres` | lc_rule_strike | 规尺击 | 攻击 | 20 | 1.0 | 无 | 0 | 四邻(1格) | 单体 | 对无属性目标伤害x1.15 |
-| `lc_cast_stone_arrest_flow.tres` | lc_cast_stone_arrest_flow | 投石遏流 | 攻击 | 35 | 0.95 | 土 | 2 | 菱形3格 | 单体 | 命中后击退1格 |
-| `lc_pile_bind_wave.tres` | lc_pile_bind_wave | 束桩缓波 | 攻击 | 30 | 0.95 | 木 | 2 | 菱形3格 | 十字(含中心) | 对目标周围十字施加迟滞2回合 |
+| `lc_cast_stone_arrest_flow.tres` | lc_cast_stone_arrest_flow | 投石遏流 | 攻击 | 35 | 0.95 | 土 | 2 | 菱形4格 | 单体 | 高抛远距，命中后击退1格 |
+| `lc_pile_bind_wave.tres` | lc_pile_bind_wave | 束桩缓波 | 攻击 | 30 | 0.95 | 木 | 2 | 菱形2格 | 十字(含中心) | 近距，对目标周围十字施加迟滞2回合 |
 | `lc_read_water_fix_site.tres` | lc_read_water_fix_site | 相水定址 | 辅助交互 | 30 | 0 | 无 | 0 | 菱形3格 | 十字(含中心) | 显示危险地格2回合，赋予稳步1回合 |
-| `lc_wedge_bank_probe.tres` | lc_wedge_bank_probe | 木楔勘岸 | 攻击 | 25 | 1.0 | 木 | 1 | 菱形3格 | 单体 | 用于触发木行化势 |
+| `lc_wedge_bank_probe.tres` | lc_wedge_bank_probe | 木楔勘岸 | 攻击 | 25 | 1.0 | 木 | 1 | 四方向直线3格 | 单体 | 直射穿刺，用于触发木行化势 |
 
 ### 工匠技能
 

@@ -32,7 +32,8 @@
       "mcp__godot-test-mcp__click_control",
       "mcp__godot-test-mcp__action_press",
       "mcp__godot-test-mcp__action_release",
-      "mcp__godot-test-mcp__get_property"
+      "mcp__godot-test-mcp__get_property",
+      "Bash(godot --headless --path . --script scripts/combat/skill_executor.gd)"
     ]
   }
 }

@@ -92,6 +92,10 @@ static func _apply_extra_effect(
 			_effect_aoe_status(cast_cell, all_units, caster_faction, "hindered_step", 2, caster.combat_stats.unit_name)
 		"line_bind":
 			_effect_first_target_status(targets, "overgrow_bind", skill.duration_turns, caster.combat_stats.unit_name)
+		"pull_first":
+			_effect_pull_first(caster, targets, 1)
+		"brittle_all":
+			_effect_apply_status(targets, "brittle", skill.duration_turns, 0, caster.combat_stats.unit_name)
 		"read_water":
 			_effect_read_water(cast_cell, all_units, caster_faction, caster.combat_stats.unit_name)
 		"stage_balance_arch", "stage_open_arch":
@@ -131,6 +135,22 @@ static func _effect_pull(caster: Unit, targets: Array, distance: int) -> void:
 		var to := _force_move_cell(tu, dir, distance)
 		CombatLog.msg("  额外效果: 拖拽%d格 (%s 从%s→%s)" % [distance, tu.combat_stats.unit_name, from, to])
 		_check_open_fissure(tu, caster)
+
+
+## 首目标拖拽：仅对 targets[0] 沿目标→施法者方向拉近 distance 格。
+static func _effect_pull_first(caster: Unit, targets: Array, distance: int) -> void:
+	if targets.is_empty():
+		return
+	var first := targets[0] as Unit
+	if first == null or first.combat_stats == null:
+		return
+	var dir := _get_direction(first.cell, caster.cell)
+	if dir == Vector2i.ZERO:
+		return
+	var from := first.cell
+	var to := _force_move_cell(first, dir, distance)
+	CombatLog.msg("  额外效果: 首目标拖拽%d格 (%s 从%s→%s)" % [distance, first.combat_stats.unit_name, from, to])
+	_check_open_fissure(first, caster)
 
 
 ## 给目标列表中的每个单位施加状态。
