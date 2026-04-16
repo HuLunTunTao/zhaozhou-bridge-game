@@ -7,8 +7,9 @@
 [ext_resource type="Texture2D" uid="uid://ds7mccb4e617v" path="res://assets/thepixeltiles/trees/treeno1.png" id="4_oqa8r"]
 [ext_resource type="Texture2D" uid="uid://blow62u33y7e6" path="res://assets/thepixeltiles/items/flag.png" id="5_pq87c"]
 [ext_resource type="Script" uid="uid://c2077ybi0615r" path="res://scripts/data/unit_data.gd" id="5_unit_data"]
-[ext_resource type="Texture2D" uid="uid://byusdcpkltk31" path="res://assets/face/li_chun.png" id="6_portrait"]
+[ext_resource type="Texture2D" uid="uid://byfa8b7dkuov0" path="res://assets/character/li_chun/李春头像.jpg" id="7_pq87c"]
 [ext_resource type="Script" uid="uid://cp0ew5p75uio0" path="res://scripts/data/skill_data.gd" id="8_2ipqp"]
+[ext_resource type="PackedScene" uid="uid://qkwxdp8ayb57" path="res://scenes/unit/visual/human/li_chun/li_chun_visual.tscn" id="9_2ipqp"]
 [ext_resource type="PackedScene" uid="uid://0vf68k1e0k18" path="res://scenes/unit/visual/human/测量工/测量工_visual.tscn" id="10_pqk1j"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_pq87c"]
@@ -957,7 +958,7 @@ sources/1 = SubResource("TileSetAtlasSource_pqk1j")
 script = ExtResource("5_unit_data")
 unit_id = "hero_li_chun"
 unit_name = "李春"
-portrait = ExtResource("6_portrait")
+portrait = ExtResource("7_pq87c")
 max_hp = 130
 base_atk = 24
 move_cost_per_tile = 8
@@ -1074,6 +1075,7 @@ texture = ExtResource("5_pq87c")
 [node name="LiChun" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="0" unique_id=1797232202 instance=ExtResource("3_unit")]
 position = Vector2(-320, -224)
 unit_data = SubResource("Resource_li_chun")
+visual_scene = ExtResource("9_2ipqp")
 unit_color = Color(1, 0.85, 0, 1)
 
 [node name="SurveyWorkerA" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="1" unique_id=1734697745 instance=ExtResource("3_unit")]
