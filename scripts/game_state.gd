@@ -129,7 +129,7 @@ const CUTSCENE_DATA: Dictionary = {
 			{
 				"type": "video",
 				"path": "res://assets/cutscenes/level1-4/1-4-end.ogv",
-				"pause_points": [3.0,7.0,12.0,14.0,19],
+				"pause_points": [2.0, 3.0, 6.0, 8.5],
 			}
 		],
 	},
