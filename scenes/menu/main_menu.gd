@@ -42,6 +42,14 @@ func _build_level_buttons() -> void:
 		btn.disabled = not Progress.is_level_unlocked(level_name)
 		UiSounds.bind_button(btn)
 		level_grid.add_child(btn)
+	if Settings.debug_mode:
+		for level_name: String in GameState.TEST_LEVEL_SCENES.keys():
+			var btn := Button.new()
+			btn.text = level_name
+			btn.custom_minimum_size = Vector2(56, 32)
+			btn.pressed.connect(_on_level_selected.bind(level_name))
+			UiSounds.bind_button(btn)
+			level_grid.add_child(btn)
 
 
 func _bind_static_button_sounds() -> void:
@@ -65,6 +73,7 @@ func _refresh_debug_visibility() -> void:
 	test_button.visible = Settings.debug_mode
 	if not Settings.debug_mode and test_select_page.visible:
 		_show_page(main_page)
+	_build_level_buttons()
 
 
 # Main page buttons
@@ -96,7 +105,8 @@ func _on_progress_pressed() -> void:
 
 # Level select
 func _on_level_selected(level: String) -> void:
-	if not Progress.is_level_unlocked(level):
+	var is_test_level := level in GameState.TEST_LEVEL_SCENES
+	if not is_test_level and not Progress.is_level_unlocked(level):
 		return
 	GameState.selected_level = level
 	var battle_path := GameState.get_level_scene_path(level)

@@ -19,6 +19,8 @@ var _monster_list: Array[Dictionary] = [
 	{"name": "旧制监工", "visual": preload("res://scenes/unit/visual/monster/旧制监工/旧制监工_visual.tscn")},
 	{"name": "裂石兽", "visual": preload("res://scenes/unit/visual/monster/裂石兽/裂石兽_visual.tscn")},
 	{"name": "重墩石像", "visual": preload("res://scenes/unit/visual/monster/重墩石像/重墩石像_visual.tscn")},
+	{"name": "偏载怪", "visual": preload("res://scenes/unit/visual/monster/偏载怪/偏载怪_visual.tscn")},
+	{"name": "高拱幻影", "visual": preload("res://scenes/unit/visual/monster/高拱幻影/高拱幻影_visual.tscn")},
 ]
 
 var _player: Node2D
