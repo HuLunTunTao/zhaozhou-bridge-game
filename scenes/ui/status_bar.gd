@@ -49,7 +49,7 @@ var _tooltip_body: RichTextLabel = null
 @onready var _cur_elem_value: Label = %CurElemValue
 @onready var _inn_elem_logo: Label = %InnElemLogo
 @onready var _inn_elem_value: Label = %InnElemValue
-@onready var _buff_label: Label = %BuffLabel
+@onready var _buff_label: Label = %BuffValue
 
 @onready var _slots: Array[Button] = [%Slot0, %Slot1, %Slot2, %Slot3, %Slot4, %Slot5]
 
@@ -192,8 +192,7 @@ func clear_unit() -> void:
 	_ap_label.text = ""
 	_actions_label.text = ""
 	_actions_label.visible = false
-	_buff_label.text = ""
-	_buff_label.visible = false
+	_buff_label.text = "无"
 	_clear_elements()
 	_set_panel_color(COLOR_DEFAULT)
 	for i in range(_slots.size()):
@@ -232,15 +231,13 @@ func _clear_elements() -> void:
 
 func _update_buffs(stats: CombatStats) -> void:
 	if stats == null or stats.statuses.is_empty():
-		_buff_label.text = ""
-		_buff_label.visible = false
+		_buff_label.text = "无"
 		return
 	var parts: Array[String] = []
 	for s in stats.statuses:
 		var sname: String = _STATUS_NAMES.get(s.status_id, s.status_id)
 		parts.append("%s(%d)" % [sname, s.remaining_turns])
 	_buff_label.text = " ".join(parts)
-	_buff_label.visible = true
 
 
 func _update_slots(unit: Node2D, is_active: bool, stats: CombatStats) -> void:
