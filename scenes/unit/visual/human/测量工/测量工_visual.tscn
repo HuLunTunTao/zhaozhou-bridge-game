@@ -1,0 +1,161 @@
+[gd_scene format=3 uid="uid://0vf68k1e0k18"]
+
+[ext_resource type="PackedScene" uid="uid://cbjso0lvbcag1" path="res://scenes/unit/visual/visual.tscn" id="1_55t0t"]
+[ext_resource type="Shader" uid="uid://w8w41kw1kylj" path="res://scenes/unit/shader/unit_edge_light.gdshader" id="2_2x8ci"]
+[ext_resource type="Script" uid="uid://c6dh2l3t3mba2" path="res://scenes/unit/visual/human/测量工/测量工_visual.gd" id="2_script"]
+[ext_resource type="Texture2D" uid="uid://1wj31mhyg8jj" path="res://assets/character/测量工/测量工_idle_left.png" id="3_2x8ci"]
+[ext_resource type="Texture2D" uid="uid://b2kp27h6oq8dd" path="res://assets/character/测量工/测量工_idle_right.png" id="4_ojcnb"]
+[ext_resource type="Texture2D" uid="uid://6v3u54mogby1" path="res://assets/character/测量工/测量工_move_left.png" id="5_64qv3"]
+[ext_resource type="Texture2D" uid="uid://tvkpyirstiel" path="res://assets/character/测量工/测量工_move_right.png" id="6_3015n"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_1i2q4"]
+resource_local_to_scene = true
+shader = ExtResource("2_2x8ci")
+shader_parameter/outline_color = Color(1, 1, 0, 0.3)
+shader_parameter/outline_width = 7.0
+shader_parameter/frame_uv_rect = Vector4(0, 0, 1, 1)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ojcnb"]
+atlas = ExtResource("3_2x8ci")
+region = Rect2(0, 0, 256, 256)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_64qv3"]
+atlas = ExtResource("3_2x8ci")
+region = Rect2(256, 0, 256, 256)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_3015n"]
+atlas = ExtResource("3_2x8ci")
+region = Rect2(0, 256, 256, 256)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_1i2q4"]
+atlas = ExtResource("3_2x8ci")
+region = Rect2(256, 256, 256, 256)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_cpfvi"]
+atlas = ExtResource("4_ojcnb")
+region = Rect2(0, 0, 256, 256)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_su7s3"]
+atlas = ExtResource("4_ojcnb")
+region = Rect2(256, 0, 256, 256)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_c62x8"]
+atlas = ExtResource("4_ojcnb")
+region = Rect2(0, 256, 256, 256)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_sxd8m"]
+atlas = ExtResource("4_ojcnb")
+region = Rect2(256, 256, 256, 256)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_7mgd6"]
+atlas = ExtResource("5_64qv3")
+region = Rect2(0, 0, 256, 256)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_rrler"]
+atlas = ExtResource("5_64qv3")
+region = Rect2(256, 0, 256, 256)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_hk888"]
+atlas = ExtResource("5_64qv3")
+region = Rect2(0, 256, 256, 256)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_55m0d"]
+atlas = ExtResource("5_64qv3")
+region = Rect2(256, 256, 256, 256)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_7m5tw"]
+atlas = ExtResource("6_3015n")
+region = Rect2(0, 0, 256, 256)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ajit7"]
+atlas = ExtResource("6_3015n")
+region = Rect2(256, 0, 256, 256)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_flgc7"]
+atlas = ExtResource("6_3015n")
+region = Rect2(0, 256, 256, 256)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_vrch3"]
+atlas = ExtResource("6_3015n")
+region = Rect2(256, 256, 256, 256)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_cpfvi"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_ojcnb")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_64qv3")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_3015n")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_1i2q4")
+}],
+"loop": true,
+"name": &"idle_left",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_cpfvi")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_su7s3")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_c62x8")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_sxd8m")
+}],
+"loop": true,
+"name": &"idle_right",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_7mgd6")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_rrler")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_hk888")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_55m0d")
+}],
+"loop": true,
+"name": &"move_left",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_7m5tw")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_ajit7")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_flgc7")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_vrch3")
+}],
+"loop": true,
+"name": &"move_right",
+"speed": 5.0
+}]
+
+[node name="Visual" unique_id=1878430534 instance=ExtResource("1_55t0t")]
+material = SubResource("ShaderMaterial_1i2q4")
+scale = Vector2(0.14, 0.14)
+sprite_frames = SubResource("SpriteFrames_cpfvi")
+animation = &"idle_left"
+script = ExtResource("2_script")
+
+[node name="FootMarker" parent="." index="0"]
+position = Vector2(0, 100)
