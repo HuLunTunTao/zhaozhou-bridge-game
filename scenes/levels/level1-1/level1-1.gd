@@ -184,21 +184,21 @@ func _on_level_ready() -> void:
 
 	# ── 李春 ──
 	set_unit_skills(_li_chun as Unit, Progress.get_battle_skill_resources(GameState.selected_level))
-	setup_unit_stats(_li_chun as Unit, "李春", 130, 24, 100, 8, Enums.Element.NONE, 0, true)
+	setup_unit_stats(_li_chun as Unit, "李春", 130, 24, 100, 6, Enums.Element.NONE, 0, true)
 
 	# ── 测量工 ──
 	set_unit_skills(_survey_a as Unit, [_sk_staff, _sk_survey])
-	setup_unit_stats(_survey_a as Unit, "测量工", 80, 12, 85, 10)
+	setup_unit_stats(_survey_a as Unit, "测量工", 80, 12, 85, 9)
 
 	set_unit_skills(_survey_b as Unit, [_sk_staff, _sk_survey])
-	setup_unit_stats(_survey_b as Unit, "测量工", 80, 12, 85, 10)
+	setup_unit_stats(_survey_b as Unit, "测量工", 80, 12, 85, 9)
 
 	# ── 工匠 ──
 	set_unit_skills(_craftsman_a as Unit, [_sk_mallet, _sk_guard])
-	setup_unit_stats(_craftsman_a as Unit, "工匠", 110, 18, 90, 9)
+	setup_unit_stats(_craftsman_a as Unit, "工匠", 110, 18, 90, 8)
 
 	set_unit_skills(_craftsman_b as Unit, [_sk_mallet, _sk_guard])
-	setup_unit_stats(_craftsman_b as Unit, "工匠", 110, 18, 90, 9)
+	setup_unit_stats(_craftsman_b as Unit, "工匠", 110, 18, 90, 8)
 	_apply_persistent_growth_effects()
 
 	# ── 关卡机制初始化 ──
