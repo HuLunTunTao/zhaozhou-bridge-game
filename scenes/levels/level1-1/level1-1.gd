@@ -140,7 +140,7 @@ func get_objectives_text() -> Dictionary:
 		"defeat": [
 			"- 李春倒下",
 			"- 两名测量工全部倒下",
-			"- 超过第 20 回合仍未完成撤离",
+			"- 超过第 30 回合仍未完成撤离",
 		],
 	}
 
@@ -158,8 +158,8 @@ func check_defeat() -> String:
 	if a_dead and b_dead:
 		return "两名测量工全部倒下"
 	# 超过第 20 回合
-	if round_number > 20:
-		return "超过第 20 回合仍未完成撤离"
+	if round_number > 30:
+		return "超过第 30 回合仍未完成撤离"
 	return ""
 
 
