@@ -14,5 +14,6 @@ move_cost_per_tile = 10
 innate_element = 3
 innate_element_amount = 2
 ai_type = "flank_melee"
+water_only = true
 is_escort_target = false
 skills = []
