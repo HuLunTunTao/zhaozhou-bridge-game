@@ -86,32 +86,44 @@ func get_teams_config() -> Array:
 func get_wave_config() -> Dictionary:
 	return {
 		1: [
-			{"unit_data": _ud_dark_current, "cell": Vector2i(13,-24), "team_index": ENEMY_TEAM,
+			{"unit_data": _ud_dark_current, "cell": Vector2i(13, -24), "team_index": ENEMY_TEAM,
 			 "skills": [_sk_lunge], "color": COLOR_DARK_CURRENT},
-			{"unit_data": _ud_dark_current, "cell": Vector2i(14, -24), "team_index": ENEMY_TEAM,
-			 "skills": [_sk_lunge], "color": COLOR_DARK_CURRENT},
-		],
-		2: [
-			{"unit_data": _ud_dark_current, "cell": Vector2i(-24, 20), "team_index": ENEMY_TEAM,
-			 "skills": [_sk_lunge], "color": COLOR_DARK_CURRENT},
-		],
-		3: [
-			{"unit_data": _ud_whirl_pool, "cell": Vector2i(15,-24), "team_index": ENEMY_TEAM,
-			 "skills": [_sk_pull], "color": COLOR_WHIRL_POOL},
-		],
-		4: [
 			{"unit_data": _ud_mud_wraith, "cell": Vector2i(10, -19), "team_index": ENEMY_TEAM,
 			 "skills": [_sk_crush], "color": COLOR_MUD_WRAITH},
 		],
-		5: [
-			{"unit_data": _ud_dark_current, "cell": Vector2i(-22, 20), "team_index": ENEMY_TEAM,
-			 "skills": [_sk_lunge], "color": COLOR_DARK_CURRENT},
+		3: [
+			{"unit_data": _ud_whirl_pool, "cell": Vector2i(15, -24), "team_index": ENEMY_TEAM,
+			 "skills": [_sk_pull], "color": COLOR_WHIRL_POOL},
 			{"unit_data": _ud_drift_log, "cell": Vector2i(-19, 21), "team_index": ENEMY_TEAM,
 			 "skills": [_sk_timber], "color": COLOR_DRIFT_LOG},
 		],
+		6: [
+			{"unit_data": _ud_mud_wraith, "cell": Vector2i(11, -18), "team_index": ENEMY_TEAM,
+			 "skills": [_sk_crush], "color": COLOR_MUD_WRAITH},
+		],
 		7: [
+			{"unit_data": _ud_dark_current, "cell": Vector2i(-24, 20), "team_index": ENEMY_TEAM,
+			 "skills": [_sk_lunge], "color": COLOR_DARK_CURRENT},
+		],
+		8: [
+			{"unit_data": _ud_drift_log, "cell": Vector2i(-20, 21), "team_index": ENEMY_TEAM,
+			 "skills": [_sk_timber], "color": COLOR_DRIFT_LOG},
 			{"unit_data": _ud_whirl_pool, "cell": Vector2i(14, -21), "team_index": ENEMY_TEAM,
 			 "skills": [_sk_pull], "color": COLOR_WHIRL_POOL},
+		],
+		11: [
+			{"unit_data": _ud_dark_current, "cell": Vector2i(14, -24), "team_index": ENEMY_TEAM,
+			 "skills": [_sk_lunge], "color": COLOR_DARK_CURRENT},
+		],
+		12: [
+			{"unit_data": _ud_mud_wraith, "cell": Vector2i(-22, 20), "team_index": ENEMY_TEAM,
+			 "skills": [_sk_crush], "color": COLOR_MUD_WRAITH},
+		],
+		14: [
+			{"unit_data": _ud_whirl_pool, "cell": Vector2i(13, -24), "team_index": ENEMY_TEAM,
+			 "skills": [_sk_pull], "color": COLOR_WHIRL_POOL},
+			{"unit_data": _ud_drift_log, "cell": Vector2i(-19, 21), "team_index": ENEMY_TEAM,
+			 "skills": [_sk_timber], "color": COLOR_DRIFT_LOG},
 		],
 	}
 
