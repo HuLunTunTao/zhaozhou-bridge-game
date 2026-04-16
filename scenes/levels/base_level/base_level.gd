@@ -790,14 +790,13 @@ func _execute_ai_skill(unit: Unit, skill: SkillData, cast_cell: Vector2i) -> voi
 		# 技能释放播报
 		var caster_name: String = unit.combat_stats.unit_name if unit.combat_stats else unit.name
 		Notify.notify("%s 使用了【%s】！" % [caster_name, skill.skill_name], Notify.Position.TOP_RIGHT, Notify.Style.INFO, 3.0)
-		_show_combat_feedback(exec_result, caster_name)
+		_show_combat_feedback(exec_result, caster_name, skill)
 		# 额外效果播报
-		if skill.extra_effect_id != "" and not exec_result.hit_results.is_empty():
+		if skill.extra_effect_id != "":
 			var effect_name: String = _EXTRA_EFFECT_NAMES.get(skill.extra_effect_id, "")
 			if effect_name != "":
 				var target_names: Array[String] = []
-				for entry in exec_result.hit_results:
-					var tu: Node2D = entry["unit"]
+				for tu in exec_result.targets:
 					if tu is Unit and (tu as Unit).combat_stats:
 						target_names.append((tu as Unit).combat_stats.unit_name)
 				if not target_names.is_empty():
@@ -1499,17 +1498,16 @@ func _confirm_targeting_skill(cell: Vector2i) -> void:
 	Notify.notify("%s 使用了【%s】！" % [caster_name, used_skill.skill_name], Notify.Position.TOP_RIGHT, Notify.Style.INFO, 3.0)
 
 	# ── UI 反馈 ──
-	_show_combat_feedback(exec_result, caster_name)
+	_show_combat_feedback(exec_result, caster_name, used_skill)
 	if selected_unit is Unit:
 		_on_skill_executed(selected_unit as Unit, used_skill, cell, exec_result)
 
 	# ── 额外效果播报 ──
-	if used_skill.extra_effect_id != "" and not exec_result.hit_results.is_empty():
+	if used_skill.extra_effect_id != "":
 		var effect_name: String = _EXTRA_EFFECT_NAMES.get(used_skill.extra_effect_id, "")
 		if effect_name != "":
 			var target_names: Array[String] = []
-			for entry in exec_result.hit_results:
-				var tu: Node2D = entry["unit"]
+			for tu in exec_result.targets:
 				if tu is Unit and (tu as Unit).combat_stats:
 					target_names.append((tu as Unit).combat_stats.unit_name)
 			if not target_names.is_empty():
@@ -1548,8 +1546,15 @@ func _confirm_targeting_skill(cell: Vector2i) -> void:
 
 
 ## 显示战斗 UI 反馈：伤害弹字 + 血条刷新 + 化势提示。
-func _show_combat_feedback(exec_result: SkillExecutor.ExecuteResult, _caster_name: String = "") -> void:
+func _show_combat_feedback(exec_result: SkillExecutor.ExecuteResult, _caster_name: String = "", skill: SkillData = null) -> void:
 	if exec_result.hit_results.is_empty():
+		# 辅助技能没有伤害结算，但效果已通过额外效果系统生效，不显示警告
+		if skill != null and skill.skill_type == Enums.SkillType.ASSIST:
+			# 刷新目标头顶状态条以反映新状态
+			for tu in exec_result.targets:
+				if tu is Unit:
+					(tu as Unit).refresh_overhead_bars()
+			return
 		Notify.notify("没有单位受到技能效果！", Notify.Position.TOP_RIGHT, Notify.Style.WARNING, 3.0)
 		return
 	var showed_phase := false

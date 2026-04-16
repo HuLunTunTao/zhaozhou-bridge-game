@@ -5,6 +5,7 @@ class_name SkillExecutor
 class ExecuteResult:
 	var success: bool = false
 	var hit_results: Array = []
+	var targets: Array = []
 	var error: String = ""
 
 
@@ -34,6 +35,7 @@ static func execute(
 	CombatLog.log_skill_use(stats.unit_name, skill.skill_name, unit.cell, cast_cell)
 
 	var targets: Array = _collect_targets(skill, cast_cell, all_units, caster_faction, caster)
+	result.targets = targets
 	CombatLog.log_targets(targets)
 
 	stats.ap_current -= skill.ap_cost
