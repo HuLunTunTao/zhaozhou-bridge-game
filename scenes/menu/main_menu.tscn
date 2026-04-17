@@ -51,6 +51,10 @@ custom_minimum_size = Vector2(0, 16)
 layout_mode = 2
 text = "开始游戏"
 
+[node name="TutorialButton" type="Button" parent="MainPage"]
+layout_mode = 2
+text = "新手教程"
+
 [node name="SettingsButton" type="Button" parent="MainPage"]
 layout_mode = 2
 text = "设置"
@@ -145,6 +149,7 @@ text = "返回"
 ;; ============ Connections ============
 
 [connection signal="pressed" from="MainPage/StartButton" to="." method="_on_start_pressed"]
+[connection signal="pressed" from="MainPage/TutorialButton" to="." method="_on_tutorial_pressed"]
 [connection signal="pressed" from="MainPage/SettingsButton" to="." method="_on_settings_pressed"]
 [connection signal="pressed" from="MainPage/ProgressButton" to="." method="_on_progress_pressed"]
 [connection signal="pressed" from="MainPage/QuitButton" to="." method="_on_quit_pressed"]

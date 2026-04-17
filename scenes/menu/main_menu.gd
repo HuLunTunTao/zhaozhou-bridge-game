@@ -9,9 +9,11 @@ extends Control
 
 const SettingsPanelScene := preload("res://scenes/ui/settings_panel.tscn")
 const ProgressPanelScene := preload("res://scenes/ui/progress_panel.tscn")
+const TutorialPanelScene := preload("res://scenes/ui/tutorial_panel.tscn")
 const MAIN_MENU_BGM_PATH := "res://assets/audio/music/主：桥起千秋(Before_the_First_Stone).mp3"
 var _settings_open := false
 var _progress_open := false
+var _tutorial_open := false
 
 
 # TODO: 主菜单背景美术替换（赵州桥像素画）
@@ -88,6 +90,15 @@ func _on_settings_pressed() -> void:
 	var panel: SettingsPanel = SettingsPanelScene.instantiate()
 	add_child(panel)
 	panel.closed.connect(func(): _settings_open = false)
+
+
+func _on_tutorial_pressed() -> void:
+	if _tutorial_open:
+		return
+	_tutorial_open = true
+	var panel: Node = TutorialPanelScene.instantiate()
+	add_child(panel)
+	panel.closed.connect(func(): _tutorial_open = false)
 
 
 func _on_quit_pressed() -> void:
