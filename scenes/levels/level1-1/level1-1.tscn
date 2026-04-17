@@ -7,7 +7,7 @@
 [ext_resource type="Texture2D" uid="uid://ds7mccb4e617v" path="res://assets/thepixeltiles/trees/treeno1.png" id="4_oqa8r"]
 [ext_resource type="Texture2D" uid="uid://blow62u33y7e6" path="res://assets/thepixeltiles/items/flag.png" id="5_pq87c"]
 [ext_resource type="Script" uid="uid://c2077ybi0615r" path="res://scripts/data/unit_data.gd" id="5_unit_data"]
-[ext_resource type="Texture2D" uid="uid://byfa8b7dkuov0" path="res://assets/character/li_chun/李春头像.jpg" id="7_pq87c"]
+[ext_resource type="Texture2D" uid="uid://byusdcpkltk31" path="res://assets/face/li_chun.png" id="7_bsudu"]
 [ext_resource type="Script" uid="uid://cp0ew5p75uio0" path="res://scripts/data/skill_data.gd" id="8_2ipqp"]
 [ext_resource type="PackedScene" uid="uid://qkwxdp8ayb57" path="res://scenes/unit/visual/human/li_chun/li_chun_visual.tscn" id="9_2ipqp"]
 [ext_resource type="PackedScene" uid="uid://0vf68k1e0k18" path="res://scenes/unit/visual/human/测量工/测量工_visual.tscn" id="10_pqk1j"]
@@ -959,7 +959,7 @@ sources/1 = SubResource("TileSetAtlasSource_pqk1j")
 script = ExtResource("5_unit_data")
 unit_id = "hero_li_chun"
 unit_name = "李春"
-portrait = ExtResource("7_pq87c")
+portrait = ExtResource("7_bsudu")
 max_hp = 130
 base_atk = 24
 move_cost_per_tile = 8
