@@ -11,6 +11,7 @@
 [ext_resource type="Script" uid="uid://cp0ew5p75uio0" path="res://scripts/data/skill_data.gd" id="8_2ipqp"]
 [ext_resource type="PackedScene" uid="uid://qkwxdp8ayb57" path="res://scenes/unit/visual/human/li_chun/li_chun_visual.tscn" id="9_2ipqp"]
 [ext_resource type="PackedScene" uid="uid://0vf68k1e0k18" path="res://scenes/unit/visual/human/测量工/测量工_visual.tscn" id="10_pqk1j"]
+[ext_resource type="PackedScene" uid="uid://byxh2ycfe88e3" path="res://scenes/unit/visual/human/工匠/工匠_visual.tscn" id="12_bsudu"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_pq87c"]
 texture = ExtResource("3_nctu2")
@@ -1093,13 +1094,13 @@ unit_color = Color(0.3, 0.9, 0.5, 1)
 [node name="CraftsmanA" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="3" unique_id=1153010617 instance=ExtResource("3_unit")]
 position = Vector2(-336, -184)
 unit_data = SubResource("Resource_craftsman_a")
-visual_scene = ExtResource("10_pqk1j")
+visual_scene = ExtResource("12_bsudu")
 unit_color = Color(0.4, 0.8, 0.9, 1)
 
 [node name="CraftsmanB" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="4" unique_id=183664624 instance=ExtResource("3_unit")]
 position = Vector2(-304, -184)
 unit_data = SubResource("Resource_craftsman_b")
-visual_scene = ExtResource("10_pqk1j")
+visual_scene = ExtResource("12_bsudu")
 unit_color = Color(0.4, 0.8, 0.9, 1)
 
 [node name="MovementManager" parent="." index="6" unique_id=1144669128 node_paths=PackedStringArray("movement_tilemaps", "obstacle_tilemaps")]
