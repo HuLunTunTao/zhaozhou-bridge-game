@@ -318,6 +318,12 @@ func reset_progress() -> void:
 	_reset_defaults(true)
 
 
+## 清除所有进度（仅更新内存状态，不落盘）
+func clear_all_in_memory() -> void:
+	_reset_defaults(false)
+	progress_changed.emit()
+
+
 func unlock_all_progress() -> void:
 	completed_levels = LEVEL_ORDER.duplicate()
 	unlocked_levels = LEVEL_ORDER.duplicate()

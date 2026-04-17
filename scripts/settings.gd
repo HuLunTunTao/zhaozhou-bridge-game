@@ -89,3 +89,14 @@ func set_debug_mode(enabled: bool) -> void:
 	debug_mode = enabled
 	save_settings()
 	settings_changed.emit()
+
+
+## 重置为默认值（仅更新内存状态，不落盘）
+func reset_to_defaults() -> void:
+	music_volume = 0.8
+	sfx_volume = 0.8
+	ui_volume = 0.8
+	voice_volume = 0.8
+	ambience_volume = 0.8
+	debug_mode = false
+	_apply_settings()

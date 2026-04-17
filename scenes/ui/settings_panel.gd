@@ -136,6 +136,56 @@ func _on_close_pressed() -> void:
 	_close()
 
 
+func _on_clear_data_pressed() -> void:
+	_show_clear_data_confirm(1)
+
+
+func _show_clear_data_confirm(step: int) -> void:
+	var dialog := ConfirmationDialog.new()
+	match step:
+		1:
+			dialog.dialog_text = "您即将删除所有本地数据。\n包括：游戏进度、存档栏位、设置。\n\n该操作不可撤销，确定继续？"
+			dialog.ok_button_text = "继续"
+		2:
+			dialog.dialog_text = "再次确认：\n所有章节进度、技能解锁、存档\n将被永久删除！\n\n您真的要继续吗？"
+			dialog.ok_button_text = "我已知晓，继续"
+		_:
+			dialog.dialog_text = "最终确认：\n此为最后一次警告！\n\n点击「立即删除」将无法恢复任何数据。"
+			dialog.ok_button_text = "立即删除"
+	dialog.cancel_button_text = "取消"
+	dialog.confirmed.connect(func():
+		if step >= 3:
+			_clear_all_local_data()
+		else:
+			_show_clear_data_confirm(step + 1)
+	)
+	add_child(dialog)
+	dialog.popup_centered()
+
+
+func _clear_all_local_data() -> void:
+	var dir := DirAccess.open("user://")
+	if dir != null:
+		dir.list_dir_begin()
+		var file_name := dir.get_next()
+		while file_name != "":
+			if not dir.current_is_dir():
+				dir.remove(file_name)
+			file_name = dir.get_next()
+		dir.list_dir_end()
+
+	Settings.reset_to_defaults()
+	Progress.clear_all_in_memory()
+
+	music_slider.value = Settings.music_volume * 100.0
+	sfx_slider.value = Settings.sfx_volume * 100.0
+	ui_slider.value = Settings.ui_volume * 100.0
+	voice_slider.value = Settings.voice_volume * 100.0
+	ambience_slider.value = Settings.ambience_volume * 100.0
+
+	Notify.notify("本地数据已清除", Notify.Position.TOP_CENTER, Notify.Style.SUCCESS, 2.5)
+
+
 func _close() -> void:
 	closed.emit()
 	queue_free()
