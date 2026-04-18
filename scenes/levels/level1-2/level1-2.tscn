@@ -4,8 +4,13 @@
 [ext_resource type="Script" uid="uid://cowvweowqy2vf" path="res://scenes/levels/level1-2/level1-2.gd" id="2_script"]
 [ext_resource type="PackedScene" uid="uid://d150ubnb1eitk" path="res://scenes/unit/unit.tscn" id="3_player"]
 [ext_resource type="Texture2D" uid="uid://dajatjtpi2mtu" path="res://assets/thepixeltiles/isometric tileset/spritesheet.png" id="3_whjfh"]
+[ext_resource type="Texture2D" uid="uid://dhj467hm63k32" path="res://assets/thepixeltiles/items/测绘台64.png" id="4_p1tex"]
 [ext_resource type="Texture2D" uid="uid://ds7mccb4e617v" path="res://assets/thepixeltiles/trees/treeno1.png" id="4_whjfh"]
 [ext_resource type="Texture2D" uid="uid://blow62u33y7e6" path="res://assets/thepixeltiles/items/flag.png" id="5_2en6l"]
+[ext_resource type="Texture2D" uid="uid://byusdcpkltk31" path="res://assets/face/li_chun.png" id="8_vvxx2"]
+[ext_resource type="Script" uid="uid://c2077ybi0615r" path="res://scripts/data/unit_data.gd" id="9_lwpox"]
+[ext_resource type="Script" uid="uid://cp0ew5p75uio0" path="res://scripts/data/skill_data.gd" id="10_e2tot"]
+[ext_resource type="PackedScene" uid="uid://qkwxdp8ayb57" path="res://scenes/unit/visual/human/li_chun/li_chun_visual.tscn" id="11_lwpox"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_2en6l"]
 texture = ExtResource("3_whjfh")
@@ -635,9 +640,16 @@ terrain_set_0/terrain_6/name = "decora"
 terrain_set_0/terrain_6/color = Color(0.25, 0.5, 0.40625, 1)
 sources/1 = SubResource("TileSetAtlasSource_nxrp2")
 
+[sub_resource type="Resource" id="Resource_6l514"]
+script = ExtResource("9_lwpox")
+unit_name = "李春"
+portrait = ExtResource("8_vvxx2")
+metadata/_custom_type_script = "uid://c2077ybi0615r"
+
 [node name="Level1-2" unique_id=44896622 node_paths=PackedStringArray("obstacles_tilemap_layer") instance=ExtResource("1_base")]
 script = ExtResource("2_script")
 obstacles_tilemap_layer = NodePath("TileMaps/obstacle z=2")
+
 
 [node name="init tile map" type="TileMapLayer" parent="TileMaps" parent_id_path=PackedInt32Array(1122336516) index="0" unique_id=1533431690]
 texture_filter = 1
@@ -648,6 +660,12 @@ z_index = 2
 texture_filter = 1
 tile_map_data = PackedByteArray("AADn/+v/AQAIAAQAAADo/+z/AQAIAAQAAADp/+3/AQAIAAQAAADq/+7/AQAIAAQAAADr/+//AQAIAAQAAADt/+j/AQAHAAQAAADt/+n/AQAHAAQAAADt/+r/AQAHAAQAAADn//L/AQAHAAQAABDo//L/AQAHAAQAABDp//L/AQAHAAQAABDq//L/AQAHAAQAABDr//L/AQAHAAQAABDs//L/AQAHAAQAABDo/+//AQAFAAQAAADm//D/AQAFAAQAAADr//D/AQAGAAQAAAD5/+7/AQAHAAQAAAD5/+3/AQAHAAQAAAD5/+z/AQAHAAQAAAD5/+v/AQAHAAQAAAD5/+//AQAEAAQAAAD5//D/AQAEAAQAAAD5//H/AQAEAAQAAADy/+3/AQAIAAQAAADz/+7/AQAIAAQAAAD0/+//AQAIAAQAAAD1//D/AQAIAAQAAAAPAAYAAQAIAAQAAAARAAgAAQAIAAQAAAASAAkAAQAIAAQAAAAQAAcAAQAIAAQAAAAGAAcAAQAFAAQAAAACAAoAAQAFAAQAAAADAA0AAQAFAAQAAAD9/w4AAQAFAAQAAAD1/xcAAQAFAAQAAAAGABIAAQAFAAQAAAAIABYAAQAFAAQAAAD+/xQAAQAFAAQAAAAMABUAAQAFAAQAAAAAAA8AAQAEAAQAAAAAAA4AAQAEAAQAAAAAAA0AAQAEAAQAAAAAAAwAAQAEAAQAAAASAPv/AQAEAAQAABATAPv/AQAEAAQAABAUAPv/AQAEAAQAABAVAPv/AQAEAAQAABAFABMAAQAGAAQAABAGABMAAQAGAAQAABAHABMAAQAGAAQAABAIABMAAQAGAAQAABAJABMAAQAGAAQAABAEABUAAQAHAAQAAAAEABYAAQAHAAQAAAAEABcAAQAHAAQAAAAEABgAAQAHAAQAAADt//r/AQAFAAUAAADq/wIAAQAFAAUAAADm//7/AQAFAAUAAAD0//j/AQAFAAUAAAD7//H/AQAFAAUAABD+/+v/AQAFAAUAABDp//r/AQAEAAUAAAAAAO//AQADAAUAAAD5/xEAAQADAAUAAAAKAAMAAQABAAUAAAAIAAYAAQABAAUAAAANAAIAAQABAAUAAAAVAPf/AQABAAUAAAAVAPH/AQABAAUAAAAYAPX/AQABAAUAAAATAO3/AQAAAAUAAAATAO7/AQAAAAUAABAUAO3/AQABAAUAAAAYAO3/AQAKAAQAAADq/w8AAQAFAAYAAADw/wgAAQAJAAYAAADy/wsAAQAJAAYAAAADAPn/AQACAAcAAAAKAO//AQAEAAcAAADy/wwAAQAKAAYAAAARAPL/AQABAAUAABD3//b/AQAFAAQAAADq/wUAAQAFAAQAABDm/wgAAQAFAAQAAADo/wwAAQAFAAQAAADv//3/AQAFAAQAABD0//v/AQAFAAQAABDo/xYAAQAGAAYAAADt/xIAAQAGAAYAABD6/wcAAQAGAAYAAAD3/w0AAQAIAAYAABD//wUAAQAIAAYAAAAEAP3/AQAHAAYAABAIAPX/AQAHAAYAABALAOr/AQAIAAYAABALAPX/AQAIAAYAABAIAPr/AQAIAAYAAAA=")
 tile_set = SubResource("TileSet_p1tex")
+
+[node name="测绘台64" type="Sprite2D" parent="TileMaps/obstacle z=2" index="0" unique_id=1510469321]
+texture_filter = 1
+position = Vector2(0.9999999, -171)
+scale = Vector2(0.9306642, 0.8934376)
+texture = ExtResource("4_p1tex")
 
 [node name="decoration z=1" type="TileMapLayer" parent="TileMaps" parent_id_path=PackedInt32Array(1122336516) index="2" unique_id=1348174358]
 z_index = 1
@@ -697,6 +715,9 @@ scale = Vector2(0.671875, 0.671875)
 texture = ExtResource("5_2en6l")
 
 [node name="Player" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="0" unique_id=2088063142 instance=ExtResource("3_player")]
+position = Vector2(2, -45)
+unit_data = SubResource("Resource_6l514")
+visual_scene = ExtResource("11_lwpox")
 
 [node name="MovementManager" parent="." index="6" unique_id=1144669128 node_paths=PackedStringArray("movement_tilemaps", "obstacle_tilemaps")]
 movement_tilemaps = [NodePath("../TileMaps/surface z=0")]

@@ -102,6 +102,8 @@ static func _apply_extra_effect(
 			CombatLog.msg("  额外效果: 关卡机制技能命中")
 		"complete_survey":
 			CombatLog.msg("  额外效果: 踏勘量址 → 完成勘测点 (预留)")
+		"take_parameter", "confirm_parameter", "ink_set_arch":
+			CombatLog.msg("  额外效果: 关卡交互 '%s' (由关卡脚本处理)" % skill.extra_effect_id)
 		_:
 			CombatLog.msg("  额外效果: 未知 effect_id '%s'" % skill.extra_effect_id)
 

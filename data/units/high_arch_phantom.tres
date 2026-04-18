@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="UnitData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/unit_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+unit_id = "high_arch_phantom"
+unit_name = "高拱幻影"
+camp = 1
+max_hp = 76
+base_atk = 18
+ap_max = 90
+move_cost_per_tile = 8
+move_limit = 1
+skill_limit = 1
+innate_element = 0
+innate_element_amount = 0
+ai_type = ""
+is_escort_target = false
+skills = []
