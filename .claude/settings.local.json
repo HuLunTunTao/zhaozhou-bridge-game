@@ -33,7 +33,11 @@
       "mcp__godot-test-mcp__action_press",
       "mcp__godot-test-mcp__action_release",
       "mcp__godot-test-mcp__get_property",
-      "Bash(godot --headless --path . --script scripts/combat/skill_executor.gd)"
+      "Bash(godot --headless --path . --script scripts/combat/skill_executor.gd)",
+      "Bash(git -C \"E:/Any Code/Godot/game0/Godot-game\" diff -- docs/项目介绍_PPT作者版.md)",
+      "Bash(python)",
+      "Bash(python auditscr.py)",
+      "Bash(python -c ' *)"
     ]
   }
 }

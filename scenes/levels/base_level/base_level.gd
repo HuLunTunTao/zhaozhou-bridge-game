@@ -83,6 +83,7 @@ const GrowthChoicePanelScript := preload("res://scenes/ui/growth_choice_panel.gd
 const LLMClientScript := preload("res://scripts/llm/llm_client.gd")
 const BattleContextScript := preload("res://scripts/llm/battle_context.gd")
 const LLMFallbackLinesScript := preload("res://scripts/llm/fallback_lines.gd")
+const TutorialPanelScene := preload("res://scenes/ui/tutorial_panel.tscn")
 
 var tilemap: TileMapLayer
 ## 化势提示 UI（运行时创建，挂在 GUI 层）。
@@ -95,6 +96,7 @@ var _settings_open := false
 var _objectives_open := false
 var _progress_open := false
 var _growth_panel_open := false
+var _tutorial_open := false
 var _round_growth_selected_rounds: Array[int] = []
 var _llm_client: Node = null
 var _ai_busy := false
@@ -1136,6 +1138,13 @@ func _call_ai_with_prompt(prompt: String) -> void:
 		# LLM 调用失败时不暴露报错给玩家，用老监工口吻的兜底台词糊过去
 		push_warning("[LLM] 调用失败 code=%d error=%s" % [resp.code, resp.error])
 		Notify.notify(LLMFallbackLinesScript.random(), Notify.Position.TOP_RIGHT, Notify.Style.INFO, 6.0)
+func _on_tutorial_button_pressed() -> void:
+	if _tutorial_open:
+		return
+	_tutorial_open = true
+	var panel: Node = TutorialPanelScene.instantiate()
+	add_child(panel)
+	panel.closed.connect(func(): _tutorial_open = false)
 
 
 func _on_objectives_button_pressed() -> void:

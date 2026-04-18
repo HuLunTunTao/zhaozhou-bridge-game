@@ -17,6 +17,10 @@ var _ud_whirl_pool: UnitData = preload("res://data/units/whirl_pool.tres")
 var _ud_mud_wraith: UnitData = preload("res://data/units/bank_mud_wraith.tres")
 var _ud_drift_log: UnitData = preload("res://data/units/drift_log_pack.tres")
 
+# ── 教程引导资源 ──
+var _li_chun_portrait: Texture2D = preload("res://assets/face/li_chun.png")
+const TUTORIAL_ID := "level1-1"
+
 # ── 敌方队伍索引 ──
 const ENEMY_TEAM := 1
 
@@ -58,6 +62,10 @@ const COLOR_EVAC := Color(0.9, 0.3, 0.3, 0.6)
 # ── 任务提示 UI ──
 var _mission_hint_label: Label = null
 var _survey_points_label: Label = null
+
+# ── 教程引导运行时状态 ──
+var _onboarding_running: bool = false
+var _onboarding_move_seen: bool = false
 
 
 func get_teams_config() -> Array:
@@ -218,7 +226,10 @@ func _on_level_ready() -> void:
 	_setup_evac_tile()
 	_setup_mission_hint()
 	_setup_survey_points_hint()
-	Notify.notify("任务目标一：派测量工前往 3 个勘测点施放「踏勘量址」。", Notify.Position.TOP_CENTER, Notify.Style.INFO, 4.0)
+	if Progress.has_seen_tutorial(TUTORIAL_ID):
+		Notify.notify("任务目标一：派测量工前往 3 个勘测点施放「踏勘量址」。", Notify.Position.TOP_CENTER, Notify.Style.INFO, 4.0)
+	else:
+		_run_onboarding()
 
 
 func _setup_survey_points() -> void:
@@ -323,9 +334,15 @@ func _on_survey_point_completed(tile: SurveyPointTile) -> void:
 
 func _advance_to_task2() -> void:
 	_current_task = TaskState.TASK2_BRIDGE
-	Notify.notify("所有勘测点已完成！请李春前往勘测点 (-1, 2) 执行「相水定址」。", Notify.Position.TOP_CENTER, Notify.Style.SUCCESS, 4.0)
 	_spawn_bridge_tile()
 	_update_mission_hint()
+	# 让勘测完成的弹字与技能动画过完再开对话。
+	await get_tree().create_timer(0.5).timeout
+	await play_dialogue([
+		_lc_line("三处读数齐了。河心那一段水势最急，也最宜起拱——就是 (-1, 2) 那块。"),
+		_lc_line("我亲自过去走一趟，用「相水定址」把桥位落定。"),
+	])
+	Notify.notify("所有勘测点已完成！请李春前往勘测点 (-1, 2) 执行「相水定址」。", Notify.Position.TOP_CENTER, Notify.Style.SUCCESS, 4.0)
 	_show_objectives_if_not_open()
 	_focus_camera_after_delay(BRIDGE_CELL)
 
@@ -399,8 +416,13 @@ func _spawn_bridge_marker() -> void:
 
 func _advance_to_task3() -> void:
 	_current_task = TaskState.TASK3_EVAC
-	Notify.notify("相水定址完成！请指挥测量工前往撤离点 (23, 19)。", Notify.Position.TOP_CENTER, Notify.Style.SUCCESS, 4.0)
 	_update_mission_hint()
+	await get_tree().create_timer(0.5).timeout
+	await play_dialogue([
+		_lc_line("桥位既定，剩下的是图纸的事。此地非久留之处——测量工带着读数先撤。"),
+		_lc_line("让至少一人走到撤离点 (23, 19)，在那里站到回合末，这趟就算成了。"),
+	])
+	Notify.notify("相水定址完成！请指挥测量工前往撤离点 (23, 19)。", Notify.Position.TOP_CENTER, Notify.Style.SUCCESS, 4.0)
 	_show_objectives_if_not_open()
 	_focus_camera_after_delay(EVAC_CELL)
 
@@ -462,6 +484,7 @@ func _on_skill_executed(caster: Unit, skill: SkillData, cast_cell: Vector2i, _ex
 
 
 func _on_unit_moved() -> void:
+	_onboarding_move_seen = true
 	if _current_task == TaskState.TASK3_EVAC:
 		if _is_surveyor_at_evac():
 			_update_mission_hint()
@@ -512,3 +535,85 @@ func _apply_persistent_growth_effects() -> void:
 		for unit in get_friendly_units():
 			if unit.combat_stats.unit_name == "工匠":
 				modify_unit_skill(unit, "cg_guard_the_works", {"duration_turns": 3})
+
+
+# ─────────────────────────────────────────────
+# 新手引导（首次进入第一关时播放一次）
+# ─────────────────────────────────────────────
+
+## 首次进入第一关触发的软引导：对话说明 + 等待玩家做动作；动作完成则进下一步。
+## 流程：选中单位 → 移动 → 放技能 → 结束回合 → 回到玩家回合 → 引流到右上角规则说明。
+func _run_onboarding() -> void:
+	_onboarding_running = true
+	# 先让场景稳定一帧，避免与 _on_level_ready 后续操作抢输入。
+	await get_tree().process_frame
+
+	# ── 步骤 1：欢迎 + 选中 ──
+	await play_dialogue([
+		_lc_line("赵县的洨河，我们要在这里起一座石桥。先让我看看你熟不熟悉这场仗的规矩。"),
+		_lc_line("左键点一下我，就能选中我——左键用来确认，右键或 Esc 用来取消。"),
+	])
+	if not _onboarding_running:
+		return
+	Notify.notify("左键点击李春（或任意己方单位）。", Notify.Position.TOP_CENTER, Notify.Style.INFO, 8.0)
+	while _onboarding_running and selected_unit == null:
+		await get_tree().process_frame
+	if not _onboarding_running:
+		return
+
+	# ── 步骤 2：看状态栏 + 移动 ──
+	await play_dialogue([
+		_lc_line("屏幕底下的状态栏里：左边是血量 HP 和行动力 AP，右边是可用技能，还有我的当前属性与固有属性。"),
+		_lc_line("地图上高亮的格子，就是这回合能走到的范围。左键点其中一格试试。"),
+	])
+	if not _onboarding_running:
+		return
+	Notify.notify("左键点击一个高亮格让单位走过去。", Notify.Position.TOP_CENTER, Notify.Style.INFO, 8.0)
+	_onboarding_move_seen = false
+	while _onboarding_running and not _onboarding_move_seen:
+		await get_tree().process_frame
+	if not _onboarding_running:
+		return
+
+	# ── 步骤 3：AP + 技能 ──
+	await play_dialogue([
+		_lc_line("走路花的是 AP，剩下的 AP 还能放技能。点状态栏右边的技能图标，再左键点想施放的位置。"),
+		_lc_line("技能不只能打人。先挑一块空地放一下感受感受——瞄错了就按右键或 Esc 取消。"),
+		_lc_line("熟了之后，再朝敌人所在的格子来一下，看看命中后会发生什么。"),
+	])
+	if not _onboarding_running:
+		return
+	Notify.notify("点技能图标 → 左键点目标（先试空地，再试敌人）。", Notify.Position.TOP_CENTER, Notify.Style.INFO, 12.0)
+	await skill_executed
+	if not _onboarding_running:
+		return
+
+	# ── 步骤 4：结束回合 ──
+	await play_dialogue([
+		_lc_line("不错。等全队都动完了，点右下角的「结束回合」，把这轮交给敌人。"),
+	])
+	if not _onboarding_running:
+		return
+	Notify.notify("按右下角「结束回合」结束本回合。", Notify.Position.TOP_CENTER, Notify.Style.INFO, 12.0)
+	while _onboarding_running:
+		var team_idx: int = await team_turn_started
+		if team_idx == 0:
+			break
+	if not _onboarding_running:
+		return
+
+	# ── 步骤 5：引流到右上角规则说明 + 任务 ──
+	await play_dialogue([
+		_lc_line("基本功就这些。五行流转、化势反应、地形消耗这些细节——点右上角的 📖，规则说明里都写着。"),
+		_lc_line("这一关你要做的事，是让测量工到三个勘测点上用「踏勘量址」标记。接下来就看你的了。"),
+	])
+
+	Notify.notify("任务目标一：派测量工前往 3 个勘测点施放「踏勘量址」。", Notify.Position.TOP_CENTER, Notify.Style.INFO, 4.0)
+
+	Progress.mark_tutorial_seen(TUTORIAL_ID)
+	_onboarding_running = false
+
+
+## 李春对话单行构造的小帮手：自动带头像，放左侧。
+func _lc_line(text: String) -> DialogueLine:
+	return DialogueLine.create("李春", text, _li_chun_portrait, "left")

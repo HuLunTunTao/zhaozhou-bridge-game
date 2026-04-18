@@ -1,0 +1,141 @@
+[gd_scene load_steps=2 format=3 uid="uid://dtuvx8aa8bcde"]
+
+[ext_resource type="Script" path="res://scenes/ui/tutorial_panel.gd" id="1_script"]
+
+[sub_resource type="StyleBoxFlat" id="panel_bg"]
+content_margin_left = 20.0
+content_margin_top = 14.0
+content_margin_right = 20.0
+content_margin_bottom = 14.0
+bg_color = Color(0.09, 0.10, 0.13, 0.97)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.30, 0.35, 0.40, 1)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[node name="TutorialPanel" type="CanvasLayer"]
+script = ExtResource("1_script")
+
+[node name="Backdrop" type="ColorRect" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0.72)
+
+[node name="Panel" type="PanelContainer" parent="Backdrop"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -360.0
+offset_top = -230.0
+offset_right = 360.0
+offset_bottom = 230.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("panel_bg")
+
+[node name="Content" type="VBoxContainer" parent="Backdrop/Panel"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Title" type="Label" parent="Backdrop/Panel/Content"]
+layout_mode = 2
+text = "游戏规则说明"
+horizontal_alignment = 1
+
+[node name="Tabs" type="TabContainer" parent="Backdrop/Panel/Content"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 360)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="目标与回合" type="ScrollContainer" parent="Backdrop/Panel/Content/Tabs"]
+layout_mode = 2
+horizontal_scroll_mode = 0
+
+[node name="BasicsBody" type="RichTextLabel" parent="Backdrop/Panel/Content/Tabs/目标与回合"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+bbcode_enabled = true
+fit_content = true
+scroll_active = false
+autowrap_mode = 3
+
+[node name="基础操作" type="ScrollContainer" parent="Backdrop/Panel/Content/Tabs"]
+visible = false
+layout_mode = 2
+horizontal_scroll_mode = 0
+
+[node name="TurnBody" type="RichTextLabel" parent="Backdrop/Panel/Content/Tabs/基础操作"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+bbcode_enabled = true
+fit_content = true
+scroll_active = false
+autowrap_mode = 3
+
+[node name="伤害与五行流转" type="ScrollContainer" parent="Backdrop/Panel/Content/Tabs"]
+visible = false
+layout_mode = 2
+horizontal_scroll_mode = 0
+
+[node name="ElementsBody" type="RichTextLabel" parent="Backdrop/Panel/Content/Tabs/伤害与五行流转"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+bbcode_enabled = true
+fit_content = true
+scroll_active = false
+autowrap_mode = 3
+
+[node name="地形与机关" type="ScrollContainer" parent="Backdrop/Panel/Content/Tabs"]
+visible = false
+layout_mode = 2
+horizontal_scroll_mode = 0
+
+[node name="StatusBody" type="RichTextLabel" parent="Backdrop/Panel/Content/Tabs/地形与机关"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+bbcode_enabled = true
+fit_content = true
+scroll_active = false
+autowrap_mode = 3
+
+[node name="状态与界面" type="ScrollContainer" parent="Backdrop/Panel/Content/Tabs"]
+visible = false
+layout_mode = 2
+horizontal_scroll_mode = 0
+
+[node name="TipsBody" type="RichTextLabel" parent="Backdrop/Panel/Content/Tabs/状态与界面"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+bbcode_enabled = true
+fit_content = true
+scroll_active = false
+autowrap_mode = 3
+
+[node name="CloseButton" type="Button" parent="Backdrop/Panel/Content"]
+layout_mode = 2
+text = "关闭"
+
+[connection signal="pressed" from="Backdrop/Panel/Content/CloseButton" to="." method="_on_close_pressed"]
