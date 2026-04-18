@@ -88,6 +88,8 @@ func get_teams_config() -> Array:
 
 
 func get_wave_config() -> Dictionary:
+	# 节奏：开场压一下，前期 2–3 回合一波逐步加温，中后期稳定 3 回合一波，
+	# 整体展开到 r20，避免早期扎堆也不会拖到新手无事可做。
 	return {
 		1: [
 			{"unit_data": _ud_dark_current, "cell": Vector2i(13, -24), "team_index": ENEMY_TEAM,
@@ -98,32 +100,32 @@ func get_wave_config() -> Dictionary:
 		3: [
 			{"unit_data": _ud_whirl_pool, "cell": Vector2i(15, -24), "team_index": ENEMY_TEAM,
 			 "skills": [_sk_pull], "color": COLOR_WHIRL_POOL},
+		],
+		5: [
 			{"unit_data": _ud_drift_log, "cell": Vector2i(-19, 21), "team_index": ENEMY_TEAM,
 			 "skills": [_sk_timber], "color": COLOR_DRIFT_LOG},
 		],
-		6: [
+		8: [
 			{"unit_data": _ud_mud_wraith, "cell": Vector2i(11, -18), "team_index": ENEMY_TEAM,
 			 "skills": [_sk_crush], "color": COLOR_MUD_WRAITH},
 		],
-		7: [
+		11: [
 			{"unit_data": _ud_dark_current, "cell": Vector2i(-24, 20), "team_index": ENEMY_TEAM,
 			 "skills": [_sk_lunge], "color": COLOR_DARK_CURRENT},
-		],
-		8: [
-			{"unit_data": _ud_drift_log, "cell": Vector2i(-20, 21), "team_index": ENEMY_TEAM,
-			 "skills": [_sk_timber], "color": COLOR_DRIFT_LOG},
 			{"unit_data": _ud_whirl_pool, "cell": Vector2i(14, -21), "team_index": ENEMY_TEAM,
 			 "skills": [_sk_pull], "color": COLOR_WHIRL_POOL},
 		],
-		11: [
+		14: [
+			{"unit_data": _ud_drift_log, "cell": Vector2i(-20, 21), "team_index": ENEMY_TEAM,
+			 "skills": [_sk_timber], "color": COLOR_DRIFT_LOG},
+		],
+		17: [
 			{"unit_data": _ud_dark_current, "cell": Vector2i(14, -24), "team_index": ENEMY_TEAM,
 			 "skills": [_sk_lunge], "color": COLOR_DARK_CURRENT},
-		],
-		12: [
 			{"unit_data": _ud_mud_wraith, "cell": Vector2i(-22, 20), "team_index": ENEMY_TEAM,
 			 "skills": [_sk_crush], "color": COLOR_MUD_WRAITH},
 		],
-		14: [
+		20: [
 			{"unit_data": _ud_whirl_pool, "cell": Vector2i(13, -24), "team_index": ENEMY_TEAM,
 			 "skills": [_sk_pull], "color": COLOR_WHIRL_POOL},
 			{"unit_data": _ud_drift_log, "cell": Vector2i(-19, 21), "team_index": ENEMY_TEAM,
