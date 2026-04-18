@@ -135,9 +135,8 @@ func show_unit(unit: Node2D, is_active: bool = false) -> void:
 	if stats:
 		_name_label.text = stats.unit_name
 		_atk_label.text = "攻击力 %d" % stats.base_atk
-		# 头像：从 unit_data.portrait 读取
-		var data: UnitData = unit.unit_data if unit is Unit else null
-		_portrait.texture = data.portrait if data and data.portrait else null
+		# 头像：优先 unit_data.portrait，缺失时回退到朝右 idle 首帧
+		_portrait.texture = unit.get_portrait_texture() if unit is Unit else null
 
 		_hp_bar.max_value = stats.max_hp
 		_hp_bar.value = stats.current_hp
