@@ -21,6 +21,8 @@ var _close_arch_ap_cost := 35
 var _status_panel: RichTextLabel = null
 # 上一次结算时的平衡状态（"均衡" / "偏衡" / "失衡"），用于检测状态切换
 var _prev_balance_state: String = "均衡"
+# Boss「倾压之号」—— 整关只触发一次的急召机制
+var _clutch_fired: bool = false
 
 var _left_platform: Vector2i
 var _right_platform: Vector2i
@@ -77,6 +79,12 @@ func get_wave_config() -> Dictionary:
 	var center_front := _nearest_walkable(_crown_point + Vector2i(0, 1))
 	var stone_yard_left := _nearest_walkable(_stone_yard_cells[0] + Vector2i(-1, 0))
 	var stone_yard_right := _nearest_walkable(_stone_yard_cells[1] + Vector2i(1, 0))
+	# 错券兵刷在当前较高一侧，强化"必须先护哪边"的决策
+	var misaligned_flank: Vector2i
+	if _right_arch_value > _left_arch_value:
+		misaligned_flank = right_flank
+	else:
+		misaligned_flank = left_flank
 	return {
 		2: [
 			{"unit_data": _make_unit_data(_dark_data, "断索鬼", 78, 18, 100, 7, Enums.Element.WOOD, 2),
@@ -95,7 +103,7 @@ func get_wave_config() -> Dictionary:
 		],
 		6: [
 			{"unit_data": _make_unit_data(_craftsman_data, "错券兵", 90, 17, 90, 9),
-				"cell": left_flank, "team_index": ENEMY_TEAM,
+				"cell": misaligned_flank, "team_index": ENEMY_TEAM,
 				"skills": [_mallet], "visual": _visual_misaligned},
 			{"unit_data": _make_unit_data(_dark_data, "断索鬼", 78, 18, 100, 7, Enums.Element.WOOD, 2),
 				"cell": stone_yard_right, "team_index": ENEMY_TEAM,
@@ -115,16 +123,20 @@ func get_wave_config() -> Dictionary:
 
 
 func get_objectives_text() -> Dictionary:
+	var boss_alive := _boss != null and _boss.combat_stats != null and _boss.combat_stats.is_alive()
+	var gap := _arch_gap()
 	return {
 		"victory": [
-			"- 左右券值均达到 8",
-			"- 李春在拱冠点完成收缝合龙",
-			"- 击退偏载傀",
+			"- 左券值达到 8（当前 %d/8）" % _left_arch_value,
+			"- 右券值达到 8（当前 %d/8）" % _right_arch_value,
+			"- 左右差值保持 ≤1（当前 %d）" % gap,
+			"- 李春在拱冠点执行「收缝合龙」（%s）" % ("已完成" if _arch_closed else "未完成"),
+			"- 击败偏载傀（%s）" % ("已击败" if not boss_alive else "存活"),
 		],
 		"defeat": [
 			"- 李春倒下",
-			"- 桥体稳定值归零",
-			"- 超过第 14 回合",
+			"- 桥体稳定值归零（当前 %d/6）" % _bridge_stability,
+			"- 超过第 14 回合（当前第 %d 回合）" % round_number,
 		],
 	}
 
@@ -217,6 +229,7 @@ func _on_stage_team_turn_started(team_index: int) -> void:
 	if team_index == ENEMY_TEAM:
 		_pending_enemy_resolution = true
 		_shift_load()
+		_maybe_boss_clutch_summon()
 	elif team_index == PLAYER_TEAM and _pending_enemy_resolution:
 		_pending_enemy_resolution = false
 		_resolve_enemy_pressure()
@@ -333,6 +346,55 @@ func _shift_load() -> void:
 		_adjust_arch_value(false, -1, "偏载傀压右券")
 	else:
 		_adjust_arch_value(true, -1, "偏载傀压左券")
+
+
+## 偏载傀「倾压之号」：整关只触发一次的急召。
+##
+## 当两侧施工都逼近上限（min >= 7）且差值已收拢（<= 1）、但玩家还没合龙，
+## 偏载傀从较高一侧突然召唤 2 名错券兵。错券兵本身带扰券被动——下回合末
+## 会把那一侧 −2，瞬间把玩家从"就差合龙一步"推回"需要先清兵再合龙"的决策点。
+##
+## 这个机制与 _shift_load（每回合温和地 −1）互补：shift_load 是慢性压力，
+## 倾压之号是临门一脚的爆发。触发后 _clutch_fired 置 true，整关不再触发。
+func _maybe_boss_clutch_summon() -> void:
+	if _clutch_fired or _arch_closed:
+		return
+	if _boss == null or _boss.combat_stats == null or not _boss.combat_stats.is_alive():
+		return
+	if mini(_left_arch_value, _right_arch_value) < 7:
+		return
+	if _arch_gap() > 1:
+		return
+	# 选定较高一侧；相等则随机
+	var target_left: bool
+	if _left_arch_value > _right_arch_value:
+		target_left = true
+	elif _right_arch_value > _left_arch_value:
+		target_left = false
+	else:
+		target_left = randi() % 2 == 0
+	var platform: Vector2i = _left_platform if target_left else _right_platform
+	var side_name: String = "左" if target_left else "右"
+	var offsets: Array[Vector2i]
+	if target_left:
+		offsets = [Vector2i(-1, -1), Vector2i(-1, 1)]
+	else:
+		offsets = [Vector2i(1, -1), Vector2i(1, 1)]
+	var summoned: Array[Unit] = []
+	for off in offsets:
+		var cell := _nearest_walkable(platform + off)
+		var unit := _spawn_enemy(
+			_make_unit_data(_craftsman_data, "错券兵", 90, 17, 90, 9),
+			cell, [_mallet], _visual_misaligned,
+		)
+		summoned.append(unit)
+	_clutch_fired = true
+	Notify.notify(
+		"偏载傀倾压之号！%s侧突现 2 名错券兵，下回合末将扰券 −2" % side_name,
+		Notify.Position.TOP_CENTER, Notify.Style.ERROR, 4.0,
+	)
+	if not summoned.is_empty():
+		_camera_focus_spawned(summoned)
 
 
 func _resolve_enemy_pressure() -> void:
