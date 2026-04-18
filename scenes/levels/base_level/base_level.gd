@@ -80,6 +80,7 @@ const SettingsPanelScene := preload("res://scenes/ui/settings_panel.tscn")
 const ObjectivesPanelScene := preload("res://scenes/ui/objectives_panel.tscn")
 const ProgressPanelScene := preload("res://scenes/ui/progress_panel.tscn")
 const GrowthChoicePanelScript := preload("res://scenes/ui/growth_choice_panel.gd")
+const LLMClientScript := preload("res://scripts/llm/llm_client.gd")
 
 var tilemap: TileMapLayer
 ## 化势提示 UI（运行时创建，挂在 GUI 层）。
@@ -93,6 +94,8 @@ var _objectives_open := false
 var _progress_open := false
 var _growth_panel_open := false
 var _round_growth_selected_rounds: Array[int] = []
+var _llm_client: Node = null
+var _ai_busy := false
 
 ## 输入状态机。
 enum InputState { IDLE, UNIT_SELECTED, TARGETING_MOVE, TARGETING_SKILL, ANIMATING }
@@ -198,6 +201,8 @@ func _ready() -> void:
 	# 回合计数器
 	round_started.connect(_update_round_label)
 	_update_round_label(round_number)
+	# 每个大回合开始（玩家→友方→敌人 跑完一圈后）自动触发一次 AI
+	round_started.connect(_on_round_started_ai_call)
 	# 连接状态栏技能按钮信号
 	if status_bar and status_bar.has_signal("skill_button_pressed"):
 		status_bar.skill_button_pressed.connect(_on_skill_button_pressed)
@@ -1079,6 +1084,35 @@ func _on_settings_button_pressed() -> void:
 	panel.show_back_to_menu = true
 	add_child(panel)
 	panel.closed.connect(func(): _settings_open = false)
+
+
+## AI 支持按钮：临时调用 LLM 做一次测试请求。后续会替换为具体业务（旁白/调侃等）。
+func _on_ai_button_pressed() -> void:
+	await _call_ai_with_prompt("你是李春建造赵州桥的助手。请用一句话（不超过30字）说一句鼓励他的话。")
+
+
+## 大回合开始信号回调：自动触发一次 AI（占位，后续替换为剧情/战况点评）。
+func _on_round_started_ai_call(rn: int) -> void:
+	await _call_ai_with_prompt("第 %d 回合开始。请用一句话（不超过30字）点评战局或鼓舞士气。" % rn)
+
+
+## 内部：拼请求 + 显示 toast。被按钮和回合开始两处复用。
+func _call_ai_with_prompt(prompt: String) -> void:
+	if _ai_busy:
+		return
+	_ai_busy = true
+	if _llm_client == null:
+		_llm_client = LLMClientScript.new()
+		add_child(_llm_client)
+	Notify.notify("AI 调用中...", Notify.Position.TOP_RIGHT, Notify.Style.INFO, 1.5)
+	var resp: Dictionary = await _llm_client.chat_completion([
+		{"role": "user", "content": prompt}
+	], {"max_tokens": 120, "temperature": 0.8})
+	_ai_busy = false
+	if resp.ok:
+		Notify.notify(resp.text, Notify.Position.TOP_RIGHT, Notify.Style.SUCCESS, 6.0)
+	else:
+		Notify.notify("AI 调用失败: %s" % resp.error, Notify.Position.TOP_RIGHT, Notify.Style.ERROR, 5.0)
 
 
 func _on_objectives_button_pressed() -> void:
