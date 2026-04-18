@@ -80,6 +80,7 @@ const SettingsPanelScene := preload("res://scenes/ui/settings_panel.tscn")
 const ObjectivesPanelScene := preload("res://scenes/ui/objectives_panel.tscn")
 const ProgressPanelScene := preload("res://scenes/ui/progress_panel.tscn")
 const GrowthChoicePanelScript := preload("res://scenes/ui/growth_choice_panel.gd")
+const TutorialPanelScene := preload("res://scenes/ui/tutorial_panel.tscn")
 
 var tilemap: TileMapLayer
 ## 化势提示 UI（运行时创建，挂在 GUI 层）。
@@ -92,6 +93,7 @@ var _settings_open := false
 var _objectives_open := false
 var _progress_open := false
 var _growth_panel_open := false
+var _tutorial_open := false
 var _round_growth_selected_rounds: Array[int] = []
 
 ## 输入状态机。
@@ -1079,6 +1081,15 @@ func _on_settings_button_pressed() -> void:
 	panel.show_back_to_menu = true
 	add_child(panel)
 	panel.closed.connect(func(): _settings_open = false)
+
+
+func _on_tutorial_button_pressed() -> void:
+	if _tutorial_open:
+		return
+	_tutorial_open = true
+	var panel: Node = TutorialPanelScene.instantiate()
+	add_child(panel)
+	panel.closed.connect(func(): _tutorial_open = false)
 
 
 func _on_objectives_button_pressed() -> void:
