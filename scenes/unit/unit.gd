@@ -213,6 +213,15 @@ func refresh_overhead_bars() -> void:
 		_hp_bar.update_element(combat_stats.current_element, combat_stats.current_element_amount)
 
 
+## 获取单位头像。优先使用 unit_data.portrait，为空时回退到 Visual 的朝右 idle 首帧。
+func get_portrait_texture() -> Texture2D:
+	if unit_data and unit_data.portrait:
+		return unit_data.portrait
+	if _visual:
+		return _visual.get_idle_right_first_frame()
+	return null
+
+
 ## 根据等距坐标步进方向确定朝向。
 ## +x = 右前(SE), -x = 左后(NW), +y = 左前(SW), -y = 右后(NE)
 func _facing_from_step(step: Vector2i) -> UnitVisual.Facing:

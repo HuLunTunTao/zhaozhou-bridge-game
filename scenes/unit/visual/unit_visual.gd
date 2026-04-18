@@ -81,6 +81,22 @@ func replace_sprite_frames(new_frames: SpriteFrames) -> void:
 	sprite_frames = new_frames
 
 
+## 取「朝右 idle 动画」的第 0 帧纹理，供头像兜底使用。
+## 若该动画不存在（如只有 &"default" 的怪物），退回到 SpriteFrames 中第一个动画的第 0 帧。
+func get_idle_right_first_frame() -> Texture2D:
+	if sprite_frames == null:
+		return null
+	var anim := _resolve_anim_name(Facing.RIGHT_FRONT, &"idle")
+	if not sprite_frames.has_animation(anim):
+		var names := sprite_frames.get_animation_names()
+		if names.is_empty():
+			return null
+		anim = names[0]
+	if sprite_frames.get_frame_count(anim) <= 0:
+		return null
+	return sprite_frames.get_frame_texture(anim, 0)
+
+
 # ─────────────────────────────────────────────
 # 内部方法（可覆写）
 # ─────────────────────────────────────────────
