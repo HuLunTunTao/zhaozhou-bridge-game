@@ -334,9 +334,15 @@ func _on_survey_point_completed(tile: SurveyPointTile) -> void:
 
 func _advance_to_task2() -> void:
 	_current_task = TaskState.TASK2_BRIDGE
-	Notify.notify("所有勘测点已完成！请李春前往勘测点 (-1, 2) 执行「相水定址」。", Notify.Position.TOP_CENTER, Notify.Style.SUCCESS, 4.0)
 	_spawn_bridge_tile()
 	_update_mission_hint()
+	# 让勘测完成的弹字与技能动画过完再开对话。
+	await get_tree().create_timer(0.5).timeout
+	await play_dialogue([
+		_lc_line("三处读数齐了。河心那一段水势最急，也最宜起拱——就是 (-1, 2) 那块。"),
+		_lc_line("我亲自过去走一趟，用「相水定址」把桥位落定。"),
+	])
+	Notify.notify("所有勘测点已完成！请李春前往勘测点 (-1, 2) 执行「相水定址」。", Notify.Position.TOP_CENTER, Notify.Style.SUCCESS, 4.0)
 	_show_objectives_if_not_open()
 	_focus_camera_after_delay(BRIDGE_CELL)
 
@@ -410,8 +416,13 @@ func _spawn_bridge_marker() -> void:
 
 func _advance_to_task3() -> void:
 	_current_task = TaskState.TASK3_EVAC
-	Notify.notify("相水定址完成！请指挥测量工前往撤离点 (23, 19)。", Notify.Position.TOP_CENTER, Notify.Style.SUCCESS, 4.0)
 	_update_mission_hint()
+	await get_tree().create_timer(0.5).timeout
+	await play_dialogue([
+		_lc_line("桥位既定，剩下的是图纸的事。此地非久留之处——测量工带着读数先撤。"),
+		_lc_line("让至少一人走到撤离点 (23, 19)，在那里站到回合末，这趟就算成了。"),
+	])
+	Notify.notify("相水定址完成！请指挥测量工前往撤离点 (23, 19)。", Notify.Position.TOP_CENTER, Notify.Style.SUCCESS, 4.0)
 	_show_objectives_if_not_open()
 	_focus_camera_after_delay(EVAC_CELL)
 
