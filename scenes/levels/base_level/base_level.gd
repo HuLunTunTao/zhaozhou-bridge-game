@@ -91,12 +91,6 @@ var _phase_notification: PhaseNotification = null
 ## 兼容旧版：指向第一个玩家控制队伍的第一个单位（李春）。
 var hero: Node2D
 var unit_selected := false
-var _mid_cutscene_active := false
-var _settings_open := false
-var _objectives_open := false
-var _progress_open := false
-var _growth_panel_open := false
-var _tutorial_open := false
 var _round_growth_selected_rounds: Array[int] = []
 var _llm_client: Node = null
 var _ai_busy := false
@@ -104,6 +98,81 @@ var _ai_busy := false
 ## 输入状态机。
 enum InputState { IDLE, UNIT_SELECTED, TARGETING_MOVE, TARGETING_SKILL, ANIMATING }
 var _input_state: InputState = InputState.IDLE
+
+# ─────────────────────────────────────────────
+# 关卡状态机（双轴：LevelPhase × ActiveOverlay）
+# ─────────────────────────────────────────────
+
+## 关卡生命周期粗粒度时间线，单向转换 BRIEFING → PLAYING → ENDED。
+enum LevelPhase { BRIEFING, PLAYING, ENDED }
+
+## 当前独占前景的瞬态 UI。同时只能有一个非 NONE。统一替代原先 6 个独立 bool。
+enum ActiveOverlay {
+	NONE,
+	BRIEFING_OBJECTIVES,
+	DIALOGUE,
+	CUTSCENE,
+	OBJECTIVES_REVIEW,
+	SETTINGS,
+	PROGRESS,
+	TUTORIAL_PANEL,
+	GROWTH_CHOICE,
+	DEFEAT_PANEL,
+}
+
+var _level_phase: LevelPhase = LevelPhase.BRIEFING
+var _active_overlay: ActiveOverlay = ActiveOverlay.NONE
+
+## 关卡主阶段切换（BRIEFING → PLAYING → ENDED）。子关卡订阅启动教程、开场演出等。
+signal phase_changed(new_phase: int)
+## overlay 打开/关闭。用于观察者，不负责互斥（互斥由 _open_overlay 守护）。
+signal overlay_opened(kind: int)
+signal overlay_closed(kind: int)
+
+## selected_unit 赋值或清空（含 _go_idle / _confirm_idle / _confirm_move）。unit 为 null 表示取消选中。
+signal selection_changed(unit: Node2D)
+## 玩家控制的单位完成一次移动（AP 扣除后、_on_unit_moved 钩子之后发射）。
+signal unit_move_completed(unit: Unit)
+
+
+func is_phase_playing() -> bool:
+	return _level_phase == LevelPhase.PLAYING
+
+
+func is_phase_ended() -> bool:
+	return _level_phase == LevelPhase.ENDED
+
+
+func has_overlay() -> bool:
+	return _active_overlay != ActiveOverlay.NONE
+
+
+## 进入一个 overlay。若已有 overlay 则拒绝（互斥），node 由本方法 add_child 并挂 closed 回调。
+## 返回是否成功进入。
+func _open_overlay(kind: ActiveOverlay, node: Node, closed_signal: StringName = &"closed") -> bool:
+	if _active_overlay != ActiveOverlay.NONE:
+		return false
+	_active_overlay = kind
+	add_child(node)
+	if node.has_signal(closed_signal):
+		node.connect(closed_signal, _close_overlay.bind(kind), CONNECT_ONE_SHOT)
+	overlay_opened.emit(kind)
+	return true
+
+
+## 关闭当前 overlay。仅当 kind 匹配当前 active 时生效（防止竞态关错）。
+func _close_overlay(kind: ActiveOverlay) -> void:
+	if _active_overlay != kind:
+		return
+	_active_overlay = ActiveOverlay.NONE
+	overlay_closed.emit(kind)
+
+
+func _set_phase(p: LevelPhase) -> void:
+	if _level_phase == p:
+		return
+	_level_phase = p
+	phase_changed.emit(p)
 ## 当前选中的技能（TARGETING_SKILL 状态时有效）。
 var _current_skill: SkillData = null
 ## 技能范围 Overlay（运行时动态创建）。
@@ -195,7 +264,6 @@ func _ready() -> void:
 	if camera and camera is LevelCamera:
 		(camera as LevelCamera).set_level_bounds(get_tilemap_bounds())
 	_on_level_ready()
-	_init_turn_system()
 	_apply_tilemap_texture_filter()
 	# 连接倒下处理
 	unit_died.connect(_on_unit_died)
@@ -215,8 +283,30 @@ func _ready() -> void:
 	# 初始显示主角信息
 	if hero:
 		_update_status_bar_for_unit(hero, false)
-	# 进入关卡时自动弹出本关目标
-	show_objectives.call_deferred()
+	# 进入关卡：弹出初始目标面板（BRIEFING 阶段），关闭后才启动回合系统进入 PLAYING
+	_begin_initial_briefing.call_deferred()
+
+
+## BRIEFING 入口：弹出初始目标面板；若无目标文本则直接进入 PLAYING。
+func _begin_initial_briefing() -> void:
+	var obj := get_objectives_text()
+	var has_objectives: bool = not obj["victory"].is_empty() or not obj["defeat"].is_empty()
+	if not has_objectives:
+		_on_initial_briefing_done()
+		return
+	var panel: ObjectivesPanel = ObjectivesPanelScene.instantiate()
+	panel.victory_lines = obj["victory"]
+	panel.defeat_lines = obj["defeat"]
+	panel.closed.connect(_on_initial_briefing_done, CONNECT_ONE_SHOT)
+	_open_overlay(ActiveOverlay.BRIEFING_OBJECTIVES, panel)
+
+
+## 初始目标面板关闭：BRIEFING → PLAYING，启动回合系统。
+func _on_initial_briefing_done() -> void:
+	if _level_phase != LevelPhase.BRIEFING:
+		return
+	_set_phase(LevelPhase.PLAYING)
+	_init_turn_system()
 
 
 func _play_level_bgm() -> void:
@@ -354,22 +444,18 @@ func _process_wave(round_num: int) -> Array[Unit]:
 	return spawned
 
 
-var _level_ended := false
-
 ## 执行胜负条件检查。在关键事件（倒下、回合开始）后自动调用。
 func _check_win_lose(_arg = null) -> void:
-	if _level_ended:
+	if is_phase_ended():
 		return
 	await get_tree().process_frame
-	if _level_ended:
+	if is_phase_ended():
 		return
 	var defeat_reason: String = check_defeat()
 	if defeat_reason != "":
-		_level_ended = true
 		defeat_level(defeat_reason)
 		return
 	if check_victory():
-		_level_ended = true
 		complete_level()
 
 # 用于测试的一键胜利按钮
@@ -436,6 +522,8 @@ func _init_turn_system() -> void:
 # ─────────────────────────────────────────────
 
 func _start_team_turn(index: int) -> void:
+	if is_phase_ended():
+		return
 	current_team_index = index
 	var team: TeamData = teams[index]
 	CombatLog.msg("═══ %s 的回合开始 ═══" % team.team_name)
@@ -564,7 +652,7 @@ func end_team_turn() -> void:
 	var team: TeamData = teams[current_team_index]
 	if team.controller == "player" and not _waiting_for_player_input:
 		return
-	if _mid_cutscene_active:
+	if _active_overlay == ActiveOverlay.CUTSCENE:
 		return
 	_do_end_turn()
 
@@ -626,7 +714,7 @@ func _on_end_turn_button_pressed() -> void:
 
 
 func _try_prompt_round_growth() -> bool:
-	if _growth_panel_open:
+	if _active_overlay == ActiveOverlay.GROWTH_CHOICE:
 		return true
 	if current_team_index < 0 or current_team_index >= teams.size():
 		return false
@@ -645,13 +733,15 @@ func _try_prompt_round_growth() -> bool:
 	panel.options = options
 	panel.required_selection_count = 2
 	panel.options_confirmed.connect(_on_round_growth_options_confirmed)
+	# panel 本身没有 closed 信号，我们自己在 options_confirmed 回调里关闭 overlay
+	_active_overlay = ActiveOverlay.GROWTH_CHOICE
 	add_child(panel)
-	_growth_panel_open = true
+	overlay_opened.emit(ActiveOverlay.GROWTH_CHOICE)
 	return true
 
 
 func _on_round_growth_options_confirmed(option_ids: Array[String]) -> void:
-	_growth_panel_open = false
+	_close_overlay(ActiveOverlay.GROWTH_CHOICE)
 	if round_number not in _round_growth_selected_rounds:
 		_round_growth_selected_rounds.append(round_number)
 	for option_id in option_ids:
@@ -723,7 +813,7 @@ func _run_ai_turn(team: TeamData) -> void:
 	var lv_camera := camera as LevelCamera
 	var context := _get_ai_context()
 	for unit: Node2D in team.units:
-		if _level_ended:
+		if is_phase_ended():
 			break
 		if not is_instance_valid(unit):
 			continue
@@ -757,7 +847,7 @@ func _run_ai_turn(team: TeamData) -> void:
 			u.refresh_overhead_bars()
 			CombatLog.msg("    移动: %s → %s (消耗%dAP)" % [from_cell, u.cell, action["move_cost"]])
 
-		if _level_ended:
+		if is_phase_ended():
 			break
 
 		# 执行攻击
@@ -768,7 +858,7 @@ func _run_ai_turn(team: TeamData) -> void:
 
 	if lv_camera:
 		lv_camera.unlock()
-	if not _level_ended:
+	if not is_phase_ended():
 		_do_end_turn()
 
 
@@ -901,27 +991,27 @@ func _reset_status_bar() -> void:
 
 ## Play a mid-battle cutscene as an overlay. Blocks until finished.
 func play_mid_cutscene(pages: Array) -> void:
-	_mid_cutscene_active = true
 	var cutscene: CutscenePlayer = preload("res://scenes/cutscene/cutscene_player.tscn").instantiate()
-	add_child(cutscene)
 	cutscene.setup(pages)
+	if not _open_overlay(ActiveOverlay.CUTSCENE, cutscene, &"cutscene_finished"):
+		cutscene.queue_free()
+		return
 	await cutscene.cutscene_finished
-	_mid_cutscene_active = false
 
 
 ## Call when the level is won. Handles post-cutscene or returns to menu.
 func complete_level() -> void:
+	_set_phase(LevelPhase.ENDED)
 	UiSounds.play_victory()
 	var level := GameState.selected_level
 	var growth_options := get_post_level_growth_options()
 	if not growth_options.is_empty() and not Progress.has_level_growth_choices(level):
-		_growth_panel_open = true
 		var panel := GrowthChoicePanelScript.new()
 		panel.panel_title = "结算成长"
 		panel.options = growth_options
 		panel.required_selection_count = 2
 		panel.options_confirmed.connect(func(option_ids: Array[String]):
-			_growth_panel_open = false
+			_close_overlay(ActiveOverlay.GROWTH_CHOICE)
 			Progress.complete_level(level, option_ids)
 			var chosen_names: Array[String] = []
 			for option_id in option_ids:
@@ -930,7 +1020,10 @@ func complete_level() -> void:
 				Notify.notify("已选择结算成长：%s" % "、".join(chosen_names), Notify.Position.TOP_CENTER, Notify.Style.SUCCESS, 3.0)
 			_continue_after_level_completion(level)
 		, CONNECT_ONE_SHOT)
+		# GrowthChoicePanel 没有 closed 信号，自行设置 overlay
+		_active_overlay = ActiveOverlay.GROWTH_CHOICE
 		add_child(panel)
+		overlay_opened.emit(ActiveOverlay.GROWTH_CHOICE)
 		return
 	Progress.complete_level(level)
 	_continue_after_level_completion(level)
@@ -948,12 +1041,16 @@ func _continue_after_level_completion(level: String) -> void:
 ## 关卡失败。显示失败面板，玩家选择重试或返回主菜单。
 ## reason: 失败原因文本（显示在面板中）。
 func defeat_level(reason: String = "任务失败") -> void:
+	_set_phase(LevelPhase.ENDED)
 	UiSounds.play_defeat()
 	var panel: Node = preload("res://scenes/ui/defeat_panel.tscn").instantiate()
 	panel.defeat_reason = reason
 	panel.retry_pressed.connect(_on_defeat_retry)
 	panel.main_menu_pressed.connect(_on_defeat_main_menu)
+	# DefeatPanel 没有 closed 信号（玩家只能点重试或主菜单，都会换场景），直接置为 overlay
+	_active_overlay = ActiveOverlay.DEFEAT_PANEL
 	add_child(panel)
+	overlay_opened.emit(ActiveOverlay.DEFEAT_PANEL)
 
 
 func _on_defeat_retry() -> void:
@@ -1006,10 +1103,11 @@ func _on_unit_died(unit: Unit) -> void:
 func play_dialogue(lines: Array[DialogueLine]) -> void:
 	var DialogueBoxScene := preload("res://scenes/ui/dialogue_box.tscn")
 	var box = DialogueBoxScene.instantiate()
-	add_child(box)
+	if not _open_overlay(ActiveOverlay.DIALOGUE, box, &"dialogue_finished"):
+		box.queue_free()
+		return
 	box.start(lines)
 	await box.dialogue_finished
-	box.queue_free()
 
 
 ## 授予单位一个新技能。幂等：若单位已有该技能则不做任何操作，不 emit 信号。
@@ -1081,13 +1179,11 @@ func setup_unit_stats(unit: Unit, uname: String, hp: int, atk: int,
 
 
 func _on_settings_button_pressed() -> void:
-	if _settings_open:
+	if has_overlay():
 		return
-	_settings_open = true
 	var panel: SettingsPanel = SettingsPanelScene.instantiate()
 	panel.show_back_to_menu = true
-	add_child(panel)
-	panel.closed.connect(func(): _settings_open = false)
+	_open_overlay(ActiveOverlay.SETTINGS, panel)
 
 
 ## AI 支持按钮：临时调用 LLM 做一次测试请求。后续会替换为具体业务（旁白/调侃等）。
@@ -1139,12 +1235,10 @@ func _call_ai_with_prompt(prompt: String) -> void:
 		push_warning("[LLM] 调用失败 code=%d error=%s" % [resp.code, resp.error])
 		Notify.notify(LLMFallbackLinesScript.random(), Notify.Position.TOP_RIGHT, Notify.Style.INFO, 6.0)
 func _on_tutorial_button_pressed() -> void:
-	if _tutorial_open:
+	if has_overlay():
 		return
-	_tutorial_open = true
 	var panel: Node = TutorialPanelScene.instantiate()
-	add_child(panel)
-	panel.closed.connect(func(): _tutorial_open = false)
+	_open_overlay(ActiveOverlay.TUTORIAL_PANEL, panel)
 
 
 func _on_objectives_button_pressed() -> void:
@@ -1152,29 +1246,25 @@ func _on_objectives_button_pressed() -> void:
 
 
 func _on_progress_button_pressed() -> void:
-	if _progress_open:
+	if has_overlay():
 		return
-	_progress_open = true
 	var panel: Node = ProgressPanelScene.instantiate()
 	panel.set("show_debug_controls", Settings.debug_mode)
-	add_child(panel)
-	panel.closed.connect(func(): _progress_open = false)
+	_open_overlay(ActiveOverlay.PROGRESS, panel)
 	UiSounds.play_popup()
 
 
-## 弹出本关目标面板。进入关卡时自动调用一次，也可通过按钮随时查看。
+## 弹出本关目标面板（战斗中按 🎯 按钮查看）。初始 BRIEFING 的面板由 _begin_initial_briefing 负责。
 func show_objectives() -> void:
-	if _objectives_open:
+	if has_overlay():
 		return
 	var obj := get_objectives_text()
 	if obj["victory"].is_empty() and obj["defeat"].is_empty():
 		return
-	_objectives_open = true
 	var panel: ObjectivesPanel = ObjectivesPanelScene.instantiate()
 	panel.victory_lines = obj["victory"]
 	panel.defeat_lines = obj["defeat"]
-	add_child(panel)
-	panel.closed.connect(func(): _objectives_open = false)
+	_open_overlay(ActiveOverlay.OBJECTIVES_REVIEW, panel)
 
 
 # ─────────────────────────────────────────────
@@ -1190,8 +1280,6 @@ func _unhandled_input(event: InputEvent) -> void:
 			cancel_action()
 		else:
 			_on_settings_button_pressed()
-		return
-	if _mid_cutscene_active:
 		return
 
 	if event is InputEventMouseMotion:
@@ -1212,9 +1300,13 @@ func _unhandled_input(event: InputEvent) -> void:
 			cancel_action()
 
 
-## 是否允许接收命令（非过场、非动画、玩家回合中）。
+## 是否允许接收玩家命令。双轴状态机 + 既有子状态的联合闸门。
 func _can_accept_command() -> bool:
-	if _mid_cutscene_active or tilemap == null:
+	if _level_phase != LevelPhase.PLAYING:
+		return false
+	if _active_overlay != ActiveOverlay.NONE:
+		return false
+	if tilemap == null:
 		return false
 	if not _waiting_for_player_input:
 		return false
@@ -1303,6 +1395,7 @@ func _go_idle() -> void:
 	_clear_skill_targeting()
 	_input_state = InputState.IDLE
 	_reset_status_bar()
+	selection_changed.emit(null)
 
 
 func _confirm_idle(cell: Vector2i, _local_mouse: Vector2, current_team: TeamData) -> void:
@@ -1316,6 +1409,7 @@ func _confirm_idle(cell: Vector2i, _local_mouse: Vector2, current_team: TeamData
 			unit_selected = true
 			_input_state = InputState.UNIT_SELECTED
 			_update_status_bar_for_unit(u, true)
+			selection_changed.emit(u)
 			_enter_targeting_move()
 			return
 	# 检查是否点击了其他队伍的单位（仅显示信息）
@@ -1370,6 +1464,7 @@ func _confirm_targeting_move(cell: Vector2i, local_mouse: Vector2, current_team:
 			CombatLog.log_unit_move(moving_unit.combat_stats.unit_name, from_cell, cell, ap_cost, moving_unit.combat_stats.ap_current)
 			moving_unit.refresh_overhead_bars()
 		_on_unit_moved()
+		unit_move_completed.emit(moving_unit as Unit)
 		# AP 剩余且还能行动？回到 UNIT_SELECTED
 		if moving_unit is Unit and moving_unit.combat_stats != null:
 			var stats: CombatStats = moving_unit.combat_stats
@@ -1379,6 +1474,7 @@ func _confirm_targeting_move(cell: Vector2i, local_mouse: Vector2, current_team:
 				unit_selected = true
 				_input_state = InputState.UNIT_SELECTED
 				_update_status_bar_for_unit(moving_unit, true)
+				selection_changed.emit(moving_unit)
 				# 自动重新进入移动模式
 				if stats.can_move():
 					_enter_targeting_move()

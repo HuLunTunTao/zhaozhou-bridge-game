@@ -254,7 +254,7 @@ func _on_round_started(round_num: int) -> void:
 - 每张图片是一页全屏过场（建议 1920x1080 PNG）
 - 玩家点击鼠标 / 按空格 / 按回车翻页
 - 资源放在 `res://assets/cutscenes/<关卡名>/mid_*.png`
-- 在过场播放期间，玩家输入被屏蔽（`_mid_cutscene_active = true`）
+- 在过场播放期间，玩家输入被屏蔽（`_active_overlay == ActiveOverlay.CUTSCENE`，由 `_can_accept_command()` 阻断）
 
 **和开场/结尾过场的区别**：
 
