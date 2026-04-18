@@ -56,6 +56,21 @@ var _visual_rope_sever: PackedScene = preload("res://scenes/unit/visual/monster/
 var _visual_joint_shade: PackedScene = preload("res://scenes/unit/visual/monster/脱缝鬼/脱缝鬼_visual.tscn")
 
 
+# ── 地图固定锚点（从桥面 tile 数据反推得到，不随李春位置变化）──
+# 桥是一条从 (-12, -17) 到 (9, 17) 的斜对角大桥，拱冠中心约在 (-1, 0)。
+# 视觉水平中心 = cell.x == cell.y（等距公式 visual_x = (x-y)*16）。
+# Boss 与李春都放到 x==y 的对角线上，确保视觉上都在画面横向正中。
+const CROWN_CELL: Vector2i = Vector2i(-1, 0)            # 拱冠，李春合龙的位置
+const LEFT_PLATFORM_CELL: Vector2i = Vector2i(-4, 0)    # 左券台
+const RIGHT_PLATFORM_CELL: Vector2i = Vector2i(3, 0)    # 右券台
+const JOINT_CELL_A: Vector2i = Vector2i(-2, -1)         # 缝口 A
+const JOINT_CELL_B: Vector2i = Vector2i(1, -1)          # 缝口 B
+const STONE_YARD_CELL_A: Vector2i = Vector2i(18, 19)    # 南岸石料场左（靠近视觉中心）
+const STONE_YARD_CELL_B: Vector2i = Vector2i(20, 20)    # 南岸石料场右（视觉正中）
+const BOSS_CELL: Vector2i = Vector2i(-15, -15)          # Boss 在桥北端视觉正中（x==y）
+const LI_CHUN_START_CELL: Vector2i = Vector2i(18, 18)   # 李春在南岸未上桥处视觉正中（x==y）
+
+
 func get_teams_config() -> Array:
 	_li_chun = $"Entities/Units/Player" as Unit
 	return [
@@ -158,6 +173,9 @@ func check_defeat() -> String:
 
 
 func _on_level_ready() -> void:
+	# 先把李春明确放到南岸未上桥处；桥面固定锚点在 _setup_anchor_cells 里取常量，
+	# 不再依赖李春的初始格。
+	_li_chun.set_cell(LI_CHUN_START_CELL, tilemap)
 	_setup_anchor_cells()
 	_setup_li_chun()
 	_spawn_allies()
@@ -248,17 +266,18 @@ func _on_stage_hp_changed(unit: Unit, old_hp: int, new_hp: int) -> void:
 
 
 func _setup_anchor_cells() -> void:
-	var anchor := _li_chun.cell
-	_left_platform = _nearest_walkable(anchor + Vector2i(-3, 0))
-	_right_platform = _nearest_walkable(anchor + Vector2i(4, 0))
-	_crown_point = _nearest_walkable(anchor + Vector2i(1, -2))
+	# 桥面锚点都是地图固定坐标，不再从李春的 cell 派生；以后李春可以任意开局位置，
+	# 拱冠 / 券台 / 缝口 / 石料场都不动。
+	_crown_point = _nearest_walkable(CROWN_CELL)
+	_left_platform = _nearest_walkable(LEFT_PLATFORM_CELL)
+	_right_platform = _nearest_walkable(RIGHT_PLATFORM_CELL)
 	_stone_yard_cells = [
-		_nearest_walkable(anchor + Vector2i(-1, 3)),
-		_nearest_walkable(anchor + Vector2i(2, 3)),
+		_nearest_walkable(STONE_YARD_CELL_A),
+		_nearest_walkable(STONE_YARD_CELL_B),
 	]
 	_joint_cells = [
-		_nearest_walkable(anchor + Vector2i(-1, -1)),
-		_nearest_walkable(anchor + Vector2i(2, -1)),
+		_nearest_walkable(JOINT_CELL_A),
+		_nearest_walkable(JOINT_CELL_B),
 	]
 
 
@@ -269,14 +288,24 @@ func _setup_li_chun() -> void:
 
 
 func _spawn_allies() -> void:
+	# 李春已经在 LI_CHUN_START_CELL = (18, 18) 的南岸视觉正中。其他队友以他为中心
+	# 左右对称散布、非对齐。等距 tile 下：
+	#   offset (a, b) 视觉 = ((a-b)*16, (a+b)*8)
+	#   (a-b) 决定左右（负=左），(a+b) 决定南北（正=南）
+	var anchor := _li_chun.cell
 	_craftsmen = [
-		_spawn_ally(_make_unit_data(_craftsman_data, "工匠", 118, 20, 92, 9), _nearest_walkable(_left_platform + Vector2i(-2, 0)), [_mallet, _guard]),
-		_spawn_ally(_make_unit_data(_craftsman_data, "工匠", 118, 20, 92, 9), _nearest_walkable(_crown_point + Vector2i(0, 2)), [_mallet, _guard]),
-		_spawn_ally(_make_unit_data(_craftsman_data, "工匠", 118, 20, 92, 9), _nearest_walkable(_right_platform + Vector2i(2, 0)), [_mallet, _guard]),
+		# 左翼工匠：视觉左下（48 左，32 下）
+		_spawn_ally(_make_unit_data(_craftsman_data, "工匠", 118, 20, 92, 9), _nearest_walkable(anchor + Vector2i(-1, 2)), [_mallet, _guard]),
+		# 中线工匠：视觉正下（0 左右，48 下）
+		_spawn_ally(_make_unit_data(_craftsman_data, "工匠", 118, 20, 92, 9), _nearest_walkable(anchor + Vector2i(3, 3)), [_mallet, _guard]),
+		# 右翼工匠：视觉右下（48 右，24 下）
+		_spawn_ally(_make_unit_data(_craftsman_data, "工匠", 118, 20, 92, 9), _nearest_walkable(anchor + Vector2i(3, 0)), [_mallet, _guard]),
 	]
 	_stone_carriers = [
-		_spawn_ally(_make_unit_data(_survey_data, "运石工", 88, 13, 90, 9), _nearest_walkable(_stone_yard_cells[0] + Vector2i(-1, 0)), [_staff]),
-		_spawn_ally(_make_unit_data(_survey_data, "运石工", 88, 13, 90, 9), _nearest_walkable(_stone_yard_cells[1] + Vector2i(1, 0)), [_staff]),
+		# 左运石工：视觉左偏下（32 左，32 下）
+		_spawn_ally(_make_unit_data(_survey_data, "运石工", 88, 13, 90, 9), _nearest_walkable(anchor + Vector2i(1, 3)), [_staff]),
+		# 右运石工：视觉右偏下（32 右，48 下）
+		_spawn_ally(_make_unit_data(_survey_data, "运石工", 88, 13, 90, 9), _nearest_walkable(anchor + Vector2i(4, 2)), [_staff]),
 	]
 	for carrier in _stone_carriers:
 		_carrier_base_move_cost[carrier.get_instance_id()] = carrier.combat_stats.move_cost_per_tile
@@ -284,7 +313,13 @@ func _spawn_allies() -> void:
 
 
 func _spawn_enemies() -> void:
-	_boss = _spawn_enemy(_make_unit_data(_mud_data, "偏载傀", 320, 22, 1, 99, Enums.Element.EARTH, 2), _nearest_walkable(_crown_point + Vector2i(1, -1)), [_divider], _visual_boss)
+	# Boss 在桥北端正中（BOSS_CELL 是地图常量），合龙前不动、不主动出手；
+	# 只靠被动的偏压移衡扣券值 + 压台对相邻我方扣血。空技能表 + AP 1 / move_cost 99
+	# 保证 AI 不会尝试攻击或移动。合龙后由 _unlock_boss 解锁机动与近战。
+	_boss = _spawn_enemy(_make_unit_data(_mud_data, "偏载傀", 320, 22, 1, 99, Enums.Element.EARTH, 2), _nearest_walkable(BOSS_CELL), [], _visual_boss)
+	_spawn_enemy(_make_unit_data(_craftsman_data, "错券兵", 90, 17, 90, 9), _nearest_walkable(_left_platform + Vector2i(-1, 0)), [_mallet], _visual_misaligned)
+	_spawn_enemy(_make_unit_data(_craftsman_data, "错券兵", 90, 17, 90, 9), _nearest_walkable(_right_platform + Vector2i(1, 0)), [_mallet], _visual_misaligned)
+	_spawn_enemy(_make_unit_data(_mud_data, "裂石兽", 112, 22, 90, 10, Enums.Element.EARTH, 2), _nearest_walkable(_crown_point + Vector2i(0, 1)), [_crush], _visual_stone_split)
 	_spawn_enemy(_make_unit_data(_craftsman_data, "错券兵", 90, 17, 90, 9), _nearest_walkable(_left_platform + Vector2i(-1, 0)), [_mallet], _visual_misaligned)
 	_spawn_enemy(_make_unit_data(_craftsman_data, "错券兵", 90, 17, 90, 9), _nearest_walkable(_right_platform + Vector2i(1, 0)), [_mallet], _visual_misaligned)
 	_spawn_enemy(_make_unit_data(_mud_data, "裂石兽", 112, 22, 90, 10, Enums.Element.EARTH, 2), _nearest_walkable(_crown_point + Vector2i(0, 1)), [_crush], _visual_stone_split)
@@ -335,6 +370,7 @@ func _try_close_arch(unit: Unit) -> void:
 	unit.combat_stats.ap_current -= _close_arch_ap_cost
 	unit.refresh_overhead_bars()
 	_arch_closed = true
+	_unlock_boss()
 	_update_status_panel()
 	Notify.notify("收缝合龙完成，偏载傀的核心开始暴露", Notify.Position.TOP_CENTER, Notify.Style.SUCCESS, 3.0)
 
@@ -401,6 +437,19 @@ func _maybe_boss_clutch_summon() -> void:
 	)
 	if not summoned.is_empty():
 		_camera_focus_spawned(summoned)
+
+
+## 合龙成功后解锁偏载傀：从固定位 AP=1 / move_cost=99 放开到正常值，
+## 并补上一把土系近战技能。Boss 从此可以下桥还手。
+func _unlock_boss() -> void:
+	if _boss == null or _boss.combat_stats == null or not _boss.combat_stats.is_alive():
+		return
+	_boss.combat_stats.move_cost_per_tile = 9
+	_boss.combat_stats.ap_max = 90
+	_boss.combat_stats.ap_current = _boss.combat_stats.ap_max
+	_boss.refresh_overhead_bars()
+	set_unit_skills(_boss, [_crush])
+	Notify.notify("偏载傀开始下桥还手", Notify.Position.TOP_CENTER, Notify.Style.WARNING, 3.0)
 
 
 func _resolve_enemy_pressure() -> void:
