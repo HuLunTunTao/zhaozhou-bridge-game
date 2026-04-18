@@ -96,6 +96,8 @@ var unlocked_levels: Array[String] = []
 var unlocked_skill_ids: Array[String] = []
 var equipped_skill_ids: Array[String] = []
 var selected_growth_by_level: Dictionary = {}
+## 教程已观看标记：{"level1-1": true, ...}。Key 由教程侧自行定义。
+var tutorial_flags: Dictionary = {}
 
 
 func _ready() -> void:
@@ -119,6 +121,7 @@ func load_progress() -> void:
 		unlocked_skill_ids = _to_string_array(parsed.get("unlocked_skill_ids", []))
 		equipped_skill_ids = _to_string_array(parsed.get("equipped_skill_ids", []))
 		selected_growth_by_level = _to_growth_choice_dict(parsed.get("selected_growth_by_level", {}))
+		tutorial_flags = _to_bool_dict(parsed.get("tutorial_flags", {}))
 	else:
 		_reset_defaults(false)
 
@@ -134,6 +137,7 @@ func save_progress() -> void:
 		"unlocked_skill_ids": unlocked_skill_ids,
 		"equipped_skill_ids": equipped_skill_ids,
 		"selected_growth_by_level": selected_growth_by_level,
+		"tutorial_flags": tutorial_flags,
 	}))
 	file.close()
 
@@ -361,6 +365,7 @@ func _reset_defaults(emit_change: bool) -> void:
 	unlocked_skill_ids = INITIAL_SKILL_IDS.duplicate()
 	equipped_skill_ids = INITIAL_SKILL_IDS.duplicate()
 	selected_growth_by_level = {}
+	tutorial_flags = {}
 	if emit_change:
 		_normalize_progress()
 
@@ -488,3 +493,27 @@ func _to_growth_choice_dict(value: Variant) -> Dictionary:
 	if value is Dictionary:
 		return value.duplicate(true)
 	return {}
+
+
+## 从 JSON 读出的 tutorial_flags；只保留值为 true 的布尔字段。
+func _to_bool_dict(value: Variant) -> Dictionary:
+	var result: Dictionary = {}
+	if value is Dictionary:
+		for key in value.keys():
+			var v: Variant = value[key]
+			if v is bool and v:
+				result[str(key)] = true
+	return result
+
+
+## 教程是否已观看过。id 由教程侧约定（如 "level1-1"）。
+func has_seen_tutorial(id: String) -> bool:
+	return tutorial_flags.get(id, false) == true
+
+
+## 标记教程已观看并立即落盘。
+func mark_tutorial_seen(id: String) -> void:
+	if tutorial_flags.get(id, false) == true:
+		return
+	tutorial_flags[id] = true
+	save_progress()
