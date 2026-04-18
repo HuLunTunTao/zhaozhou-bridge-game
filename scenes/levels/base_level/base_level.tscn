@@ -91,7 +91,7 @@ offset_bottom = 71.0
 grow_horizontal = 0
 theme_override_font_sizes/font_size = 14
 text = "AI"
-tooltip_text = "AI 支持（点击调用一次测试）"
+tooltip_text = "AI 支持"
 
 [node name="WinButton" type="Button" parent="GUI" unique_id=279380324]
 anchors_preset = 1
