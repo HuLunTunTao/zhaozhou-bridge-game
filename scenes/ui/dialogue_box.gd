@@ -49,7 +49,7 @@ func start(lines: Array[DialogueLine]) -> void:
 	_advance()
 
 
-func _unhandled_input(event: InputEvent) -> void:
+func _input(event: InputEvent) -> void:
 	if _finished:
 		return
 
