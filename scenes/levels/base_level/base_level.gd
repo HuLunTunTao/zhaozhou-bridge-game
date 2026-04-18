@@ -82,6 +82,7 @@ const ProgressPanelScene := preload("res://scenes/ui/progress_panel.tscn")
 const GrowthChoicePanelScript := preload("res://scenes/ui/growth_choice_panel.gd")
 const LLMClientScript := preload("res://scripts/llm/llm_client.gd")
 const BattleContextScript := preload("res://scripts/llm/battle_context.gd")
+const LLMFallbackLinesScript := preload("res://scripts/llm/fallback_lines.gd")
 
 var tilemap: TileMapLayer
 ## 化势提示 UI（运行时创建，挂在 GUI 层）。
@@ -1132,7 +1133,9 @@ func _call_ai_with_prompt(prompt: String) -> void:
 	if resp.ok:
 		Notify.notify(resp.text, Notify.Position.TOP_RIGHT, Notify.Style.SUCCESS, 8.0)
 	else:
-		Notify.notify("AI 调用失败: %s" % resp.error, Notify.Position.TOP_RIGHT, Notify.Style.ERROR, 5.0)
+		# LLM 调用失败时不暴露报错给玩家，用老监工口吻的兜底台词糊过去
+		push_warning("[LLM] 调用失败 code=%d error=%s" % [resp.code, resp.error])
+		Notify.notify(LLMFallbackLinesScript.random(), Notify.Position.TOP_RIGHT, Notify.Style.INFO, 6.0)
 
 
 func _on_objectives_button_pressed() -> void:
