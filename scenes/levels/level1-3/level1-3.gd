@@ -23,6 +23,8 @@ var _status_panel: RichTextLabel = null
 var _prev_balance_state: String = "均衡"
 # Boss「倾压之号」—— 整关只触发一次的急召机制
 var _clutch_fired: bool = false
+# 偏压移衡调用次数计数：每 2 次才真正扣 1 点，避免每回合压得太狠
+var _shift_load_tick: int = 0
 
 var _left_platform: Vector2i
 var _right_platform: Vector2i
@@ -127,8 +129,8 @@ func get_objectives_text() -> Dictionary:
 	var gap := _arch_gap()
 	return {
 		"victory": [
-			"- 左券值达到 8（当前 %d/8）" % _left_arch_value,
-			"- 右券值达到 8（当前 %d/8）" % _right_arch_value,
+			"- 左券值达到 10（当前 %d/10）" % _left_arch_value,
+			"- 右券值达到 10（当前 %d/10）" % _right_arch_value,
 			"- 左右差值保持 ≤1（当前 %d）" % gap,
 			"- 李春在拱冠点执行「收缝合龙」（%s）" % ("已完成" if _arch_closed else "未完成"),
 			"- 击败偏载傀（%s）" % ("已击败" if not boss_alive else "存活"),
@@ -136,7 +138,7 @@ func get_objectives_text() -> Dictionary:
 		"defeat": [
 			"- 李春倒下",
 			"- 桥体稳定值归零（当前 %d/6）" % _bridge_stability,
-			"- 超过第 14 回合（当前第 %d 回合）" % round_number,
+			"- 超过第 30 回合（当前第 %d 回合）" % round_number,
 		],
 	}
 
@@ -150,8 +152,8 @@ func check_defeat() -> String:
 		return "李春倒下"
 	if _bridge_stability <= 0:
 		return "桥体稳定值耗尽"
-	if round_number > 14:
-		return "超过第 14 回合"
+	if round_number > 30:
+		return "超过第 30 回合"
 	return ""
 
 
@@ -326,7 +328,7 @@ func _try_close_arch(unit: Unit) -> void:
 		return
 	if unit.cell != _crown_point:
 		return
-	if _left_arch_value < 8 or _right_arch_value < 8 or _arch_gap() > 1:
+	if _left_arch_value < 10 or _right_arch_value < 10 or _arch_gap() > 1:
 		return
 	if unit.combat_stats.ap_current < _close_arch_ap_cost:
 		return
@@ -339,6 +341,10 @@ func _try_close_arch(unit: Unit) -> void:
 
 func _shift_load() -> void:
 	if _boss == null or _boss.combat_stats == null or not _boss.combat_stats.is_alive():
+		return
+	# 每 2 个敌方回合才真正压一次，给玩家留出推进节奏
+	_shift_load_tick += 1
+	if _shift_load_tick % 2 != 0:
 		return
 	if _left_arch_value == _right_arch_value:
 		_adjust_arch_value(randi() % 2 == 0, -1, "偏载傀扰动平衡")
@@ -361,7 +367,7 @@ func _maybe_boss_clutch_summon() -> void:
 		return
 	if _boss == null or _boss.combat_stats == null or not _boss.combat_stats.is_alive():
 		return
-	if mini(_left_arch_value, _right_arch_value) < 7:
+	if mini(_left_arch_value, _right_arch_value) < 9:
 		return
 	if _arch_gap() > 1:
 		return
@@ -460,9 +466,9 @@ func _arch_gap() -> int:
 
 func _adjust_arch_value(is_left: bool, delta: int, reason: String) -> void:
 	if is_left:
-		_left_arch_value = clampi(_left_arch_value + delta, 0, 8)
+		_left_arch_value = clampi(_left_arch_value + delta, 0, 10)
 	else:
-		_right_arch_value = clampi(_right_arch_value + delta, 0, 8)
+		_right_arch_value = clampi(_right_arch_value + delta, 0, 10)
 	Notify.notify("%s  左券:%d 右券:%d 稳定:%d" % [reason, _left_arch_value, _right_arch_value, _bridge_stability], Notify.Position.TOP_RIGHT, Notify.Style.INFO, 2.5)
 	_update_status_panel()
 
@@ -604,7 +610,7 @@ func _update_status_panel() -> void:
 	elif state == "失衡":
 		state_color = "#e6463c"
 	var closed_text := "已合龙" if _arch_closed else "未合龙"
-	_status_panel.text = "左券 %d/8    右券 %d/8    差值 %d\n桥体稳定 %d/6    [color=%s]%s[/color]    %s" % [
+	_status_panel.text = "左券 %d/10    右券 %d/10    差值 %d\n桥体稳定 %d/6    [color=%s]%s[/color]    %s" % [
 		_left_arch_value, _right_arch_value, gap,
 		_bridge_stability, state_color, state, closed_text,
 	]
