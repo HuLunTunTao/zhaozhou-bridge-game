@@ -17,6 +17,10 @@ var _pending_enemy_resolution := false
 var _carrying_stone: Dictionary = {}
 var _carrier_base_move_cost: Dictionary = {}
 var _close_arch_ap_cost := 35
+# ── UI 常驻状态面板（左上角）──
+var _status_panel: RichTextLabel = null
+# 上一次结算时的平衡状态（"均衡" / "偏衡" / "失衡"），用于检测状态切换
+var _prev_balance_state: String = "均衡"
 
 var _left_platform: Vector2i
 var _right_platform: Vector2i
@@ -38,6 +42,14 @@ var _divider: SkillData = preload("res://data/skills/lc_divider_mark_arc.tres")
 var _inkline: SkillData = preload("res://data/skills/lc_inkline_balance_arch.tres")
 var _crush: SkillData = preload("res://data/skills/bmw_crumbling_bank_crush.tres")
 var _lunge: SkillData = preload("res://data/skills/dc_hidden_current_lunge.tres")
+var _timber: SkillData = preload("res://data/skills/dlp_drifting_timber_crash.tres")
+
+# ── 敌方视觉 ──
+var _visual_boss: PackedScene = preload("res://scenes/unit/visual/monster/偏载怪/偏载怪_visual.tscn")
+var _visual_misaligned: PackedScene = preload("res://scenes/unit/visual/monster/错券兵/错券兵_visual.tscn")
+var _visual_stone_split: PackedScene = preload("res://scenes/unit/visual/monster/裂石兽/裂石兽_visual.tscn")
+var _visual_rope_sever: PackedScene = preload("res://scenes/unit/visual/monster/断索鬼/断索鬼_visual.tscn")
+var _visual_joint_shade: PackedScene = preload("res://scenes/unit/visual/monster/脱缝鬼/脱缝鬼_visual.tscn")
 
 
 func get_teams_config() -> Array:
@@ -59,16 +71,45 @@ func get_teams_config() -> Array:
 
 
 func get_wave_config() -> Dictionary:
+	# 位置参考点：石料场、缝口位、左右券台。第 n 回合敌方开始前刷出。
+	var left_flank := _nearest_walkable(_left_platform + Vector2i(-2, 0))
+	var right_flank := _nearest_walkable(_right_platform + Vector2i(2, 0))
+	var center_front := _nearest_walkable(_crown_point + Vector2i(0, 1))
+	var stone_yard_left := _nearest_walkable(_stone_yard_cells[0] + Vector2i(-1, 0))
+	var stone_yard_right := _nearest_walkable(_stone_yard_cells[1] + Vector2i(1, 0))
 	return {
+		2: [
+			{"unit_data": _make_unit_data(_dark_data, "断索鬼", 78, 18, 100, 7, Enums.Element.WOOD, 2),
+				"cell": stone_yard_left, "team_index": ENEMY_TEAM,
+				"skills": [_timber], "visual": _visual_rope_sever},
+		],
 		3: [
-			{"unit_data": _make_unit_data(_mud_data, "裂石兽", 145, 22, 90, 10, Enums.Element.EARTH, 1), "cell": _nearest_walkable(_left_platform + Vector2i(-2, 0)), "team_index": ENEMY_TEAM, "skills": [_crush]},
+			{"unit_data": _make_unit_data(_mud_data, "裂石兽", 112, 22, 90, 10, Enums.Element.EARTH, 2),
+				"cell": center_front, "team_index": ENEMY_TEAM,
+				"skills": [_crush], "visual": _visual_stone_split},
 		],
-		5: [
-			{"unit_data": _make_unit_data(_dark_data, "脱缝潮", 95, 18, 95, 8, Enums.Element.WATER, 1), "cell": _joint_cells[0], "team_index": ENEMY_TEAM, "skills": [_lunge]},
+		4: [
+			{"unit_data": _make_unit_data(_dark_data, "脱缝鬼", 70, 15, 95, 8, Enums.Element.WATER, 2),
+				"cell": _joint_cells[0], "team_index": ENEMY_TEAM,
+				"skills": [_lunge], "visual": _visual_joint_shade},
 		],
-		7: [
-			{"unit_data": _make_unit_data(_dark_data, "脱缝潮", 95, 18, 95, 8, Enums.Element.WATER, 1), "cell": _joint_cells[1], "team_index": ENEMY_TEAM, "skills": [_lunge]},
-			{"unit_data": _make_unit_data(_mud_data, "裂石兽", 145, 22, 90, 10, Enums.Element.EARTH, 1), "cell": _nearest_walkable(_right_platform + Vector2i(2, 0)), "team_index": ENEMY_TEAM, "skills": [_crush]},
+		6: [
+			{"unit_data": _make_unit_data(_craftsman_data, "错券兵", 90, 17, 90, 9),
+				"cell": left_flank, "team_index": ENEMY_TEAM,
+				"skills": [_mallet], "visual": _visual_misaligned},
+			{"unit_data": _make_unit_data(_dark_data, "断索鬼", 78, 18, 100, 7, Enums.Element.WOOD, 2),
+				"cell": stone_yard_right, "team_index": ENEMY_TEAM,
+				"skills": [_timber], "visual": _visual_rope_sever},
+		],
+		8: [
+			{"unit_data": _make_unit_data(_dark_data, "脱缝鬼", 70, 15, 95, 8, Enums.Element.WATER, 2),
+				"cell": _joint_cells[1], "team_index": ENEMY_TEAM,
+				"skills": [_lunge], "visual": _visual_joint_shade},
+		],
+		10: [
+			{"unit_data": _make_unit_data(_mud_data, "裂石兽", 112, 22, 90, 10, Enums.Element.EARTH, 2),
+				"cell": right_flank, "team_index": ENEMY_TEAM,
+				"skills": [_crush], "visual": _visual_stone_split},
 		],
 	}
 
@@ -107,8 +148,12 @@ func _on_level_ready() -> void:
 	_setup_li_chun()
 	_spawn_allies()
 	_spawn_enemies()
+	_setup_status_panel()
 	team_turn_started.connect(_on_stage_team_turn_started)
 	unit_hp_changed.connect(_on_stage_hp_changed)
+	round_started.connect(_on_stage_round_started)
+	_update_status_panel()
+	_prev_balance_state = _balance_state()
 	Notify.notify("运石工取石入券，保持左右差值不超过 1", Notify.Position.TOP_CENTER, Notify.Style.INFO, 3.0)
 
 
@@ -120,14 +165,52 @@ func _on_unit_moved() -> void:
 	_try_close_arch(unit)
 
 
-func _on_skill_executed(caster: Unit, skill: SkillData, cast_cell: Vector2i, _exec_result: SkillExecutor.ExecuteResult) -> void:
-	if caster != _li_chun:
-		return
-	if skill.skill_id == "lc_inkline_balance_arch":
+func _on_skill_executed(caster: Unit, skill: SkillData, cast_cell: Vector2i, exec_result: SkillExecutor.ExecuteResult) -> void:
+	# 李春墨绳校券：命中左/右券台即 +1
+	if caster == _li_chun and skill.skill_id == "lc_inkline_balance_arch":
 		if cast_cell == _left_platform:
 			_adjust_arch_value(true, 1, "墨绳校券")
+			_update_status_panel()
 		elif cast_cell == _right_platform:
 			_adjust_arch_value(false, 1, "墨绳校券")
+			_update_status_panel()
+		return
+
+	# 敌方被动只关心对我方造成伤害的一击
+	if caster == null or caster.combat_stats == null:
+		return
+	var caster_name := caster.combat_stats.unit_name
+	if caster_name != "裂石兽" and caster_name != "断索鬼":
+		return
+	if exec_result == null:
+		return
+
+	for hit_entry in exec_result.hit_results:
+		var target: Unit = hit_entry.get("unit") as Unit
+		if target == null or target.combat_stats == null or not target.combat_stats.is_alive():
+			continue
+		if target not in _stone_carriers:
+			continue
+		var key := target.get_instance_id()
+		var carrying: bool = _carrying_stone.get(key, false)
+		if not carrying:
+			continue
+		# 裂石兽「袭石」：对携石运石工的这一击追加 15% 伤害
+		if caster_name == "裂石兽":
+			var hit = hit_entry.get("hit", null)
+			var base_damage: int = 0
+			if hit != null and "damage" in hit:
+				base_damage = hit.damage
+			var extra := maxi(int(base_damage * 0.15), 1)
+			target.combat_stats.current_hp = maxi(target.combat_stats.current_hp - extra, 0)
+			target.refresh_overhead_bars()
+			Notify.notify("裂石兽袭石（+%d HP）" % extra, Notify.Position.TOP_RIGHT, Notify.Style.WARNING, 1.5)
+		# 断索鬼「断索」：命中携石运石工则直接卸货
+		elif caster_name == "断索鬼":
+			_carrying_stone[key] = false
+			_set_carrier_loaded(target, false)
+			target.refresh_overhead_bars()
+			Notify.notify("%s 被断索鬼夺下石料" % target.combat_stats.unit_name, Notify.Position.TOP_RIGHT, Notify.Style.ERROR, 2.0)
 
 
 func _on_stage_team_turn_started(team_index: int) -> void:
@@ -186,10 +269,10 @@ func _spawn_allies() -> void:
 
 
 func _spawn_enemies() -> void:
-	_boss = _spawn_enemy(_make_unit_data(_mud_data, "偏载傀", 320, 22, 1, 99, Enums.Element.EARTH, 2), _nearest_walkable(_crown_point + Vector2i(1, -1)), [_divider], preload("res://scenes/unit/visual/monster/错券兵/错券兵_visual.tscn"))
-	_spawn_enemy(_make_unit_data(_craftsman_data, "错券兵", 120, 20, 90, 9), _nearest_walkable(_left_platform + Vector2i(-1, 0)), [_mallet], preload("res://scenes/unit/visual/monster/错券兵/错券兵_visual.tscn"))
-	_spawn_enemy(_make_unit_data(_craftsman_data, "错券兵", 120, 20, 90, 9), _nearest_walkable(_right_platform + Vector2i(1, 0)), [_mallet], preload("res://scenes/unit/visual/monster/错券兵/错券兵_visual.tscn"))
-	_spawn_enemy(_make_unit_data(_mud_data, "裂石兽", 145, 22, 90, 10, Enums.Element.EARTH, 1), _nearest_walkable(_crown_point + Vector2i(0, 1)), [_crush])
+	_boss = _spawn_enemy(_make_unit_data(_mud_data, "偏载傀", 320, 22, 1, 99, Enums.Element.EARTH, 2), _nearest_walkable(_crown_point + Vector2i(1, -1)), [_divider], _visual_boss)
+	_spawn_enemy(_make_unit_data(_craftsman_data, "错券兵", 90, 17, 90, 9), _nearest_walkable(_left_platform + Vector2i(-1, 0)), [_mallet], _visual_misaligned)
+	_spawn_enemy(_make_unit_data(_craftsman_data, "错券兵", 90, 17, 90, 9), _nearest_walkable(_right_platform + Vector2i(1, 0)), [_mallet], _visual_misaligned)
+	_spawn_enemy(_make_unit_data(_mud_data, "裂石兽", 112, 22, 90, 10, Enums.Element.EARTH, 2), _nearest_walkable(_crown_point + Vector2i(0, 1)), [_crush], _visual_stone_split)
 
 
 func _try_pick_or_deliver_stone(unit: Unit) -> void:
@@ -237,6 +320,7 @@ func _try_close_arch(unit: Unit) -> void:
 	unit.combat_stats.ap_current -= _close_arch_ap_cost
 	unit.refresh_overhead_bars()
 	_arch_closed = true
+	_update_status_panel()
 	Notify.notify("收缝合龙完成，偏载傀的核心开始暴露", Notify.Position.TOP_CENTER, Notify.Style.SUCCESS, 3.0)
 
 
@@ -252,13 +336,49 @@ func _shift_load() -> void:
 
 
 func _resolve_enemy_pressure() -> void:
+	# 1. 错券兵「扰券」——在失衡判定前扣券值，才可能把本回合推入失衡
+	for enemy in teams[ENEMY_TEAM].units:
+		if not (enemy is Unit):
+			continue
+		if enemy.combat_stats == null or not enemy.combat_stats.is_alive():
+			continue
+		if enemy.combat_stats.unit_name != "错券兵":
+			continue
+		if _is_adjacent_or_same(enemy.cell, _left_platform):
+			_adjust_arch_value(true, -1, "错券兵扰券（左）")
+		elif _is_adjacent_or_same(enemy.cell, _right_platform):
+			_adjust_arch_value(false, -1, "错券兵扰券（右）")
+
+	# 2. 失衡扣桥体稳定
 	if _arch_gap() >= 4:
 		_bridge_stability -= 1
-		Notify.notify("左右失衡过大，桥体稳定值 -1", Notify.Position.TOP_CENTER, Notify.Style.WARNING, 2.0)
+		Notify.notify("左右失衡！桥体稳定值 -1", Notify.Position.TOP_CENTER, Notify.Style.WARNING, 2.0)
+
+	# 3. 脱缝鬼在缝口位扣稳定
 	for enemy in teams[ENEMY_TEAM].units:
-		if enemy is Unit and enemy.combat_stats and enemy.combat_stats.is_alive() and enemy.cell in _joint_cells and enemy.combat_stats.unit_name == "脱缝潮":
+		if not (enemy is Unit):
+			continue
+		if enemy.combat_stats == null or not enemy.combat_stats.is_alive():
+			continue
+		if enemy.combat_stats.unit_name != "脱缝鬼":
+			continue
+		if enemy.cell in _joint_cells:
 			_bridge_stability -= 1
-			Notify.notify("脱缝潮侵蚀缝口，桥体稳定值 -1", Notify.Position.TOP_CENTER, Notify.Style.WARNING, 2.0)
+			Notify.notify("脱缝鬼侵蚀缝口，桥体稳定值 -1", Notify.Position.TOP_CENTER, Notify.Style.WARNING, 2.0)
+
+	# 4. 偏载傀「压台」——周围 1 格内我方扣 base_atk × 0.5 无属伤
+	if _boss != null and _boss.combat_stats != null and _boss.combat_stats.is_alive():
+		var press_damage := int(_boss.combat_stats.base_atk * 0.5)
+		for ally in teams[PLAYER_TEAM].units:
+			if not (ally is Unit) or ally.combat_stats == null or not ally.combat_stats.is_alive():
+				continue
+			if _is_adjacent_or_same(ally.cell, _boss.cell) and ally.cell != _boss.cell:
+				ally.combat_stats.current_hp = maxi(ally.combat_stats.current_hp - press_damage, 0)
+				ally.refresh_overhead_bars()
+				Notify.notify("%s 被偏载傀压台击中（-%d HP）" % [ally.combat_stats.unit_name, press_damage], Notify.Position.TOP_RIGHT, Notify.Style.WARNING, 1.5)
+
+	_update_status_panel()
+	_maybe_notify_balance_transition()
 	_check_win_lose()
 
 
@@ -282,6 +402,7 @@ func _adjust_arch_value(is_left: bool, delta: int, reason: String) -> void:
 	else:
 		_right_arch_value = clampi(_right_arch_value + delta, 0, 8)
 	Notify.notify("%s  左券:%d 右券:%d 稳定:%d" % [reason, _left_arch_value, _right_arch_value, _bridge_stability], Notify.Position.TOP_RIGHT, Notify.Style.INFO, 2.5)
+	_update_status_panel()
 
 
 func _set_carrier_loaded(unit: Unit, loaded: bool) -> void:
@@ -376,3 +497,74 @@ func _apply_persistent_growth_effects() -> void:
 			apply_unit_growth_bonus(craftsman, 10, 0, 0)
 		for carrier in _stone_carriers:
 			apply_unit_growth_bonus(carrier, 0, 0, 5)
+
+
+# ─────────────────────────────────────────────
+# 状态面板 / UI 可见性
+# ─────────────────────────────────────────────
+
+func _setup_status_panel() -> void:
+	_status_panel = RichTextLabel.new()
+	_status_panel.name = "Level3StatusPanel"
+	_status_panel.bbcode_enabled = true
+	_status_panel.fit_content = true
+	_status_panel.scroll_active = false
+	_status_panel.autowrap_mode = TextServer.AUTOWRAP_OFF
+	_status_panel.anchors_preset = Control.PRESET_TOP_LEFT
+	_status_panel.offset_left = 18
+	_status_panel.offset_top = 84
+	_status_panel.offset_right = 380
+	_status_panel.offset_bottom = 160
+	_status_panel.add_theme_font_size_override("normal_font_size", 16)
+	_status_panel.add_theme_color_override("default_color", Color(0.96, 0.94, 0.88))
+	_status_panel.add_theme_color_override("font_outline_color", Color(0.08, 0.08, 0.08))
+	_status_panel.add_theme_constant_override("outline_size", 3)
+	gui.add_child(_status_panel)
+
+
+func _balance_state() -> String:
+	var gap := _arch_gap()
+	if gap <= 1:
+		return "均衡"
+	if gap <= 3:
+		return "偏衡"
+	return "失衡"
+
+
+func _update_status_panel() -> void:
+	if _status_panel == null:
+		return
+	var gap := _arch_gap()
+	var state := _balance_state()
+	var state_color := "#6edc6e"
+	if state == "偏衡":
+		state_color = "#e8c28c"
+	elif state == "失衡":
+		state_color = "#e6463c"
+	var closed_text := "已合龙" if _arch_closed else "未合龙"
+	_status_panel.text = "左券 %d/8    右券 %d/8    差值 %d\n桥体稳定 %d/6    [color=%s]%s[/color]    %s" % [
+		_left_arch_value, _right_arch_value, gap,
+		_bridge_stability, state_color, state, closed_text,
+	]
+
+
+## 检测自上次结算以来平衡状态是否切换，切换了弹一次 Notify。
+func _maybe_notify_balance_transition() -> void:
+	var new_state := _balance_state()
+	if new_state == _prev_balance_state:
+		return
+	match new_state:
+		"均衡":
+			Notify.notify("左右回到均衡。", Notify.Position.TOP_CENTER, Notify.Style.SUCCESS, 2.5)
+		"偏衡":
+			Notify.notify("左右偏衡，偏载傀直接受到的伤害上限 8。", Notify.Position.TOP_CENTER, Notify.Style.WARNING, 3.0)
+		"失衡":
+			Notify.notify("左右失衡！偏载傀几乎无伤，每敌方回合末桥体 -1。", Notify.Position.TOP_CENTER, Notify.Style.ERROR, 3.5)
+	_prev_balance_state = new_state
+
+
+## 大回合开始时：若本回合有波次配置，提前通知。
+func _on_stage_round_started(round_num: int) -> void:
+	if get_wave_config().has(round_num):
+		Notify.notify("第 %d 回合：敌方支援到场" % round_num, Notify.Position.TOP_CENTER, Notify.Style.WARNING, 2.5)
+	_update_status_panel()
