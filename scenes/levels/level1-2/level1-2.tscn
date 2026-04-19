@@ -11,6 +11,8 @@
 [ext_resource type="Script" uid="uid://c2077ybi0615r" path="res://scripts/data/unit_data.gd" id="9_lwpox"]
 [ext_resource type="Script" uid="uid://cp0ew5p75uio0" path="res://scripts/data/skill_data.gd" id="10_e2tot"]
 [ext_resource type="PackedScene" uid="uid://qkwxdp8ayb57" path="res://scenes/unit/visual/human/li_chun/li_chun_visual.tscn" id="11_lwpox"]
+[ext_resource type="PackedScene" uid="uid://0vf68k1e0k18" path="res://scenes/unit/visual/human/测量工/测量工_visual.tscn" id="12_survey"]
+[ext_resource type="PackedScene" uid="uid://byxh2ycfe88e3" path="res://scenes/unit/visual/human/工匠/工匠_visual.tscn" id="13_craft"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_2en6l"]
 texture = ExtResource("3_whjfh")
@@ -646,10 +648,81 @@ unit_name = "李春"
 portrait = ExtResource("8_vvxx2")
 metadata/_custom_type_script = "uid://c2077ybi0615r"
 
+[sub_resource type="Resource" id="Resource_survey_a"]
+script = ExtResource("9_lwpox")
+unit_id = "survey_worker"
+unit_name = "测量工"
+max_hp = 80
+base_atk = 12
+ap_max = 85
+move_limit = 1
+skill_limit = 1
+is_escort_target = true
+metadata/_custom_type_script = "uid://c2077ybi0615r"
+
+[sub_resource type="Resource" id="Resource_craftsman_a"]
+script = ExtResource("9_lwpox")
+unit_id = "craftsman_guard"
+unit_name = "工匠"
+max_hp = 110
+base_atk = 18
+ap_max = 90
+move_cost_per_tile = 9
+move_limit = 1
+skill_limit = 1
+metadata/_custom_type_script = "uid://c2077ybi0615r"
+
+[sub_resource type="Resource" id="Resource_craftsman_b"]
+script = ExtResource("9_lwpox")
+unit_id = "craftsman_guard"
+unit_name = "工匠"
+max_hp = 110
+base_atk = 18
+ap_max = 90
+move_cost_per_tile = 9
+move_limit = 1
+skill_limit = 1
+metadata/_custom_type_script = "uid://c2077ybi0615r"
+
+[sub_resource type="Resource" id="Resource_craftsman_c"]
+script = ExtResource("9_lwpox")
+unit_id = "craftsman_guard"
+unit_name = "工匠"
+max_hp = 110
+base_atk = 18
+ap_max = 90
+move_cost_per_tile = 9
+move_limit = 1
+skill_limit = 1
+metadata/_custom_type_script = "uid://c2077ybi0615r"
+
+[sub_resource type="Resource" id="Resource_survey_b"]
+script = ExtResource("9_lwpox")
+unit_id = "survey_worker"
+unit_name = "测量工"
+max_hp = 80
+base_atk = 12
+ap_max = 85
+move_limit = 1
+skill_limit = 1
+is_escort_target = true
+metadata/_custom_type_script = "uid://c2077ybi0615r"
+
+[sub_resource type="Resource" id="Resource_survey_c"]
+script = ExtResource("9_lwpox")
+unit_id = "survey_worker"
+unit_name = "测量工"
+max_hp = 80
+base_atk = 12
+ap_max = 85
+move_limit = 1
+skill_limit = 1
+is_escort_target = true
+metadata/_custom_type_script = "uid://c2077ybi0615r"
+
 [node name="Level1-2" unique_id=44896622 node_paths=PackedStringArray("obstacles_tilemap_layer") instance=ExtResource("1_base")]
 script = ExtResource("2_script")
 obstacles_tilemap_layer = NodePath("TileMaps/obstacle z=2")
-
 
 [node name="init tile map" type="TileMapLayer" parent="TileMaps" parent_id_path=PackedInt32Array(1122336516) index="0" unique_id=1533431690]
 texture_filter = 1
@@ -715,9 +788,45 @@ scale = Vector2(0.671875, 0.671875)
 texture = ExtResource("5_2en6l")
 
 [node name="Player" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="0" unique_id=2088063142 instance=ExtResource("3_player")]
-position = Vector2(2, -45)
+position = Vector2(-125, -76)
 unit_data = SubResource("Resource_6l514")
 visual_scene = ExtResource("11_lwpox")
+
+[node name="SurveyWorker" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="1" unique_id=1734697745 instance=ExtResource("3_player")]
+position = Vector2(-289, -27)
+unit_data = SubResource("Resource_survey_a")
+visual_scene = ExtResource("12_survey")
+unit_color = Color(0.3, 0.9, 0.5, 1)
+
+[node name="CraftsmanA" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="2" unique_id=1153010617 instance=ExtResource("3_player")]
+position = Vector2(-14, 30)
+unit_data = SubResource("Resource_craftsman_a")
+visual_scene = ExtResource("13_craft")
+unit_color = Color(0.4, 0.8, 0.9, 1)
+
+[node name="CraftsmanB" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="3" unique_id=183664624 instance=ExtResource("3_player")]
+position = Vector2(-266, 2)
+unit_data = SubResource("Resource_craftsman_b")
+visual_scene = ExtResource("13_craft")
+unit_color = Color(0.4, 0.8, 0.9, 1)
+
+[node name="CraftsmanC" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="4" unique_id=890582710 instance=ExtResource("3_player")]
+position = Vector2(262, -16)
+unit_data = SubResource("Resource_craftsman_c")
+visual_scene = ExtResource("13_craft")
+unit_color = Color(0.4, 0.8, 0.9, 1)
+
+[node name="SurveyWorkerB" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="5" unique_id=1734697746 instance=ExtResource("3_player")]
+position = Vector2(-31, 4)
+unit_data = SubResource("Resource_survey_b")
+visual_scene = ExtResource("12_survey")
+unit_color = Color(0.3, 0.9, 0.5, 1)
+
+[node name="SurveyWorkerC" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="6" unique_id=1734697747 instance=ExtResource("3_player")]
+position = Vector2(289, -44)
+unit_data = SubResource("Resource_survey_c")
+visual_scene = ExtResource("12_survey")
+unit_color = Color(0.3, 0.9, 0.5, 1)
 
 [node name="MovementManager" parent="." index="6" unique_id=1144669128 node_paths=PackedStringArray("movement_tilemaps", "obstacle_tilemaps")]
 movement_tilemaps = [NodePath("../TileMaps/surface z=0")]

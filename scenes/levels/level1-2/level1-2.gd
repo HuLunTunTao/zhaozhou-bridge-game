@@ -10,7 +10,7 @@ const ParameterPointTile := preload("res://scenes/levels/base_level/parameter_po
 const ENEMY_TEAM := 1
 const REQUIRED_DEFEATS := 8
 const ENEMY_FIELD_CAP := 5
-const TURN_LIMIT := 12
+const TURN_LIMIT := 30
 
 const PARAMETER_CELLS: Array[Vector2i] = [Vector2i(-11, 12), Vector2i(-1, 2), Vector2i(10, -10)]
 const PARAMETER_LABELS := ["河宽", "坡度", "石重"]
@@ -19,7 +19,7 @@ const DRAFTING_CELLS: Array[Vector2i] = [
 	Vector2i(-12, -10), Vector2i(-12, -11),
 ]
 const BOSS_CELL := Vector2i(-12, -12)
-const LI_CHUN_START_CELL := Vector2i(-4, 1)
+const ENEMY_SPAWN_ANCHORS: Array[Vector2i] = [Vector2i(13, -24), Vector2i(10, -19)]
 
 const SUMMON_CYCLE: Array[StringName] = [
 	&"循旧匠首", &"高拱幻影", &"循旧匠首", &"循旧匠首", &"重墩石像",
@@ -37,10 +37,6 @@ var _current_task: TaskState = TaskState.TASK1_PARAMETERS
 # ── 预加载 ──
 var _hero_data: UnitData = preload("res://data/units/hero_li_chun.tres")
 var _hero_visual: PackedScene = preload("res://scenes/unit/visual/human/li_chun/li_chun_visual.tscn")
-var _survey_visual: PackedScene = preload("res://scenes/unit/visual/human/测量工/测量工_visual.tscn")
-var _craftsman_visual: PackedScene = preload("res://scenes/unit/visual/human/工匠/工匠_visual.tscn")
-var _survey_data: UnitData = preload("res://data/units/survey_worker.tres")
-var _craftsman_data: UnitData = preload("res://data/units/craftsman_guard.tres")
 var _rule_guard_data: UnitData = preload("res://data/units/rule_guard_head.tres")
 var _heavy_pier_data: UnitData = preload("res://data/units/heavy_pier_statue.tres")
 var _high_arch_data: UnitData = preload("res://data/units/high_arch_phantom.tres")
@@ -60,7 +56,8 @@ var _crush: SkillData = preload("res://data/skills/bmw_crumbling_bank_crush.tres
 
 # ── 单位引用 ──
 var _li_chun: Unit
-var _survey_worker: Unit
+var _survey_worker: Unit  # 主测量工（兼容旧代码路径）
+var _survey_workers: Array[Unit] = []
 var _craftsmen: Array[Unit] = []
 var _boss: Unit
 
@@ -80,12 +77,23 @@ var _params_status_label: Label = null
 
 func get_teams_config() -> Array:
 	_li_chun = $"Entities/Units/Player" as Unit
+	_survey_worker = $"Entities/Units/SurveyWorker" as Unit
+	_survey_workers = [
+		_survey_worker,
+		$"Entities/Units/SurveyWorkerB" as Unit,
+		$"Entities/Units/SurveyWorkerC" as Unit,
+	]
+	_craftsmen = [
+		$"Entities/Units/CraftsmanA" as Unit,
+		$"Entities/Units/CraftsmanB" as Unit,
+		$"Entities/Units/CraftsmanC" as Unit,
+	]
 	return [
 		{
 			"name": "营造队",
 			"faction": "好人",
 			"controller": "player",
-			"units": [_li_chun],
+			"units": [_li_chun, _survey_workers[0], _survey_workers[1], _survey_workers[2], _craftsmen[0], _craftsmen[1], _craftsmen[2]],
 		},
 		{
 			"name": "旧制势力",
@@ -144,7 +152,7 @@ func check_defeat() -> String:
 
 func _on_level_ready() -> void:
 	_setup_li_chun()
-	_spawn_allies()
+	_setup_allies_from_scene()
 	_setup_parameter_tiles()
 	_setup_drafting_marker()
 	_spawn_boss()
@@ -167,8 +175,6 @@ func _on_level_ready() -> void:
 
 func _setup_li_chun() -> void:
 	_li_chun.apply_runtime_setup(_hero_data, _hero_visual, Color(1, 0.85, 0, 1))
-	# 场景里的 Player 节点没有预设位置，显式落到设计起点。
-	_li_chun.set_cell(_nearest_walkable(LI_CHUN_START_CELL), tilemap)
 	var skills: Array[SkillData] = Progress.get_battle_skill_resources(GameState.selected_level)
 	# 关卡核心交互 & 分规定弧 默认写入李春技能池（若 Progress 没提供）。
 	for mandatory in [_confirm_parameter, _ink_set_arch, _divider_arc]:
@@ -178,14 +184,16 @@ func _setup_li_chun() -> void:
 	setup_unit_stats(_li_chun, "李春", 130, 24, 100, 8, Enums.Element.NONE, 0, true)
 
 
-func _spawn_allies() -> void:
-	var survey_cell := _nearest_walkable(_li_chun.cell + Vector2i(-3, 2))
-	_survey_worker = _spawn_ally(_survey_data, _survey_visual, "测量工", 80, 12, 85, 10, survey_cell, [_staff, _take_parameters])
-	_craftsmen.clear()
-	var offsets := [Vector2i(-2, 1), Vector2i(0, 1), Vector2i(2, 1)]
-	for offset in offsets:
-		var cell := _nearest_walkable(_li_chun.cell + offset)
-		_craftsmen.append(_spawn_ally(_craftsman_data, _craftsman_visual, "工匠", 110, 18, 90, 9, cell, [_mallet, _guard]))
+func _setup_allies_from_scene() -> void:
+	# 场景里已放好 SurveyWorker*/CraftsmanA-C 节点；位置由场景 position 决定
+	# （基类 _reparent_entities_to_obstacles 会按 global_position 吸附到最近格）。
+	# 这里只补齐 skills / 数值。
+	for sw in _survey_workers:
+		set_unit_skills(sw, [_staff, _take_parameters])
+		setup_unit_stats(sw, "测量工", 80, 12, 85, 10)
+	for craftsman in _craftsmen:
+		set_unit_skills(craftsman, [_mallet, _guard])
+		setup_unit_stats(craftsman, "工匠", 110, 18, 90, 9)
 
 
 func _setup_parameter_tiles() -> void:
@@ -265,11 +273,10 @@ func _spawn_boss() -> void:
 
 
 func _spawn_initial_minions() -> void:
-	var anchor := BOSS_CELL
-	_spawn_minion(&"循旧匠首", _nearest_walkable(anchor + Vector2i(1, 1)))
-	_spawn_minion(&"循旧匠首", _nearest_walkable(anchor + Vector2i(-1, 2)))
-	_spawn_minion(&"高拱幻影", _nearest_walkable(anchor + Vector2i(2, -1)))
-	_spawn_minion(&"重墩石像", _nearest_walkable(anchor + Vector2i(2, 2)))
+	_spawn_minion(&"循旧匠首", _nearest_walkable(ENEMY_SPAWN_ANCHORS[0]))
+	_spawn_minion(&"高拱幻影", _nearest_walkable(ENEMY_SPAWN_ANCHORS[0] + Vector2i(1, 1)))
+	_spawn_minion(&"循旧匠首", _nearest_walkable(ENEMY_SPAWN_ANCHORS[1]))
+	_spawn_minion(&"重墩石像", _nearest_walkable(ENEMY_SPAWN_ANCHORS[1] + Vector2i(1, 1)))
 
 
 # ─────────────────────────────────────────────
@@ -287,7 +294,7 @@ func _on_skill_executed(caster: Unit, skill: SkillData, cast_cell: Vector2i, _ex
 
 
 func _handle_take_parameter(caster: Unit, cast_cell: Vector2i) -> void:
-	if caster != _survey_worker:
+	if not (caster in _survey_workers):
 		Notify.notify("只有测量工可以使用「测尺取参」。", Notify.Position.TOP_CENTER, Notify.Style.WARNING, 2.0)
 		return
 	var tile: ParameterPointTile = _parameter_tiles.get(cast_cell)
@@ -573,24 +580,18 @@ func _spawn_minion(kind: StringName, cell: Vector2i) -> Unit:
 
 
 func _random_enemy_spawn_cell() -> Vector2i:
-	var candidates: Array[Vector2i] = [
-		_nearest_walkable(BOSS_CELL + Vector2i(2, 0)),
-		_nearest_walkable(BOSS_CELL + Vector2i(-2, 0)),
-		_nearest_walkable(BOSS_CELL + Vector2i(0, 2)),
-		_nearest_walkable(BOSS_CELL + Vector2i(3, 1)),
-		_nearest_walkable(BOSS_CELL + Vector2i(-2, 2)),
-	]
+	var candidates: Array[Vector2i] = []
+	for anchor in ENEMY_SPAWN_ANCHORS:
+		candidates.append(_nearest_walkable(anchor))
+		candidates.append(_nearest_walkable(anchor + Vector2i(1, 0)))
+		candidates.append(_nearest_walkable(anchor + Vector2i(-1, 0)))
+		candidates.append(_nearest_walkable(anchor + Vector2i(0, 1)))
+		candidates.append(_nearest_walkable(anchor + Vector2i(1, 1)))
+	candidates.shuffle()
 	for cell in candidates:
 		if not _cell_occupied(cell):
 			return cell
 	return candidates[0]
-
-
-func _spawn_ally(base: UnitData, visual: PackedScene, uname: String, hp: int, atk: int, ap: int, move_cost: int, cell: Vector2i, skills: Array[SkillData]) -> Unit:
-	var unit := spawn_unit(base, _nearest_walkable(cell), 0, visual)
-	set_unit_skills(unit, skills)
-	setup_unit_stats(unit, uname, hp, atk, ap, move_cost)
-	return unit
 
 
 func _spawn_enemy(base: UnitData, uname: String, hp: int, atk: int, ap: int, move_cost: int, cell: Vector2i, skills: Array[SkillData], visual: PackedScene = null, element: Enums.Element = Enums.Element.NONE, element_amount: int = 0) -> Unit:
@@ -679,8 +680,8 @@ func _apply_persistent_growth_effects() -> void:
 			var replace_candidates: Array[String] = ["lc_rule_strike", "lc_wedge_bank_probe"]
 			add_skill_to_unit(hero_unit, _line_lock_arc, replace_candidates)
 	if Progress.has_growth_option("growth_quick_measure"):
-		if _survey_worker:
-			modify_unit_skill(_survey_worker, "sw_take_parameters", {"ap_cost": 30})
+		for sw in _survey_workers:
+			modify_unit_skill(sw, "sw_take_parameters", {"ap_cost": 30})
 		var hero_unit := get_hero_unit()
 		if hero_unit:
 			modify_unit_skill(hero_unit, "lc_read_water_fix_site", {"ap_cost": 25})
