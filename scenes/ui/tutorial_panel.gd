@@ -108,13 +108,13 @@ func _elem(e: Enums.Element) -> String:
 
 
 func _hdr(text: String) -> String:
-	## 段落标题：琥珀色 + 前导竖线。不使用加粗（像素字体加粗后笔画糊在一起）。
-	return "[color=#d9a45b]▎%s[/color]" % text
+	## 段落标题：深琥珀色 + 前导竖线。不使用加粗（像素字体加粗后笔画糊在一起）。
+	return "[color=#7a4a14]▎%s[/color]" % text
 
 
 func _sub(text: String) -> String:
-	## 子标题或内嵌术语强调：淡琥珀色。同样不使用加粗。
-	return "[color=#e8c28c]%s[/color]" % text
+	## 子标题或内嵌术语强调：中等琥珀色。同样不使用加粗。
+	return "[color=#9c6a26]%s[/color]" % text
 
 
 # Tab 1：目标与回合

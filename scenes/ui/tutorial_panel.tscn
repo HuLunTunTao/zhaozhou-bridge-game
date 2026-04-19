@@ -1,22 +1,7 @@
-[gd_scene load_steps=2 format=3 uid="uid://dtuvx8aa8bcde"]
+[gd_scene load_steps=3 format=3 uid="uid://dtuvx8aa8bcde"]
 
 [ext_resource type="Script" path="res://scenes/ui/tutorial_panel.gd" id="1_script"]
-
-[sub_resource type="StyleBoxFlat" id="panel_bg"]
-content_margin_left = 20.0
-content_margin_top = 14.0
-content_margin_right = 20.0
-content_margin_bottom = 14.0
-bg_color = Color(0.09, 0.10, 0.13, 0.97)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.30, 0.35, 0.40, 1)
-corner_radius_top_left = 8
-corner_radius_top_right = 8
-corner_radius_bottom_right = 8
-corner_radius_bottom_left = 8
+[ext_resource type="Theme" uid="uid://cvsxo3hmseyjr" path="res://scenes/ui/paper_ink_theme.tres" id="2_theme"]
 
 [node name="TutorialPanel" type="CanvasLayer"]
 script = ExtResource("1_script")
@@ -27,7 +12,8 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0, 0, 0, 0.72)
+theme = ExtResource("2_theme")
+color = Color(0.12, 0.08, 0.04, 0.55)
 
 [node name="Panel" type="PanelContainer" parent="Backdrop"]
 layout_mode = 1
@@ -42,7 +28,6 @@ offset_right = 360.0
 offset_bottom = 230.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_styles/panel = SubResource("panel_bg")
 
 [node name="Content" type="VBoxContainer" parent="Backdrop/Panel"]
 layout_mode = 2
