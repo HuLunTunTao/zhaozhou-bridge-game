@@ -44,7 +44,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("ui_cancel"):
 		_close()
 
-# Kimi Code，2026-04-19
+##AI辅助生成， Kimi Code，2026-04-19
 
 # Audio
 func _on_music_slider_value_changed(value: float) -> void:

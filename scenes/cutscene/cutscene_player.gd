@@ -15,7 +15,7 @@ extends CanvasLayer
 ##      "pause_points": [3.5, 7.2, 10.0]  # optional, time points to pause (seconds)
 ##    }
 
-# Kimi Code，2026-04-19
+#AI辅助生成 Kimi Code，2026-04-19
 
 signal cutscene_finished
 

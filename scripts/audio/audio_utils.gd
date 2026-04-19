@@ -4,7 +4,7 @@ extends RefCounted
 
 const SAMPLE_RATE := 22050
 
-# Kimi Code，2026-04-19
+# AI辅助生成， Kimi Code，2026-04-19
 
 ## 生成单声道 16-bit 正弦波提示音。
 ## freq_a: 主频率(Hz)；duration: 时长(秒)；amplitude: 振幅(0~1)；

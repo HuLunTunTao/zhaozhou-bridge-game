@@ -24,7 +24,7 @@ var _skill_support_streams: Array[AudioStream] = []
 var _fallback_skill_attack: AudioStream = null
 var _fallback_skill_support: AudioStream = null
 
-# Kimi Code，2026-04-19
+# AI辅助生成， Kimi Code，2026-04-19
 
 func _ready() -> void:
 	for i in range(POOL_SIZE):

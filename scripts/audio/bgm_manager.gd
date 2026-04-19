@@ -25,7 +25,7 @@ func play(stream: AudioStream, with_crossfade: bool = true) -> void:
 	if stream == null:
 		return
 
-	# Kimi Code，2026-04-19
+	#AI辅助生成， Kimi Code，2026-04-19
 
 	var same_stream := _current.stream == stream
 	if not same_stream and _current.stream != null and stream != null:

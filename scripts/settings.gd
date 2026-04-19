@@ -66,7 +66,7 @@ func load_settings() -> void:
 		push_error("Settings: 设置文件格式错误")
 
 
-# Kimi Code，2026-04-19
+#AI辅助生成， Kimi Code，2026-04-19
 
 ## 应用当前设置到游戏引擎（音量、窗口等）
 func apply_settings() -> void:

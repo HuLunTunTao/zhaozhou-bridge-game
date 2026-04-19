@@ -50,7 +50,7 @@ func bind_button(button: BaseButton, bind_hover_sound: bool = true) -> void:
 	if bind_hover_sound and not button.mouse_entered.is_connected(play_hover):
 		button.mouse_entered.connect(play_hover)
 
-# Kimi Code，2026-04-19
+##AI辅助生成， Kimi Code，2026-04-19
 
 func unbind_button(button: BaseButton, unbind_hover_sound: bool = true) -> void:
 	if button == null:
