@@ -241,18 +241,17 @@ func _on_phase_changed_for_onboarding(p: int) -> void:
 
 
 func _setup_survey_points() -> void:
-	for cell in SURVEY_CELLS:
+	# 勘测点标记已在 level1-1.tscn 的 Markers 节点下预置（%SurveyMarker_A/B/C）。
+	# 这里按 SURVEY_CELLS 顺序把节点映射回 cell，便于完成时 queue_free。
+	var marker_names := ["SurveyMarker_A", "SurveyMarker_B", "SurveyMarker_C"]
+	for i in SURVEY_CELLS.size():
+		var cell := SURVEY_CELLS[i]
 		var tile := _make_survey_point_tile()
 		tile.name = "SurveyPoint_%d_%d" % [cell.x, cell.y]
 		register_special_tile(tile, cell)
 		_survey_points.append(tile)
 		tile.survey_completed.connect(_on_survey_point_completed)
-		_survey_markers[cell] = spawn_tile_pulsing_marker(
-			cell,
-			Color(0.95, 0.78, 0.2, 0.5),
-			"勘测点",
-			Vector2.ZERO,
-			"SurveyMarker_%d_%d" % [cell.x, cell.y])
+		_survey_markers[cell] = get_node("Markers/" + marker_names[i])
 
 
 func _make_survey_point_tile() -> SurveyPointTile:
@@ -273,19 +272,9 @@ func _setup_evac_tile() -> void:
 	_spawn_evac_marker()
 
 
-## 撤离区中心只保留文字标记，不画光晕也不画指针（地图上已有 Sprite 旗帜）。
+## 撤离区中心的文字标记（已在 level1-1.tscn 中预置为仅文字）。
 func _spawn_evac_marker() -> void:
-	if _evac_marker != null and is_instance_valid(_evac_marker):
-		_evac_marker.queue_free()
-	var marker := spawn_tile_pulsing_marker(
-		EVAC_CENTER_CELL,
-		Color(0.98, 0.35, 0.35, 0.0),
-		"撤离区",
-		Vector2.ZERO,
-		"EvacMarker")
-	marker.show_tile = false
-	marker.show_pole = false
-	_evac_marker = marker
+	_evac_marker = get_node("Markers/EvacMarker")
 
 
 func _setup_mission_hint() -> void:
@@ -403,14 +392,8 @@ func _make_bridge_tile() -> SpecialTile:
 
 
 func _spawn_bridge_marker() -> void:
-	if _bridge_marker != null and is_instance_valid(_bridge_marker):
-		_bridge_marker.queue_free()
-	_bridge_marker = spawn_tile_pulsing_marker(
-		BRIDGE_CELL,
-		Color(0.18, 0.72, 1.0, 0.42),
-		"桥位",
-		Vector2.ZERO,
-		"BridgeSiteMarker")
+	_bridge_marker = get_node("Markers/BridgeMarker")
+	_bridge_marker.visible = true
 
 
 func _advance_to_task3() -> void:

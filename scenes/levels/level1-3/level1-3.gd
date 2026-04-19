@@ -37,9 +37,6 @@ var _stone_yard_cells: Array[Vector2i] = []
 var _joint_cells: Array[Vector2i] = []
 var _bridge_cells: Dictionary = {}  # 桥面可落脚 cell 集合（敌人刷新必须在桥上）
 
-var _hero_data: UnitData = preload("res://data/units/hero_li_chun.tres")
-var _hero_visual: PackedScene = preload("res://scenes/unit/visual/human/li_chun/li_chun_visual.tscn")
-var _survey_data: UnitData = preload("res://data/units/survey_worker.tres")
 var _craftsman_data: UnitData = preload("res://data/units/craftsman_guard.tres")
 var _mud_data: UnitData = preload("res://data/units/bank_mud_wraith.tres")
 var _dark_data: UnitData = preload("res://data/units/dark_current.tres")
@@ -78,19 +75,30 @@ const LEFT_PLATFORM_CELL: Vector2i = Vector2i(-11, -4)  # 左券台：视觉 (-1
 const RIGHT_PLATFORM_CELL: Vector2i = Vector2i(-5, -10) # 右券台：视觉 (80, -120)
 const JOINT_CELL_A: Vector2i = Vector2i(-8, -4)         # 左缝口：中轴以西 64 px
 const JOINT_CELL_B: Vector2i = Vector2i(-4, -8)         # 右缝口：中轴以东 64 px（镜像）
-const LI_CHUN_START_CELL: Vector2i = Vector2i(14, 15)   # 李春在南岸未上桥处（与 Boss 同视觉 x=-16）
 const STONE_YARD_CELL_A: Vector2i = Vector2i(9, 19)     # 左石料场：视觉 (-160, 224)
 const STONE_YARD_CELL_B: Vector2i = Vector2i(18, 10)    # 右石料场：视觉 (128, 224)
 
 
 func get_teams_config() -> Array:
 	_li_chun = $"Entities/Units/Player" as Unit
+	_craftsmen = [
+		$"Entities/Units/CraftsmanA" as Unit,
+		$"Entities/Units/CraftsmanB" as Unit,
+		$"Entities/Units/CraftsmanC" as Unit,
+	]
+	_stone_carriers = [
+		$"Entities/Units/StoneCarrierA" as Unit,
+		$"Entities/Units/StoneCarrierB" as Unit,
+	]
+	var player_units: Array = [_li_chun]
+	player_units.append_array(_craftsmen)
+	player_units.append_array(_stone_carriers)
 	return [
 		{
 			"name": "施工队",
 			"faction": "好人",
 			"controller": "player",
-			"units": [_li_chun],
+			"units": player_units,
 		},
 		{
 			"name": "偏载方",
@@ -207,13 +215,12 @@ func check_defeat() -> String:
 
 
 func _on_level_ready() -> void:
-	# 先把李春明确放到南岸未上桥处；桥面固定锚点在 _setup_anchor_cells 里取常量，
-	# 不再依赖李春的初始格。
-	_li_chun.set_cell(LI_CHUN_START_CELL, tilemap)
+	# 李春与队友节点都在 .tscn 里预置；base_level 的 _reparent_entities_to_obstacles
+	# 会按 global_position 吸附到最近 cell。桥面固定锚点走 _setup_anchor_cells 常量。
 	_build_bridge_cells()
 	_setup_anchor_cells()
 	_setup_li_chun()
-	_spawn_allies()
+	_setup_allies_from_scene()
 	_spawn_enemies()
 	_setup_status_panel()
 	team_turn_started.connect(_on_stage_team_turn_started)
@@ -325,24 +332,22 @@ func _setup_anchor_cells() -> void:
 	print("[Level1-3] markers spawned: left=", _left_platform_marker, " right=", _right_platform_marker, " stone_yard_markers=", _stone_yard_markers.size())
 
 
-## 左/右券台视觉：2×2 彩色地块 + 居中脉动光晕
+## 左/右券台视觉：2×2 彩色地块 + 预置的脉动光晕（见 level1-3.tscn 的 Markers 节点）。
 func _setup_platform_markers() -> void:
 	for c in _zone_cells(_left_platform):
 		var t := _make_platform_tile(COLOR_LEFT_PLATFORM)
 		t.name = "LeftArchTile_%d_%d" % [c.x, c.y]
 		register_special_tile(t, c)
-	_left_platform_marker = spawn_tile_pulsing_marker(
-		_left_platform, COLOR_LEFT_HALO, "左券台", Vector2(0, 8), "LeftArchMarker", 2)
+	_left_platform_marker = get_node("Markers/LeftArchMarker")
 
 	for c in _zone_cells(_right_platform):
 		var t := _make_platform_tile(COLOR_RIGHT_PLATFORM)
 		t.name = "RightArchTile_%d_%d" % [c.x, c.y]
 		register_special_tile(t, c)
-	_right_platform_marker = spawn_tile_pulsing_marker(
-		_right_platform, COLOR_RIGHT_HALO, "右券台", Vector2(0, 8), "RightArchMarker", 2)
+	_right_platform_marker = get_node("Markers/RightArchMarker")
 
 
-## 石料场视觉：2×2 彩色地块 + 居中脉动光晕
+## 石料场视觉：2×2 彩色地块 + 预置的脉动光晕。
 func _setup_stone_yard_markers() -> void:
 	for i in _stone_yard_cells.size():
 		var anchor: Vector2i = _stone_yard_cells[i]
@@ -350,9 +355,7 @@ func _setup_stone_yard_markers() -> void:
 			var tile := _make_platform_tile(COLOR_STONE_YARD)
 			tile.name = "StoneYardTile_%d_%d_%d" % [i, c.x, c.y]
 			register_special_tile(tile, c)
-		var marker := spawn_tile_pulsing_marker(
-			anchor, COLOR_STONE_HALO, "石料场", Vector2(0, 8), "StoneYardMarker_%d" % i, 2)
-		_stone_yard_markers.append(marker)
+		_stone_yard_markers.append(get_node("Markers/StoneYardMarker_%d" % i))
 
 
 func _make_platform_tile(color: Color) -> SpecialTile:
@@ -366,32 +369,19 @@ func _make_platform_tile(color: Color) -> SpecialTile:
 
 
 func _setup_li_chun() -> void:
-	_li_chun.apply_runtime_setup(_hero_data, _hero_visual, Color(1, 0.85, 0, 1))
 	set_unit_skills(_li_chun, Progress.get_battle_skill_resources(GameState.selected_level))
 	setup_unit_stats(_li_chun, "李春", 130, 24, 100, 8, Enums.Element.NONE, 0, true)
 
 
-func _spawn_allies() -> void:
-	# 李春已经在 LI_CHUN_START_CELL = (14, 14) 的南岸视觉中轴（视觉 0, 224）。
-	# 队友以他为锚点，分布在他的正南/南偏左/南偏右，视觉上李春在最前（最北）。
-	# 等距 tile 下：offset (a, b) 视觉 = ((a-b)*16, (a+b)*8)
-	#   (a-b) 决定左右（负=左），(a+b) 决定南北（正=南）
-	var anchor := _li_chun.cell
-	_craftsmen = [
-		# 左翼工匠：视觉左下（48 左，32 下）
-		_spawn_ally(_make_unit_data(_craftsman_data, "工匠", 118, 20, 92, 9), _nearest_walkable(anchor + Vector2i(-1, 2)), [_mallet, _guard]),
-		# 中线工匠：视觉正下（0 左右，48 下）
-		_spawn_ally(_make_unit_data(_craftsman_data, "工匠", 118, 20, 92, 9), _nearest_walkable(anchor + Vector2i(3, 3)), [_mallet, _guard]),
-		# 右翼工匠：视觉右下（48 右，24 下）
-		_spawn_ally(_make_unit_data(_craftsman_data, "工匠", 118, 20, 92, 9), _nearest_walkable(anchor + Vector2i(3, 0)), [_mallet, _guard]),
-	]
-	_stone_carriers = [
-		# 左运石工：视觉左偏下（32 左，32 下）
-		_spawn_ally(_make_unit_data(_survey_data, "运石工", 88, 13, 90, 9), _nearest_walkable(anchor + Vector2i(1, 3)), [_staff]),
-		# 右运石工：视觉右偏下（32 右，48 下）
-		_spawn_ally(_make_unit_data(_survey_data, "运石工", 88, 13, 90, 9), _nearest_walkable(anchor + Vector2i(4, 2)), [_staff]),
-	]
+func _setup_allies_from_scene() -> void:
+	# 工匠 / 运石工已在 .tscn 预置（unit_data + visual_scene + position）；
+	# 这里只补齐技能与战斗数值，并记录运石工的基础移动消耗用于载石后 +1。
+	for craftsman in _craftsmen:
+		set_unit_skills(craftsman, [_mallet, _guard])
+		setup_unit_stats(craftsman, "工匠", 118, 20, 92, 9)
 	for carrier in _stone_carriers:
+		set_unit_skills(carrier, [_staff])
+		setup_unit_stats(carrier, "运石工", 88, 13, 90, 9)
 		_carrier_base_move_cost[carrier.get_instance_id()] = carrier.combat_stats.move_cost_per_tile
 	_apply_persistent_growth_effects()
 
@@ -601,13 +591,6 @@ func _set_carrier_loaded(unit: Unit, loaded: bool) -> void:
 	var key := unit.get_instance_id()
 	var base_cost := int(_carrier_base_move_cost.get(key, unit.combat_stats.move_cost_per_tile))
 	unit.combat_stats.move_cost_per_tile = base_cost + 1 if loaded else base_cost
-
-
-func _spawn_ally(data: UnitData, cell: Vector2i, skills: Array[SkillData]) -> Unit:
-	var unit := spawn_unit(data, cell, PLAYER_TEAM)
-	set_unit_skills(unit, skills)
-	setup_unit_stats(unit, data.unit_name, data.max_hp, data.base_atk, data.ap_max, data.move_cost_per_tile)
-	return unit
 
 
 func _spawn_enemy(data: UnitData, cell: Vector2i, skills: Array[SkillData], visual: PackedScene = null) -> Unit:

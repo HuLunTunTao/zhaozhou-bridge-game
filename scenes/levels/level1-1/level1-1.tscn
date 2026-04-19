@@ -11,6 +11,7 @@
 [ext_resource type="PackedScene" uid="uid://qkwxdp8ayb57" path="res://scenes/unit/visual/human/li_chun/li_chun_visual.tscn" id="9_2ipqp"]
 [ext_resource type="PackedScene" uid="uid://0vf68k1e0k18" path="res://scenes/unit/visual/human/测量工/测量工_visual.tscn" id="10_pqk1j"]
 [ext_resource type="PackedScene" uid="uid://byxh2ycfe88e3" path="res://scenes/unit/visual/human/工匠/工匠_visual.tscn" id="12_bsudu"]
+[ext_resource type="PackedScene" uid="uid://c47f7i2wltut3" path="res://scenes/levels/base_level/tile_pulsing_marker.tscn" id="13_marker"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_pq87c"]
 texture = ExtResource("3_nctu2")
@@ -1104,3 +1105,38 @@ unit_color = Color(0.4, 0.8, 0.9, 1)
 [node name="MovementManager" parent="." index="6" unique_id=1144669128 node_paths=PackedStringArray("movement_tilemaps", "obstacle_tilemaps")]
 movement_tilemaps = [NodePath("../TileMaps/surface z=0")]
 obstacle_tilemaps = [NodePath("../TileMaps/obstacle z=2")]
+
+[node name="Markers" type="Node2D" parent="." index="7" unique_id=1700000001]
+
+[node name="SurveyMarker_A" parent="Markers" instance=ExtResource("13_marker")]
+unique_name_in_owner = true
+position = Vector2(-352, 16)
+halo_color = Color(0.95, 0.78, 0.2, 0.5)
+label_text = "勘测点"
+
+[node name="SurveyMarker_B" parent="Markers" instance=ExtResource("13_marker")]
+unique_name_in_owner = true
+position = Vector2(-32, 16)
+halo_color = Color(0.95, 0.78, 0.2, 0.5)
+label_text = "勘测点"
+
+[node name="SurveyMarker_C" parent="Markers" instance=ExtResource("13_marker")]
+unique_name_in_owner = true
+position = Vector2(336, 8)
+halo_color = Color(0.95, 0.78, 0.2, 0.5)
+label_text = "勘测点"
+
+[node name="EvacMarker" parent="Markers" instance=ExtResource("13_marker")]
+unique_name_in_owner = true
+position = Vector2(80, 344)
+halo_color = Color(0.98, 0.35, 0.35, 0)
+label_text = "撤离区"
+show_tile = false
+show_pole = false
+
+[node name="BridgeMarker" parent="Markers" instance=ExtResource("13_marker")]
+unique_name_in_owner = true
+visible = false
+position = Vector2(-32, 16)
+halo_color = Color(0.18, 0.72, 1.0, 0.25)
+label_text = "桥位"
