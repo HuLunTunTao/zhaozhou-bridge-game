@@ -1,6 +1,6 @@
-[gd_resource type="Resource" script_class="SkillData" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="SkillData" format=3 uid="uid://b62a5scp6dvr"]
 
-[ext_resource type="Script" path="res://scripts/data/skill_data.gd" id="1"]
+[ext_resource type="Script" uid="uid://cp0ew5p75uio0" path="res://scripts/data/skill_data.gd" id="1"]
 
 [resource]
 script = ExtResource("1")
@@ -8,12 +8,5 @@ skill_id = "lc_confirm_parameter"
 skill_name = "参数确认"
 skill_type = 2
 ap_cost = 45
-damage_ratio = 0.0
-damage_element = 0
-attach_amount = 0
 extra_effect_id = "confirm_parameter"
-duration_turns = 0
-cooldown_turns = 0
 description = "李春亲自确认参数点（每回合限1次）。需站在参数点上"
-cast_offsets = Array[Vector2i]([Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)])
-effect_offsets = Array[Vector2i]([Vector2i(0, 0)])

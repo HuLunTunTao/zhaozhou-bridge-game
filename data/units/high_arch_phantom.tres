@@ -1,6 +1,7 @@
-[gd_resource type="Resource" script_class="UnitData" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="UnitData" format=3 uid="uid://bkxrsfhpafv06"]
 
-[ext_resource type="Script" path="res://scripts/data/unit_data.gd" id="1"]
+[ext_resource type="Script" uid="uid://c2077ybi0615r" path="res://scripts/data/unit_data.gd" id="1"]
+[ext_resource type="Script" uid="uid://cp0ew5p75uio0" path="res://scripts/data/skill_data.gd" id="2_kwat4"]
 
 [resource]
 script = ExtResource("1")
@@ -13,8 +14,3 @@ ap_max = 90
 move_cost_per_tile = 8
 move_limit = 1
 skill_limit = 1
-innate_element = 0
-innate_element_amount = 0
-ai_type = ""
-is_escort_target = false
-skills = []
