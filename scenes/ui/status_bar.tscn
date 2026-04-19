@@ -75,10 +75,34 @@ custom_minimum_size = Vector2(74, 94)
 layout_mode = 2
 theme_override_styles/panel = SubResource("portrait_frame")
 
-[node name="Portrait" type="TextureRect" parent="PanelContainer/MarginContainer/StatusBar/PortraitSlot/PortraitFrame" unique_id=1746247231]
+[node name="PortraitContainer" type="Control" parent="PanelContainer/MarginContainer/StatusBar/PortraitSlot/PortraitFrame" unique_id=999999001]
+layout_mode = 2
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="PortraitBg" type="TextureRect" parent="PanelContainer/MarginContainer/StatusBar/PortraitSlot/PortraitFrame/PortraitContainer" unique_id=999999002]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Portrait" type="TextureRect" parent="PanelContainer/MarginContainer/StatusBar/PortraitSlot/PortraitFrame/PortraitContainer" unique_id=1746247231]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(70, 90)
-layout_mode = 2
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
 texture = ExtResource("2_2t4m1")
 expand_mode = 1
 stretch_mode = 5

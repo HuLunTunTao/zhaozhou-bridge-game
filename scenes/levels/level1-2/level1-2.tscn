@@ -7,7 +7,6 @@
 [ext_resource type="Texture2D" uid="uid://dhj467hm63k32" path="res://assets/thepixeltiles/items/测绘台64.png" id="4_p1tex"]
 [ext_resource type="Texture2D" uid="uid://ds7mccb4e617v" path="res://assets/thepixeltiles/trees/treeno1.png" id="4_whjfh"]
 [ext_resource type="Texture2D" uid="uid://blow62u33y7e6" path="res://assets/thepixeltiles/items/flag.png" id="5_2en6l"]
-[ext_resource type="Texture2D" uid="uid://byusdcpkltk31" path="res://assets/face/li_chun.png" id="8_vvxx2"]
 [ext_resource type="Script" uid="uid://c2077ybi0615r" path="res://scripts/data/unit_data.gd" id="9_lwpox"]
 [ext_resource type="Script" uid="uid://cp0ew5p75uio0" path="res://scripts/data/skill_data.gd" id="10_e2tot"]
 [ext_resource type="PackedScene" uid="uid://qkwxdp8ayb57" path="res://scenes/unit/visual/human/li_chun/li_chun_visual.tscn" id="11_lwpox"]
@@ -645,7 +644,6 @@ sources/1 = SubResource("TileSetAtlasSource_nxrp2")
 [sub_resource type="Resource" id="Resource_6l514"]
 script = ExtResource("9_lwpox")
 unit_name = "李春"
-portrait = ExtResource("8_vvxx2")
 metadata/_custom_type_script = "uid://c2077ybi0615r"
 
 [sub_resource type="Resource" id="Resource_survey_a"]

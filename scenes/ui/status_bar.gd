@@ -15,6 +15,12 @@ const COLOR_ALLY := Color(0.15, 0.45, 0.2, 0.9)
 const COLOR_ENEMY := Color(0.5, 0.15, 0.15, 0.9)
 const COLOR_DEFAULT := Color(0.12, 0.12, 0.15, 0.9)
 const MAX_SKILLS := 5
+
+# AI辅助生成， Kimi Code，2026-04-19
+
+const BG_YELLOW := preload("res://assets/face_background/yellow.png")
+const BG_GREEN := preload("res://assets/face_background/green.png")
+const BG_RED := preload("res://assets/face_background/red.png")
 const _STATUS_NAMES: Dictionary = {
 	"rend": "裂伤",
 	"fracture_step": "陷裂",
@@ -38,6 +44,7 @@ var _tooltip_title: Label = null
 var _tooltip_body: RichTextLabel = null
 
 @onready var _portrait: TextureRect = %Portrait
+@onready var _portrait_bg: TextureRect = %PortraitBg
 @onready var _name_label: Label = %NameLabel
 @onready var _atk_label: Label = %AtkLabel
 @onready var _actions_label: Label = %ActionsLabel
@@ -137,6 +144,7 @@ func show_unit(unit: Node2D, is_active: bool = false) -> void:
 		_atk_label.text = "攻击力 %d" % stats.base_atk
 		# 头像：优先 unit_data.portrait，缺失时回退到朝右 idle 首帧
 		_portrait.texture = unit.get_portrait_texture() if unit is Unit else null
+		_portrait_bg.texture = _get_portrait_bg(unit)
 
 		_hp_bar.max_value = stats.max_hp
 		_hp_bar.value = stats.current_hp
@@ -166,6 +174,7 @@ func show_unit(unit: Node2D, is_active: bool = false) -> void:
 		_name_label.text = unit.name
 		_atk_label.text = ""
 		_portrait.texture = null
+		_portrait_bg.texture = null
 		_hp_bar.value = 0
 		_hp_label.text = ""
 		_ap_bar.value = 0
@@ -183,6 +192,7 @@ func clear_unit() -> void:
 	if _tooltip != null:
 		_tooltip.visible = false
 	_portrait.texture = null
+	_portrait_bg.texture = null
 	_name_label.text = "--"
 	_atk_label.text = ""
 	_hp_bar.value = 0
@@ -314,6 +324,19 @@ func _ensure_ratio_label(btn: Button) -> Label:
 		r.add_theme_color_override("font_color", Color(0.8, 0.9, 1.0, 0.9))
 		btn.add_child(r)
 	return r
+
+
+func _get_portrait_bg(unit: Node2D) -> Texture2D:
+	if unit is Unit and unit.combat_stats != null:
+		var stats: CombatStats = unit.combat_stats
+		if stats.is_hero:
+			return BG_YELLOW
+		match stats.camp:
+			Enums.Camp.ALLY:
+				return BG_GREEN
+			Enums.Camp.ENEMY:
+				return BG_RED
+	return null
 
 
 func _get_faction_color(unit: Node2D, is_active: bool = false) -> Color:
