@@ -56,6 +56,12 @@ static func resolve_hit(attacker: CombatStats, target: CombatStats, skill: Skill
 			"weakened":
 				multiplier *= 0.8
 				CombatLog.msg("    攻击方状态【攻衰】: 倍率×0.8")
+			"rule_single_boost":
+				multiplier *= 1.30
+				CombatLog.msg("    攻击方状态【督令·单体】: 倍率×1.30")
+			"rule_group_boost":
+				multiplier *= 1.10
+				CombatLog.msg("    攻击方状态【督令·群体】: 倍率×1.10")
 
 	# 5. 目标状态修正
 	for s in target.statuses:

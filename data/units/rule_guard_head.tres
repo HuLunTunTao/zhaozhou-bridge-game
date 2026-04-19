@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="UnitData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/unit_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+unit_id = "rule_guard_head"
+unit_name = "循旧匠首"
+camp = 1
+max_hp = 84
+base_atk = 20
+ap_max = 90
+move_cost_per_tile = 9
+move_limit = 1
+skill_limit = 1
+innate_element = 0
+innate_element_amount = 0
+ai_type = ""
+is_escort_target = false
+skills = []

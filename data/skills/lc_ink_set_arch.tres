@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="SkillData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/skill_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+skill_id = "lc_ink_set_arch"
+skill_name = "执墨定拱"
+skill_type = 2
+ap_cost = 35
+damage_ratio = 0.0
+damage_element = 0
+attach_amount = 0
+extra_effect_id = "ink_set_arch"
+duration_turns = 0
+cooldown_turns = 0
+description = "完成全部参数点后，李春在绘样台上执墨定拱"
+cast_offsets = Array[Vector2i]([Vector2i(0, 0)])
+effect_offsets = Array[Vector2i]([Vector2i(0, 0)])
