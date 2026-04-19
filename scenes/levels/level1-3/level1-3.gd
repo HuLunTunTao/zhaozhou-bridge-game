@@ -63,10 +63,11 @@ var _visual_joint_shade: PackedScene = preload("res://scenes/unit/visual/monster
 # ── 地图固定锚点视觉（与第一关撤离区同款脉动光晕） ──
 const COLOR_LEFT_PLATFORM := Color(0.95, 0.75, 0.25, 0.65)    # 金色 —— 左券台
 const COLOR_RIGHT_PLATFORM := Color(0.25, 0.65, 0.95, 0.65)   # 蓝色 —— 右券台
-const COLOR_STONE_YARD := Color(0.55, 0.40, 0.25, 0.65)       # 棕色 —— 石料场
-const COLOR_LEFT_HALO := Color(1.0, 0.80, 0.25, 0.55)         # 金色光晕
-const COLOR_RIGHT_HALO := Color(0.30, 0.70, 1.0, 0.55)        # 蓝色光晕
-const COLOR_STONE_HALO := Color(0.70, 0.50, 0.30, 0.55)       # 棕色光晕
+const COLOR_STONE_YARD := Color(0.55, 0.40, 0.25, 0.35)       # 棕色 —— 石料场（较淡）
+const COLOR_LEFT_HALO := Color(1.0, 0.80, 0.25, 0.50)         # 金色光晕
+const COLOR_RIGHT_HALO := Color(0.30, 0.70, 1.0, 0.50)        # 蓝色光晕
+const COLOR_STONE_HALO := Color(0.70, 0.50, 0.30, 0.30)       # 棕色光晕（更淡）
+const COLOR_POLE := Color(1.0, 0.95, 0.55, 0.95)              # 浮动竖线指针
 
 # ── 地图固定锚点（按桥面 tile 实际位置解码得出，视觉关于桥中轴 x==y 镜像对称）──
 # 桥图层并集范围：grid x=[-19,16] y=[-18,17]；视觉中轴位于 x-y=0 这条竖线（即 x==y）。
@@ -325,8 +326,9 @@ func _setup_stone_yard_markers() -> void:
 		_stone_yard_markers.append(marker)
 
 
-## 一个固定位置上生成一个脉动光晕节点（仿第一关 _spawn_evac_marker）。
-## label_text 非空时在顶上额外加一个文字标签，避免完全看不到。
+## 一个固定位置上生成锚点节点：菱形光晕 + 核心 + 文字标签都固定不动，
+## 另起一个 Floater 子节点放一根上下浮动的竖线指针（仿第一关撤离旗的竖线动效），
+## 这样既不干扰视觉又能让玩家快速定位到地块。
 func _spawn_pulsing_marker(cell: Vector2i, node_name: String, halo_color: Color, label_text: String = "") -> Node2D:
 	var marker := Node2D.new()
 	marker.name = node_name
@@ -335,6 +337,7 @@ func _spawn_pulsing_marker(cell: Vector2i, node_name: String, halo_color: Color,
 	marker.position = tilemap.map_to_local(cell) + Vector2(0, -18)
 	add_child(marker)
 
+	# 菱形光晕：固定
 	var halo := Polygon2D.new()
 	halo.polygon = PackedVector2Array([
 		Vector2(0, -30), Vector2(30, -15), Vector2(0, 0), Vector2(-30, -15),
@@ -342,14 +345,18 @@ func _spawn_pulsing_marker(cell: Vector2i, node_name: String, halo_color: Color,
 	halo.color = halo_color
 	marker.add_child(halo)
 
+	# 菱形核心：固定
 	var core := Polygon2D.new()
 	core.polygon = PackedVector2Array([
 		Vector2(0, -18), Vector2(18, -9), Vector2(0, 0), Vector2(-18, -9),
 	])
-	core.color = Color(1.0, 0.92, 0.80, 0.95)
+	var core_color := Color(1.0, 0.92, 0.80, 0.95)
+	core_color.a = minf(core_color.a, halo_color.a + 0.35)
+	core.color = core_color
 	core.position = Vector2(0, -2)
 	marker.add_child(core)
 
+	# 文字标签：固定
 	if label_text != "":
 		var label := Label.new()
 		label.text = label_text
@@ -358,13 +365,26 @@ func _spawn_pulsing_marker(cell: Vector2i, node_name: String, halo_color: Color,
 		label.add_theme_constant_override("outline_size", 4)
 		label.add_theme_font_size_override("font_size", 12)
 		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		label.position = Vector2(-40, -48)
+		label.position = Vector2(-40, -70)
 		label.size = Vector2(80, 16)
 		marker.add_child(label)
 
+	# 浮动竖线：挂在一个独立 Floater 上做 y 轴脉动，其他元素保持静止
+	var floater := Node2D.new()
+	floater.name = "Floater"
+	floater.position = Vector2(0, -30)
+	marker.add_child(floater)
+
+	var pole := Polygon2D.new()
+	pole.polygon = PackedVector2Array([
+		Vector2(-1.5, 0), Vector2(1.5, 0), Vector2(1.5, -22), Vector2(-1.5, -22),
+	])
+	pole.color = COLOR_POLE
+	floater.add_child(pole)
+
 	var tween := create_tween().set_loops()
-	tween.tween_property(marker, "position:y", marker.position.y - 6.0, 0.7).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	tween.tween_property(marker, "position:y", marker.position.y, 0.7).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	tween.tween_property(floater, "position:y", floater.position.y - 6.0, 0.7).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	tween.tween_property(floater, "position:y", floater.position.y, 0.7).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	print("[Level1-3]   marker '", node_name, "' at cell ", cell, " global_pos=", marker.global_position)
 	return marker
 
