@@ -56,6 +56,11 @@ var _visual_rope_sever: PackedScene = preload("res://scenes/unit/visual/monster/
 var _visual_joint_shade: PackedScene = preload("res://scenes/unit/visual/monster/脱缝鬼/脱缝鬼_visual.tscn")
 
 
+# ── 地图固定锚点视觉 ──
+const COLOR_LEFT_PLATFORM := Color(0.95, 0.75, 0.25, 0.65)    # 金色 —— 左券台
+const COLOR_RIGHT_PLATFORM := Color(0.25, 0.65, 0.95, 0.65)   # 蓝色 —— 右券台
+const COLOR_STONE_YARD := Color(0.55, 0.40, 0.25, 0.65)       # 棕色 —— 石料场
+
 # ── 地图固定锚点（从桥面 tile 数据反推得到，不随李春位置变化）──
 # 桥是一条从 (-12, -17) 到 (9, 17) 的斜对角大桥，拱冠中心约在 (-1, 0)。
 # 视觉水平中心 = cell.x == cell.y（等距公式 visual_x = (x-y)*16）。
@@ -65,8 +70,8 @@ const LEFT_PLATFORM_CELL: Vector2i = Vector2i(-4, 0)    # 左券台
 const RIGHT_PLATFORM_CELL: Vector2i = Vector2i(3, 0)    # 右券台
 const JOINT_CELL_A: Vector2i = Vector2i(-2, -1)         # 缝口 A
 const JOINT_CELL_B: Vector2i = Vector2i(1, -1)          # 缝口 B
-const STONE_YARD_CELL_A: Vector2i = Vector2i(18, 19)    # 南岸石料场左（靠近视觉中心）
-const STONE_YARD_CELL_B: Vector2i = Vector2i(20, 20)    # 南岸石料场右（视觉正中）
+const STONE_YARD_CELL_A: Vector2i = Vector2i(6, 13)     # 石料场左（桥南半侧，靠近左券台）
+const STONE_YARD_CELL_B: Vector2i = Vector2i(8, 14)     # 石料场右（桥南半侧，靠近右券台）
 const BOSS_CELL: Vector2i = Vector2i(-15, -15)          # Boss 在桥北端视觉正中（x==y）
 const LI_CHUN_START_CELL: Vector2i = Vector2i(18, 18)   # 李春在南岸未上桥处视觉正中（x==y）
 
@@ -186,7 +191,7 @@ func _on_level_ready() -> void:
 	round_started.connect(_on_stage_round_started)
 	_update_status_panel()
 	_prev_balance_state = _balance_state()
-	Notify.notify("运石工取石入券，保持左右差值不超过 1", Notify.Position.TOP_CENTER, Notify.Style.INFO, 3.0)
+	Notify.notify("推进券值：运石工去棕色石料场取石，再走到金/蓝券台旁 +1；或李春用「墨绳校券」远程 +1（CD 2）", Notify.Position.TOP_CENTER, Notify.Style.INFO, 5.0)
 
 
 func _on_unit_moved() -> void:
@@ -279,6 +284,37 @@ func _setup_anchor_cells() -> void:
 		_nearest_walkable(JOINT_CELL_A),
 		_nearest_walkable(JOINT_CELL_B),
 	]
+	_setup_platform_markers()
+	_setup_stone_yard_markers()
+
+
+## 左/右券台的视觉地块：金色/蓝色小菱形让玩家一眼看到运石目的地和墨绳校券目标。
+func _setup_platform_markers() -> void:
+	var left_tile := _make_platform_tile(COLOR_LEFT_PLATFORM)
+	left_tile.name = "LeftArchPlatform"
+	register_special_tile(left_tile, _left_platform)
+	var right_tile := _make_platform_tile(COLOR_RIGHT_PLATFORM)
+	right_tile.name = "RightArchPlatform"
+	register_special_tile(right_tile, _right_platform)
+
+
+## 石料场的视觉地块：棕色小菱形让玩家一眼看到运石工要先去哪里取石。
+func _setup_stone_yard_markers() -> void:
+	for i in _stone_yard_cells.size():
+		var cell: Vector2i = _stone_yard_cells[i]
+		var tile := _make_platform_tile(COLOR_STONE_YARD)
+		tile.name = "StoneYard_%d" % i
+		register_special_tile(tile, cell)
+
+
+func _make_platform_tile(color: Color) -> SpecialTile:
+	var tile := SpecialTile.new()
+	var visual := Polygon2D.new()
+	visual.name = "Visual"
+	visual.polygon = PackedVector2Array([0, -16, 16, -8, 0, 0, -16, -8])
+	visual.color = color
+	tile.add_child(visual)
+	return tile
 
 
 func _setup_li_chun() -> void:
@@ -317,9 +353,6 @@ func _spawn_enemies() -> void:
 	# 只靠被动的偏压移衡扣券值 + 压台对相邻我方扣血。空技能表 + AP 1 / move_cost 99
 	# 保证 AI 不会尝试攻击或移动。合龙后由 _unlock_boss 解锁机动与近战。
 	_boss = _spawn_enemy(_make_unit_data(_mud_data, "偏载傀", 320, 22, 1, 99, Enums.Element.EARTH, 2), _nearest_walkable(BOSS_CELL), [], _visual_boss)
-	_spawn_enemy(_make_unit_data(_craftsman_data, "错券兵", 90, 17, 90, 9), _nearest_walkable(_left_platform + Vector2i(-1, 0)), [_mallet], _visual_misaligned)
-	_spawn_enemy(_make_unit_data(_craftsman_data, "错券兵", 90, 17, 90, 9), _nearest_walkable(_right_platform + Vector2i(1, 0)), [_mallet], _visual_misaligned)
-	_spawn_enemy(_make_unit_data(_mud_data, "裂石兽", 112, 22, 90, 10, Enums.Element.EARTH, 2), _nearest_walkable(_crown_point + Vector2i(0, 1)), [_crush], _visual_stone_split)
 	_spawn_enemy(_make_unit_data(_craftsman_data, "错券兵", 90, 17, 90, 9), _nearest_walkable(_left_platform + Vector2i(-1, 0)), [_mallet], _visual_misaligned)
 	_spawn_enemy(_make_unit_data(_craftsman_data, "错券兵", 90, 17, 90, 9), _nearest_walkable(_right_platform + Vector2i(1, 0)), [_mallet], _visual_misaligned)
 	_spawn_enemy(_make_unit_data(_mud_data, "裂石兽", 112, 22, 90, 10, Enums.Element.EARTH, 2), _nearest_walkable(_crown_point + Vector2i(0, 1)), [_crush], _visual_stone_split)
