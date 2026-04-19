@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="UnitData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/unit_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+unit_id = "flood_spear"
+unit_name = "洪锋"
+camp = 1
+max_hp = 98
+base_atk = 24
+ap_max = 100
+move_cost_per_tile = 10
+innate_element = 3
+innate_element_amount = 2
+ai_type = "frontal_charge"
+water_only = false
+is_escort_target = false
+skills = []

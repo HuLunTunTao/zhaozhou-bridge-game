@@ -30,15 +30,27 @@ var _hero_data: UnitData = preload("res://data/units/hero_li_chun.tres")
 var _hero_visual: PackedScene = preload("res://scenes/unit/visual/human/li_chun/li_chun_visual.tscn")
 var _survey_data: UnitData = preload("res://data/units/survey_worker.tres")
 var _craftsman_data: UnitData = preload("res://data/units/craftsman_guard.tres")
-var _mud_data: UnitData = preload("res://data/units/bank_mud_wraith.tres")
-var _dark_data: UnitData = preload("res://data/units/dark_current.tres")
-var _drift_data: UnitData = preload("res://data/units/drift_log_pack.tres")
 
+# 第四关敌方单位（独立 .tres）
+var _flood_spear_data: UnitData = preload("res://data/units/flood_spear.tres")
+var _siltmare_data: UnitData = preload("res://data/units/siltmare.tres")
+var _pier_gnawer_data: UnitData = preload("res://data/units/pier_gnawer.tres")
+var _driftwood_data: UnitData = preload("res://data/units/flood_driftwood_pack.tres")
+var _wrathful_flood_data: UnitData = preload("res://data/units/wrathful_flood.tres")
+
+# 友军技能（复用）
 var _staff: SkillData = preload("res://data/skills/sw_staff_end_strike.tres")
 var _mallet: SkillData = preload("res://data/skills/cg_mallet_strike.tres")
 var _guard: SkillData = preload("res://data/skills/cg_guard_the_works.tres")
-var _divider: SkillData = preload("res://data/skills/lc_divider_mark_arc.tres")
+
+# 漂木群技能（复用现有 dlp_drifting_timber_crash，设计稿的 fdp_driftwood_surge 属后续步骤）
 var _timber: SkillData = preload("res://data/skills/dlp_drifting_timber_crash.tres")
+
+# 第四关敌方技能（独立 .tres）
+var _torrent_ram: SkillData = preload("res://data/skills/fs_torrent_ram.tres")
+var _mire_steps: SkillData = preload("res://data/skills/sm_mire_steps.tres")
+var _gnaw_pier: SkillData = preload("res://data/skills/pg_gnaw_pier.tres")
+var _overturn_bridge: SkillData = preload("res://data/skills/wf_overturn_bridge.tres")
 
 
 func get_teams_config() -> Array:
@@ -62,19 +74,19 @@ func get_teams_config() -> Array:
 func get_wave_config() -> Dictionary:
 	return {
 		3: [
-			{"unit_data": _make_unit_data(_mud_data, "桥台侵蚀", 150, 22, 90, 9, Enums.Element.EARTH, 1), "cell": _nearest_walkable(_left_pier + Vector2i(-2, 0)), "team_index": ENEMY_TEAM, "skills": [_mallet]},
+			{"unit_data": _make_unit_data(_pier_gnawer_data, "桥台噬者", 116, 22, 90, 10, Enums.Element.EARTH, 2), "cell": _nearest_walkable(_left_pier + Vector2i(-2, 0)), "team_index": ENEMY_TEAM, "skills": [_gnaw_pier]},
 		],
 		5: [
-			{"unit_data": _make_unit_data(_mud_data, "泥沙流", 110, 18, 90, 9, Enums.Element.EARTH, 1), "cell": _watch_point + Vector2i(0, -2), "team_index": ENEMY_TEAM, "skills": [_guard]},
+			{"unit_data": _make_unit_data(_siltmare_data, "泥沙魇", 84, 18, 90, 10, Enums.Element.EARTH, 2), "cell": _watch_point + Vector2i(0, -2), "team_index": ENEMY_TEAM, "skills": [_mire_steps]},
 		],
 		6: [
-			{"unit_data": _make_unit_data(_drift_data, "漂木群洪水版", 70, 18, 100, 10, Enums.Element.WOOD, 2), "cell": _side_arch_cells["left_front"] + Vector2i(0, -2), "team_index": ENEMY_TEAM, "skills": [_timber]},
+			{"unit_data": _make_unit_data(_driftwood_data, "漂木群·洪水版", 58, 20, 100, 10, Enums.Element.WOOD, 2), "cell": _side_arch_cells["left_front"] + Vector2i(0, -2), "team_index": ENEMY_TEAM, "skills": [_timber]},
 		],
 		7: [
-			{"unit_data": _make_unit_data(_mud_data, "桥台侵蚀", 150, 22, 90, 9, Enums.Element.EARTH, 1), "cell": _nearest_walkable(_right_pier + Vector2i(2, 0)), "team_index": ENEMY_TEAM, "skills": [_mallet]},
+			{"unit_data": _make_unit_data(_pier_gnawer_data, "桥台噬者", 116, 22, 90, 10, Enums.Element.EARTH, 2), "cell": _nearest_walkable(_right_pier + Vector2i(2, 0)), "team_index": ENEMY_TEAM, "skills": [_gnaw_pier]},
 		],
 		9: [
-			{"unit_data": _make_unit_data(_drift_data, "漂木群洪水版", 70, 18, 100, 10, Enums.Element.WOOD, 2), "cell": _side_arch_cells["right_front"] + Vector2i(0, -2), "team_index": ENEMY_TEAM, "skills": [_timber]},
+			{"unit_data": _make_unit_data(_driftwood_data, "漂木群·洪水版", 58, 20, 100, 10, Enums.Element.WOOD, 2), "cell": _side_arch_cells["right_front"] + Vector2i(0, -2), "team_index": ENEMY_TEAM, "skills": [_timber]},
 		],
 	}
 
@@ -222,10 +234,10 @@ func _apply_persistent_growth_effects() -> void:
 
 
 func _spawn_enemies() -> void:
-	_boss = _spawn_enemy(_make_unit_data(_dark_data, "怒水", 360, 24, 1, 99, Enums.Element.WATER, 2), _watch_point + Vector2i(0, -3), [_divider], preload("res://scenes/unit/visual/monster/洪峰/洪峰_visual.tscn"))
-	_spawn_enemy(_make_unit_data(_dark_data, "洪峰", 135, 22, 90, 8, Enums.Element.WATER, 1), _watch_point + Vector2i(0, -1), [_staff], preload("res://scenes/unit/visual/monster/洪峰/洪峰_visual.tscn"))
-	_spawn_enemy(_make_unit_data(_dark_data, "洪峰", 135, 22, 90, 8, Enums.Element.WATER, 1), _right_pier + Vector2i(1, -1), [_staff], preload("res://scenes/unit/visual/monster/洪峰/洪峰_visual.tscn"))
-	_spawn_enemy(_make_unit_data(_mud_data, "泥沙流", 110, 18, 90, 9, Enums.Element.EARTH, 1), _side_arch_cells["left_front"] + Vector2i(-1, 0), [_guard], preload("res://scenes/unit/visual/monster/泥沙魇/泥沙魇_visual.tscn"))
+	_boss = _spawn_enemy(_make_unit_data(_wrathful_flood_data, "怒水", 360, 24, 1, 99, Enums.Element.WATER, 2), _watch_point + Vector2i(0, -3), [_overturn_bridge], preload("res://scenes/unit/visual/monster/洪峰/洪峰_visual.tscn"))
+	_spawn_enemy(_make_unit_data(_flood_spear_data, "洪锋", 98, 24, 90, 10, Enums.Element.WATER, 2), _watch_point + Vector2i(0, -1), [_torrent_ram], preload("res://scenes/unit/visual/monster/洪峰/洪峰_visual.tscn"))
+	_spawn_enemy(_make_unit_data(_flood_spear_data, "洪锋", 98, 24, 90, 10, Enums.Element.WATER, 2), _right_pier + Vector2i(1, -1), [_torrent_ram], preload("res://scenes/unit/visual/monster/洪峰/洪峰_visual.tscn"))
+	_spawn_enemy(_make_unit_data(_siltmare_data, "泥沙魇", 84, 18, 90, 10, Enums.Element.EARTH, 2), _side_arch_cells["left_front"] + Vector2i(-1, 0), [_mire_steps], preload("res://scenes/unit/visual/monster/泥沙魇/泥沙魇_visual.tscn"))
 
 
 func _try_open_side_arch(unit: Unit) -> void:
@@ -276,7 +288,7 @@ func _resolve_enemy_pressure() -> void:
 	for enemy in teams[ENEMY_TEAM].units:
 		if not (enemy is Unit) or enemy.combat_stats == null or not enemy.combat_stats.is_alive():
 			continue
-		if enemy.combat_stats.unit_name == "漂木群洪水版":
+		if enemy.combat_stats.unit_name == "漂木群·洪水版":
 			for arch_key in _side_arch_cells.keys():
 				if enemy.cell == _side_arch_cells[arch_key]:
 					_side_arch_states[arch_key] = "blocked"
@@ -296,12 +308,12 @@ func _resolve_enemy_pressure() -> void:
 	for enemy in teams[ENEMY_TEAM].units:
 		if not (enemy is Unit) or enemy.combat_stats == null or not enemy.combat_stats.is_alive():
 			continue
-		if enemy.combat_stats.unit_name == "桥台侵蚀":
+		if enemy.combat_stats.unit_name == "桥台噬者":
 			if _is_adjacent_or_same(enemy.cell, _left_pier):
 				_left_pier_stability -= 1
 			if _is_adjacent_or_same(enemy.cell, _right_pier):
 				_right_pier_stability -= 1
-		if enemy.combat_stats.unit_name == "泥沙流" and _is_adjacent_or_same(enemy.cell, _watch_point):
+		if enemy.combat_stats.unit_name == "泥沙魇" and _is_adjacent_or_same(enemy.cell, _watch_point):
 			_overall_stability -= 1
 
 	Notify.notify("整桥:%d 左桥台:%d 右桥台:%d 小拱:%d/4" % [_overall_stability, _left_pier_stability, _right_pier_stability, open_count], Notify.Position.TOP_RIGHT, Notify.Style.WARNING, 2.5)
@@ -311,7 +323,7 @@ func _resolve_enemy_pressure() -> void:
 func _get_ai_context() -> Dictionary:
 	return {
 		"drift_directions": {
-			"漂木群洪水版": Vector2i(0, 1),
+			"漂木群·洪水版": Vector2i(0, 1),
 		}
 	}
 
