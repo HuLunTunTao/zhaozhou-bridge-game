@@ -102,6 +102,9 @@ static func _apply_extra_effect(
 			CombatLog.msg("  额外效果: 关卡机制技能命中")
 		"complete_survey":
 			CombatLog.msg("  额外效果: 踏勘量址 → 完成勘测点 (预留)")
+		"line_piercing":
+			# 穿刺已在 _collect_targets 内通过 get_line_piercing_cells 扩大目标；此处无须重复处理
+			pass
 		_:
 			CombatLog.msg("  额外效果: 未知 effect_id '%s'" % skill.extra_effect_id)
 
@@ -293,6 +296,24 @@ static func _force_move_cell(target: Unit, direction: Vector2i, distance: int) -
 # 目标收集
 # ─────────────────────────────────────────────
 
+## 穿刺直线中间格：若 caster_cell 与 cast_cell 在同一行/列，返回两者之间
+## 的全部格子（不含两端）。非水平/垂直返回空数组。用于 extra_effect_id =
+## "line_piercing" 的技能在战斗结算与瞄准预览时共享同一份中间格。
+static func get_line_piercing_cells(caster_cell: Vector2i, cast_cell: Vector2i) -> Array[Vector2i]:
+	var result: Array[Vector2i] = []
+	var delta := cast_cell - caster_cell
+	if delta == Vector2i.ZERO:
+		return result
+	if delta.x != 0 and delta.y != 0:
+		return result
+	var step := Vector2i(signi(delta.x), signi(delta.y))
+	var cur := caster_cell + step
+	while cur != cast_cell:
+		result.append(cur)
+		cur += step
+	return result
+
+
 static func _collect_targets(
 	skill: SkillData,
 	cast_cell: Vector2i,
@@ -303,6 +324,10 @@ static func _collect_targets(
 	var effect_cells: Dictionary = {}
 	for offset in skill.effect_offsets:
 		effect_cells[cast_cell + offset] = true
+	# 穿刺直线：从 caster_cell 到 cast_cell 中间的格子也计入效果
+	if skill.extra_effect_id == "line_piercing" and caster is Unit:
+		for line_cell in get_line_piercing_cells((caster as Unit).cell, cast_cell):
+			effect_cells[line_cell] = true
 
 	var targets: Array = []
 	for unit: Node2D in all_units:
