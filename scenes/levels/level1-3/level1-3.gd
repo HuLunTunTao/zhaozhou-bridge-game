@@ -210,12 +210,12 @@ func _on_unit_moved() -> void:
 
 
 func _on_skill_executed(caster: Unit, skill: SkillData, cast_cell: Vector2i, exec_result: SkillExecutor.ExecuteResult) -> void:
-	# 李春墨绳校券：命中左/右券台即 +1
+	# 李春墨绳校券：命中左/右券台 2×2 区域内任一格即 +1
 	if caster == _li_chun and skill.skill_id == "lc_inkline_balance_arch":
-		if cast_cell == _left_platform:
+		if _is_in_zone(cast_cell, _left_platform):
 			_adjust_arch_value(true, 1, "墨绳校券")
 			_update_status_panel()
-		elif cast_cell == _right_platform:
+		elif _is_in_zone(cast_cell, _right_platform):
 			_adjust_arch_value(false, 1, "墨绳校券")
 			_update_status_panel()
 		return
@@ -302,61 +302,64 @@ func _setup_anchor_cells() -> void:
 	print("[Level1-3] markers spawned: left=", _left_platform_marker, " right=", _right_platform_marker, " stone_yard_markers=", _stone_yard_markers.size())
 
 
-## 左/右券台视觉：彩色地块 + 脉动光晕（仿第一关撤离区）
+## 左/右券台视觉：2×2 彩色地块 + 居中脉动光晕
 func _setup_platform_markers() -> void:
-	var left_tile := _make_platform_tile(COLOR_LEFT_PLATFORM)
-	left_tile.name = "LeftArchPlatform"
-	register_special_tile(left_tile, _left_platform)
+	for c in _zone_cells(_left_platform):
+		var t := _make_platform_tile(COLOR_LEFT_PLATFORM)
+		t.name = "LeftArchTile_%d_%d" % [c.x, c.y]
+		register_special_tile(t, c)
 	_left_platform_marker = _spawn_pulsing_marker(_left_platform, "LeftArchMarker", COLOR_LEFT_HALO, "左券台")
 
-	var right_tile := _make_platform_tile(COLOR_RIGHT_PLATFORM)
-	right_tile.name = "RightArchPlatform"
-	register_special_tile(right_tile, _right_platform)
+	for c in _zone_cells(_right_platform):
+		var t := _make_platform_tile(COLOR_RIGHT_PLATFORM)
+		t.name = "RightArchTile_%d_%d" % [c.x, c.y]
+		register_special_tile(t, c)
 	_right_platform_marker = _spawn_pulsing_marker(_right_platform, "RightArchMarker", COLOR_RIGHT_HALO, "右券台")
 
 
-## 石料场视觉：彩色地块 + 脉动光晕
+## 石料场视觉：2×2 彩色地块 + 居中脉动光晕
 func _setup_stone_yard_markers() -> void:
 	for i in _stone_yard_cells.size():
-		var cell: Vector2i = _stone_yard_cells[i]
-		var tile := _make_platform_tile(COLOR_STONE_YARD)
-		tile.name = "StoneYard_%d" % i
-		register_special_tile(tile, cell)
-		var marker := _spawn_pulsing_marker(cell, "StoneYardMarker_%d" % i, COLOR_STONE_HALO, "石料场")
+		var anchor: Vector2i = _stone_yard_cells[i]
+		for c in _zone_cells(anchor):
+			var tile := _make_platform_tile(COLOR_STONE_YARD)
+			tile.name = "StoneYardTile_%d_%d_%d" % [i, c.x, c.y]
+			register_special_tile(tile, c)
+		var marker := _spawn_pulsing_marker(anchor, "StoneYardMarker_%d" % i, COLOR_STONE_HALO, "石料场")
 		_stone_yard_markers.append(marker)
 
 
-## 一个固定位置上生成锚点节点：菱形光晕 + 核心 + 文字标签都固定不动，
-## 另起一个 Floater 子节点放一根上下浮动的竖线指针（仿第一关撤离旗的竖线动效），
-## 这样既不干扰视觉又能让玩家快速定位到地块。
-func _spawn_pulsing_marker(cell: Vector2i, node_name: String, halo_color: Color, label_text: String = "") -> Node2D:
+## 2×2 锚点视觉：菱形光晕 + 核心 + 文字标签固定不动（正好覆盖 2×2 地块），
+## Floater 子节点放一根脉动竖线（像第一关撤离旗）方便定位，其他元素不浮动。
+## anchor 为 2×2 区域的西北角 cell；光晕中心位于 2×2 视觉中心。
+func _spawn_pulsing_marker(anchor: Vector2i, node_name: String, halo_color: Color, label_text: String = "") -> Node2D:
 	var marker := Node2D.new()
 	marker.name = node_name
 	marker.z_as_relative = false
 	marker.z_index = 120
-	marker.position = tilemap.map_to_local(cell) + Vector2(0, -18)
+	# 2×2 视觉中心 = anchor 格中心向南偏 8 px（即下方一个半格）
+	marker.position = tilemap.map_to_local(anchor) + Vector2(0, 8)
 	add_child(marker)
 
-	# 菱形光晕：固定
+	# 菱形光晕：覆盖整个 2×2（视觉宽 ±32 px，高 ±16 px）
 	var halo := Polygon2D.new()
 	halo.polygon = PackedVector2Array([
-		Vector2(0, -30), Vector2(30, -15), Vector2(0, 0), Vector2(-30, -15),
+		Vector2(0, -16), Vector2(32, 0), Vector2(0, 16), Vector2(-32, 0),
 	])
 	halo.color = halo_color
 	marker.add_child(halo)
 
-	# 菱形核心：固定
+	# 菱形核心：小一圈的亮色菱形（约 1.2×1.2 tile）
 	var core := Polygon2D.new()
 	core.polygon = PackedVector2Array([
-		Vector2(0, -18), Vector2(18, -9), Vector2(0, 0), Vector2(-18, -9),
+		Vector2(0, -10), Vector2(20, 0), Vector2(0, 10), Vector2(-20, 0),
 	])
 	var core_color := Color(1.0, 0.92, 0.80, 0.95)
-	core_color.a = minf(core_color.a, halo_color.a + 0.35)
+	core_color.a = minf(core_color.a, halo_color.a + 0.40)
 	core.color = core_color
-	core.position = Vector2(0, -2)
 	marker.add_child(core)
 
-	# 文字标签：固定
+	# 文字标签：固定在菱形正上方
 	if label_text != "":
 		var label := Label.new()
 		label.text = label_text
@@ -365,14 +368,14 @@ func _spawn_pulsing_marker(cell: Vector2i, node_name: String, halo_color: Color,
 		label.add_theme_constant_override("outline_size", 4)
 		label.add_theme_font_size_override("font_size", 12)
 		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		label.position = Vector2(-40, -70)
+		label.position = Vector2(-40, -58)
 		label.size = Vector2(80, 16)
 		marker.add_child(label)
 
-	# 浮动竖线：挂在一个独立 Floater 上做 y 轴脉动，其他元素保持静止
+	# 浮动竖线：挂在 Floater 上做 y 轴脉动；其它元素保持静止
 	var floater := Node2D.new()
 	floater.name = "Floater"
-	floater.position = Vector2(0, -30)
+	floater.position = Vector2(0, -16)
 	marker.add_child(floater)
 
 	var pole := Polygon2D.new()
@@ -385,7 +388,6 @@ func _spawn_pulsing_marker(cell: Vector2i, node_name: String, halo_color: Color,
 	var tween := create_tween().set_loops()
 	tween.tween_property(floater, "position:y", floater.position.y - 6.0, 0.7).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	tween.tween_property(floater, "position:y", floater.position.y, 0.7).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	print("[Level1-3]   marker '", node_name, "' at cell ", cell, " global_pos=", marker.global_position)
 	return marker
 
 
@@ -445,10 +447,8 @@ func _try_pick_or_deliver_stone(unit: Unit) -> void:
 	if unit not in _stone_carriers:
 		return
 	var key := unit.get_instance_id()
-	if _is_adjacent_to_any(unit.cell, _stone_yard_cells) and not _carrying_stone.get(key, false):
-		if unit.combat_stats.ap_current < 40:
-			return
-		unit.combat_stats.ap_current -= 40
+	# 取石：进入 2×2 石料场区域且空手 → 自动取石（不再扣 AP）
+	if _is_in_any_zone(unit.cell, _stone_yard_cells) and not _carrying_stone.get(key, false):
 		_carrying_stone[key] = true
 		_set_carrier_loaded(unit, true)
 		unit.refresh_overhead_bars()
@@ -456,18 +456,13 @@ func _try_pick_or_deliver_stone(unit: Unit) -> void:
 		return
 	if not _carrying_stone.get(key, false):
 		return
-	if _is_adjacent_or_same(unit.cell, _left_platform):
-		if unit.combat_stats.ap_current < 40:
-			return
-		unit.combat_stats.ap_current -= 40
+	# 交石：载石时进入 2×2 券台区域 → 自动卸石 + 对应侧 +1（不再扣 AP）
+	if _is_in_zone(unit.cell, _left_platform):
 		_adjust_arch_value(true, 1, "%s 运石入左券" % unit.combat_stats.unit_name)
 		_carrying_stone[key] = false
 		_set_carrier_loaded(unit, false)
 		unit.refresh_overhead_bars()
-	elif _is_adjacent_or_same(unit.cell, _right_platform):
-		if unit.combat_stats.ap_current < 40:
-			return
-		unit.combat_stats.ap_current -= 40
+	elif _is_in_zone(unit.cell, _right_platform):
 		_adjust_arch_value(false, 1, "%s 运石入右券" % unit.combat_stats.unit_name)
 		_carrying_stone[key] = false
 		_set_carrier_loaded(unit, false)
@@ -690,6 +685,28 @@ func _is_adjacent_or_same(a: Vector2i, b: Vector2i) -> bool:
 func _is_adjacent_to_any(cell: Vector2i, targets: Array[Vector2i]) -> bool:
 	for target in targets:
 		if _is_adjacent_or_same(cell, target):
+			return true
+	return false
+
+
+## 2×2 判定区：anchor 为西北角，区域含 anchor / +(1,0) / +(0,1) / +(1,1) 四格。
+func _zone_cells(anchor: Vector2i) -> Array[Vector2i]:
+	return [
+		anchor,
+		anchor + Vector2i(1, 0),
+		anchor + Vector2i(0, 1),
+		anchor + Vector2i(1, 1),
+	]
+
+
+func _is_in_zone(cell: Vector2i, anchor: Vector2i) -> bool:
+	return cell.x >= anchor.x and cell.x <= anchor.x + 1 \
+		and cell.y >= anchor.y and cell.y <= anchor.y + 1
+
+
+func _is_in_any_zone(cell: Vector2i, anchors: Array[Vector2i]) -> bool:
+	for a in anchors:
+		if _is_in_zone(cell, a):
 			return true
 	return false
 
