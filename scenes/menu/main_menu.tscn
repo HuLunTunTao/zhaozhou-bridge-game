@@ -1,7 +1,8 @@
-[gd_scene format=3 uid="uid://de3msqx8b2u0w"]
+[gd_scene load_steps=3 format=3 uid="uid://de3msqx8b2u0w"]
 
 [ext_resource type="Script" uid="uid://dxjy3lb2ww7kq" path="res://scenes/menu/main_menu.gd" id="1_script"]
 [ext_resource type="Texture2D" uid="uid://cdn1j2kifwwfr" path="res://assets/background.jpg" id="2_3rkf3"]
+[ext_resource type="Theme" uid="uid://cvsxo3hmseyjr" path="res://scenes/ui/paper_ink_theme.tres" id="3_theme"]
 
 [node name="MainMenu" type="Control" unique_id=1227900431]
 layout_mode = 3
@@ -10,6 +11,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+theme = ExtResource("3_theme")
 script = ExtResource("1_script")
 
 [node name="Background" type="TextureRect" parent="." unique_id=367275398]
@@ -29,16 +31,20 @@ anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -80.0
-offset_top = -60.0
-offset_right = 80.0
-offset_bottom = 60.0
+offset_left = -100.0
+offset_top = -80.0
+offset_right = 100.0
+offset_bottom = 80.0
 grow_horizontal = 2
 grow_vertical = 2
 theme_override_constants/separation = 12
 
 [node name="Title" type="Label" parent="MainPage" unique_id=1122473638]
 layout_mode = 2
+theme_override_colors/font_color = Color(0.1, 0.05, 0.02, 1)
+theme_override_colors/font_outline_color = Color(0.99, 0.96, 0.89, 0.95)
+theme_override_constants/outline_size = 6
+theme_override_font_sizes/font_size = 36
 text = "安济桥成"
 horizontal_alignment = 1
 vertical_alignment = 1
@@ -89,6 +95,10 @@ theme_override_constants/separation = 8
 
 [node name="LevelTitle" type="Label" parent="LevelSelectPage" unique_id=742654871]
 layout_mode = 2
+theme_override_colors/font_color = Color(0.1, 0.05, 0.02, 1)
+theme_override_colors/font_outline_color = Color(0.99, 0.96, 0.89, 0.95)
+theme_override_constants/outline_size = 4
+theme_override_font_sizes/font_size = 24
 text = "选择关卡"
 horizontal_alignment = 1
 
@@ -124,6 +134,10 @@ theme_override_constants/separation = 8
 
 [node name="TestTitle" type="Label" parent="TestSelectPage" unique_id=1649458191]
 layout_mode = 2
+theme_override_colors/font_color = Color(0.1, 0.05, 0.02, 1)
+theme_override_colors/font_outline_color = Color(0.99, 0.96, 0.89, 0.95)
+theme_override_constants/outline_size = 4
+theme_override_font_sizes/font_size = 24
 text = "测试场景"
 horizontal_alignment = 1
 

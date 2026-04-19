@@ -10,12 +10,16 @@ const SKILL_TYPE_NAMES := {
 	Enums.SkillType.ASSIST_INTERACT: "辅助",
 }
 
-const CARD_BG := Color(0.13, 0.15, 0.19, 0.96)
-const CARD_BG_HOVER := Color(0.16, 0.19, 0.24, 0.96)
-const CARD_BORDER := Color(0.28, 0.32, 0.38, 1.0)
-const CARD_BORDER_SELECTED := Color(0.82, 0.68, 0.35, 1.0)
-const CARD_BORDER_LOCKED := Color(0.45, 0.50, 0.56, 0.6)
-const CARD_BG_LOCKED := Color(0.10, 0.11, 0.14, 0.96)
+const CARD_BG := Color(0.94, 0.89, 0.77, 0.92)
+const CARD_BG_HOVER := Color(0.88, 0.8, 0.65, 0.95)
+const CARD_BORDER := Color(0.35, 0.25, 0.15, 0.7)
+const CARD_BORDER_SELECTED := Color(0.55, 0.35, 0.12, 1.0)
+const CARD_BORDER_LOCKED := Color(0.45, 0.4, 0.34, 0.55)
+const CARD_BG_LOCKED := Color(0.84, 0.8, 0.72, 0.75)
+const TEXT_INK := Color(0.15, 0.09, 0.05, 1)
+const TEXT_INK_MUTED := Color(0.4, 0.32, 0.22, 1)
+const TEXT_INK_LOCKED := Color(0.55, 0.48, 0.4, 1)
+const TEXT_ACCENT := Color(0.55, 0.35, 0.12, 1)
 
 @export var show_debug_controls := false
 
@@ -115,7 +119,7 @@ func _build_skill_card(skill: SkillData, selected: bool, locked: bool) -> PanelC
 	var name_label := Label.new()
 	name_label.text = skill.skill_name
 	name_label.add_theme_font_size_override("font_size", 12)
-	name_label.add_theme_color_override("font_color", Color.WHITE if not locked else Color(0.6, 0.63, 0.68))
+	name_label.add_theme_color_override("font_color", TEXT_INK if not locked else TEXT_INK_LOCKED)
 	header.add_child(name_label)
 
 	var type_badge := _make_badge(SKILL_TYPE_NAMES.get(skill.skill_type, ""), Color(0.45, 0.55, 0.7))
@@ -136,7 +140,7 @@ func _build_skill_card(skill: SkillData, selected: bool, locked: bool) -> PanelC
 	var ap_label := Label.new()
 	ap_label.text = "AP %d" % skill.ap_cost
 	ap_label.add_theme_font_size_override("font_size", 10)
-	ap_label.add_theme_color_override("font_color", Color(0.75, 0.65, 0.40) if not locked else Color(0.5, 0.5, 0.5))
+	ap_label.add_theme_color_override("font_color", TEXT_ACCENT if not locked else TEXT_INK_LOCKED)
 	header.add_child(ap_label)
 
 	# 描述
@@ -144,7 +148,7 @@ func _build_skill_card(skill: SkillData, selected: bool, locked: bool) -> PanelC
 	desc_label.text = skill.description
 	desc_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	desc_label.add_theme_font_size_override("font_size", 10)
-	desc_label.add_theme_color_override("font_color", Color(0.60, 0.63, 0.68) if not locked else Color(0.45, 0.48, 0.52))
+	desc_label.add_theme_color_override("font_color", TEXT_INK_MUTED if not locked else TEXT_INK_LOCKED)
 	vbox.add_child(desc_label)
 
 	if not locked:
@@ -189,7 +193,7 @@ func _apply_card_style(card: PanelContainer, selected: bool, locked: bool) -> vo
 		style.bg_color = CARD_BG_LOCKED
 		style.border_color = CARD_BORDER_LOCKED
 	elif selected:
-		style.bg_color = Color(0.14, 0.16, 0.21, 0.98)
+		style.bg_color = Color(0.98, 0.91, 0.76, 0.96)
 		style.border_color = CARD_BORDER_SELECTED
 	else:
 		style.bg_color = CARD_BG
