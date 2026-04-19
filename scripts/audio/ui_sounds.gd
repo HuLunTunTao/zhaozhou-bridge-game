@@ -8,7 +8,6 @@ const POPUP_PATH := ""
 const TURN_START_PATH := ""
 const VICTORY_PATH := ""
 const DEFEAT_PATH := ""
-const SAMPLE_RATE := 22050
 
 var _click: AudioStream = null
 var _hover: AudioStream = null
@@ -31,7 +30,7 @@ func _load_or_generate(path: String, freq_a: float, duration: float, amplitude: 
 	var stream := _try_load(path)
 	if stream != null:
 		return stream
-	return _make_tone(freq_a, duration, amplitude, freq_b)
+	return AudioUtils.make_tone(freq_a, duration, amplitude, freq_b)
 
 
 func _try_load(path: String) -> AudioStream:
@@ -43,29 +42,6 @@ func _try_load(path: String) -> AudioStream:
 	return null
 
 
-func _make_tone(freq_a: float, duration: float, amplitude: float, freq_b: float = 0.0) -> AudioStreamWAV:
-	var sample_count := maxi(1, int(SAMPLE_RATE * duration))
-	var data := PackedByteArray()
-	data.resize(sample_count * 2)
-
-	for i in sample_count:
-		var t := float(i) / float(SAMPLE_RATE)
-		var envelope := 1.0 - (float(i) / float(sample_count))
-		var sample := sin(TAU * freq_a * t)
-		if freq_b > 0.0:
-			sample = (sample + sin(TAU * freq_b * t)) * 0.5
-		var value := int(clampf(sample * amplitude * envelope, -1.0, 1.0) * 32767.0)
-		data[i * 2] = value & 0xff
-		data[i * 2 + 1] = (value >> 8) & 0xff
-
-	var wav := AudioStreamWAV.new()
-	wav.data = data
-	wav.format = AudioStreamWAV.FORMAT_16_BITS
-	wav.mix_rate = SAMPLE_RATE
-	wav.stereo = false
-	return wav
-
-
 func bind_button(button: BaseButton, bind_hover_sound: bool = true) -> void:
 	if button == null:
 		return
@@ -73,6 +49,16 @@ func bind_button(button: BaseButton, bind_hover_sound: bool = true) -> void:
 		button.pressed.connect(play_click)
 	if bind_hover_sound and not button.mouse_entered.is_connected(play_hover):
 		button.mouse_entered.connect(play_hover)
+
+##AI辅助生成， Kimi Code，2026-04-19
+
+func unbind_button(button: BaseButton, unbind_hover_sound: bool = true) -> void:
+	if button == null:
+		return
+	if button.pressed.is_connected(play_click):
+		button.pressed.disconnect(play_click)
+	if unbind_hover_sound and button.mouse_entered.is_connected(play_hover):
+		button.mouse_entered.disconnect(play_hover)
 
 
 func play_click() -> void:

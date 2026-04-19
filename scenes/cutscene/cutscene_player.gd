@@ -15,6 +15,8 @@ extends CanvasLayer
 ##      "pause_points": [3.5, 7.2, 10.0]  # optional, time points to pause (seconds)
 ##    }
 
+#AI辅助生成 Kimi Code，2026-04-19
+
 signal cutscene_finished
 
 @onready var background: ColorRect = $Background
@@ -192,7 +194,7 @@ func _on_skip_pressed() -> void:
 	await get_tree().create_timer(0.3).timeout
 	_finish()
 	# 恢复 Cutscene 总线音量（由 Settings 负责实际值）
-	Settings._apply_settings()
+	Settings.apply_settings()
 
 
 func _process(_delta: float) -> void:

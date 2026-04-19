@@ -24,7 +24,13 @@ func _ready() -> void:
 func play(stream: AudioStream, with_crossfade: bool = true) -> void:
 	if stream == null:
 		return
-	if _current.stream == stream and _current.playing:
+
+	#AI辅助生成， Kimi Code，2026-04-19
+
+	var same_stream := _current.stream == stream
+	if not same_stream and _current.stream != null and stream != null:
+		same_stream = _current.stream.resource_path == stream.resource_path
+	if same_stream and _current.playing:
 		return
 
 	if with_crossfade:
@@ -39,9 +45,24 @@ func stop(fade_out: bool = true) -> void:
 	if not _current.playing:
 		return
 	if fade_out:
-		_fade_player(_current, -80.0, FADE_TIME)
-		await get_tree().create_timer(FADE_TIME).timeout
-	_current.stop()
+		var tween := create_tween()
+		tween.tween_property(_current, "volume_db", -80.0, FADE_TIME)
+		tween.finished.connect(func():
+			if is_instance_valid(self) and is_inside_tree():
+				_current.stop()
+		, CONNECT_ONE_SHOT)
+	else:
+		_current.stop()
+
+
+## 返回当前是否正在播放 BGM
+func is_playing() -> bool:
+	return _current.playing
+
+
+## 返回当前播放的 AudioStream（可能为 null）
+func get_current_stream() -> AudioStream:
+	return _current.stream
 
 
 func _crossfade_to(stream: AudioStream) -> void:
@@ -60,12 +81,9 @@ func _crossfade_to(stream: AudioStream) -> void:
 
 
 func _swap_players() -> void:
+	if not is_instance_valid(self):
+		return
 	_current.stop()
 	var temp := _current
 	_current = _next
 	_next = temp
-
-
-func _fade_player(player: AudioStreamPlayer, target_db: float, duration: float) -> void:
-	var tween := create_tween()
-	tween.tween_property(player, "volume_db", target_db, duration)
