@@ -43,6 +43,7 @@ var _current_task: TaskState = TaskState.TASK1_SURVEY
 
 # ── 勘测点 ──
 var _survey_points: Array[SurveyPointTile] = []
+var _survey_markers: Dictionary = {}  # cell → Marker2D
 var _survey_completed_count: int = 0
 const SURVEY_CELLS: Array[Vector2i] = [Vector2i(-11, 12), Vector2i(-1, 2), Vector2i(10, -10)]
 
@@ -54,13 +55,11 @@ const BRIDGE_CELL: Vector2i = Vector2i(-1, 2)
 const COLOR_BRIDGE := Color(0.2, 0.6, 0.95, 0.75)
 
 # ── 撤离区 ──
-var _evac_tiles: Array[SpecialTile] = []
 var _evac_cells: Array[Vector2i] = []
 var _evac_marker: Node2D = null
 var _evac_notified: bool = false
 # 撤离区中心点：地图上旗帜所在格。撤离区是以此为中心的 3×3（9 格）范围。
 const EVAC_CENTER_CELL: Vector2i = Vector2i(23, 19)
-const COLOR_EVAC := Color(0.9, 0.3, 0.3, 0.6)
 
 # ── 任务提示 UI ──
 var _mission_hint_label: Label = null
@@ -248,6 +247,12 @@ func _setup_survey_points() -> void:
 		register_special_tile(tile, cell)
 		_survey_points.append(tile)
 		tile.survey_completed.connect(_on_survey_point_completed)
+		_survey_markers[cell] = spawn_tile_pulsing_marker(
+			cell,
+			Color(0.95, 0.78, 0.2, 0.5),
+			"勘测点",
+			Vector2.ZERO,
+			"SurveyMarker_%d_%d" % [cell.x, cell.y])
 
 
 func _make_survey_point_tile() -> SurveyPointTile:
@@ -264,50 +269,23 @@ func _setup_evac_tile() -> void:
 	for dx in range(-1, 2):
 		for dy in range(-1, 2):
 			_evac_cells.append(EVAC_CENTER_CELL + Vector2i(dx, dy))
-	for cell in _evac_cells:
-		var tile := _make_special_tile(COLOR_EVAC)
-		tile.name = "EvacuationTile_%d_%d" % [cell.x, cell.y]
-		register_special_tile(tile, cell)
-		_evac_tiles.append(tile)
+	# 不再为 3×3 的撤离区每格染红：现在仅靠中心的 EvacMarker 强调位置。
 	_spawn_evac_marker()
 
 
-## 撤离区中心的脉动光晕，仿桥位的强调方式；地图上已有的 Sprite 旗帜保留。
+## 撤离区中心只保留文字标记，不画光晕也不画指针（地图上已有 Sprite 旗帜）。
 func _spawn_evac_marker() -> void:
 	if _evac_marker != null and is_instance_valid(_evac_marker):
 		_evac_marker.queue_free()
-
-	_evac_marker = Node2D.new()
-	_evac_marker.name = "EvacMarker"
-	_evac_marker.z_as_relative = false
-	_evac_marker.z_index = 120
-	_evac_marker.position = tilemap.map_to_local(EVAC_CENTER_CELL) + Vector2(0, -18)
-	add_child(_evac_marker)
-
-	var halo := Polygon2D.new()
-	halo.polygon = PackedVector2Array([0, -30, 30, -15, 0, 0, -30, -15])
-	halo.color = Color(0.98, 0.35, 0.35, 0.42)
-	_evac_marker.add_child(halo)
-
-	var core := Polygon2D.new()
-	core.polygon = PackedVector2Array([0, -18, 18, -9, 0, 0, -18, -9])
-	core.color = Color(1.0, 0.92, 0.80, 0.95)
-	core.position = Vector2(0, -2)
-	_evac_marker.add_child(core)
-
-	var tween := create_tween().set_loops()
-	tween.tween_property(_evac_marker, "position:y", _evac_marker.position.y - 6.0, 0.7).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	tween.tween_property(_evac_marker, "position:y", _evac_marker.position.y, 0.7).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-
-
-func _make_special_tile(color: Color) -> SpecialTile:
-	var tile := SpecialTile.new()
-	var visual := Polygon2D.new()
-	visual.name = "Visual"
-	visual.polygon = PackedVector2Array([0, -16, 16, -8, 0, 0, -16, -8])
-	visual.color = color
-	tile.add_child(visual)
-	return tile
+	var marker := spawn_tile_pulsing_marker(
+		EVAC_CENTER_CELL,
+		Color(0.98, 0.35, 0.35, 0.0),
+		"撤离区",
+		Vector2.ZERO,
+		"EvacMarker")
+	marker.show_tile = false
+	marker.show_pole = false
+	_evac_marker = marker
 
 
 func _setup_mission_hint() -> void:
@@ -371,6 +349,10 @@ func _on_survey_point_completed(tile: SurveyPointTile) -> void:
 	_survey_completed_count += 1
 	_update_mission_hint()
 	_update_survey_points_hint()
+	var marker: Node2D = _survey_markers.get(tile.cell)
+	if marker != null and is_instance_valid(marker):
+		marker.queue_free()
+		_survey_markers.erase(tile.cell)
 	Notify.notify("勘测点 %s 已完成！（%d/%d）" % [str(tile.cell), _survey_completed_count, SURVEY_CELLS.size()], Notify.Position.TOP_CENTER, Notify.Style.SUCCESS, 3.0)
 	if _survey_completed_count >= SURVEY_CELLS.size():
 		_advance_to_task2()
@@ -423,39 +405,12 @@ func _make_bridge_tile() -> SpecialTile:
 func _spawn_bridge_marker() -> void:
 	if _bridge_marker != null and is_instance_valid(_bridge_marker):
 		_bridge_marker.queue_free()
-
-	_bridge_marker = Node2D.new()
-	_bridge_marker.name = "BridgeSiteMarker"
-	_bridge_marker.z_as_relative = false
-	_bridge_marker.z_index = 120
-	_bridge_marker.position = tilemap.map_to_local(BRIDGE_CELL) + Vector2(0, -18)
-	add_child(_bridge_marker)
-
-	var halo := Polygon2D.new()
-	halo.polygon = PackedVector2Array([0, -30, 30, -15, 0, 0, -30, -15])
-	halo.color = Color(0.18, 0.72, 1.0, 0.42)
-	_bridge_marker.add_child(halo)
-
-	var core := Polygon2D.new()
-	core.polygon = PackedVector2Array([0, -18, 18, -9, 0, 0, -18, -9])
-	core.color = Color(1.0, 0.97, 0.78, 0.95)
-	core.position = Vector2(0, -2)
-	_bridge_marker.add_child(core)
-
-	var pole := Line2D.new()
-	pole.points = PackedVector2Array([Vector2(0, -32), Vector2(0, -4)])
-	pole.width = 3.0
-	pole.default_color = Color(0.96, 0.93, 0.78, 0.95)
-	_bridge_marker.add_child(pole)
-
-	var flag := Polygon2D.new()
-	flag.polygon = PackedVector2Array([0, -32, 18, -26, 0, -20])
-	flag.color = Color(0.98, 0.68, 0.2, 0.95)
-	_bridge_marker.add_child(flag)
-
-	var tween := create_tween().set_loops()
-	tween.tween_property(_bridge_marker, "position:y", _bridge_marker.position.y - 6.0, 0.7).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	tween.tween_property(_bridge_marker, "position:y", _bridge_marker.position.y, 0.7).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	_bridge_marker = spawn_tile_pulsing_marker(
+		BRIDGE_CELL,
+		Color(0.18, 0.72, 1.0, 0.42),
+		"桥位",
+		Vector2.ZERO,
+		"BridgeSiteMarker")
 
 
 func _advance_to_task3() -> void:

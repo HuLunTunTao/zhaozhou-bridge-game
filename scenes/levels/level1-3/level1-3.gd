@@ -68,7 +68,6 @@ const COLOR_STONE_YARD := Color(0.55, 0.40, 0.25, 0.35)       # 棕色 —— �
 const COLOR_LEFT_HALO := Color(1.0, 0.80, 0.25, 0.50)         # 金色光晕
 const COLOR_RIGHT_HALO := Color(0.30, 0.70, 1.0, 0.50)        # 蓝色光晕
 const COLOR_STONE_HALO := Color(0.70, 0.50, 0.30, 0.30)       # 棕色光晕（更淡）
-const COLOR_POLE := Color(1.0, 0.95, 0.55, 0.95)              # 浮动竖线指针
 
 # ── 地图固定锚点（按桥面 tile 实际位置解码得出，视觉关于桥中轴 x==y 镜像对称）──
 # 桥图层并集范围：grid x=[-19,16] y=[-18,17]；视觉中轴位于 x-y=0 这条竖线（即 x==y）。
@@ -332,13 +331,15 @@ func _setup_platform_markers() -> void:
 		var t := _make_platform_tile(COLOR_LEFT_PLATFORM)
 		t.name = "LeftArchTile_%d_%d" % [c.x, c.y]
 		register_special_tile(t, c)
-	_left_platform_marker = _spawn_pulsing_marker(_left_platform, "LeftArchMarker", COLOR_LEFT_HALO, "左券台")
+	_left_platform_marker = spawn_tile_pulsing_marker(
+		_left_platform, COLOR_LEFT_HALO, "左券台", Vector2(0, 8), "LeftArchMarker", 2)
 
 	for c in _zone_cells(_right_platform):
 		var t := _make_platform_tile(COLOR_RIGHT_PLATFORM)
 		t.name = "RightArchTile_%d_%d" % [c.x, c.y]
 		register_special_tile(t, c)
-	_right_platform_marker = _spawn_pulsing_marker(_right_platform, "RightArchMarker", COLOR_RIGHT_HALO, "右券台")
+	_right_platform_marker = spawn_tile_pulsing_marker(
+		_right_platform, COLOR_RIGHT_HALO, "右券台", Vector2(0, 8), "RightArchMarker", 2)
 
 
 ## 石料场视觉：2×2 彩色地块 + 居中脉动光晕
@@ -349,71 +350,9 @@ func _setup_stone_yard_markers() -> void:
 			var tile := _make_platform_tile(COLOR_STONE_YARD)
 			tile.name = "StoneYardTile_%d_%d_%d" % [i, c.x, c.y]
 			register_special_tile(tile, c)
-		var marker := _spawn_pulsing_marker(anchor, "StoneYardMarker_%d" % i, COLOR_STONE_HALO, "石料场")
+		var marker := spawn_tile_pulsing_marker(
+			anchor, COLOR_STONE_HALO, "石料场", Vector2(0, 8), "StoneYardMarker_%d" % i, 2)
 		_stone_yard_markers.append(marker)
-
-
-## 2×2 锚点视觉：菱形光晕 + 核心 + 文字标签固定不动（正好覆盖 2×2 地块），
-## Floater 子节点放一根脉动竖线（像第一关撤离旗）方便定位，其他元素不浮动。
-## anchor 为 2×2 区域的西北角 cell；光晕中心位于 2×2 视觉中心。
-func _spawn_pulsing_marker(anchor: Vector2i, node_name: String, halo_color: Color, label_text: String = "") -> Node2D:
-	var marker := Node2D.new()
-	marker.name = node_name
-	marker.z_as_relative = false
-	# 放在地块之上但在单位之下（obstacles 层 z=4，单位继承其 z）。
-	# 这样高光盖住 surface/decoration/building 装饰地块，但不盖住任何角色/敌人。
-	marker.z_index = 3
-	marker.position = tilemap.map_to_local(anchor) + Vector2(0, 8)
-	add_child(marker)
-
-	# 菱形光晕：覆盖整个 2×2（视觉宽 ±32 px，高 ±16 px）
-	var halo := Polygon2D.new()
-	halo.polygon = PackedVector2Array([
-		Vector2(0, -16), Vector2(32, 0), Vector2(0, 16), Vector2(-32, 0),
-	])
-	halo.color = halo_color
-	marker.add_child(halo)
-
-	# 菱形核心：小一圈的亮色菱形（约 1.2×1.2 tile）
-	var core := Polygon2D.new()
-	core.polygon = PackedVector2Array([
-		Vector2(0, -10), Vector2(20, 0), Vector2(0, 10), Vector2(-20, 0),
-	])
-	var core_color := Color(1.0, 0.92, 0.80, 0.95)
-	core_color.a = minf(core_color.a, halo_color.a + 0.40)
-	core.color = core_color
-	marker.add_child(core)
-
-	# 文字标签：固定在菱形正上方
-	if label_text != "":
-		var label := Label.new()
-		label.text = label_text
-		label.add_theme_color_override("font_color", Color(1.0, 0.95, 0.6, 1.0))
-		label.add_theme_color_override("font_outline_color", Color(0.05, 0.05, 0.05, 1.0))
-		label.add_theme_constant_override("outline_size", 4)
-		label.add_theme_font_size_override("font_size", 12)
-		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		label.position = Vector2(-40, -58)
-		label.size = Vector2(80, 16)
-		marker.add_child(label)
-
-	# 浮动竖线：挂在 Floater 上做 y 轴脉动；其它元素保持静止
-	var floater := Node2D.new()
-	floater.name = "Floater"
-	floater.position = Vector2(0, -16)
-	marker.add_child(floater)
-
-	var pole := Polygon2D.new()
-	pole.polygon = PackedVector2Array([
-		Vector2(-1.5, 0), Vector2(1.5, 0), Vector2(1.5, -22), Vector2(-1.5, -22),
-	])
-	pole.color = COLOR_POLE
-	floater.add_child(pole)
-
-	var tween := create_tween().set_loops()
-	tween.tween_property(floater, "position:y", floater.position.y - 6.0, 0.7).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	tween.tween_property(floater, "position:y", floater.position.y, 0.7).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	return marker
 
 
 func _make_platform_tile(color: Color) -> SpecialTile:

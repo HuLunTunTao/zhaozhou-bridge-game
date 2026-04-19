@@ -219,27 +219,12 @@ func _make_parameter_tile() -> ParameterPointTile:
 
 
 func _spawn_parameter_flag(cell: Vector2i) -> void:
-	var marker := Node2D.new()
-	marker.name = "ParameterFlag_%d_%d" % [cell.x, cell.y]
-	marker.z_as_relative = false
-	marker.z_index = 115
-	marker.position = tilemap.map_to_local(cell) + Vector2(0, -18)
-	add_child(marker)
-
-	var pole := Line2D.new()
-	pole.points = PackedVector2Array([Vector2(0, -28), Vector2(0, -4)])
-	pole.width = 2.0
-	pole.default_color = Color(0.95, 0.9, 0.72, 0.95)
-	marker.add_child(pole)
-
-	var flag := Polygon2D.new()
-	flag.polygon = PackedVector2Array([0, -28, 16, -22, 0, -16])
-	flag.color = Color(0.95, 0.72, 0.2, 0.95)
-	marker.add_child(flag)
-
-	var tween := create_tween().set_loops()
-	tween.tween_property(marker, "position:y", marker.position.y - 4.0, 0.9).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	tween.tween_property(marker, "position:y", marker.position.y, 0.9).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	spawn_tile_pulsing_marker(
+		cell,
+		Color(0.95, 0.72, 0.2, 0.42),
+		"",
+		Vector2.ZERO,
+		"ParameterFlag_%d_%d" % [cell.x, cell.y])
 
 
 func _setup_drafting_marker() -> void:

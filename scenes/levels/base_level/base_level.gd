@@ -2100,6 +2100,35 @@ func register_special_tile(tile: SpecialTile, cell: Vector2i) -> void:
 	_special_tile_map[cell] = tile
 
 
+## 在指定地块上方挂一个统一的脉动强调标记（菱形光晕 + 下指箭头 + 可选文字）。
+## - cell：地块坐标。对 2×2 区域可传 NW 角并配合 local_offset = Vector2(0, 8) 居中。
+## - halo_color：光晕颜色（核心色会自动按 alpha 推导）。
+## - label_text：菱形上方的文字标签，留空则隐藏。
+## - local_offset：相对 tilemap.map_to_local(cell) 的额外位移，用于 2×2 居中或微调。
+## - node_name：可选节点名，便于调试 / 后续 queue_free。
+## - tile_z_index：halo / core / label 的绝对 z（Floater 始终 120）。默认 1：覆盖
+##   surface(0) 与 decoration(1)，被 obstacle z>=2 的角色覆盖。关卡若有更高 z 的
+##   建筑/桥面层（如 level1-3 的 building bridge z=2 + obstacle z=3），传 2 让 halo
+##   盖住桥面但仍处于角色之下。
+func spawn_tile_pulsing_marker(
+		cell: Vector2i,
+		halo_color: Color,
+		label_text: String = "",
+		local_offset: Vector2 = Vector2.ZERO,
+		node_name: String = "",
+		tile_z_index: int = 1) -> Marker2D:
+	const MARKER_SCENE: PackedScene = preload("res://scenes/levels/base_level/tile_pulsing_marker.tscn")
+	var marker: Marker2D = MARKER_SCENE.instantiate()
+	if node_name != "":
+		marker.name = node_name
+	marker.z_index = tile_z_index
+	marker.set("halo_color", halo_color)
+	marker.set("label_text", label_text)
+	add_child(marker)
+	marker.position = tilemap.map_to_local(cell) + local_offset
+	return marker
+
+
 # ─────────────────────────────────────────────
 # 场景辅助
 # ─────────────────────────────────────────────
