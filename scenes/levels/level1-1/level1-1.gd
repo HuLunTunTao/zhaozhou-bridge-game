@@ -53,10 +53,13 @@ var _bridge_marker: Node2D = null
 const BRIDGE_CELL: Vector2i = Vector2i(-1, 2)
 const COLOR_BRIDGE := Color(0.2, 0.6, 0.95, 0.75)
 
-# ── 撤离点 ──
-var _evac_tile: SpecialTile = null
+# ── 撤离区 ──
+var _evac_tiles: Array[SpecialTile] = []
+var _evac_cells: Array[Vector2i] = []
+var _evac_marker: Node2D = null
 var _evac_notified: bool = false
-const EVAC_CELL: Vector2i = Vector2i(23, 19)
+# 撤离区中心点：地图上旗帜所在格。撤离区是以此为中心的 3×3（9 格）范围。
+const EVAC_CENTER_CELL: Vector2i = Vector2i(23, 19)
 const COLOR_EVAC := Color(0.9, 0.3, 0.3, 0.6)
 
 # ── 任务提示 UI ──
@@ -88,6 +91,8 @@ func get_teams_config() -> Array:
 
 
 func get_wave_config() -> Dictionary:
+	# 节奏：开场压一下，前期 2–3 回合一波逐步加温，中后期稳定 3 回合一波，
+	# 整体展开到 r20，避免早期扎堆也不会拖到新手无事可做。
 	return {
 		1: [
 			{"unit_data": _ud_dark_current, "cell": Vector2i(13, -24), "team_index": ENEMY_TEAM,
@@ -98,32 +103,32 @@ func get_wave_config() -> Dictionary:
 		3: [
 			{"unit_data": _ud_whirl_pool, "cell": Vector2i(15, -24), "team_index": ENEMY_TEAM,
 			 "skills": [_sk_pull], "color": COLOR_WHIRL_POOL},
+		],
+		5: [
 			{"unit_data": _ud_drift_log, "cell": Vector2i(-19, 21), "team_index": ENEMY_TEAM,
 			 "skills": [_sk_timber], "color": COLOR_DRIFT_LOG},
 		],
-		6: [
+		8: [
 			{"unit_data": _ud_mud_wraith, "cell": Vector2i(11, -18), "team_index": ENEMY_TEAM,
 			 "skills": [_sk_crush], "color": COLOR_MUD_WRAITH},
 		],
-		7: [
+		11: [
 			{"unit_data": _ud_dark_current, "cell": Vector2i(-24, 20), "team_index": ENEMY_TEAM,
 			 "skills": [_sk_lunge], "color": COLOR_DARK_CURRENT},
-		],
-		8: [
-			{"unit_data": _ud_drift_log, "cell": Vector2i(-20, 21), "team_index": ENEMY_TEAM,
-			 "skills": [_sk_timber], "color": COLOR_DRIFT_LOG},
 			{"unit_data": _ud_whirl_pool, "cell": Vector2i(14, -21), "team_index": ENEMY_TEAM,
 			 "skills": [_sk_pull], "color": COLOR_WHIRL_POOL},
 		],
-		11: [
+		14: [
+			{"unit_data": _ud_drift_log, "cell": Vector2i(-20, 21), "team_index": ENEMY_TEAM,
+			 "skills": [_sk_timber], "color": COLOR_DRIFT_LOG},
+		],
+		17: [
 			{"unit_data": _ud_dark_current, "cell": Vector2i(14, -24), "team_index": ENEMY_TEAM,
 			 "skills": [_sk_lunge], "color": COLOR_DARK_CURRENT},
-		],
-		12: [
 			{"unit_data": _ud_mud_wraith, "cell": Vector2i(-22, 20), "team_index": ENEMY_TEAM,
 			 "skills": [_sk_crush], "color": COLOR_MUD_WRAITH},
 		],
-		14: [
+		20: [
 			{"unit_data": _ud_whirl_pool, "cell": Vector2i(13, -24), "team_index": ENEMY_TEAM,
 			 "skills": [_sk_pull], "color": COLOR_WHIRL_POOL},
 			{"unit_data": _ud_drift_log, "cell": Vector2i(-19, 21), "team_index": ENEMY_TEAM,
@@ -191,7 +196,7 @@ func _is_surveyor_at_evac() -> bool:
 	for surveyor in [_survey_a, _survey_b]:
 		if is_instance_valid(surveyor) and surveyor is Unit:
 			var u := surveyor as Unit
-			if u.combat_stats and u.combat_stats.is_alive() and u.cell == EVAC_CELL:
+			if u.combat_stats and u.combat_stats.is_alive() and u.cell in _evac_cells:
 				return true
 	return false
 
@@ -255,9 +260,44 @@ func _make_survey_point_tile() -> SurveyPointTile:
 
 
 func _setup_evac_tile() -> void:
-	_evac_tile = _make_special_tile(COLOR_EVAC)
-	_evac_tile.name = "EvacuationTile"
-	register_special_tile(_evac_tile, EVAC_CELL)
+	_evac_cells.clear()
+	for dx in range(-1, 2):
+		for dy in range(-1, 2):
+			_evac_cells.append(EVAC_CENTER_CELL + Vector2i(dx, dy))
+	for cell in _evac_cells:
+		var tile := _make_special_tile(COLOR_EVAC)
+		tile.name = "EvacuationTile_%d_%d" % [cell.x, cell.y]
+		register_special_tile(tile, cell)
+		_evac_tiles.append(tile)
+	_spawn_evac_marker()
+
+
+## 撤离区中心的脉动光晕，仿桥位的强调方式；地图上已有的 Sprite 旗帜保留。
+func _spawn_evac_marker() -> void:
+	if _evac_marker != null and is_instance_valid(_evac_marker):
+		_evac_marker.queue_free()
+
+	_evac_marker = Node2D.new()
+	_evac_marker.name = "EvacMarker"
+	_evac_marker.z_as_relative = false
+	_evac_marker.z_index = 120
+	_evac_marker.position = tilemap.map_to_local(EVAC_CENTER_CELL) + Vector2(0, -18)
+	add_child(_evac_marker)
+
+	var halo := Polygon2D.new()
+	halo.polygon = PackedVector2Array([0, -30, 30, -15, 0, 0, -30, -15])
+	halo.color = Color(0.98, 0.35, 0.35, 0.42)
+	_evac_marker.add_child(halo)
+
+	var core := Polygon2D.new()
+	core.polygon = PackedVector2Array([0, -18, 18, -9, 0, 0, -18, -9])
+	core.color = Color(1.0, 0.92, 0.80, 0.95)
+	core.position = Vector2(0, -2)
+	_evac_marker.add_child(core)
+
+	var tween := create_tween().set_loops()
+	tween.tween_property(_evac_marker, "position:y", _evac_marker.position.y - 6.0, 0.7).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	tween.tween_property(_evac_marker, "position:y", _evac_marker.position.y, 0.7).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 
 
 func _make_special_tile(color: Color) -> SpecialTile:
@@ -424,11 +464,11 @@ func _advance_to_task3() -> void:
 	await get_tree().create_timer(0.5).timeout
 	await play_dialogue([
 		_lc_line("桥位既定，剩下的是图纸的事。此地非久留之处——测量工带着读数先撤。"),
-		_lc_line("让至少一人走到撤离点 (23, 19)，在那里站到回合末，这趟就算成了。"),
+		_lc_line("桥头的旗帜那里是撤离区，旗帜周围 3×3 都算。让至少一人进去，并在那里站到回合末，这趟就算成了。"),
 	])
-	Notify.notify("相水定址完成！请指挥测量工前往撤离点 (23, 19)。", Notify.Position.TOP_CENTER, Notify.Style.SUCCESS, 4.0)
+	Notify.notify("相水定址完成！请指挥测量工前往撤离区（桥头旗帜周围 3×3）。", Notify.Position.TOP_CENTER, Notify.Style.SUCCESS, 4.0)
 	_show_objectives_if_not_open()
-	_focus_camera_after_delay(EVAC_CELL)
+	_focus_camera_after_delay(EVAC_CENTER_CELL)
 
 
 func _show_objectives_if_not_open() -> void:
@@ -493,7 +533,7 @@ func _on_unit_moved() -> void:
 			_update_mission_hint()
 			if not _evac_notified:
 				_evac_notified = true
-				Notify.notify("测量工已抵达撤离点！", Notify.Position.TOP_CENTER, Notify.Style.SUCCESS, 3.0)
+				Notify.notify("测量工已抵达撤离区！", Notify.Position.TOP_CENTER, Notify.Style.SUCCESS, 3.0)
 			_check_win_lose()
 		else:
 			_update_mission_hint()

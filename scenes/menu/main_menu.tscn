@@ -1,8 +1,8 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene format=3 uid="uid://de3msqx8b2u0w"]
 
-[ext_resource type="Script" path="res://scenes/menu/main_menu.gd" id="1_script"]
+[ext_resource type="Script" uid="uid://dxjy3lb2ww7kq" path="res://scenes/menu/main_menu.gd" id="1_script"]
 
-[node name="MainMenu" type="Control"]
+[node name="MainMenu" type="Control" unique_id=1227900431]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -11,7 +11,7 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_script")
 
-[node name="Background" type="ColorRect" parent="."]
+[node name="Background" type="ColorRect" parent="." unique_id=823517902]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -20,9 +20,7 @@ grow_horizontal = 2
 grow_vertical = 2
 color = Color(0.12, 0.15, 0.2, 1)
 
-;; ============ Main Page ============
-
-[node name="MainPage" type="VBoxContainer" parent="."]
+[node name="MainPage" type="VBoxContainer" parent="." unique_id=1691214215]
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
@@ -37,43 +35,41 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_constants/separation = 12
 
-[node name="Title" type="Label" parent="MainPage"]
+[node name="Title" type="Label" parent="MainPage" unique_id=1122473638]
 layout_mode = 2
 text = "安济桥成"
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="Spacer" type="Control" parent="MainPage"]
-layout_mode = 2
+[node name="Spacer" type="Control" parent="MainPage" unique_id=2055014369]
 custom_minimum_size = Vector2(0, 16)
+layout_mode = 2
 
-[node name="StartButton" type="Button" parent="MainPage"]
+[node name="StartButton" type="Button" parent="MainPage" unique_id=837747997]
 layout_mode = 2
 text = "开始游戏"
 
-[node name="TutorialButton" type="Button" parent="MainPage"]
+[node name="TutorialButton" type="Button" parent="MainPage" unique_id=2068683133]
 layout_mode = 2
 text = "新手教程"
 
-[node name="SettingsButton" type="Button" parent="MainPage"]
+[node name="SettingsButton" type="Button" parent="MainPage" unique_id=1028328702]
 layout_mode = 2
 text = "设置"
 
-[node name="ProgressButton" type="Button" parent="MainPage"]
+[node name="ProgressButton" type="Button" parent="MainPage" unique_id=1794195269]
 layout_mode = 2
 text = "技能/进度"
 
-[node name="TestButton" type="Button" parent="MainPage"]
+[node name="TestButton" type="Button" parent="MainPage" unique_id=611052338]
 layout_mode = 2
 text = "测试场景"
 
-[node name="QuitButton" type="Button" parent="MainPage"]
+[node name="QuitButton" type="Button" parent="MainPage" unique_id=617544701]
 layout_mode = 2
 text = "退出游戏"
 
-;; ============ Level Select Page ============
-
-[node name="LevelSelectPage" type="VBoxContainer" parent="."]
+[node name="LevelSelectPage" type="VBoxContainer" parent="." unique_id=472065227]
 visible = false
 layout_mode = 1
 anchors_preset = 8
@@ -89,29 +85,26 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_constants/separation = 8
 
-[node name="LevelTitle" type="Label" parent="LevelSelectPage"]
+[node name="LevelTitle" type="Label" parent="LevelSelectPage" unique_id=742654871]
 layout_mode = 2
 text = "选择关卡"
 horizontal_alignment = 1
 
-[node name="Spacer" type="Control" parent="LevelSelectPage"]
-layout_mode = 2
+[node name="Spacer" type="Control" parent="LevelSelectPage" unique_id=1980433223]
 custom_minimum_size = Vector2(0, 8)
+layout_mode = 2
 
-[node name="LevelGrid" type="GridContainer" parent="LevelSelectPage"]
+[node name="LevelGrid" type="GridContainer" parent="LevelSelectPage" unique_id=1902734068]
 layout_mode = 2
 theme_override_constants/h_separation = 8
 theme_override_constants/v_separation = 8
 columns = 3
 
-[node name="BackButton" type="Button" parent="LevelSelectPage"]
+[node name="BackButton" type="Button" parent="LevelSelectPage" unique_id=1251691838]
 layout_mode = 2
 text = "返回"
 
-
-;; ============ Test Select Page ============
-
-[node name="TestSelectPage" type="VBoxContainer" parent="."]
+[node name="TestSelectPage" type="VBoxContainer" parent="." unique_id=475994528]
 visible = false
 layout_mode = 1
 anchors_preset = 8
@@ -127,32 +120,30 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_constants/separation = 8
 
-[node name="TestTitle" type="Label" parent="TestSelectPage"]
+[node name="TestTitle" type="Label" parent="TestSelectPage" unique_id=1649458191]
 layout_mode = 2
 text = "测试场景"
 horizontal_alignment = 1
 
-[node name="Spacer" type="Control" parent="TestSelectPage"]
-layout_mode = 2
+[node name="Spacer" type="Control" parent="TestSelectPage" unique_id=462154683]
 custom_minimum_size = Vector2(0, 8)
+layout_mode = 2
 
-[node name="TestGrid" type="GridContainer" parent="TestSelectPage"]
+[node name="TestGrid" type="GridContainer" parent="TestSelectPage" unique_id=1074772921]
 layout_mode = 2
 theme_override_constants/h_separation = 8
 theme_override_constants/v_separation = 8
 columns = 3
 
-[node name="TestBackButton" type="Button" parent="TestSelectPage"]
+[node name="TestBackButton" type="Button" parent="TestSelectPage" unique_id=1818945790]
 layout_mode = 2
 text = "返回"
-
-;; ============ Connections ============
 
 [connection signal="pressed" from="MainPage/StartButton" to="." method="_on_start_pressed"]
 [connection signal="pressed" from="MainPage/TutorialButton" to="." method="_on_tutorial_pressed"]
 [connection signal="pressed" from="MainPage/SettingsButton" to="." method="_on_settings_pressed"]
 [connection signal="pressed" from="MainPage/ProgressButton" to="." method="_on_progress_pressed"]
-[connection signal="pressed" from="MainPage/QuitButton" to="." method="_on_quit_pressed"]
 [connection signal="pressed" from="MainPage/TestButton" to="." method="_on_test_pressed"]
+[connection signal="pressed" from="MainPage/QuitButton" to="." method="_on_quit_pressed"]
 [connection signal="pressed" from="LevelSelectPage/BackButton" to="." method="_on_level_back_pressed"]
 [connection signal="pressed" from="TestSelectPage/TestBackButton" to="." method="_on_test_back_pressed"]
