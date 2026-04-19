@@ -197,6 +197,7 @@ func _setup_allies_from_scene() -> void:
 
 
 func _setup_parameter_tiles() -> void:
+	# 参数点的脉动标记已在 level1-2.tscn 的 Markers 节点下预置。
 	for i in PARAMETER_CELLS.size():
 		var cell := PARAMETER_CELLS[i]
 		var tile := _make_parameter_tile()
@@ -206,7 +207,6 @@ func _setup_parameter_tiles() -> void:
 		register_special_tile(tile, cell)
 		_parameter_tiles[cell] = tile
 		tile.parameter_completed.connect(_on_parameter_completed)
-		_spawn_parameter_flag(cell)
 
 
 func _make_parameter_tile() -> ParameterPointTile:
@@ -216,15 +216,6 @@ func _make_parameter_tile() -> ParameterPointTile:
 	visual.polygon = PackedVector2Array([0, -16, 16, -8, 0, 0, -16, -8])
 	tile.add_child(visual)
 	return tile
-
-
-func _spawn_parameter_flag(cell: Vector2i) -> void:
-	spawn_tile_pulsing_marker(
-		cell,
-		Color(0.95, 0.72, 0.2, 0.42),
-		"",
-		Vector2.ZERO,
-		"ParameterFlag_%d_%d" % [cell.x, cell.y])
 
 
 func _setup_drafting_marker() -> void:

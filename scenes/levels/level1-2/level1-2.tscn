@@ -12,6 +12,7 @@
 [ext_resource type="PackedScene" uid="uid://qkwxdp8ayb57" path="res://scenes/unit/visual/human/li_chun/li_chun_visual.tscn" id="11_lwpox"]
 [ext_resource type="PackedScene" uid="uid://0vf68k1e0k18" path="res://scenes/unit/visual/human/测量工/测量工_visual.tscn" id="12_survey"]
 [ext_resource type="PackedScene" uid="uid://byxh2ycfe88e3" path="res://scenes/unit/visual/human/工匠/工匠_visual.tscn" id="13_craft"]
+[ext_resource type="PackedScene" uid="uid://c47f7i2wltut3" path="res://scenes/levels/base_level/tile_pulsing_marker.tscn" id="14_marker"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_2en6l"]
 texture = ExtResource("3_whjfh")
@@ -829,3 +830,20 @@ unit_color = Color(0.3, 0.9, 0.5, 1)
 [node name="MovementManager" parent="." index="6" unique_id=1144669128 node_paths=PackedStringArray("movement_tilemaps", "obstacle_tilemaps")]
 movement_tilemaps = [NodePath("../TileMaps/surface z=0")]
 obstacle_tilemaps = [NodePath("../TileMaps/obstacle z=2")]
+
+[node name="Markers" type="Node2D" parent="." index="7" unique_id=1700000002]
+
+[node name="ParameterMarker_河宽" parent="Markers" instance=ExtResource("14_marker")]
+position = Vector2(-352, 16)
+halo_color = Color(0.95, 0.72, 0.2, 0.42)
+label_text = "河宽"
+
+[node name="ParameterMarker_坡度" parent="Markers" instance=ExtResource("14_marker")]
+position = Vector2(-32, 16)
+halo_color = Color(0.95, 0.72, 0.2, 0.42)
+label_text = "坡度"
+
+[node name="ParameterMarker_石重" parent="Markers" instance=ExtResource("14_marker")]
+position = Vector2(336, 8)
+halo_color = Color(0.95, 0.72, 0.2, 0.42)
+label_text = "石重"

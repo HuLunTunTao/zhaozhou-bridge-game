@@ -7,6 +7,11 @@
 [ext_resource type="Texture2D" uid="uid://dnp77jaatgjll" path="res://assets/thepixeltiles/bridge/thebuilding.png" id="4_djocc"]
 [ext_resource type="Texture2D" uid="uid://bu6y7omeuk72g" path="res://assets/thepixeltiles/bridge/edgeofbridge.png" id="5_djocc"]
 [ext_resource type="TileSet" uid="uid://bdvi30tgeb2kv" path="res://assets/battle_tile_set.tres" id="6_l6vlj"]
+[ext_resource type="Script" uid="uid://c2077ybi0615r" path="res://scripts/data/unit_data.gd" id="7_unit_data"]
+[ext_resource type="PackedScene" uid="uid://qkwxdp8ayb57" path="res://scenes/unit/visual/human/li_chun/li_chun_visual.tscn" id="8_lichun_vis"]
+[ext_resource type="PackedScene" uid="uid://byxh2ycfe88e3" path="res://scenes/unit/visual/human/工匠/工匠_visual.tscn" id="9_craft_vis"]
+[ext_resource type="PackedScene" uid="uid://0vf68k1e0k18" path="res://scenes/unit/visual/human/测量工/测量工_visual.tscn" id="10_survey_vis"]
+[ext_resource type="PackedScene" uid="uid://c47f7i2wltut3" path="res://scenes/levels/base_level/tile_pulsing_marker.tscn" id="11_marker"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_l6vlj"]
 texture = ExtResource("3_ong38")
@@ -359,6 +364,78 @@ tile_size = Vector2i(32, 16)
 sources/0 = SubResource("TileSetAtlasSource_mg0w7")
 sources/4 = SubResource("TileSetAtlasSource_fua3u")
 
+[sub_resource type="Resource" id="Resource_li_chun"]
+script = ExtResource("7_unit_data")
+unit_id = "hero_li_chun"
+unit_name = "李春"
+max_hp = 130
+base_atk = 24
+ap_max = 100
+move_cost_per_tile = 8
+metadata/_custom_type_script = "uid://c2077ybi0615r"
+
+[sub_resource type="Resource" id="Resource_craftsman_a"]
+script = ExtResource("7_unit_data")
+unit_id = "craftsman_guard"
+unit_name = "工匠"
+max_hp = 118
+base_atk = 20
+ap_max = 92
+move_cost_per_tile = 9
+move_limit = 1
+skill_limit = 1
+metadata/_custom_type_script = "uid://c2077ybi0615r"
+
+[sub_resource type="Resource" id="Resource_craftsman_b"]
+script = ExtResource("7_unit_data")
+unit_id = "craftsman_guard"
+unit_name = "工匠"
+max_hp = 118
+base_atk = 20
+ap_max = 92
+move_cost_per_tile = 9
+move_limit = 1
+skill_limit = 1
+metadata/_custom_type_script = "uid://c2077ybi0615r"
+
+[sub_resource type="Resource" id="Resource_craftsman_c"]
+script = ExtResource("7_unit_data")
+unit_id = "craftsman_guard"
+unit_name = "工匠"
+max_hp = 118
+base_atk = 20
+ap_max = 92
+move_cost_per_tile = 9
+move_limit = 1
+skill_limit = 1
+metadata/_custom_type_script = "uid://c2077ybi0615r"
+
+[sub_resource type="Resource" id="Resource_carrier_a"]
+script = ExtResource("7_unit_data")
+unit_id = "survey_worker"
+unit_name = "运石工"
+max_hp = 88
+base_atk = 13
+ap_max = 90
+move_cost_per_tile = 9
+move_limit = 1
+skill_limit = 1
+is_escort_target = true
+metadata/_custom_type_script = "uid://c2077ybi0615r"
+
+[sub_resource type="Resource" id="Resource_carrier_b"]
+script = ExtResource("7_unit_data")
+unit_id = "survey_worker"
+unit_name = "运石工"
+max_hp = 88
+base_atk = 13
+ap_max = 90
+move_cost_per_tile = 9
+move_limit = 1
+skill_limit = 1
+is_escort_target = true
+metadata/_custom_type_script = "uid://c2077ybi0615r"
+
 [node name="Level1-3" unique_id=401483904 node_paths=PackedStringArray("obstacles_tilemap_layer") instance=ExtResource("1_base")]
 script = ExtResource("2_script")
 obstacles_tilemap_layer = NodePath("TileMaps/obstacle z=3")
@@ -435,7 +512,67 @@ tile_map_data = PackedByteArray("AAAYABgAAQAHAAAAAAAYABcAAQAGAAAAAAAYABYAAQAIAAA
 tile_set = SubResource("TileSet_rv6ug")
 
 [node name="Player" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="0" unique_id=1053979073 instance=ExtResource("3_player")]
+position = Vector2(-16, 232)
+unit_data = SubResource("Resource_li_chun")
+visual_scene = ExtResource("8_lichun_vis")
+unit_color = Color(1, 0.85, 0, 1)
+
+[node name="CraftsmanA" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="1" unique_id=1153010617 instance=ExtResource("3_player")]
+position = Vector2(-64, 240)
+unit_data = SubResource("Resource_craftsman_a")
+visual_scene = ExtResource("9_craft_vis")
+unit_color = Color(0.4, 0.8, 0.9, 1)
+
+[node name="CraftsmanB" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="2" unique_id=183664624 instance=ExtResource("3_player")]
+position = Vector2(-16, 280)
+unit_data = SubResource("Resource_craftsman_b")
+visual_scene = ExtResource("9_craft_vis")
+unit_color = Color(0.4, 0.8, 0.9, 1)
+
+[node name="CraftsmanC" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="3" unique_id=890582710 instance=ExtResource("3_player")]
+position = Vector2(32, 256)
+unit_data = SubResource("Resource_craftsman_c")
+visual_scene = ExtResource("9_craft_vis")
+unit_color = Color(0.4, 0.8, 0.9, 1)
+
+[node name="StoneCarrierA" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="4" unique_id=1734697745 instance=ExtResource("3_player")]
+position = Vector2(-48, 264)
+unit_data = SubResource("Resource_carrier_a")
+visual_scene = ExtResource("10_survey_vis")
+unit_color = Color(0.3, 0.9, 0.5, 1)
+
+[node name="StoneCarrierB" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="5" unique_id=1734697746 instance=ExtResource("3_player")]
+position = Vector2(16, 280)
+unit_data = SubResource("Resource_carrier_b")
+visual_scene = ExtResource("10_survey_vis")
+unit_color = Color(0.3, 0.9, 0.5, 1)
 
 [node name="MovementManager" parent="." index="6" unique_id=1144669128 node_paths=PackedStringArray("movement_tilemaps", "obstacle_tilemaps")]
 movement_tilemaps = [NodePath("../TileMaps/surface z=0"), NodePath("../TileMaps/buildiing bridge z=2")]
 obstacle_tilemaps = [NodePath("../TileMaps/obstacle z=3"), NodePath("../TileMaps/unvisiable obstacle z=4")]
+
+[node name="Markers" type="Node2D" parent="." index="7" unique_id=1700000003]
+
+[node name="LeftArchMarker" parent="Markers" instance=ExtResource("11_marker")]
+z_index = 2
+position = Vector2(-96, -104)
+halo_color = Color(1.0, 0.80, 0.25, 0.50)
+label_text = "左券台"
+
+[node name="RightArchMarker" parent="Markers" instance=ExtResource("11_marker")]
+z_index = 2
+position = Vector2(96, -104)
+halo_color = Color(0.30, 0.70, 1.0, 0.50)
+label_text = "右券台"
+
+[node name="StoneYardMarker_0" parent="Markers" instance=ExtResource("11_marker")]
+z_index = 2
+position = Vector2(-144, 240)
+halo_color = Color(0.70, 0.50, 0.30, 0.30)
+label_text = "石料场"
+
+[node name="StoneYardMarker_1" parent="Markers" instance=ExtResource("11_marker")]
+z_index = 2
+position = Vector2(144, 240)
+halo_color = Color(0.70, 0.50, 0.30, 0.30)
+label_text = "石料场"
