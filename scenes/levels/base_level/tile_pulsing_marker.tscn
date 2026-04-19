@@ -1,0 +1,41 @@
+[gd_scene format=3 uid="uid://c47f7i2wltut3"]
+
+[ext_resource type="Script" uid="uid://yhslx822h0jq" path="res://scenes/levels/base_level/tile_pulsing_marker.gd" id="1_script"]
+
+[node name="TilePulsingMarker" type="Marker2D" unique_id=1711177435]
+z_index = 1
+z_as_relative = false
+script = ExtResource("1_script")
+
+[node name="Halo" type="Polygon2D" parent="." unique_id=406635027]
+color = Color(0.18, 0.72, 1, 0.25)
+polygon = PackedVector2Array(0, -16, 32, 0, 0, 16, -32, 0)
+
+[node name="Core" type="Polygon2D" parent="." unique_id=1278931026]
+color = Color(1, 0.92, 0.8, 0.4)
+polygon = PackedVector2Array(0, -10, 20, 0, 0, 10, -20, 0)
+
+[node name="Label" type="Label" parent="." unique_id=1747585253]
+visible = false
+offset_left = -40.0
+offset_top = -58.0
+offset_right = 40.0
+offset_bottom = -42.0
+theme_override_colors/font_color = Color(1, 0.95, 0.6, 1)
+theme_override_colors/font_outline_color = Color(0.05, 0.05, 0.05, 1)
+theme_override_constants/outline_size = 4
+theme_override_font_sizes/font_size = 12
+horizontal_alignment = 1
+
+[node name="Floater" type="Node2D" parent="." unique_id=574366574]
+z_index = 120
+z_as_relative = false
+position = Vector2(0, -7)
+
+[node name="Pole" type="Polygon2D" parent="Floater" unique_id=1351879941]
+color = Color(1, 0.95, 0.55, 0.95)
+polygon = PackedVector2Array(-1.5, -8, 1.5, -8, 1.5, -30, -1.5, -30)
+
+[node name="Arrow" type="Polygon2D" parent="Floater" unique_id=255356239]
+color = Color(1, 0.95, 0.55, 0.95)
+polygon = PackedVector2Array(0, 0, -6, -10, 6, -10)
