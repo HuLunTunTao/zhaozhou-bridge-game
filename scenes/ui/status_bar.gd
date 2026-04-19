@@ -43,6 +43,12 @@ var _tooltip: PanelContainer = null
 var _tooltip_title: Label = null
 var _tooltip_body: RichTextLabel = null
 
+# 头像动画播放状态：当 unit_data.portrait 缺省时，从 Visual 的朝右 idle 动画里循环采帧。
+var _portrait_frames: SpriteFrames = null
+var _portrait_anim: StringName = &""
+var _portrait_frame_idx: int = 0
+var _portrait_accum: float = 0.0
+
 @onready var _portrait: TextureRect = %Portrait
 @onready var _portrait_bg: TextureRect = %PortraitBg
 @onready var _name_label: Label = %NameLabel
@@ -75,9 +81,10 @@ func _ensure_tooltip() -> void:
 	_tooltip_body = _tooltip.get_node("VBox/Body") as RichTextLabel
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	if _tooltip != null and _tooltip.visible:
 		_position_tooltip_at_mouse()
+	_advance_portrait_animation(delta)
 
 
 func _on_move_pressed() -> void:
@@ -142,8 +149,8 @@ func show_unit(unit: Node2D, is_active: bool = false) -> void:
 	if stats:
 		_name_label.text = stats.unit_name
 		_atk_label.text = "攻击力 %d" % stats.base_atk
-		# 头像：优先 unit_data.portrait，缺失时回退到朝右 idle 首帧
-		_portrait.texture = unit.get_portrait_texture() if unit is Unit else null
+		# 头像：优先 unit_data.portrait（静态），否则播放朝右 idle 动画。
+		_setup_portrait(unit)
 		_portrait_bg.texture = _get_portrait_bg(unit)
 
 		_hp_bar.max_value = stats.max_hp
@@ -173,6 +180,7 @@ func show_unit(unit: Node2D, is_active: bool = false) -> void:
 	else:
 		_name_label.text = unit.name
 		_atk_label.text = ""
+		_clear_portrait_animation()
 		_portrait.texture = null
 		_portrait_bg.texture = null
 		_hp_bar.value = 0
@@ -191,6 +199,7 @@ func clear_unit() -> void:
 	_current_unit = null
 	if _tooltip != null:
 		_tooltip.visible = false
+	_clear_portrait_animation()
 	_portrait.texture = null
 	_portrait_bg.texture = null
 	_name_label.text = "--"
@@ -211,6 +220,61 @@ func clear_unit() -> void:
 # ─────────────────────────────────────────────
 # 内部方法
 # ─────────────────────────────────────────────
+
+func _setup_portrait(unit: Node2D) -> void:
+	# 静态肖像优先；否则从 Visual 拉朝右 idle 动画来循环播放。
+	var data: UnitData = unit.unit_data if unit is Unit else null
+	if data and data.portrait:
+		_clear_portrait_animation()
+		_portrait.texture = data.portrait
+		return
+	var visual: UnitVisual = null
+	if unit is Unit:
+		visual = unit.get_node_or_null("Visual") as UnitVisual
+	if visual == null or visual.sprite_frames == null:
+		_clear_portrait_animation()
+		_portrait.texture = null
+		return
+	var anim: StringName = visual.get_idle_right_anim_name()
+	if anim == StringName(""):
+		_clear_portrait_animation()
+		_portrait.texture = null
+		return
+	_portrait_frames = visual.sprite_frames
+	_portrait_anim = anim
+	_portrait_frame_idx = 0
+	_portrait_accum = 0.0
+	_portrait.texture = _portrait_frames.get_frame_texture(anim, 0)
+
+
+func _clear_portrait_animation() -> void:
+	_portrait_frames = null
+	_portrait_anim = &""
+	_portrait_frame_idx = 0
+	_portrait_accum = 0.0
+
+
+func _advance_portrait_animation(delta: float) -> void:
+	if _portrait_frames == null or _portrait_anim == StringName(""):
+		return
+	var frame_count := _portrait_frames.get_frame_count(_portrait_anim)
+	if frame_count <= 0:
+		return
+	var speed := _portrait_frames.get_animation_speed(_portrait_anim)
+	if speed <= 0.0:
+		return
+	var duration := _portrait_frames.get_frame_duration(_portrait_anim, _portrait_frame_idx) / speed
+	if duration <= 0.0:
+		return
+	_portrait_accum += delta
+	while _portrait_accum >= duration:
+		_portrait_accum -= duration
+		_portrait_frame_idx = (_portrait_frame_idx + 1) % frame_count
+		duration = _portrait_frames.get_frame_duration(_portrait_anim, _portrait_frame_idx) / speed
+		if duration <= 0.0:
+			break
+	_portrait.texture = _portrait_frames.get_frame_texture(_portrait_anim, _portrait_frame_idx)
+
 
 func _update_hp_color(stats: CombatStats) -> void:
 	var ratio := float(stats.current_hp) / float(stats.max_hp) if stats.max_hp > 0 else 0.0
