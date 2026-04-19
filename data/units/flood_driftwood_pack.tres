@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="UnitData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/unit_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+unit_id = "flood_driftwood_pack"
+unit_name = "漂木群·洪水版"
+camp = 1
+max_hp = 58
+base_atk = 20
+ap_max = 100
+move_cost_per_tile = 10
+innate_element = 2
+innate_element_amount = 2
+ai_type = "hazard_charge"
+water_only = false
+is_escort_target = false
+skills = []
