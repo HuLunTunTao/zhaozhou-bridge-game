@@ -25,6 +25,10 @@ var _prev_balance_state: String = "均衡"
 var _clutch_fired: bool = false
 # 偏压移衡调用次数计数：每 2 次才真正扣 1 点，避免每回合压得太狠
 var _shift_load_tick: int = 0
+# 券台 / 石料场的脉动光晕标记（仿第一关撤离区）
+var _left_platform_marker: Node2D = null
+var _right_platform_marker: Node2D = null
+var _stone_yard_markers: Array[Node2D] = []
 
 var _left_platform: Vector2i
 var _right_platform: Vector2i
@@ -56,24 +60,26 @@ var _visual_rope_sever: PackedScene = preload("res://scenes/unit/visual/monster/
 var _visual_joint_shade: PackedScene = preload("res://scenes/unit/visual/monster/脱缝鬼/脱缝鬼_visual.tscn")
 
 
-# ── 地图固定锚点视觉 ──
+# ── 地图固定锚点视觉（与第一关撤离区同款脉动光晕） ──
 const COLOR_LEFT_PLATFORM := Color(0.95, 0.75, 0.25, 0.65)    # 金色 —— 左券台
 const COLOR_RIGHT_PLATFORM := Color(0.25, 0.65, 0.95, 0.65)   # 蓝色 —— 右券台
 const COLOR_STONE_YARD := Color(0.55, 0.40, 0.25, 0.65)       # 棕色 —— 石料场
+const COLOR_LEFT_HALO := Color(1.0, 0.80, 0.25, 0.55)         # 金色光晕
+const COLOR_RIGHT_HALO := Color(0.30, 0.70, 1.0, 0.55)        # 蓝色光晕
+const COLOR_STONE_HALO := Color(0.70, 0.50, 0.30, 0.55)       # 棕色光晕
 
-# ── 地图固定锚点（从桥面 tile 数据反推得到，不随李春位置变化）──
-# 桥是一条从 (-12, -17) 到 (9, 17) 的斜对角大桥，拱冠中心约在 (-1, 0)。
-# 视觉水平中心 = cell.x == cell.y（等距公式 visual_x = (x-y)*16）。
-# Boss 与李春都放到 x==y 的对角线上，确保视觉上都在画面横向正中。
-const CROWN_CELL: Vector2i = Vector2i(-1, 0)            # 拱冠，李春合龙的位置
-const LEFT_PLATFORM_CELL: Vector2i = Vector2i(-4, 0)    # 左券台
-const RIGHT_PLATFORM_CELL: Vector2i = Vector2i(3, 0)    # 右券台
-const JOINT_CELL_A: Vector2i = Vector2i(-2, -1)         # 缝口 A
-const JOINT_CELL_B: Vector2i = Vector2i(1, -1)          # 缝口 B
-const STONE_YARD_CELL_A: Vector2i = Vector2i(6, 13)     # 石料场左（桥南半侧，靠近左券台）
-const STONE_YARD_CELL_B: Vector2i = Vector2i(8, 14)     # 石料场右（桥南半侧，靠近右券台）
-const BOSS_CELL: Vector2i = Vector2i(-15, -15)          # Boss 在桥北端视觉正中（x==y）
-const LI_CHUN_START_CELL: Vector2i = Vector2i(18, 18)   # 李春在南岸未上桥处视觉正中（x==y）
+# ── 地图固定锚点（按桥面 tile 实际位置解码得出，视觉关于桥中轴 x==y 镜像对称）──
+# 桥图层并集范围：grid x=[-19,16] y=[-18,17]；视觉中轴位于 x-y=0 这条竖线（即 x==y）。
+# 所有桥上锚点都关于该中轴左右对称；南岸南点也都落在 x==y 中轴上。
+const CROWN_CELL: Vector2i = Vector2i(-1, -1)           # 桥视觉正中
+const BOSS_CELL: Vector2i = Vector2i(-10, -10)          # 桥北端中轴（最偏北）
+const LEFT_PLATFORM_CELL: Vector2i = Vector2i(-11, -4)  # 左券台：视觉 (-112, -120)
+const RIGHT_PLATFORM_CELL: Vector2i = Vector2i(-5, -10) # 右券台：视觉 (80, -120)
+const JOINT_CELL_A: Vector2i = Vector2i(-8, -4)         # 左缝口：中轴以西 64 px
+const JOINT_CELL_B: Vector2i = Vector2i(-4, -8)         # 右缝口：中轴以东 64 px（镜像）
+const LI_CHUN_START_CELL: Vector2i = Vector2i(14, 14)   # 李春在南岸未上桥处的视觉中轴
+const STONE_YARD_CELL_A: Vector2i = Vector2i(9, 19)     # 左石料场：视觉 (-160, 224)
+const STONE_YARD_CELL_B: Vector2i = Vector2i(18, 10)    # 右石料场：视觉 (128, 224)
 
 
 func get_teams_config() -> Array:
@@ -284,27 +290,83 @@ func _setup_anchor_cells() -> void:
 		_nearest_walkable(JOINT_CELL_A),
 		_nearest_walkable(JOINT_CELL_B),
 	]
+	# ── 调试 ──
+	print("[Level1-3] anchors:")
+	print("  LEFT_PLATFORM_CELL=", LEFT_PLATFORM_CELL, " → snap=", _left_platform)
+	print("  RIGHT_PLATFORM_CELL=", RIGHT_PLATFORM_CELL, " → snap=", _right_platform)
+	print("  STONE_YARD_CELL_A=", STONE_YARD_CELL_A, " → snap=", _stone_yard_cells[0])
+	print("  STONE_YARD_CELL_B=", STONE_YARD_CELL_B, " → snap=", _stone_yard_cells[1])
 	_setup_platform_markers()
 	_setup_stone_yard_markers()
+	print("[Level1-3] markers spawned: left=", _left_platform_marker, " right=", _right_platform_marker, " stone_yard_markers=", _stone_yard_markers.size())
 
 
-## 左/右券台的视觉地块：金色/蓝色小菱形让玩家一眼看到运石目的地和墨绳校券目标。
+## 左/右券台视觉：彩色地块 + 脉动光晕（仿第一关撤离区）
 func _setup_platform_markers() -> void:
 	var left_tile := _make_platform_tile(COLOR_LEFT_PLATFORM)
 	left_tile.name = "LeftArchPlatform"
 	register_special_tile(left_tile, _left_platform)
+	_left_platform_marker = _spawn_pulsing_marker(_left_platform, "LeftArchMarker", COLOR_LEFT_HALO, "左券台")
+
 	var right_tile := _make_platform_tile(COLOR_RIGHT_PLATFORM)
 	right_tile.name = "RightArchPlatform"
 	register_special_tile(right_tile, _right_platform)
+	_right_platform_marker = _spawn_pulsing_marker(_right_platform, "RightArchMarker", COLOR_RIGHT_HALO, "右券台")
 
 
-## 石料场的视觉地块：棕色小菱形让玩家一眼看到运石工要先去哪里取石。
+## 石料场视觉：彩色地块 + 脉动光晕
 func _setup_stone_yard_markers() -> void:
 	for i in _stone_yard_cells.size():
 		var cell: Vector2i = _stone_yard_cells[i]
 		var tile := _make_platform_tile(COLOR_STONE_YARD)
 		tile.name = "StoneYard_%d" % i
 		register_special_tile(tile, cell)
+		var marker := _spawn_pulsing_marker(cell, "StoneYardMarker_%d" % i, COLOR_STONE_HALO, "石料场")
+		_stone_yard_markers.append(marker)
+
+
+## 一个固定位置上生成一个脉动光晕节点（仿第一关 _spawn_evac_marker）。
+## label_text 非空时在顶上额外加一个文字标签，避免完全看不到。
+func _spawn_pulsing_marker(cell: Vector2i, node_name: String, halo_color: Color, label_text: String = "") -> Node2D:
+	var marker := Node2D.new()
+	marker.name = node_name
+	marker.z_as_relative = false
+	marker.z_index = 120
+	marker.position = tilemap.map_to_local(cell) + Vector2(0, -18)
+	add_child(marker)
+
+	var halo := Polygon2D.new()
+	halo.polygon = PackedVector2Array([
+		Vector2(0, -30), Vector2(30, -15), Vector2(0, 0), Vector2(-30, -15),
+	])
+	halo.color = halo_color
+	marker.add_child(halo)
+
+	var core := Polygon2D.new()
+	core.polygon = PackedVector2Array([
+		Vector2(0, -18), Vector2(18, -9), Vector2(0, 0), Vector2(-18, -9),
+	])
+	core.color = Color(1.0, 0.92, 0.80, 0.95)
+	core.position = Vector2(0, -2)
+	marker.add_child(core)
+
+	if label_text != "":
+		var label := Label.new()
+		label.text = label_text
+		label.add_theme_color_override("font_color", Color(1.0, 0.95, 0.6, 1.0))
+		label.add_theme_color_override("font_outline_color", Color(0.05, 0.05, 0.05, 1.0))
+		label.add_theme_constant_override("outline_size", 4)
+		label.add_theme_font_size_override("font_size", 12)
+		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		label.position = Vector2(-40, -48)
+		label.size = Vector2(80, 16)
+		marker.add_child(label)
+
+	var tween := create_tween().set_loops()
+	tween.tween_property(marker, "position:y", marker.position.y - 6.0, 0.7).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	tween.tween_property(marker, "position:y", marker.position.y, 0.7).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	print("[Level1-3]   marker '", node_name, "' at cell ", cell, " global_pos=", marker.global_position)
+	return marker
 
 
 func _make_platform_tile(color: Color) -> SpecialTile:
@@ -324,9 +386,9 @@ func _setup_li_chun() -> void:
 
 
 func _spawn_allies() -> void:
-	# 李春已经在 LI_CHUN_START_CELL = (18, 18) 的南岸视觉正中。其他队友以他为中心
-	# 左右对称散布、非对齐。等距 tile 下：
-	#   offset (a, b) 视觉 = ((a-b)*16, (a+b)*8)
+	# 李春已经在 LI_CHUN_START_CELL = (14, 14) 的南岸视觉中轴（视觉 0, 224）。
+	# 队友以他为锚点，分布在他的正南/南偏左/南偏右，视觉上李春在最前（最北）。
+	# 等距 tile 下：offset (a, b) 视觉 = ((a-b)*16, (a+b)*8)
 	#   (a-b) 决定左右（负=左），(a+b) 决定南北（正=南）
 	var anchor := _li_chun.cell
 	_craftsmen = [
@@ -353,8 +415,9 @@ func _spawn_enemies() -> void:
 	# 只靠被动的偏压移衡扣券值 + 压台对相邻我方扣血。空技能表 + AP 1 / move_cost 99
 	# 保证 AI 不会尝试攻击或移动。合龙后由 _unlock_boss 解锁机动与近战。
 	_boss = _spawn_enemy(_make_unit_data(_mud_data, "偏载傀", 320, 22, 1, 99, Enums.Element.EARTH, 2), _nearest_walkable(BOSS_CELL), [], _visual_boss)
-	_spawn_enemy(_make_unit_data(_craftsman_data, "错券兵", 90, 17, 90, 9), _nearest_walkable(_left_platform + Vector2i(-1, 0)), [_mallet], _visual_misaligned)
-	_spawn_enemy(_make_unit_data(_craftsman_data, "错券兵", 90, 17, 90, 9), _nearest_walkable(_right_platform + Vector2i(1, 0)), [_mallet], _visual_misaligned)
+	# 两个错券兵分别贴在左右券台外侧，关于桥中轴镜像对称。
+	_spawn_enemy(_make_unit_data(_craftsman_data, "错券兵", 90, 17, 90, 9), _nearest_walkable(_left_platform + Vector2i(-1, 1)), [_mallet], _visual_misaligned)
+	_spawn_enemy(_make_unit_data(_craftsman_data, "错券兵", 90, 17, 90, 9), _nearest_walkable(_right_platform + Vector2i(1, -1)), [_mallet], _visual_misaligned)
 	_spawn_enemy(_make_unit_data(_mud_data, "裂石兽", 112, 22, 90, 10, Enums.Element.EARTH, 2), _nearest_walkable(_crown_point + Vector2i(0, 1)), [_crush], _visual_stone_split)
 
 
