@@ -35,6 +35,7 @@ var _right_platform: Vector2i
 var _crown_point: Vector2i
 var _stone_yard_cells: Array[Vector2i] = []
 var _joint_cells: Array[Vector2i] = []
+var _bridge_cells: Dictionary = {}  # 桥面可落脚 cell 集合（敌人刷新必须在桥上）
 
 var _hero_data: UnitData = preload("res://data/units/hero_li_chun.tres")
 var _hero_visual: PackedScene = preload("res://scenes/unit/visual/human/li_chun/li_chun_visual.tscn")
@@ -73,12 +74,12 @@ const COLOR_POLE := Color(1.0, 0.95, 0.55, 0.95)              # 浮动竖线指�
 # 桥图层并集范围：grid x=[-19,16] y=[-18,17]；视觉中轴位于 x-y=0 这条竖线（即 x==y）。
 # 所有桥上锚点都关于该中轴左右对称；南岸南点也都落在 x==y 中轴上。
 const CROWN_CELL: Vector2i = Vector2i(-1, -1)           # 桥视觉正中
-const BOSS_CELL: Vector2i = Vector2i(-10, -10)          # 桥北端中轴（最偏北）
+const BOSS_CELL: Vector2i = Vector2i(-10, -9)           # Boss 桥北端中央（对齐地图实际中心，视觉 x=-16）
 const LEFT_PLATFORM_CELL: Vector2i = Vector2i(-11, -4)  # 左券台：视觉 (-112, -120)
 const RIGHT_PLATFORM_CELL: Vector2i = Vector2i(-5, -10) # 右券台：视觉 (80, -120)
 const JOINT_CELL_A: Vector2i = Vector2i(-8, -4)         # 左缝口：中轴以西 64 px
 const JOINT_CELL_B: Vector2i = Vector2i(-4, -8)         # 右缝口：中轴以东 64 px（镜像）
-const LI_CHUN_START_CELL: Vector2i = Vector2i(14, 14)   # 李春在南岸未上桥处的视觉中轴
+const LI_CHUN_START_CELL: Vector2i = Vector2i(14, 15)   # 李春在南岸未上桥处（与 Boss 同视觉 x=-16）
 const STONE_YARD_CELL_A: Vector2i = Vector2i(9, 19)     # 左石料场：视觉 (-160, 224)
 const STONE_YARD_CELL_B: Vector2i = Vector2i(18, 10)    # 右石料场：视觉 (128, 224)
 
@@ -103,11 +104,12 @@ func get_teams_config() -> Array:
 
 func get_wave_config() -> Dictionary:
 	# 位置参考点：石料场、缝口位、左右券台。第 n 回合敌方开始前刷出。
-	var left_flank := _nearest_walkable(_left_platform + Vector2i(-2, 0))
-	var right_flank := _nearest_walkable(_right_platform + Vector2i(2, 0))
-	var center_front := _nearest_walkable(_crown_point + Vector2i(0, 1))
-	var stone_yard_left := _nearest_walkable(_stone_yard_cells[0] + Vector2i(-1, 0))
-	var stone_yard_right := _nearest_walkable(_stone_yard_cells[1] + Vector2i(1, 0))
+	var left_flank := _nearest_bridge_cell(_left_platform + Vector2i(-2, 0))
+	var right_flank := _nearest_bridge_cell(_right_platform + Vector2i(2, 0))
+	var center_front := _nearest_bridge_cell(_crown_point + Vector2i(0, 1))
+	# 石料场派生的断索鬼刷新点也必须在桥上：从石料场向桥的方向找最近桥面格
+	var stone_yard_left := _nearest_bridge_cell(_stone_yard_cells[0] + Vector2i(-1, -2))
+	var stone_yard_right := _nearest_bridge_cell(_stone_yard_cells[1] + Vector2i(-2, -1))
 	# 错券兵刷在当前较高一侧，强化"必须先护哪边"的决策
 	var misaligned_flank: Vector2i
 	if _right_arch_value > _left_arch_value:
@@ -188,6 +190,7 @@ func _on_level_ready() -> void:
 	# 先把李春明确放到南岸未上桥处；桥面固定锚点在 _setup_anchor_cells 里取常量，
 	# 不再依赖李春的初始格。
 	_li_chun.set_cell(LI_CHUN_START_CELL, tilemap)
+	_build_bridge_cells()
 	_setup_anchor_cells()
 	_setup_li_chun()
 	_spawn_allies()
@@ -436,11 +439,11 @@ func _spawn_enemies() -> void:
 	# Boss 在桥北端正中（BOSS_CELL 是地图常量），合龙前不动、不主动出手；
 	# 只靠被动的偏压移衡扣券值 + 压台对相邻我方扣血。空技能表 + AP 1 / move_cost 99
 	# 保证 AI 不会尝试攻击或移动。合龙后由 _unlock_boss 解锁机动与近战。
-	_boss = _spawn_enemy(_make_unit_data(_mud_data, "偏载傀", 320, 22, 1, 99, Enums.Element.EARTH, 2), _nearest_walkable(BOSS_CELL), [], _visual_boss)
-	# 两个错券兵分别贴在左右券台外侧，关于桥中轴镜像对称。
-	_spawn_enemy(_make_unit_data(_craftsman_data, "错券兵", 90, 17, 90, 9), _nearest_walkable(_left_platform + Vector2i(-1, 1)), [_mallet], _visual_misaligned)
-	_spawn_enemy(_make_unit_data(_craftsman_data, "错券兵", 90, 17, 90, 9), _nearest_walkable(_right_platform + Vector2i(1, -1)), [_mallet], _visual_misaligned)
-	_spawn_enemy(_make_unit_data(_mud_data, "裂石兽", 112, 22, 90, 10, Enums.Element.EARTH, 2), _nearest_walkable(_crown_point + Vector2i(0, 1)), [_crush], _visual_stone_split)
+	_boss = _spawn_enemy(_make_unit_data(_mud_data, "偏载傀", 320, 22, 1, 99, Enums.Element.EARTH, 2), _nearest_bridge_cell(BOSS_CELL), [], _visual_boss)
+	# 两个错券兵分别贴在左右券台外侧（关于桥中轴镜像），与券台 2×2 相邻以便扰券。
+	_spawn_enemy(_make_unit_data(_craftsman_data, "错券兵", 90, 17, 90, 9), _nearest_bridge_cell(_left_platform + Vector2i(-1, -1)), [_mallet], _visual_misaligned)
+	_spawn_enemy(_make_unit_data(_craftsman_data, "错券兵", 90, 17, 90, 9), _nearest_bridge_cell(_right_platform + Vector2i(1, 1)), [_mallet], _visual_misaligned)
+	_spawn_enemy(_make_unit_data(_mud_data, "裂石兽", 112, 22, 90, 10, Enums.Element.EARTH, 2), _nearest_bridge_cell(_crown_point + Vector2i(0, 1)), [_crush], _visual_stone_split)
 
 
 func _try_pick_or_deliver_stone(unit: Unit) -> void:
@@ -535,7 +538,7 @@ func _maybe_boss_clutch_summon() -> void:
 		offsets = [Vector2i(1, -1), Vector2i(1, 1)]
 	var summoned: Array[Unit] = []
 	for off in offsets:
-		var cell := _nearest_walkable(platform + off)
+		var cell := _nearest_bridge_cell(platform + off)
 		var unit := _spawn_enemy(
 			_make_unit_data(_craftsman_data, "错券兵", 90, 17, 90, 9),
 			cell, [_mallet], _visual_misaligned,
@@ -647,7 +650,9 @@ func _spawn_ally(data: UnitData, cell: Vector2i, skills: Array[SkillData]) -> Un
 
 
 func _spawn_enemy(data: UnitData, cell: Vector2i, skills: Array[SkillData], visual: PackedScene = null) -> Unit:
-	var unit := spawn_unit(data, _nearest_walkable(cell), ENEMY_TEAM, visual)
+	# 敌人必须落在桥上（避免刷到桥下水里）；外部通常已经过 _nearest_bridge_cell，
+	# 这里再保一次兜底，防止新调用点遗漏。
+	var unit := spawn_unit(data, _nearest_bridge_cell(cell), ENEMY_TEAM, visual)
 	set_unit_skills(unit, skills)
 	setup_unit_stats(unit, data.unit_name, data.max_hp, data.base_atk, data.ap_max, data.move_cost_per_tile, data.innate_element, data.innate_element_amount)
 	return unit
@@ -676,6 +681,38 @@ func _nearest_walkable(target: Vector2i) -> Vector2i:
 				if movement_manager.get_movement_cost(candidate) != TileType.IMPASSABLE:
 					return candidate
 	return target
+
+
+## 扫描桥图层，登记所有桥面 cell。敌人刷新点必须落在桥上。
+func _build_bridge_cells() -> void:
+	_bridge_cells.clear()
+	var container: Node2D = tilemap_container
+	if container == null:
+		return
+	for node in container.find_children("*", "TileMapLayer", true, false):
+		var tml := node as TileMapLayer
+		if tml == null:
+			continue
+		if "bridge" not in tml.name.to_lower():
+			continue
+		for cell in tml.get_used_cells():
+			_bridge_cells[cell] = true
+
+
+## 从 target 螺旋搜索最近的桥面可通行 cell；找不到则回退给 _nearest_walkable。
+func _nearest_bridge_cell(target: Vector2i) -> Vector2i:
+	if _bridge_cells.has(target) and movement_manager.get_movement_cost(target) != TileType.IMPASSABLE:
+		return target
+	for radius in range(1, 12):
+		for dx in range(-radius, radius + 1):
+			for dy in range(-radius, radius + 1):
+				if absi(dx) != radius and absi(dy) != radius:
+					continue
+				var c := target + Vector2i(dx, dy)
+				if _bridge_cells.has(c) and movement_manager.get_movement_cost(c) != TileType.IMPASSABLE:
+					return c
+	push_warning("[Level1-3] _nearest_bridge_cell 找不到桥上可通行格，回退到 _nearest_walkable: %s" % target)
+	return _nearest_walkable(target)
 
 
 func _is_adjacent_or_same(a: Vector2i, b: Vector2i) -> bool:
