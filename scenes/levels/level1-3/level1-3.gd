@@ -360,8 +360,9 @@ func _spawn_pulsing_marker(anchor: Vector2i, node_name: String, halo_color: Colo
 	var marker := Node2D.new()
 	marker.name = node_name
 	marker.z_as_relative = false
-	marker.z_index = 120
-	# 2×2 视觉中心 = anchor 格中心向南偏 8 px（即下方一个半格）
+	# 放在地块之上但在单位之下（obstacles 层 z=4，单位继承其 z）。
+	# 这样高光盖住 surface/decoration/building 装饰地块，但不盖住任何角色/敌人。
+	marker.z_index = 3
 	marker.position = tilemap.map_to_local(anchor) + Vector2(0, 8)
 	add_child(marker)
 
