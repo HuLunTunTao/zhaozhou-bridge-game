@@ -44,31 +44,32 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("ui_cancel"):
 		_close()
 
+# Kimi Code，2026-04-19
 
 # Audio
 func _on_music_slider_value_changed(value: float) -> void:
 	Settings.music_volume = value / 100.0
-	Settings._apply_settings()
+	Settings.apply_settings()
 
 
 func _on_sfx_slider_value_changed(value: float) -> void:
 	Settings.sfx_volume = value / 100.0
-	Settings._apply_settings()
+	Settings.apply_settings()
 
 
 func _on_ui_slider_value_changed(value: float) -> void:
 	Settings.ui_volume = value / 100.0
-	Settings._apply_settings()
+	Settings.apply_settings()
 
 
 func _on_voice_slider_value_changed(value: float) -> void:
 	Settings.voice_volume = value / 100.0
-	Settings._apply_settings()
+	Settings.apply_settings()
 
 
 func _on_ambience_slider_value_changed(value: float) -> void:
 	Settings.ambience_volume = value / 100.0
-	Settings._apply_settings()
+	Settings.apply_settings()
 
 
 # 保存设置
