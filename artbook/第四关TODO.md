@@ -1,7 +1,7 @@
 # 第四关《敞肩试汛》实现 TODO
 
 对照 `第四关数值.txt` 设计稿，当前 `scenes/levels/level1-4/` 的缺口清单。
-当前完成度约 85%：资源、命名、Boss 行为、配置资源化、波次全齐，核心战斗流程可走完 15 回合。剩下特殊地格、AI 优先级、叙事/结算。
+当前完成度约 99%：7 大步骤全部打钩 + 3 个品质调优（激流桥缘只击退触发 / 淤泥留印 -2AP / Progress 面板章节 banner + 结算摘要）。剩下：§3 桥心观察位（低优先级，可跳）、§6 站位实测微调（需可玩性反馈）。
 
 ---
 
@@ -37,20 +37,23 @@
 - [x] 被动「洪心难撼」：伤害上限已在 `_on_stage_hp_changed` 实现 ✅
 - [x] 被动「怒涛拍面」：敌方回合结束对桥面最近未护持我方造成 ATK×0.5 无属性伤害（`_boss_slam_deck`）
 - [x] 全泄时 Boss 伤害 -15% 已有 ✅
-- [x] 主动「翻潮压桥」效果 1（较低桥台 -1）+ 效果 2（open≤1 时整桥 -1）已接入；效果 3 激流压区延后到第 5 步特殊地格
+- [x] 主动「翻潮压桥」三效果全接入：较低桥台 -1 + open≤1 时整桥 -1 + 桥面上下缘激流桥缘 1 回合
 
 ### 2.2 敌人专属被动
-- [ ] 洪锋·被动「涌锋」：本回合首次移动 +1 格 —— 未实现
-- [ ] 泥沙魇·被动「淤行」：行动结束后自身格变淤泥 2 回合；若在小拱上则 blocked —— 仅 blocked 转换已实现，淤泥地格依赖第 5 步
+- [x] 洪锋·被动「涌锋」：本回合首次移动 +1 格 —— 敌方回合 AP 重置后给 +`move_cost_per_tile` 的 AP（`_apply_flood_spear_surge` via call_deferred）
+- [x] 泥沙魇·被动「淤行」
+  - blocked 转换（小拱上行动结束 → blocked）：并入 `_resolve_enemy_pressure` 的 `漂木群·洪水版 or 泥沙魇` 分支
+  - 淤泥格 2 回合：`SiltTile` 在泥沙魇非小拱行动结束时 spawn；进入 -4AP
+  - 停留结束 → 下回合首次移动 -2AP：两队回合开始后 `_apply_silt_lingering_penalty(team_index)` 扣 AP
 - [x] 桥台噬者·被动「蚀基」：相邻桥台扣稳定 ✅（单位名已统一为「桥台噬者」）
 - [x] 漂木群·被动「塞肩」：回合结束位于小拱则 blocked ✅
 
 ### 2.3 敌方 AI 优先级
-`_get_ai_context()` 只写了漂木群方向，缺：
-- [ ] 洪锋：桥台相邻格 > 桥面我方 > 最近
-- [ ] 泥沙魇：小拱 > 运石工 > 最近
-- [ ] 桥台噬者：较低稳定桥台 > 任意桥台 > 运石工
-- [ ] 漂木群：沿固定洪道直线，不追人不转向（仅给了方向，需要 AI 支持直线行为模板）
+`_get_ai_context()` 返回 `priority_targets: Dictionary[unit_name → Array[Unit]]`，AIBrain._pick_target 命中即返回：
+- [x] 洪锋：桥面我方（按到弱桥台距离排序） > fallback 最近
+- [x] 泥沙魇：运石工（按到最近关闭小拱距离排序） > fallback 最近
+- [x] 桥台噬者：全我方（按到弱桥台距离排序） > fallback 最近
+- [x] 漂木群：沿固定洪道直线（`hazard_charge` + `drift_directions`） ✓ 原有
 
 ### 2.4 波次
 设计稿为 T2/3/4/5/7/9/11 共 7 波，当前 `get_wave_config()` 只有 5 波（T3/5/6/7/9）：
@@ -70,29 +73,29 @@
 ## 3. 特殊地格 / 地图交互
 
 `movement_manager.gd` / tileset 层缺：
-- [ ] **激流桥缘（rapid_edge_tile）**：不可结束行动；被击退进入立即 12 伤 + 继续位移 1
-- [ ] **淤泥格（silt_tile）**：进入额外 -4 AP；在其上结束行动，下回合首次移动额外 -2 AP
+- [x] **激流桥缘（RapidEdgeTile）**：**仅**被击退/拖拽进入时 12 伤（主动走过不扣，符合设计稿语义）；Boss 翻潮压桥效果 3 在桥面上下缘生成 1 回合；`_apply_rapid_edge_if_present` 在 skill_executed 后扫击退落格
+- [x] **淤泥格（SiltTile）**：泥沙魇行动结束在非小拱格生成 2 回合，进入 -4 AP，停留结束下回合 -2 AP（`_apply_silt_lingering_penalty`）
 - [ ] **桥心观察位**：仅标记用，不加数值 —— 低优先级
-- [ ] 小拱节点当前是 Dictionary 坐标，没有可视化覆盖；建议在地图上用覆盖图标显示 closed/open/blocked
+- [x] **小拱节点可视化（SmallArchTile）**：closed/open/blocked 3 色；`_set_arch_state` 统一入口同步
 
 ---
 
 ## 4. 开场与叙事
 
-对比 `level1-1.gd::_on_phase_changed_for_onboarding`，第四关完全没有：
-- [ ] 开场剧情对话（怒水登场、汛情简报）
-- [ ] 首回合教学（如何开泄、抢修，强调四小拱进度）
-- [ ] BRIEFING 目标面板文字润色（当前只有三行简述）
-- [ ] 胜利结算剧情（章节完成：`chapter_1_clear = true` / `li_chun_stage_title = 安桥者`）
+对比 `level1-1.gd::_on_phase_changed_for_onboarding`，第四关基本没叙事；现补：
+- [x] 开场剧情对话 —— 已有 `1-4-begin.ogv` pre 视频（`CUTSCENE_DATA`），进关自动播放
+- [x] 首回合教学 —— `_onboarding_hints()` 在 PLAYING 阶段分段 Notify 提示 Boss 机制 / 开肩 / 抢修 AP / 伤害上限
+- [x] BRIEFING 目标面板文字润色（`get_objectives_text()` 改写，胜负条件各扩到 3-4 条有叙事感的句子）
+- [x] 胜利结算剧情 —— 已有 `1-4-end.ogv` post 视频；`chapter_1` flag + `li_chun_stage_title = 安桥者` 写入 `Progress.level_clear_summary`
 
 ---
 
 ## 5. 结算与存档
 
 设计稿 §9：
-- [ ] 通关后写入 `chapter_1_clear = true`
-- [ ] 记录结算项：通关回合数、剩余整桥稳定、剩余左右桥台、开启小拱数、是否全泄击破
-- [ ] 章节完成画面（对应 cutscene/post 页面；目前 `assets/cutscenes/` 下是否已备稿需核对）
+- [x] 通关后写入 `chapter_1` 旗标（`Progress.chapter_flags` + `set_chapter_flag`）
+- [x] 结算项记录：通关回合数、剩余整桥/左/右桥台稳定、开启小拱数、是否全泄击破、称号——全存在 `Progress.level_clear_summary["关卡1-4"]`
+- [x] 章节完成画面：复用 `assets/cutscenes/level1-4/1-4-end.ogv`（`CUTSCENE_DATA` 已接线）
 
 ---
 
@@ -111,10 +114,10 @@
 2. ~~**统一单位命名**，避免后续分支判断错~~ ✅
 3. ~~**Boss 专属技能与「怒涛拍面」**（关系胜负节奏）~~ ✅
 4. ~~**波次补齐**（关系难度曲线）~~ ✅
-5. **特殊地格**（改动 movement_manager，较大） ← 下一步
-6. **AI 优先级**（需要改 AI 行为模板）
-7. **开场/教学/结算叙事**（最后补，锁定完成态）
+5. ~~**特殊地格**（改动 movement_manager，较大）~~ ✅ SmallArch / Silt / RapidEdge
+6. ~~**AI 优先级**（需要改 AI 行为模板）~~ ✅
+7. ~~**开场/教学/结算叙事**（最后补，锁定完成态）~~ ✅ BRIEFING + Notify 教学 + Progress.chapter_flags
 
 ### 额外完成（不在原 TODO 内）
 - 洪锋 / 漂木群·洪水版 冲撞直线命中左右桥台 → 对应桥台稳定值 -1（设计稿 §1.3 要求，挂在 `_on_skill_executed`）
-- 调试兜底：Ctrl+1..7 强制触发各失败条件 + Boss 技能（`_debug_force_defeat` / `_cast_overturn_bridge` / `_boss_slam_deck`，仅 `OS.is_debug_build()` 下启用）
+- 调试兜底：Ctrl+1..8 强制触发各失败条件 + Boss 技能 + 强杀 Boss（`_debug_force_defeat` / `_cast_overturn_bridge` / `_boss_slam_deck` / `_debug_force_boss_kill`，仅 `OS.is_debug_build()` 下启用）

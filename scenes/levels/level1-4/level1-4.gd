@@ -58,6 +58,15 @@ var _stability_config: BridgeStabilityConfig = preload("res://data/stages/chapte
 var _side_arch_config: SideArchConfig = preload("res://data/stages/chapter1_stage4/side_arch_config.tres")
 var _wave_spawns: WaveSpawns = preload("res://data/stages/chapter1_stage4/wave_spawns.tres")
 
+# 特殊地格容器（运行时 register_special_tile）
+const SmallArchTileClass := preload("res://scenes/levels/level1-4/small_arch_tile.gd")
+const SiltTileClass := preload("res://scenes/levels/level1-4/silt_tile.gd")
+const RapidEdgeTileClass := preload("res://scenes/levels/level1-4/rapid_edge_tile.gd")
+
+var _arch_tiles: Dictionary = {}          # arch_key → SmallArchTile
+var _silt_tiles: Dictionary = {}          # cell → SiltTile
+var _rapid_edge_tiles: Dictionary = {}    # cell → RapidEdgeTile
+
 
 func get_teams_config() -> Array:
 	_li_chun = $"Entities/Units/Player" as Unit
@@ -144,21 +153,49 @@ func _duplicate_unit_data(base: UnitData) -> UnitData:
 func get_objectives_text() -> Dictionary:
 	return {
 		"victory": [
-			"- 开启更多小拱以减轻洪压",
-			"- 保护左右桥台与整桥稳定值",
-			"- 击退怒水",
+			"- 保护李春与左右桥台，熬过汛情",
+			"- 引导运石工与李春开启小拱泄洪（共 4 座）",
+			"- 开肩越多，怒水压制越弱；全开后击退怒水即可收束",
 		],
 		"defeat": [
 			"- 李春倒下",
-			"- 左右桥台任一崩溃",
+			"- 左右桥台任一崩溃（稳定值降至 0）",
 			"- 整桥稳定值归零",
-			"- 超过第 15 回合",
+			"- 超过第 15 回合未能压退怒水",
 		],
 	}
 
 
 func check_victory() -> bool:
 	return _boss != null and _boss.combat_stats != null and not _boss.combat_stats.is_alive()
+
+
+# 通关时额外写入章节旗标 + 结算记录（设计稿 §9）。
+# 注意：super.complete_level() 内部会调 Progress.complete_level 标记关卡完成并
+# 切场到 post 过场动画；本函数在它之前先把 summary 和 chapter flag 落盘。
+func complete_level() -> void:
+	_record_clear_summary()
+	Progress.set_chapter_flag("chapter_1", true)
+	super()
+
+
+func _record_clear_summary() -> void:
+	var full_release: bool = _open_arch_count() >= 4
+	var summary: Dictionary = {
+		"turns": round_number,
+		"overall_stability_left": _overall_stability,
+		"left_pier_stability_left": _left_pier_stability,
+		"right_pier_stability_left": _right_pier_stability,
+		"open_arches": _open_arch_count(),
+		"full_release_kill": full_release,
+		"li_chun_stage_title": "安桥者",
+	}
+	Progress.set_level_clear_summary("关卡1-4", summary)
+	CombatLog.msg("结算: 回合 %d | 整桥 %d | 左/右 %d/%d | 小拱 %d/4 | 全泄%s | 称号「安桥者」" % [
+		summary["turns"], summary["overall_stability_left"],
+		summary["left_pier_stability_left"], summary["right_pier_stability_left"],
+		summary["open_arches"], "✓" if full_release else "✗",
+	])
 
 
 func check_defeat() -> String:
@@ -180,12 +217,105 @@ func _on_level_ready() -> void:
 	_left_pier_stability = _stability_config.initial_left_pier
 	_right_pier_stability = _stability_config.initial_right_pier
 	_setup_anchor_cells()
+	_setup_arch_tiles()
 	_setup_li_chun()
 	_spawn_allies()
 	_spawn_enemies()
 	team_turn_started.connect(_on_stage_team_turn_started)
 	unit_hp_changed.connect(_on_stage_hp_changed)
+	round_started.connect(_on_stage_round_started)
+	phase_changed.connect(_on_phase_changed_for_onboarding)
 	Notify.notify("李春与运石工可开启小拱；运石工可抢修桥台", Notify.Position.TOP_CENTER, Notify.Style.INFO, 3.0)
+
+
+# 轻教学：进入 PLAYING 阶段后在开局几回合分段 Notify 提示关键机制。
+# 不做 level1-1 那种完整对话教程，仅给关键词提醒。
+func _on_phase_changed_for_onboarding(new_phase: int) -> void:
+	if new_phase != LevelPhase.PLAYING:
+		return
+	_onboarding_hints()
+
+
+func _onboarding_hints() -> void:
+	# 开场即提示；每条间隔 0.8 秒避免重叠。
+	await get_tree().create_timer(0.6).timeout
+	if is_phase_ended():
+		return
+	Notify.notify("怒水登场：每回合压桥 + 桥面边缘生成激流带", Notify.Position.TOP_CENTER, Notify.Style.WARNING, 4.0)
+	await get_tree().create_timer(0.8).timeout
+	if is_phase_ended():
+		return
+	Notify.notify("李春开肩 30AP / 运石工开肩 35AP；运石工抢修桥台 40AP", Notify.Position.TOP_CENTER, Notify.Style.INFO, 4.0)
+	await get_tree().create_timer(0.8).timeout
+	if is_phase_ended():
+		return
+	Notify.notify("开 1/2/3/4 肩 → Boss 伤害上限 1/6/12/∞；全开 Boss -15% 伤", Notify.Position.TOP_CENTER, Notify.Style.INFO, 5.0)
+
+
+# 在 4 个小拱格注册 SmallArchTile 用作状态指示（closed/open/blocked）。
+# 实际状态仍存在 _side_arch_states，这些 tile 只是它的视觉镜像。
+func _setup_arch_tiles() -> void:
+	for arch_key in _side_arch_cells.keys():
+		var tile: SmallArchTile = _make_small_arch_tile()
+		var cell: Vector2i = _side_arch_cells[arch_key]
+		register_special_tile(tile, cell)
+		_arch_tiles[arch_key] = tile
+
+
+func _make_small_arch_tile() -> SmallArchTile:
+	var tile := SmallArchTileClass.new() as SmallArchTile
+	var visual := Polygon2D.new()
+	visual.name = "Visual"
+	visual.polygon = PackedVector2Array([0, -16, 16, -8, 0, 0, -16, -8])
+	tile.add_child(visual)
+	return tile
+
+
+func _make_silt_tile() -> SiltTile:
+	var tile := SiltTileClass.new() as SiltTile
+	var visual := Polygon2D.new()
+	visual.name = "Visual"
+	visual.polygon = PackedVector2Array([0, -16, 16, -8, 0, 0, -16, -8])
+	tile.add_child(visual)
+	return tile
+
+
+func _make_rapid_edge_tile() -> RapidEdgeTile:
+	var tile := RapidEdgeTileClass.new() as RapidEdgeTile
+	var visual := Polygon2D.new()
+	visual.name = "Visual"
+	visual.polygon = PackedVector2Array([0, -16, 16, -8, 0, 0, -16, -8])
+	tile.add_child(visual)
+	return tile
+
+
+# SmallArchTile 状态同步：每次改 _side_arch_states 都走这里。
+func _set_arch_state(arch_key: String, new_state: String) -> void:
+	_side_arch_states[arch_key] = new_state
+	var tile: SmallArchTile = _arch_tiles.get(arch_key)
+	if tile != null:
+		tile.set_state(new_state)
+
+
+func _on_stage_round_started(_r: int) -> void:
+	_expire_transient_tiles()
+
+
+# 定期清理过期的临时地格（淤泥 2 回合 / 激流桥缘 1 回合）。
+func _expire_transient_tiles() -> void:
+	var round_now := round_number
+	for cell in _silt_tiles.keys().duplicate():
+		var tile: SiltTile = _silt_tiles[cell]
+		if tile == null or not is_instance_valid(tile) or tile.is_expired(round_now):
+			if is_instance_valid(tile):
+				tile.queue_free()
+			_silt_tiles.erase(cell)
+	for cell in _rapid_edge_tiles.keys().duplicate():
+		var tile: RapidEdgeTile = _rapid_edge_tiles[cell]
+		if tile == null or not is_instance_valid(tile) or tile.is_expired(round_now):
+			if is_instance_valid(tile):
+				tile.queue_free()
+			_rapid_edge_tiles.erase(cell)
 
 
 func _on_unit_moved() -> void:
@@ -221,6 +351,29 @@ func _on_skill_executed(caster: Unit, skill: SkillData, cast_cell: Vector2i, _ex
 	if hit_left or hit_right:
 		_check_win_lose()
 
+	# 击退可能把单位推到激流桥缘上；_force_move_cell 直接改 cell 不走
+	# tile_entered 信号，所以这里统一扫一遍所有单位。
+	_apply_rapid_edge_if_present()
+
+
+# 扫描所有单位当前格，若踩在 RapidEdgeTile 上就触发其伤害逻辑。
+# 限用于技能结算后（击退 / 拖拽都在 skill_executor 里完成，结算完才落格）。
+func _apply_rapid_edge_if_present() -> void:
+	if _rapid_edge_tiles.is_empty():
+		return
+	for team in teams:
+		for node in team.units:
+			if not (node is Unit):
+				continue
+			var u := node as Unit
+			if u.combat_stats == null or not u.combat_stats.is_alive():
+				continue
+			var tile: RapidEdgeTile = _rapid_edge_tiles.get(u.cell)
+			if tile == null or not is_instance_valid(tile):
+				continue
+			tile.apply_knockback_damage(u)
+	_check_win_lose()
+
 
 # 从冲撞发起格到目标格的直线覆盖单元（不含起始格，含目标格）。
 # 线性攻击通常沿 4 向或 8 向展开，此处用 Chebyshev 步进兼容两种情况。
@@ -241,7 +394,7 @@ func _charge_line_cells(from_cell: Vector2i, to_cell: Vector2i) -> Array:
 # ─────────────────────────────────────────────
 # 防御兜底：失败条件触发测试（调试键）
 # Ctrl+1 李春死亡 / Ctrl+2 整桥归零 / Ctrl+3 左桥台归零 / Ctrl+4 右桥台归零 / Ctrl+5 回合>15
-# Ctrl+6 强制翻潮压桥 / Ctrl+7 强制怒涛拍面
+# Ctrl+6 强制翻潮压桥 / Ctrl+7 强制怒涛拍面 / Ctrl+8 强杀 Boss 验证结算
 # 注意：F5/F6/F8 被 Godot 编辑器占用（Run / Run Scene / Stop），改用 Ctrl+数字避开。
 # 仅在 OS.is_debug_build() 下启用，发布版自动失效。
 # ─────────────────────────────────────────────
@@ -268,6 +421,20 @@ func _unhandled_key_input(event: InputEvent) -> void:
 			_cast_overturn_bridge()
 		KEY_7:
 			_boss_slam_deck()
+		KEY_8:
+			_debug_force_boss_kill()
+
+
+func _debug_force_boss_kill() -> void:
+	if _boss == null or _boss.combat_stats == null:
+		return
+	var old_hp: int = _boss.combat_stats.current_hp
+	_boss.combat_stats.current_hp = 0
+	_boss.refresh_overhead_bars()
+	unit_hp_changed.emit(_boss, old_hp, 0)
+	unit_died.emit(_boss)
+	Notify.notify("[DEBUG] 强杀 Boss → 验证结算", Notify.Position.TOP_CENTER, Notify.Style.INFO, 2.0)
+	_check_win_lose()
 
 
 func _debug_force_defeat(kind: String) -> void:
@@ -303,7 +470,8 @@ func _cast_overturn_bridge() -> void:
 	# 效果2：开启小拱 ≤ 1 时整桥 -1
 	if _open_arch_count() <= 1:
 		_overall_stability -= 1
-	# 效果3：TODO(step5) 在桥面边缘线叠加激流压区 1 回合（tile 级效果，依赖特殊地格基建）
+	# 效果3：桥面上下边缘生成激流桥缘 1 回合
+	_spawn_rapid_edges_for_overturn()
 	Notify.notify("怒水释放【翻潮压桥】", Notify.Position.CENTER, Notify.Style.WARNING, 2.5)
 	_check_win_lose()
 
@@ -363,11 +531,55 @@ func _on_stage_team_turn_started(team_index: int) -> void:
 		_pending_enemy_resolution = true
 		_sync_boss_pressure()
 		_cast_overturn_bridge()
+		# 洪锋「涌锋」被动：首次移动 +1 格。AP 重置在 emit 之后才跑，所以 defer 到重置后再给。
+		_apply_flood_spear_surge.call_deferred()
+		# 淤泥「淤行」持续效果：上回合在淤泥上结束行动的，本回合 -2 AP
+		_apply_silt_lingering_penalty.call_deferred(ENEMY_TEAM)
 	elif team_index == PLAYER_TEAM and _pending_enemy_resolution:
 		_pending_enemy_resolution = false
 		_resolve_enemy_pressure()
 		_boss_slam_deck()
 		_sync_boss_pressure()
+		_apply_silt_lingering_penalty.call_deferred(PLAYER_TEAM)
+
+
+# 洪锋·被动【涌锋】：本回合首次移动 +1 格。
+# AI 每回合只行动一次，等价于给它本回合多 1 格 AP。base_level._start_team_turn
+# 在 emit team_turn_started 之后才调 reset_turn_counters，所以这里用 call_deferred
+# 延后到重置之后再加，保证不被 ap_max 覆盖。
+func _apply_flood_spear_surge() -> void:
+	if teams.size() <= ENEMY_TEAM:
+		return
+	for enemy in teams[ENEMY_TEAM].units:
+		if not (enemy is Unit):
+			continue
+		var u := enemy as Unit
+		if u.combat_stats == null or not u.combat_stats.is_alive():
+			continue
+		if u.combat_stats.unit_name != "洪锋":
+			continue
+		u.combat_stats.ap_current += u.combat_stats.move_cost_per_tile
+		u.refresh_overhead_bars()
+
+
+# 淤泥「淤行」第二层效果：上回合在淤泥上结束行动 → 本回合开头扣 2 AP
+# （等价于"下回合首次移动额外 -2 AP"——AI/玩家用同一个 AP 池，先扣等于首次移动多花 2）。
+# 敌方回合和我方回合各自独立触发；单位当前格就是「上回合结束位置」。
+func _apply_silt_lingering_penalty(team_index: int) -> void:
+	if _silt_tiles.is_empty() or teams.size() <= team_index:
+		return
+	for node in teams[team_index].units:
+		if not (node is Unit):
+			continue
+		var u := node as Unit
+		if u.combat_stats == null or not u.combat_stats.is_alive():
+			continue
+		if not _silt_tiles.has(u.cell):
+			continue
+		var before: int = u.combat_stats.ap_current
+		u.combat_stats.ap_current = maxi(before - 2, 0)
+		u.refresh_overhead_bars()
+		CombatLog.msg("  淤行持续: %s 从淤泥中起步 -2AP (%d → %d)" % [u.combat_stats.unit_name, before, u.combat_stats.ap_current])
 
 
 func _on_stage_hp_changed(unit: Unit, old_hp: int, new_hp: int) -> void:
@@ -478,7 +690,7 @@ func _try_repair_pier(unit: Unit) -> void:
 
 
 func _open_arch(arch_key: String, reason: String) -> void:
-	_side_arch_states[arch_key] = "open"
+	_set_arch_state(arch_key, "open")
 	Notify.notify("%s  已开启小拱 %d / 4" % [reason, _open_arch_count()], Notify.Position.TOP_RIGHT, Notify.Style.INFO, 2.0)
 
 
@@ -491,14 +703,19 @@ func _sync_boss_pressure() -> void:
 func _resolve_enemy_pressure() -> void:
 	for arch_key in _side_arch_cells.keys():
 		if _side_arch_states[arch_key] == "blocked":
-			_side_arch_states[arch_key] = "closed"
+			_set_arch_state(arch_key, "closed")
 	for enemy in teams[ENEMY_TEAM].units:
 		if not (enemy is Unit) or enemy.combat_stats == null or not enemy.combat_stats.is_alive():
 			continue
-		if enemy.combat_stats.unit_name == "漂木群·洪水版":
+		# 漂木群「塞肩」+ 泥沙魇「淤行」：行动结束停在小拱上 → 该小拱 blocked
+		var u_name: String = enemy.combat_stats.unit_name
+		if u_name == "漂木群·洪水版" or u_name == "泥沙魇":
 			for arch_key in _side_arch_cells.keys():
 				if enemy.cell == _side_arch_cells[arch_key]:
-					_side_arch_states[arch_key] = "blocked"
+					_set_arch_state(arch_key, "blocked")
+		# 泥沙魇「淤行」第二部分：若行动结束不在小拱上，自身格生成淤泥 2 回合
+		if u_name == "泥沙魇" and not _cell_is_small_arch(enemy.cell):
+			_spawn_silt_at(enemy.cell)
 
 	var open_count := _open_arch_count()
 	if open_count == 0:
@@ -531,12 +748,122 @@ func _get_ai_context() -> Dictionary:
 	return {
 		"drift_directions": {
 			"漂木群·洪水版": Vector2i(0, 1),
-		}
+		},
+		"priority_targets": _build_priority_targets(),
 	}
+
+
+# 每个敌方回合开始时重算：当前桥台强弱、运石工存活、小拱关闭状态都会影响谁最该被盯。
+# 设计稿 §2 敌方 AI：
+#   洪锋     → 桥台相邻格 > 桥面我方 > 最近（用「靠近较弱桥台的桥面我方」作 proxy）
+#   泥沙魇   → 小拱 > 运石工 > 最近（先选「最近关闭小拱的运石工」，再全部运石工）
+#   桥台噬者 → 较低稳定桥台 > 任意桥台 > 运石工（和洪锋同 proxy，顺带把运石工压后）
+#   漂木群·洪水版 → hazard_charge 直线模板，方向在 drift_directions，无优先表
+func _build_priority_targets() -> Dictionary:
+	var priorities: Dictionary = {}
+	var weak_pier: Vector2i = _left_pier if _left_pier_stability <= _right_pier_stability else _right_pier
+
+	var alive_allies: Array = []
+	for a in get_friendly_units():
+		if a is Unit and a.combat_stats != null and a.combat_stats.is_alive():
+			alive_allies.append(a)
+
+	# 洪锋：桥面我方优先，且越靠近弱桥台越靠前；不在桥面的放后面
+	var flood_spear_list: Array = alive_allies.duplicate()
+	flood_spear_list.sort_custom(func(x: Unit, y: Unit) -> bool:
+		var x_on: int = 0 if _is_on_main_bridge(x.cell) else 1
+		var y_on: int = 0 if _is_on_main_bridge(y.cell) else 1
+		if x_on != y_on:
+			return x_on < y_on
+		return _manhattan(x.cell, weak_pier) < _manhattan(y.cell, weak_pier)
+	)
+	priorities["洪锋"] = flood_spear_list
+
+	# 桥台噬者：任何我方，按「到弱桥台曼哈顿」排序
+	var gnawer_list: Array = alive_allies.duplicate()
+	gnawer_list.sort_custom(func(x: Unit, y: Unit) -> bool:
+		return _manhattan(x.cell, weak_pier) < _manhattan(y.cell, weak_pier)
+	)
+	# 同距离下把运石工压后（让它先去蹭桥台，再考虑敲运石工）
+	priorities["桥台噬者"] = gnawer_list
+
+	# 泥沙魇：运石工优先；按到最近关闭小拱距离排序
+	var closed_arches: Array = []
+	for arch_key in _side_arch_cells.keys():
+		if _side_arch_states[arch_key] == "closed":
+			closed_arches.append(_side_arch_cells[arch_key])
+	var silt_list: Array = []
+	for c in _stone_carriers:
+		if c is Unit and c.combat_stats != null and c.combat_stats.is_alive():
+			silt_list.append(c)
+	if not closed_arches.is_empty():
+		silt_list.sort_custom(func(x: Unit, y: Unit) -> bool:
+			return _min_dist_to_cells(x.cell, closed_arches) < _min_dist_to_cells(y.cell, closed_arches)
+		)
+	priorities["泥沙魇"] = silt_list
+
+	return priorities
+
+
+func _min_dist_to_cells(from_cell: Vector2i, cells: Array) -> int:
+	var best := 999999
+	for c in cells:
+		var d := absi(from_cell.x - c.x) + absi(from_cell.y - c.y)
+		if d < best:
+			best = d
+	return best
 
 
 func _is_adjacent_or_same(a: Vector2i, b: Vector2i) -> bool:
 	return absi(a.x - b.x) + absi(a.y - b.y) <= 1
+
+
+func _cell_is_small_arch(cell: Vector2i) -> bool:
+	for arch_key in _side_arch_cells.keys():
+		if _side_arch_cells[arch_key] == cell:
+			return true
+	return false
+
+
+func _spawn_silt_at(cell: Vector2i) -> void:
+	if _silt_tiles.has(cell):
+		var existing: SiltTile = _silt_tiles[cell]
+		if is_instance_valid(existing):
+			existing.configure(round_number, "泥沙魇")
+			return
+	var tile: SiltTile = _make_silt_tile()
+	tile.configure(round_number, "泥沙魇")
+	register_special_tile(tile, cell)
+	_silt_tiles[cell] = tile
+	CombatLog.msg("  淤泥格生成: %s (2 回合)" % [cell])
+
+
+func _spawn_rapid_edges_for_overturn() -> void:
+	# Boss 翻潮压桥 效果 3：沿桥面上下边缘生成 1 回合激流桥缘
+	# 桥面在 y ∈ [_watch_point.y-1, _watch_point.y+1] 的 3 格横带；
+	# 边缘 = y == watch_point.y-1（北缘） 与 y == watch_point.y+1（南缘）
+	# 取左右桥台 x 范围内的格子。每侧 3 格，共 6 格。
+	var y_north: int = _watch_point.y - 1
+	var y_south: int = _watch_point.y + 1
+	var x_min: int = mini(_left_pier.x, _right_pier.x) + 1
+	var x_max: int = maxi(_left_pier.x, _right_pier.x) - 1
+	for x in range(x_min, x_max + 1):
+		_spawn_rapid_edge_at(Vector2i(x, y_north))
+		_spawn_rapid_edge_at(Vector2i(x, y_south))
+
+
+func _spawn_rapid_edge_at(cell: Vector2i) -> void:
+	if movement_manager.get_movement_cost(cell) == TileType.IMPASSABLE:
+		return
+	if _rapid_edge_tiles.has(cell):
+		var existing: RapidEdgeTile = _rapid_edge_tiles[cell]
+		if is_instance_valid(existing):
+			existing.configure(round_number)
+			return
+	var tile: RapidEdgeTile = _make_rapid_edge_tile()
+	tile.configure(round_number)
+	register_special_tile(tile, cell)
+	_rapid_edge_tiles[cell] = tile
 
 
 func _open_arch_count() -> int:
