@@ -17,6 +17,7 @@ theme = ExtResource("2_theme")
 color = Color(0.12, 0.08, 0.04, 0.55)
 
 [node name="Panel" type="PanelContainer" parent="Backdrop" unique_id=32117448]
+custom_minimum_size = Vector2(280, 0)
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
@@ -118,6 +119,35 @@ layout_mode = 2
 size_flags_horizontal = 3
 value = 80.0
 
+[node name="Separator1b" type="HSeparator" parent="Backdrop/Panel/Content" unique_id=1005685388]
+layout_mode = 2
+
+[node name="DisplaySection" type="VBoxContainer" parent="Backdrop/Panel/Content" unique_id=2007327195]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="ResolutionRow" type="HBoxContainer" parent="Backdrop/Panel/Content/DisplaySection" unique_id=1564876427]
+layout_mode = 2
+
+[node name="ResolutionLabel" type="Label" parent="Backdrop/Panel/Content/DisplaySection/ResolutionRow" unique_id=46960700]
+custom_minimum_size = Vector2(48, 0)
+layout_mode = 2
+text = "分辨率"
+
+[node name="ResolutionOption" type="OptionButton" parent="Backdrop/Panel/Content/DisplaySection/ResolutionRow" unique_id=666463431]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(160, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+clip_text = true
+fit_to_longest_item = false
+
+[node name="ApplyDisplayButton" type="Button" parent="Backdrop/Panel/Content/DisplaySection" unique_id=366667681]
+unique_name_in_owner = true
+layout_mode = 2
+disabled = true
+text = "应用"
+
 [node name="Separator2" type="HSeparator" parent="Backdrop/Panel/Content" unique_id=1005685387]
 layout_mode = 2
 
@@ -171,6 +201,8 @@ text = "关闭"
 [connection signal="value_changed" from="Backdrop/Panel/Content/AudioSection/UiRow/UiSlider" to="." method="_on_ui_slider_value_changed"]
 [connection signal="value_changed" from="Backdrop/Panel/Content/AudioSection/VoiceRow/VoiceSlider" to="." method="_on_voice_slider_value_changed"]
 [connection signal="value_changed" from="Backdrop/Panel/Content/AudioSection/AmbienceRow/AmbienceSlider" to="." method="_on_ambience_slider_value_changed"]
+[connection signal="item_selected" from="Backdrop/Panel/Content/DisplaySection/ResolutionRow/ResolutionOption" to="." method="_on_resolution_option_item_selected"]
+[connection signal="pressed" from="Backdrop/Panel/Content/DisplaySection/ApplyDisplayButton" to="." method="_on_apply_display_pressed"]
 [connection signal="gui_input" from="Backdrop/Panel/Content/SettingsTitle" to="." method="_on_settings_title_gui_input"]
 [connection signal="pressed" from="Backdrop/Panel/Content/SaveSettingsButton" to="." method="_on_save_settings_button_pressed"]
 [connection signal="pressed" from="Backdrop/Panel/Content/SaveManagerButton" to="." method="_on_save_manager_pressed"]

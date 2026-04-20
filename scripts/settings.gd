@@ -13,11 +13,23 @@ var voice_volume := 0.8    ## 语音音量，范围 0.0 ~ 1.0
 var ambience_volume := 0.8 ## 环境音量，范围 0.0 ~ 1.0
 var debug_mode := false    ## 隐藏调试模式开关。
 var muted := false         ## 全局静音开关（不覆盖各通道记忆值）。
+var window_width := 1920   ## 窗口宽度（像素）。仅在非全屏模式下使用。
+var window_height := 1080  ## 窗口高度（像素）。仅在非全屏模式下使用。
+var fullscreen := false    ## 是否使用独占全屏（fullscreen 模式）。
+
+# AI辅助编程，Kimi Code，2026-04-20
+
+const RESOLUTION_PRESETS: Array = [
+	Vector2i(960, 540),
+	Vector2i(1920, 1080),
+	Vector2i(2880, 1620),
+	Vector2i(3840, 2160),
+]
 
 
 func _ready() -> void:
 	load_settings()
-	apply_settings()
+	call_deferred("apply_settings")
 
 
 ## 将当前设置保存到本地文件
@@ -30,6 +42,9 @@ func save_settings() -> void:
 		"ambience_volume": ambience_volume,
 		"debug_mode": debug_mode,
 		"muted": muted,
+		"window_width": window_width,
+		"window_height": window_height,
+		"fullscreen": fullscreen,
 	}
 	var json := JSON.stringify(data)
 	var file := FileAccess.open(SETTINGS_PATH, FileAccess.WRITE)
@@ -62,6 +77,9 @@ func load_settings() -> void:
 		ambience_volume = parsed.get("ambience_volume", ambience_volume) as float
 		debug_mode = parsed.get("debug_mode", debug_mode) as bool
 		muted = parsed.get("muted", muted) as bool
+		window_width = int(parsed.get("window_width", window_width))
+		window_height = int(parsed.get("window_height", window_height))
+		fullscreen = parsed.get("fullscreen", fullscreen) as bool
 	else:
 		push_error("Settings: 设置文件格式错误")
 
@@ -83,7 +101,47 @@ func apply_settings() -> void:
 		# Cutscene 总线跟随 Music + Voice 的加权平均，或直接用 Voice
 		var cutscene_vol := (music_volume + voice_volume) / 2.0
 		_set_bus_volume("Cutscene", cutscene_vol)
+	_apply_window_settings()
 	settings_changed.emit()
+
+# AI辅助编程，Kimi Code，2026-04-20
+
+func _apply_window_settings() -> void:
+	var window := get_window()
+	window.content_scale_factor = 1.0
+	window.content_scale_size = Vector2i(960, 540)
+	if fullscreen:
+		window.mode = Window.MODE_FULLSCREEN
+		_print_display_info(window)
+		return
+	window.mode = Window.MODE_WINDOWED
+	window.size = Vector2i(window_width, window_height)
+	window.call_deferred("move_to_center")
+	_print_display_info(window)
+
+
+func _print_display_info(window: Window) -> void:
+	var size := window.size
+	var scale := float(size.x) / 960.0
+	print("[Settings] 分辨率: %dx%d | 缩放: %.2fx" % [size.x, size.y, scale])
+
+
+## 设置窗口分辨率（窗口模式）。立即应用并落盘。
+func set_window_resolution(width: int, height: int) -> void:
+	window_width = width
+	window_height = height
+	fullscreen = false
+	apply_settings()
+	save_settings()
+
+
+## 切换全屏开关。立即应用并落盘。
+func set_fullscreen(enabled: bool) -> void:
+	if fullscreen == enabled:
+		return
+	fullscreen = enabled
+	apply_settings()
+	save_settings()
 
 
 func _set_bus_volume(bus_name: String, linear: float) -> void:
@@ -124,4 +182,7 @@ func reset_to_defaults() -> void:
 	ambience_volume = 0.8
 	debug_mode = false
 	muted = false
+	window_width = 1920
+	window_height = 1080
+	fullscreen = false
 	apply_settings()

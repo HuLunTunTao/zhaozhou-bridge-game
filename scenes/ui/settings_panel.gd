@@ -13,10 +13,14 @@ signal closed
 @onready var ui_slider: HSlider = %UiSlider
 @onready var voice_slider: HSlider = %VoiceSlider
 @onready var ambience_slider: HSlider = %AmbienceSlider
+@onready var resolution_option: OptionButton = %ResolutionOption
+@onready var apply_display_button: Button = %ApplyDisplayButton
 @onready var settings_title: Label = %SettingsTitle
 @onready var quick_save_button: Button = %QuickSaveButton
 @onready var restart_button: Button = %RestartButton
 @onready var back_to_menu_button: Button = %BackToMenuButton
+
+const FULLSCREEN_INDEX := -1  ## OptionButton 中代表「全屏」的 metadata 值
 
 var _title_tap_count := 0
 var _title_tap_reset_timer: SceneTreeTimer
@@ -33,9 +37,36 @@ func _ready() -> void:
 	ui_slider.value = Settings.ui_volume * 100.0
 	voice_slider.value = Settings.voice_volume * 100.0
 	ambience_slider.value = Settings.ambience_volume * 100.0
+	_populate_resolution_options()
 	for button in find_children("*", "BaseButton", true, false):
 		UiSounds.bind_button(button as BaseButton)
 	UiSounds.play_popup()
+
+# AI辅助编程，Kimi Code，2026-04-20
+
+## 填充分辨率下拉框，并将当前选项指向 Settings 中的窗口大小 / 全屏状态。
+func _populate_resolution_options() -> void:
+	resolution_option.clear()
+	for i in Settings.RESOLUTION_PRESETS.size():
+		var res: Vector2i = Settings.RESOLUTION_PRESETS[i]
+		resolution_option.add_item("%d×%d" % [res.x, res.y], i)
+		resolution_option.set_item_metadata(i, res)
+	# 全屏单独一档
+	var fs_idx := resolution_option.item_count
+	resolution_option.add_item("全屏", FULLSCREEN_INDEX)
+	resolution_option.set_item_metadata(fs_idx, FULLSCREEN_INDEX)
+	# 同步当前选中项
+	var current_idx := fs_idx if Settings.fullscreen else _find_resolution_index(Settings.window_width, Settings.window_height)
+	resolution_option.select(current_idx)
+	apply_display_button.disabled = true
+
+
+func _find_resolution_index(width: int, height: int) -> int:
+	for i in Settings.RESOLUTION_PRESETS.size():
+		var res: Vector2i = Settings.RESOLUTION_PRESETS[i]
+		if res.x == width and res.y == height:
+			return i
+	return 1  # 默认 1920×1080
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -70,6 +101,39 @@ func _on_voice_slider_value_changed(value: float) -> void:
 func _on_ambience_slider_value_changed(value: float) -> void:
 	Settings.ambience_volume = value / 100.0
 	Settings.apply_settings()
+
+
+# Display
+func _on_resolution_option_item_selected(_index: int) -> void:
+	# 仅当选项与当前 Settings 不一致时才允许「应用」
+	apply_display_button.disabled = not _has_pending_display_change()
+
+
+func _has_pending_display_change() -> bool:
+	var idx := resolution_option.selected
+	if idx < 0:
+		return false
+	var meta: Variant = resolution_option.get_item_metadata(idx)
+	if typeof(meta) == TYPE_INT and int(meta) == FULLSCREEN_INDEX:
+		return not Settings.fullscreen
+	if meta is Vector2i:
+		var res: Vector2i = meta
+		return Settings.fullscreen or Settings.window_width != res.x or Settings.window_height != res.y
+	return false
+
+
+func _on_apply_display_pressed() -> void:
+	var idx := resolution_option.selected
+	if idx < 0:
+		return
+	var meta: Variant = resolution_option.get_item_metadata(idx)
+	if typeof(meta) == TYPE_INT and int(meta) == FULLSCREEN_INDEX:
+		Settings.set_fullscreen(true)
+	elif meta is Vector2i:
+		var res: Vector2i = meta
+		Settings.set_window_resolution(res.x, res.y)
+	apply_display_button.disabled = true
+	Notify.notify("显示设置已应用", Notify.Position.TOP_CENTER, Notify.Style.SUCCESS, 2.0)
 
 
 # 保存设置
@@ -183,6 +247,7 @@ func _clear_all_local_data() -> void:
 	ui_slider.value = Settings.ui_volume * 100.0
 	voice_slider.value = Settings.voice_volume * 100.0
 	ambience_slider.value = Settings.ambience_volume * 100.0
+	_populate_resolution_options()
 
 	Notify.notify("本地数据已清除", Notify.Position.TOP_CENTER, Notify.Style.SUCCESS, 2.5)
 
