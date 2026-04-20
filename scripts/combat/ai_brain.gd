@@ -123,6 +123,21 @@ static func decide_action(
 
 static func _pick_target(unit: Unit, enemies: Array, ai_type: String,
 		level_context: Dictionary) -> Unit:
+	# 关卡预设优先目标：按 unit_name 查表，顺序第一个还活着且仍在 enemies 中的直接选中，
+	# 绕过默认评分。关卡每敌方回合重算列表（见 level1-4._get_ai_context）。
+	var priority_map: Dictionary = level_context.get("priority_targets", {})
+	if not priority_map.is_empty() and unit.combat_stats != null:
+		var attacker_name: String = unit.combat_stats.unit_name
+		if priority_map.has(attacker_name):
+			var enemies_set: Dictionary = {}
+			for e in enemies:
+				enemies_set[e] = true
+			for candidate in priority_map[attacker_name]:
+				if candidate is Unit and candidate.combat_stats != null \
+						and candidate.combat_stats.is_alive() \
+						and enemies_set.has(candidate):
+					return candidate as Unit
+
 	var best_target: Unit = null
 	var best_score: float = -999999.0
 

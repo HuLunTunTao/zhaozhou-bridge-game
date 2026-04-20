@@ -37,7 +37,8 @@
       "Bash(git -C \"E:/Any Code/Godot/game0/Godot-game\" diff -- docs/项目介绍_PPT作者版.md)",
       "Bash(python)",
       "Bash(python auditscr.py)",
-      "Bash(python -c ' *)"
+      "Bash(python -c ' *)",
+      "Bash(timeout 30 godot --headless --import)"
     ]
   }
 }

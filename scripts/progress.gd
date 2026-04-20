@@ -98,6 +98,10 @@ var equipped_skill_ids: Array[String] = []
 var selected_growth_by_level: Dictionary = {}
 ## 教程已观看标记：{"level1-1": true, ...}。Key 由教程侧自行定义。
 var tutorial_flags: Dictionary = {}
+## 章节通关标记：{"chapter_1": true, ...}。由各关卡脚本在通关时写入。
+var chapter_flags: Dictionary = {}
+## 各关通关结算记录：{"关卡1-4": {"turns": 12, ...}}。关卡脚本自定字段。
+var level_clear_summary: Dictionary = {}
 
 
 func _ready() -> void:
@@ -122,6 +126,8 @@ func load_progress() -> void:
 		equipped_skill_ids = _to_string_array(parsed.get("equipped_skill_ids", []))
 		selected_growth_by_level = _to_growth_choice_dict(parsed.get("selected_growth_by_level", {}))
 		tutorial_flags = _to_bool_dict(parsed.get("tutorial_flags", {}))
+		chapter_flags = _to_bool_dict(parsed.get("chapter_flags", {}))
+		level_clear_summary = _to_summary_dict(parsed.get("level_clear_summary", {}))
 	else:
 		_reset_defaults(false)
 
@@ -138,6 +144,8 @@ func save_progress() -> void:
 		"equipped_skill_ids": equipped_skill_ids,
 		"selected_growth_by_level": selected_growth_by_level,
 		"tutorial_flags": tutorial_flags,
+		"chapter_flags": chapter_flags,
+		"level_clear_summary": level_clear_summary,
 	}))
 	file.close()
 
@@ -366,6 +374,8 @@ func _reset_defaults(emit_change: bool) -> void:
 	equipped_skill_ids = INITIAL_SKILL_IDS.duplicate()
 	selected_growth_by_level = {}
 	tutorial_flags = {}
+	chapter_flags = {}
+	level_clear_summary = {}
 	if emit_change:
 		_normalize_progress()
 
@@ -517,3 +527,43 @@ func mark_tutorial_seen(id: String) -> void:
 		return
 	tutorial_flags[id] = true
 	save_progress()
+
+
+## 章节通关标记是否设置。key 例如 "chapter_1"。
+func has_chapter_flag(key: String) -> bool:
+	return chapter_flags.get(key, false) == true
+
+
+## 标记章节通关并立即落盘。
+func set_chapter_flag(key: String, value: bool = true) -> void:
+	if chapter_flags.get(key, false) == value:
+		return
+	if value:
+		chapter_flags[key] = true
+	else:
+		chapter_flags.erase(key)
+	save_progress()
+
+
+## 记录某关通关结算。summary 字段由关卡脚本自定（turns / stability 等）。
+func set_level_clear_summary(level_name: String, summary: Dictionary) -> void:
+	level_clear_summary[level_name] = summary.duplicate(true)
+	save_progress()
+
+
+func get_level_clear_summary(level_name: String) -> Dictionary:
+	var entry: Variant = level_clear_summary.get(level_name, {})
+	if entry is Dictionary:
+		return (entry as Dictionary).duplicate(true)
+	return {}
+
+
+## 从 JSON 读取 level_clear_summary：只保留顶层值仍为字典的条目。
+func _to_summary_dict(value: Variant) -> Dictionary:
+	var result: Dictionary = {}
+	if value is Dictionary:
+		for key in value.keys():
+			var v: Variant = value[key]
+			if v is Dictionary:
+				result[str(key)] = (v as Dictionary).duplicate(true)
+	return result

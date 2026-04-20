@@ -58,6 +58,14 @@ func _rebuild() -> void:
 func _rebuild_levels() -> void:
 	for child in level_list.get_children():
 		child.queue_free()
+
+	# 章节成就 banner：通关关卡1-4 后显示「章一《安济桥成》已成」与称号
+	if Progress.has_chapter_flag("chapter_1"):
+		var chapter_label := Label.new()
+		chapter_label.text = "── 章一《安济桥成》已成 ── 李春 · 安桥者 ──"
+		chapter_label.modulate = TEXT_ACCENT
+		level_list.add_child(chapter_label)
+
 	for row in Progress.get_level_summary():
 		var label := Label.new()
 		var state := "未解锁"
@@ -74,6 +82,21 @@ func _rebuild_levels() -> void:
 				growth_names.append(Progress.get_growth_option_name(growth_id))
 			label.text += "  成长:%s" % "、".join(growth_names)
 		level_list.add_child(label)
+
+		# 通关结算摘要（目前只有关卡1-4 写入，其他关按需扩展）。
+		var summary := Progress.get_level_clear_summary(level_name)
+		if not summary.is_empty():
+			var summary_label := Label.new()
+			summary_label.text = "    结算：R%d  整桥×%d  左/右桥台×%d/%d  小拱 %d/4  %s" % [
+				int(summary.get("turns", 0)),
+				int(summary.get("overall_stability_left", 0)),
+				int(summary.get("left_pier_stability_left", 0)),
+				int(summary.get("right_pier_stability_left", 0)),
+				int(summary.get("open_arches", 0)),
+				"全泄击破" if bool(summary.get("full_release_kill", false)) else "非全泄",
+			]
+			summary_label.modulate = TEXT_INK_MUTED
+			level_list.add_child(summary_label)
 
 
 func _rebuild_skills() -> void:
