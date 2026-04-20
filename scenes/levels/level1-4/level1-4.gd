@@ -144,13 +144,90 @@ func _on_unit_moved() -> void:
 
 
 func _on_skill_executed(caster: Unit, skill: SkillData, cast_cell: Vector2i, _exec_result: SkillExecutor.ExecuteResult) -> void:
-	if caster != _li_chun:
+	if caster == _li_chun and skill.skill_id == "lc_guide_flood_open_arch":
+		for arch_key in _side_arch_cells.keys():
+			if cast_cell == _side_arch_cells[arch_key]:
+				_open_arch(arch_key, "导汛开肩")
 		return
-	if skill.skill_id != "lc_guide_flood_open_arch":
+
+	# 洪锋 / 漂木群·洪水版 的冲撞线命中桥台 → 对应桥台 -1（设计稿 §1.3）
+	if caster == null or caster.combat_stats == null:
 		return
-	for arch_key in _side_arch_cells.keys():
-		if cast_cell == _side_arch_cells[arch_key]:
-			_open_arch(arch_key, "导汛开肩")
+	var unit_name_str := caster.combat_stats.unit_name
+	if unit_name_str != "洪锋" and unit_name_str != "漂木群·洪水版":
+		return
+	var path := _charge_line_cells(caster.cell, cast_cell)
+	var hit_left := _left_pier in path
+	var hit_right := _right_pier in path
+	if hit_left:
+		_left_pier_stability -= 1
+		Notify.notify("%s 冲撞左桥台！稳定值 %d" % [unit_name_str, _left_pier_stability], Notify.Position.TOP_RIGHT, Notify.Style.WARNING, 2.5)
+	if hit_right:
+		_right_pier_stability -= 1
+		Notify.notify("%s 冲撞右桥台！稳定值 %d" % [unit_name_str, _right_pier_stability], Notify.Position.TOP_RIGHT, Notify.Style.WARNING, 2.5)
+	if hit_left or hit_right:
+		_check_win_lose()
+
+
+# 从冲撞发起格到目标格的直线覆盖单元（不含起始格，含目标格）。
+# 线性攻击通常沿 4 向或 8 向展开，此处用 Chebyshev 步进兼容两种情况。
+func _charge_line_cells(from_cell: Vector2i, to_cell: Vector2i) -> Array:
+	var cells: Array = []
+	var dx := signi(to_cell.x - from_cell.x)
+	var dy := signi(to_cell.y - from_cell.y)
+	if dx == 0 and dy == 0:
+		return cells
+	var steps := maxi(absi(to_cell.x - from_cell.x), absi(to_cell.y - from_cell.y))
+	var cur := from_cell
+	for i in range(steps):
+		cur += Vector2i(dx, dy)
+		cells.append(cur)
+	return cells
+
+
+# ─────────────────────────────────────────────
+# 防御兜底：失败条件触发测试（调试键）
+# Ctrl+1 李春死亡 / Ctrl+2 整桥归零 / Ctrl+3 左桥台归零 / Ctrl+4 右桥台归零 / Ctrl+5 回合>15
+# 注意：F5/F6/F8 被 Godot 编辑器占用（Run / Run Scene / Stop），改用 Ctrl+数字避开。
+# 仅在 OS.is_debug_build() 下启用，发布版自动失效。
+# ─────────────────────────────────────────────
+func _unhandled_key_input(event: InputEvent) -> void:
+	if not OS.is_debug_build():
+		return
+	var key_event := event as InputEventKey
+	if key_event == null or not key_event.pressed or key_event.echo:
+		return
+	if not key_event.ctrl_pressed:
+		return
+	match key_event.keycode:
+		KEY_1:
+			_debug_force_defeat("li_chun_down")
+		KEY_2:
+			_debug_force_defeat("overall_zero")
+		KEY_3:
+			_debug_force_defeat("left_pier_zero")
+		KEY_4:
+			_debug_force_defeat("right_pier_zero")
+		KEY_5:
+			_debug_force_defeat("round_over")
+
+
+func _debug_force_defeat(kind: String) -> void:
+	match kind:
+		"li_chun_down":
+			if _li_chun and _li_chun.combat_stats:
+				_li_chun.combat_stats.current_hp = 0
+				_li_chun.refresh_overhead_bars()
+		"overall_zero":
+			_overall_stability = 0
+		"left_pier_zero":
+			_left_pier_stability = 0
+		"right_pier_zero":
+			_right_pier_stability = 0
+		"round_over":
+			round_number = 16
+	Notify.notify("[DEBUG] 强制触发失败：%s" % kind, Notify.Position.TOP_CENTER, Notify.Style.ERROR, 2.0)
+	_check_win_lose()
 
 
 func _on_stage_team_turn_started(team_index: int) -> void:
