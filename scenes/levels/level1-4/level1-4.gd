@@ -52,6 +52,12 @@ var _mire_steps: SkillData = preload("res://data/skills/sm_mire_steps.tres")
 var _gnaw_pier: SkillData = preload("res://data/skills/pg_gnaw_pier.tres")
 var _overturn_bridge: SkillData = preload("res://data/skills/wf_overturn_bridge.tres")
 
+# 关卡配置资源（浅拆：数值 + anchor 偏移 + 波次模板；绝对 cell 运行时算）
+var _stage_config: StageConfig = preload("res://data/stages/chapter1_stage4/stage_config.tres")
+var _stability_config: BridgeStabilityConfig = preload("res://data/stages/chapter1_stage4/bridge_stability_config.tres")
+var _side_arch_config: SideArchConfig = preload("res://data/stages/chapter1_stage4/side_arch_config.tres")
+var _wave_spawns: WaveSpawns = preload("res://data/stages/chapter1_stage4/wave_spawns.tres")
+
 
 func get_teams_config() -> Array:
 	_li_chun = $"Entities/Units/Player" as Unit
@@ -72,23 +78,67 @@ func get_teams_config() -> Array:
 
 
 func get_wave_config() -> Dictionary:
-	return {
-		3: [
-			{"unit_data": _make_unit_data(_pier_gnawer_data, "桥台噬者", 116, 22, 90, 10, Enums.Element.EARTH, 2), "cell": _nearest_walkable(_left_pier + Vector2i(-2, 0)), "team_index": ENEMY_TEAM, "skills": [_gnaw_pier]},
-		],
-		5: [
-			{"unit_data": _make_unit_data(_siltmare_data, "泥沙魇", 84, 18, 90, 10, Enums.Element.EARTH, 2), "cell": _watch_point + Vector2i(0, -2), "team_index": ENEMY_TEAM, "skills": [_mire_steps]},
-		],
-		6: [
-			{"unit_data": _make_unit_data(_driftwood_data, "漂木群·洪水版", 58, 20, 100, 10, Enums.Element.WOOD, 2), "cell": _side_arch_cells["left_front"] + Vector2i(0, -2), "team_index": ENEMY_TEAM, "skills": [_timber]},
-		],
-		7: [
-			{"unit_data": _make_unit_data(_pier_gnawer_data, "桥台噬者", 116, 22, 90, 10, Enums.Element.EARTH, 2), "cell": _nearest_walkable(_right_pier + Vector2i(2, 0)), "team_index": ENEMY_TEAM, "skills": [_gnaw_pier]},
-		],
-		9: [
-			{"unit_data": _make_unit_data(_driftwood_data, "漂木群·洪水版", 58, 20, 100, 10, Enums.Element.WOOD, 2), "cell": _side_arch_cells["right_front"] + Vector2i(0, -2), "team_index": ENEMY_TEAM, "skills": [_timber]},
-		],
-	}
+	var waves: Dictionary = {}
+	for entry in _wave_spawns.entries:
+		if entry == null:
+			continue
+		var round_num: int = entry.round_number
+		var unit_kind: String = entry.unit_kind
+		var cell_hint: String = entry.cell_hint
+		var unit_bundle := _resolve_wave_unit(unit_kind)
+		if unit_bundle.is_empty():
+			push_warning("wave_spawns: 未知 unit_kind '%s'" % unit_kind)
+			continue
+		var cell := _resolve_cell_hint(cell_hint)
+		var wave_item := {
+			"unit_data": unit_bundle["unit_data"],
+			"cell": cell,
+			"team_index": ENEMY_TEAM,
+			"skills": unit_bundle["skills"],
+		}
+		if not waves.has(round_num):
+			waves[round_num] = []
+		waves[round_num].append(wave_item)
+	return waves
+
+
+# 把 unit_kind 字符串 → (UnitData 副本, 技能列表)。遵循原 get_wave_config 中的映射。
+func _resolve_wave_unit(kind: String) -> Dictionary:
+	match kind:
+		"flood_spear":
+			return {"unit_data": _duplicate_unit_data(_flood_spear_data), "skills": [_torrent_ram]}
+		"siltmare":
+			return {"unit_data": _duplicate_unit_data(_siltmare_data), "skills": [_mire_steps]}
+		"pier_gnawer":
+			return {"unit_data": _duplicate_unit_data(_pier_gnawer_data), "skills": [_gnaw_pier]}
+		"flood_driftwood_pack":
+			return {"unit_data": _duplicate_unit_data(_driftwood_data), "skills": [_timber]}
+	return {}
+
+
+# cell_hint 字符串 → 绝对格。依赖 _watch_point / _left_pier / _right_pier / _side_arch_cells 已就位。
+func _resolve_cell_hint(hint: String) -> Vector2i:
+	match hint:
+		"near_left_pier_west":
+			return _nearest_walkable(_left_pier + Vector2i(-2, 0))
+		"near_right_pier_east":
+			return _nearest_walkable(_right_pier + Vector2i(2, 0))
+		"watch_north_2":
+			return _watch_point + Vector2i(0, -2)
+		"arch_left_front_north_2":
+			return _side_arch_cells["left_front"] + Vector2i(0, -2)
+		"arch_right_front_north_2":
+			return _side_arch_cells["right_front"] + Vector2i(0, -2)
+	push_warning("wave_spawns: 未知 cell_hint '%s'，退回 watch_point" % hint)
+	return _watch_point
+
+
+# 复制 UnitData 以避免多实例共享同一 Resource 副作用（原 _make_unit_data 的精简版，
+# 字段全部沿用 base .tres；ally 方向仍用 _make_unit_data 做字段覆盖）。
+func _duplicate_unit_data(base: UnitData) -> UnitData:
+	var data := base.duplicate(true) as UnitData
+	data.resource_local_to_scene = true
+	return data
 
 
 func get_objectives_text() -> Dictionary:
@@ -120,12 +170,15 @@ func check_defeat() -> String:
 		return "左桥台崩毁"
 	if _right_pier_stability <= 0:
 		return "右桥台崩毁"
-	if round_number > 15:
-		return "超过第 15 回合"
+	if round_number > _stage_config.turn_limit:
+		return "超过第 %d 回合" % _stage_config.turn_limit
 	return ""
 
 
 func _on_level_ready() -> void:
+	_overall_stability = _stability_config.initial_overall
+	_left_pier_stability = _stability_config.initial_left_pier
+	_right_pier_stability = _stability_config.initial_right_pier
 	_setup_anchor_cells()
 	_setup_li_chun()
 	_spawn_allies()
@@ -188,6 +241,7 @@ func _charge_line_cells(from_cell: Vector2i, to_cell: Vector2i) -> Array:
 # ─────────────────────────────────────────────
 # 防御兜底：失败条件触发测试（调试键）
 # Ctrl+1 李春死亡 / Ctrl+2 整桥归零 / Ctrl+3 左桥台归零 / Ctrl+4 右桥台归零 / Ctrl+5 回合>15
+# Ctrl+6 强制翻潮压桥 / Ctrl+7 强制怒涛拍面
 # 注意：F5/F6/F8 被 Godot 编辑器占用（Run / Run Scene / Stop），改用 Ctrl+数字避开。
 # 仅在 OS.is_debug_build() 下启用，发布版自动失效。
 # ─────────────────────────────────────────────
@@ -210,6 +264,10 @@ func _unhandled_key_input(event: InputEvent) -> void:
 			_debug_force_defeat("right_pier_zero")
 		KEY_5:
 			_debug_force_defeat("round_over")
+		KEY_6:
+			_cast_overturn_bridge()
+		KEY_7:
+			_boss_slam_deck()
 
 
 func _debug_force_defeat(kind: String) -> void:
@@ -230,13 +288,85 @@ func _debug_force_defeat(kind: String) -> void:
 	_check_win_lose()
 
 
+# ─────────────────────────────────────────────
+# Boss 怒水：翻潮压桥（敌方回合开始）+ 怒涛拍面（敌方回合结束）
+# 设计稿 §5.5。翻潮压桥效果 3「激流压区」延后到 TODO 第 5 步地格做。
+# ─────────────────────────────────────────────
+func _cast_overturn_bridge() -> void:
+	if _boss == null or _boss.combat_stats == null or not _boss.combat_stats.is_alive():
+		return
+	# 效果1：较低稳定桥台 -1（平局打左，与全闭态惩罚方向一致）
+	if _left_pier_stability <= _right_pier_stability:
+		_left_pier_stability -= 1
+	else:
+		_right_pier_stability -= 1
+	# 效果2：开启小拱 ≤ 1 时整桥 -1
+	if _open_arch_count() <= 1:
+		_overall_stability -= 1
+	# 效果3：TODO(step5) 在桥面边缘线叠加激流压区 1 回合（tile 级效果，依赖特殊地格基建）
+	Notify.notify("怒水释放【翻潮压桥】", Notify.Position.CENTER, Notify.Style.WARNING, 2.5)
+	_check_win_lose()
+
+
+func _boss_slam_deck() -> void:
+	if _boss == null or _boss.combat_stats == null or not _boss.combat_stats.is_alive():
+		return
+	var candidates: Array = []
+	for ally in get_friendly_units():
+		if ally == null or ally.combat_stats == null or not ally.combat_stats.is_alive():
+			continue
+		if not _is_on_main_bridge(ally.cell):
+			continue
+		if _has_guarding_status(ally):
+			continue
+		candidates.append(ally)
+	if candidates.is_empty():
+		return
+	var boss_cell := _boss.cell
+	candidates.sort_custom(func(a: Unit, b: Unit) -> bool:
+		return _manhattan(a.cell, boss_cell) < _manhattan(b.cell, boss_cell)
+	)
+	var target: Unit = candidates[0]
+	var dmg := roundi(float(_boss.combat_stats.base_atk) * 0.5)
+	var old_hp := target.combat_stats.current_hp
+	target.combat_stats.current_hp = maxi(old_hp - dmg, 0)
+	target.refresh_overhead_bars()
+	unit_hp_changed.emit(target, old_hp, target.combat_stats.current_hp)
+	Notify.notify("怒涛拍面：%s 受 %d 伤害" % [target.combat_stats.unit_name, dmg], Notify.Position.TOP_RIGHT, Notify.Style.WARNING, 2.5)
+	if target.combat_stats.current_hp <= 0:
+		unit_died.emit(target)
+	_check_win_lose()
+
+
+func _is_on_main_bridge(cell: Vector2i) -> bool:
+	# 主桥面 = 以 _watch_point 为中轴的 3 格横带。第 5 步做特殊地格后用 tile 类型替换。
+	return absi(cell.y - _watch_point.y) <= 1
+
+
+func _has_guarding_status(unit: Unit) -> bool:
+	if unit == null or unit.combat_stats == null:
+		return false
+	for s in unit.combat_stats.statuses:
+		# guarded_cover：工匠「捍作护行」已实现
+		# steady_bridge：李春「导汛开肩」赠送（尚未接入，钩子预留）
+		if s.status_id == "guarded_cover" or s.status_id == "steady_bridge":
+			return true
+	return false
+
+
+func _manhattan(a: Vector2i, b: Vector2i) -> int:
+	return absi(a.x - b.x) + absi(a.y - b.y)
+
+
 func _on_stage_team_turn_started(team_index: int) -> void:
 	if team_index == ENEMY_TEAM:
 		_pending_enemy_resolution = true
 		_sync_boss_pressure()
+		_cast_overturn_bridge()
 	elif team_index == PLAYER_TEAM and _pending_enemy_resolution:
 		_pending_enemy_resolution = false
 		_resolve_enemy_pressure()
+		_boss_slam_deck()
 		_sync_boss_pressure()
 
 
@@ -256,10 +386,10 @@ func _setup_anchor_cells() -> void:
 	_left_pier = _nearest_walkable(anchor + Vector2i(-4, 0))
 	_right_pier = _nearest_walkable(anchor + Vector2i(4, 0))
 	_side_arch_cells = {
-		"left_front": _nearest_walkable(anchor + Vector2i(-3, -1)),
-		"left_back": _nearest_walkable(anchor + Vector2i(-2, 2)),
-		"right_front": _nearest_walkable(anchor + Vector2i(3, -1)),
-		"right_back": _nearest_walkable(anchor + Vector2i(2, 2)),
+		"left_front": _nearest_walkable(anchor + _side_arch_config.left_front_offset),
+		"left_back": _nearest_walkable(anchor + _side_arch_config.left_back_offset),
+		"right_front": _nearest_walkable(anchor + _side_arch_config.right_front_offset),
+		"right_back": _nearest_walkable(anchor + _side_arch_config.right_back_offset),
 	}
 
 
@@ -335,15 +465,15 @@ func _try_open_side_arch(unit: Unit) -> void:
 func _try_repair_pier(unit: Unit) -> void:
 	if unit not in _stone_carriers or unit.combat_stats.ap_current < 40:
 		return
-	if _is_adjacent_or_same(unit.cell, _left_pier) and _left_pier_stability < 6:
+	if _is_adjacent_or_same(unit.cell, _left_pier) and _left_pier_stability < _stability_config.pier_max:
 		unit.combat_stats.ap_current -= 40
 		unit.refresh_overhead_bars()
-		_left_pier_stability = min(_left_pier_stability + 1, 6)
+		_left_pier_stability = mini(_left_pier_stability + 1, _stability_config.pier_max)
 		Notify.notify("左桥台抢修完成，稳定值 %d" % _left_pier_stability, Notify.Position.TOP_RIGHT, Notify.Style.SUCCESS, 2.0)
-	elif _is_adjacent_or_same(unit.cell, _right_pier) and _right_pier_stability < 6:
+	elif _is_adjacent_or_same(unit.cell, _right_pier) and _right_pier_stability < _stability_config.pier_max:
 		unit.combat_stats.ap_current -= 40
 		unit.refresh_overhead_bars()
-		_right_pier_stability = min(_right_pier_stability + 1, 6)
+		_right_pier_stability = mini(_right_pier_stability + 1, _stability_config.pier_max)
 		Notify.notify("右桥台抢修完成，稳定值 %d" % _right_pier_stability, Notify.Position.TOP_RIGHT, Notify.Style.SUCCESS, 2.0)
 
 
