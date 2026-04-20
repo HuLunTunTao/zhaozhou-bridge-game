@@ -12,8 +12,8 @@ const REQUIRED_DEFEATS := 8
 const ENEMY_FIELD_CAP := 5
 const TURN_LIMIT := 30
 
-const PARAMETER_CELLS: Array[Vector2i] = [Vector2i(-11, 12), Vector2i(-1, 2), Vector2i(10, -10)]
-const PARAMETER_LABELS := ["河宽", "坡度", "石重"]
+const PARAMETER_CELL := Vector2i(-1, 2)
+const PARAMETER_REQUIRED_USES := 3
 const DRAFTING_CELLS: Array[Vector2i] = [
 	Vector2i(-11, -11), Vector2i(-11, -10),
 	Vector2i(-12, -10), Vector2i(-12, -11),
@@ -62,8 +62,8 @@ var _craftsmen: Array[Unit] = []
 var _boss: Unit
 
 # ── 关卡机制 ──
-var _parameter_tiles: Dictionary = {}  # cell → ParameterPointTile
-var _parameters_done_count: int = 0
+var _parameter_tile: ParameterPointTile = null
+var _parameter_use_count: int = 0
 var _li_chun_parameter_round: int = -1
 var _finalized: bool = false
 var _minion_kills: int = 0
@@ -108,24 +108,24 @@ func get_objectives_text() -> Dictionary:
 	var lines: Array[String] = []
 	match _current_task:
 		TaskState.TASK1_PARAMETERS:
-			var status := " (%d/%d)" % [_parameters_done_count, PARAMETER_CELLS.size()]
-			lines.append("- 完成 3 个参数点%s" % status)
+			var status := " (%d/%d)" % [_parameter_use_count, PARAMETER_REQUIRED_USES]
+			lines.append("- 在参数点 (-1, 2) 施放「测尺取参 / 参数确认」共 %d 次%s" % [PARAMETER_REQUIRED_USES, status])
 			lines.append("- 李春抵达中央绘样台")
 			lines.append("- 李春执行「执墨定拱」")
 			lines.append("- 累计击退 8 名受驱役敌人")
 		TaskState.TASK2_PLATFORM:
-			lines.append("- 完成 3 个参数点 (3/3)")
+			lines.append("- 在参数点完成 3 次取参 (3/3)")
 			lines.append("- 李春抵达中央绘样台 (0/1)")
 			lines.append("- 李春执行「执墨定拱」")
 			lines.append("- 累计击退 8 名受驱役敌人")
 		TaskState.TASK3_ARCH:
-			lines.append("- 完成 3 个参数点 (3/3)")
+			lines.append("- 在参数点完成 3 次取参 (3/3)")
 			lines.append("- 李春抵达中央绘样台 (1/1)")
 			var arch_status := " (0/1)" if not _finalized else " (1/1)"
 			lines.append("- 李春执行「执墨定拱」%s" % arch_status)
 			lines.append("- 累计击退 8 名受驱役敌人")
 		TaskState.TASK4_HUNT:
-			lines.append("- 完成 3 个参数点 (3/3)")
+			lines.append("- 在参数点完成 3 次取参 (3/3)")
 			lines.append("- 李春抵达中央绘样台 (1/1)")
 			lines.append("- 李春执行「执墨定拱」 (1/1)")
 			lines.append("- 累计击退 8 名受驱役敌人 (%d/%d)" % [_minion_kills, REQUIRED_DEFEATS])
@@ -197,16 +197,37 @@ func _setup_allies_from_scene() -> void:
 
 
 func _setup_parameter_tiles() -> void:
-	# 参数点的脉动标记已在 level1-2.tscn 的 Markers 节点下预置。
-	for i in PARAMETER_CELLS.size():
-		var cell := PARAMETER_CELLS[i]
-		var tile := _make_parameter_tile()
-		tile.name = "ParameterPoint_%d_%d" % [cell.x, cell.y]
-		tile.parameter_key = StringName(PARAMETER_LABELS[i])
-		tile.parameter_label = PARAMETER_LABELS[i]
-		register_special_tile(tile, cell)
-		_parameter_tiles[cell] = tile
-		tile.parameter_completed.connect(_on_parameter_completed)
+	var tile := _make_parameter_tile()
+	tile.name = "ParameterPoint_%d_%d" % [PARAMETER_CELL.x, PARAMETER_CELL.y]
+	tile.parameter_key = &"坡度"
+	tile.parameter_label = "坡度"
+	register_special_tile(tile, PARAMETER_CELL)
+	_parameter_tile = tile
+	_spawn_parameter_flag(PARAMETER_CELL)
+
+
+func _spawn_parameter_flag(cell: Vector2i) -> void:
+	var marker := Node2D.new()
+	marker.name = "ParameterFlag_%d_%d" % [cell.x, cell.y]
+	marker.z_as_relative = false
+	marker.z_index = 115
+	marker.position = tilemap.map_to_local(cell) + Vector2(0, -18)
+	add_child(marker)
+
+	var pole := Line2D.new()
+	pole.points = PackedVector2Array([Vector2(0, -28), Vector2(0, -4)])
+	pole.width = 2.0
+	pole.default_color = Color(0.95, 0.9, 0.72, 0.95)
+	marker.add_child(pole)
+
+	var flag := Polygon2D.new()
+	flag.polygon = PackedVector2Array([0, -28, 16, -22, 0, -16])
+	flag.color = Color(0.95, 0.72, 0.2, 0.95)
+	marker.add_child(flag)
+
+	var tween := create_tween().set_loops()
+	tween.tween_property(marker, "position:y", marker.position.y - 4.0, 0.9).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	tween.tween_property(marker, "position:y", marker.position.y, 0.9).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 
 
 func _make_parameter_tile() -> ParameterPointTile:
@@ -273,40 +294,47 @@ func _handle_take_parameter(caster: Unit, cast_cell: Vector2i) -> void:
 	if not (caster in _survey_workers):
 		Notify.notify("只有测量工可以使用「测尺取参」。", Notify.Position.TOP_CENTER, Notify.Style.WARNING, 2.0)
 		return
-	var tile: ParameterPointTile = _parameter_tiles.get(cast_cell)
-	if tile == null:
+	if cast_cell != PARAMETER_CELL:
 		Notify.notify("此处不是参数点。", Notify.Position.TOP_CENTER, Notify.Style.WARNING, 2.0)
 		return
-	if tile.completed:
-		Notify.notify("该参数点已完成。", Notify.Position.TOP_CENTER, Notify.Style.INFO, 2.0)
-		return
-	tile.complete()
+	_register_parameter_use(caster.combat_stats.unit_name)
 
 
 func _handle_confirm_parameter(caster: Unit, cast_cell: Vector2i) -> void:
 	if caster != _li_chun:
 		Notify.notify("只有李春可以使用「参数确认」。", Notify.Position.TOP_CENTER, Notify.Style.WARNING, 2.0)
 		return
-	var tile: ParameterPointTile = _parameter_tiles.get(cast_cell)
-	if tile == null:
+	if cast_cell != PARAMETER_CELL:
 		Notify.notify("此处不是参数点。", Notify.Position.TOP_CENTER, Notify.Style.WARNING, 2.0)
-		return
-	if tile.completed:
-		Notify.notify("该参数点已完成。", Notify.Position.TOP_CENTER, Notify.Style.INFO, 2.0)
 		return
 	if _li_chun_parameter_round == round_number:
 		Notify.notify("李春本回合已确认过一次参数。", Notify.Position.TOP_CENTER, Notify.Style.WARNING, 2.0)
 		return
 	_li_chun_parameter_round = round_number
-	tile.complete()
+	_register_parameter_use(caster.combat_stats.unit_name)
+
+
+func _register_parameter_use(caster_name: String) -> void:
+	if _parameter_use_count >= PARAMETER_REQUIRED_USES:
+		Notify.notify("参数点已完成三次取参，无需再施放。", Notify.Position.TOP_CENTER, Notify.Style.INFO, 2.0)
+		return
+	_parameter_use_count += 1
+	Notify.notify("%s 取参成功 (%d/%d)" % [caster_name, _parameter_use_count, PARAMETER_REQUIRED_USES], Notify.Position.TOP_CENTER, Notify.Style.SUCCESS, 2.5)
+	_update_mission_hint()
+	_update_params_status_hint()
+	if _parameter_use_count >= PARAMETER_REQUIRED_USES:
+		if _parameter_tile != null and not _parameter_tile.completed:
+			_parameter_tile.complete()
+		if _current_task == TaskState.TASK1_PARAMETERS:
+			_advance_to_task2()
 
 
 func _handle_ink_set_arch(caster: Unit, cast_cell: Vector2i) -> void:
 	if caster != _li_chun:
 		Notify.notify("只有李春可以执行「执墨定拱」。", Notify.Position.TOP_CENTER, Notify.Style.WARNING, 2.0)
 		return
-	if not _all_parameters_done():
-		Notify.notify("需先完成全部 3 个参数点。", Notify.Position.TOP_CENTER, Notify.Style.WARNING, 2.5)
+	if _parameter_use_count < PARAMETER_REQUIRED_USES:
+		Notify.notify("需先在参数点完成 3 次取参。", Notify.Position.TOP_CENTER, Notify.Style.WARNING, 2.5)
 		return
 	if not (cast_cell in DRAFTING_CELLS):
 		Notify.notify("请站在绘样台 2×2 区域上再执行「执墨定拱」。", Notify.Position.TOP_CENTER, Notify.Style.WARNING, 2.5)
@@ -315,15 +343,6 @@ func _handle_ink_set_arch(caster: Unit, cast_cell: Vector2i) -> void:
 		return
 	_finalized = true
 	_advance_to_task4()
-
-
-func _on_parameter_completed(tile: ParameterPointTile) -> void:
-	_parameters_done_count += 1
-	Notify.notify("参数点【%s】完成！(%d/%d)" % [tile.parameter_label, _parameters_done_count, PARAMETER_CELLS.size()], Notify.Position.TOP_CENTER, Notify.Style.SUCCESS, 2.5)
-	_update_mission_hint()
-	_update_params_status_hint()
-	if _parameters_done_count >= PARAMETER_CELLS.size() and _current_task == TaskState.TASK1_PARAMETERS:
-		_advance_to_task2()
 
 
 # ─────────────────────────────────────────────
@@ -367,7 +386,7 @@ func _update_mission_hint() -> void:
 		return
 	match _current_task:
 		TaskState.TASK1_PARAMETERS:
-			_mission_hint_label.text = "任务目标一，完成 3 个参数点【%d/%d】" % [_parameters_done_count, PARAMETER_CELLS.size()]
+			_mission_hint_label.text = "任务目标一，在参数点 (-1, 2) 施放取参技能【%d/%d】" % [_parameter_use_count, PARAMETER_REQUIRED_USES]
 		TaskState.TASK2_PLATFORM:
 			_mission_hint_label.text = "任务目标二，李春前往中央绘样台"
 		TaskState.TASK3_ARCH:
@@ -380,14 +399,8 @@ func _update_mission_hint() -> void:
 func _update_params_status_hint() -> void:
 	if _params_status_label == null:
 		return
-	var lines: Array[String] = ["参数点进度："]
-	for i in PARAMETER_CELLS.size():
-		var cell := PARAMETER_CELLS[i]
-		var tile: ParameterPointTile = _parameter_tiles.get(cell)
-		var done := tile != null and tile.completed
-		var prefix := "[已完成]" if done else "[未完成]"
-		lines.append("%s %s (%d, %d)" % [prefix, PARAMETER_LABELS[i], cell.x, cell.y])
-	_params_status_label.text = "\n".join(lines)
+	var status := "已完成" if _parameter_use_count >= PARAMETER_REQUIRED_USES else "%d/%d" % [_parameter_use_count, PARAMETER_REQUIRED_USES]
+	_params_status_label.text = "参数点进度：\n坡度 (%d, %d) [%s]" % [PARAMETER_CELL.x, PARAMETER_CELL.y, status]
 
 
 # ─────────────────────────────────────────────
@@ -580,13 +593,6 @@ func _spawn_enemy(base: UnitData, uname: String, hp: int, atk: int, ap: int, mov
 # ─────────────────────────────────────────────
 # 辅助工具
 # ─────────────────────────────────────────────
-
-func _all_parameters_done() -> bool:
-	for tile in _parameter_tiles.values():
-		if not tile.completed:
-			return false
-	return true
-
 
 func _skill_list_contains(list: Array, skill_id: String) -> bool:
 	for s in list:
