@@ -1,0 +1,56 @@
+[gd_resource type="Resource" script_class="WaveSpawns" load_steps=11 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/wave_spawns.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/data/wave_entry.gd" id="2"]
+
+[sub_resource type="Resource" id="Wave_T2"]
+script = ExtResource("2")
+round_number = 2
+unit_kind = "flood_spear"
+cell_hint = "watch_north_2"
+
+[sub_resource type="Resource" id="Wave_T3"]
+script = ExtResource("2")
+round_number = 3
+unit_kind = "flood_driftwood_pack"
+cell_hint = "arch_right_front_north_2"
+
+[sub_resource type="Resource" id="Wave_T4"]
+script = ExtResource("2")
+round_number = 4
+unit_kind = "pier_gnawer"
+cell_hint = "near_left_pier_west"
+
+[sub_resource type="Resource" id="Wave_T5"]
+script = ExtResource("2")
+round_number = 5
+unit_kind = "siltmare"
+cell_hint = "watch_north_2"
+
+[sub_resource type="Resource" id="Wave_T7a"]
+script = ExtResource("2")
+round_number = 7
+unit_kind = "flood_spear"
+cell_hint = "near_left_pier_west"
+
+[sub_resource type="Resource" id="Wave_T7b"]
+script = ExtResource("2")
+round_number = 7
+unit_kind = "flood_driftwood_pack"
+cell_hint = "arch_left_front_north_2"
+
+[sub_resource type="Resource" id="Wave_T9"]
+script = ExtResource("2")
+round_number = 9
+unit_kind = "pier_gnawer"
+cell_hint = "near_right_pier_east"
+
+[sub_resource type="Resource" id="Wave_T11"]
+script = ExtResource("2")
+round_number = 11
+unit_kind = "flood_spear"
+cell_hint = "near_right_pier_east"
+
+[resource]
+script = ExtResource("1")
+entries = Array[Resource]([SubResource("Wave_T2"), SubResource("Wave_T3"), SubResource("Wave_T4"), SubResource("Wave_T5"), SubResource("Wave_T7a"), SubResource("Wave_T7b"), SubResource("Wave_T9"), SubResource("Wave_T11")])
