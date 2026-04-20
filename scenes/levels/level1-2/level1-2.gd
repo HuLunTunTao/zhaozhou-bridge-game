@@ -80,8 +80,6 @@ func get_teams_config() -> Array:
 	_survey_worker = $"Entities/Units/SurveyWorker" as Unit
 	_survey_workers = [
 		_survey_worker,
-		$"Entities/Units/SurveyWorkerB" as Unit,
-		$"Entities/Units/SurveyWorkerC" as Unit,
 	]
 	_craftsmen = [
 		$"Entities/Units/CraftsmanA" as Unit,
@@ -93,7 +91,7 @@ func get_teams_config() -> Array:
 			"name": "营造队",
 			"faction": "好人",
 			"controller": "player",
-			"units": [_li_chun, _survey_workers[0], _survey_workers[1], _survey_workers[2], _craftsmen[0], _craftsmen[1], _craftsmen[2]],
+			"units": [_li_chun, _survey_workers[0], _craftsmen[0], _craftsmen[1], _craftsmen[2]],
 		},
 		{
 			"name": "旧制势力",

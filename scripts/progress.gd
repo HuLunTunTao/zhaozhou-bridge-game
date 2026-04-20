@@ -32,7 +32,7 @@ const SKILL_PATHS := {
 
 const LEVEL_STAGE_SKILLS := {
 	"关卡1-1": "lc_read_water_fix_site",
-	"关卡1-2": "lc_divider_mark_arc",
+	"关卡1-2": "lc_ink_set_arch",   # 原为 lc_divider_mark_arc
 	"关卡1-3": "lc_inkline_balance_arch",
 	"关卡1-4": "lc_guide_flood_open_arch",
 }
