@@ -695,30 +695,6 @@ move_limit = 1
 skill_limit = 1
 metadata/_custom_type_script = "uid://c2077ybi0615r"
 
-[sub_resource type="Resource" id="Resource_survey_b"]
-script = ExtResource("9_lwpox")
-unit_id = "survey_worker"
-unit_name = "测量工"
-max_hp = 80
-base_atk = 12
-ap_max = 85
-move_limit = 1
-skill_limit = 1
-is_escort_target = true
-metadata/_custom_type_script = "uid://c2077ybi0615r"
-
-[sub_resource type="Resource" id="Resource_survey_c"]
-script = ExtResource("9_lwpox")
-unit_id = "survey_worker"
-unit_name = "测量工"
-max_hp = 80
-base_atk = 12
-ap_max = 85
-move_limit = 1
-skill_limit = 1
-is_escort_target = true
-metadata/_custom_type_script = "uid://c2077ybi0615r"
-
 [node name="Level1-2" unique_id=44896622 node_paths=PackedStringArray("obstacles_tilemap_layer") instance=ExtResource("1_base")]
 script = ExtResource("2_script")
 obstacles_tilemap_layer = NodePath("TileMaps/obstacle z=2")
@@ -787,45 +763,33 @@ scale = Vector2(0.671875, 0.671875)
 texture = ExtResource("5_2en6l")
 
 [node name="Player" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="0" unique_id=2088063142 instance=ExtResource("3_player")]
-position = Vector2(-125, -76)
+position = Vector2(-257, -61)
 unit_data = SubResource("Resource_6l514")
 visual_scene = ExtResource("11_lwpox")
 
 [node name="SurveyWorker" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="1" unique_id=1734697745 instance=ExtResource("3_player")]
-position = Vector2(-289, -27)
+position = Vector2(-351, -109)
 unit_data = SubResource("Resource_survey_a")
 visual_scene = ExtResource("12_survey")
 unit_color = Color(0.3, 0.9, 0.5, 1)
 
 [node name="CraftsmanA" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="2" unique_id=1153010617 instance=ExtResource("3_player")]
-position = Vector2(-14, 30)
+position = Vector2(-322, -108)
 unit_data = SubResource("Resource_craftsman_a")
 visual_scene = ExtResource("13_craft")
 unit_color = Color(0.4, 0.8, 0.9, 1)
 
 [node name="CraftsmanB" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="3" unique_id=183664624 instance=ExtResource("3_player")]
-position = Vector2(-266, 2)
+position = Vector2(-290, -75)
 unit_data = SubResource("Resource_craftsman_b")
 visual_scene = ExtResource("13_craft")
 unit_color = Color(0.4, 0.8, 0.9, 1)
 
 [node name="CraftsmanC" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="4" unique_id=890582710 instance=ExtResource("3_player")]
-position = Vector2(262, -16)
+position = Vector2(-275, -102)
 unit_data = SubResource("Resource_craftsman_c")
 visual_scene = ExtResource("13_craft")
 unit_color = Color(0.4, 0.8, 0.9, 1)
-
-[node name="SurveyWorkerB" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="5" unique_id=1734697746 instance=ExtResource("3_player")]
-position = Vector2(-31, 4)
-unit_data = SubResource("Resource_survey_b")
-visual_scene = ExtResource("12_survey")
-unit_color = Color(0.3, 0.9, 0.5, 1)
-
-[node name="SurveyWorkerC" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="6" unique_id=1734697747 instance=ExtResource("3_player")]
-position = Vector2(289, -44)
-unit_data = SubResource("Resource_survey_c")
-visual_scene = ExtResource("12_survey")
-unit_color = Color(0.3, 0.9, 0.5, 1)
 
 [node name="MovementManager" parent="." index="6" unique_id=1144669128 node_paths=PackedStringArray("movement_tilemaps", "obstacle_tilemaps")]
 movement_tilemaps = [NodePath("../TileMaps/surface z=0")]
