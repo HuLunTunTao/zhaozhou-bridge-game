@@ -4,7 +4,7 @@ extends Node2D
 
 const OUTLINE_COLOR_HERO := Color(1.0, 1.0, 0.0, 0.5)   # 黄色
 const OUTLINE_COLOR_ALLY := Color(0.0, 1.0, 0.0, 0.5)   # 绿色
-const OUTLINE_COLOR_ENEMY := Color(1.0, 0.0, 0.0, 0.5)  # 红色
+const OUTLINE_COLOR_ENEMY := Color(1.0, 0.0, 0.0, 0.36)  # 红色
 
 signal move_finished
 ## 单位倒下时发出（HP 降为 0，退场动画播完后触发）。
