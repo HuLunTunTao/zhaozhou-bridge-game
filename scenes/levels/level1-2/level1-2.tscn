@@ -833,17 +833,7 @@ obstacle_tilemaps = [NodePath("../TileMaps/obstacle z=2")]
 
 [node name="Markers" type="Node2D" parent="." index="7" unique_id=1700000002]
 
-[node name="ParameterMarker_河宽" parent="Markers" index="0" unique_id=453136092 instance=ExtResource("14_marker")]
-position = Vector2(-352, 16)
-halo_color = Color(0.95, 0.72, 0.2, 0.42)
-label_text = "河宽"
-
-[node name="ParameterMarker_坡度" parent="Markers" index="1" unique_id=1486649248 instance=ExtResource("14_marker")]
+[node name="ParameterMarker_坡度" parent="Markers" index="0" unique_id=1486649248 instance=ExtResource("14_marker")]
 position = Vector2(-32, 16)
 halo_color = Color(0.95, 0.72, 0.2, 0.42)
 label_text = "坡度"
-
-[node name="ParameterMarker_石重" parent="Markers" index="2" unique_id=1592210434 instance=ExtResource("14_marker")]
-position = Vector2(336, 8)
-halo_color = Color(0.95, 0.72, 0.2, 0.42)
-label_text = "石重"
