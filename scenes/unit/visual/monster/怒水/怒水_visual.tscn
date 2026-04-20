@@ -1,0 +1,94 @@
+[gd_scene format=3 uid="uid://cxvc60u461omv"]
+
+[ext_resource type="PackedScene" uid="uid://cbjso0lvbcag1" path="res://scenes/unit/visual/visual.tscn" id="1_xomok"]
+[ext_resource type="Shader" uid="uid://w8w41kw1kylj" path="res://scenes/unit/shader/unit_edge_light.gdshader" id="2_c5004"]
+[ext_resource type="Texture2D" uid="uid://bkgy7vpkm8m5f" path="res://assets/character/monster/怒水/怒水_left.png" id="3_c5004"]
+[ext_resource type="Texture2D" uid="uid://o783k6rqxlkb" path="res://assets/character/monster/怒水/怒水_right.png" id="4_713nk"]
+[ext_resource type="Script" uid="uid://3tv1sx4qyggq" path="res://scenes/unit/visual/monster/怒水/怒水_visual.gd" id="5_7to65"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_713nk"]
+resource_local_to_scene = true
+shader = ExtResource("2_c5004")
+shader_parameter/outline_color = Color(1, 1, 0, 0.3)
+shader_parameter/outline_width = 7.0
+shader_parameter/frame_uv_rect = Vector4(0, 0, 1, 1)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_713nk"]
+atlas = ExtResource("3_c5004")
+region = Rect2(0, 0, 512, 288)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_7to65"]
+atlas = ExtResource("3_c5004")
+region = Rect2(512, 0, 512, 288)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_kxy7f"]
+atlas = ExtResource("3_c5004")
+region = Rect2(0, 288, 512, 288)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_d7l8e"]
+atlas = ExtResource("3_c5004")
+region = Rect2(512, 288, 512, 288)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ualjr"]
+atlas = ExtResource("4_713nk")
+region = Rect2(0, 0, 512, 288)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ftro2"]
+atlas = ExtResource("4_713nk")
+region = Rect2(512, 0, 512, 288)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_mpcuf"]
+atlas = ExtResource("4_713nk")
+region = Rect2(0, 288, 512, 288)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_rqcqa"]
+atlas = ExtResource("4_713nk")
+region = Rect2(512, 288, 512, 288)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_ualjr"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_713nk")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_7to65")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_kxy7f")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_d7l8e")
+}],
+"loop": true,
+"name": &"left",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_ualjr")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_ftro2")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_mpcuf")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_rqcqa")
+}],
+"loop": true,
+"name": &"right",
+"speed": 5.0
+}]
+
+[node name="Visual" unique_id=1878430534 instance=ExtResource("1_xomok")]
+material = SubResource("ShaderMaterial_713nk")
+sprite_frames = SubResource("SpriteFrames_ualjr")
+animation = &"left"
+frame_progress = 0.19751571
+script = ExtResource("5_7to65")
+move_is_idle = true
+
+[node name="FootMarker" parent="." index="0"]
+position = Vector2(0, 120)
