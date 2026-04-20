@@ -27,6 +27,7 @@ addons/rider-plugin
 .claude/SKILL.md
 .claude/agents/
 .claude/agent-memory/
+.claude/settings.json
 .mcp.json
 docs/test-report/
 addons/godot_test_bridge
