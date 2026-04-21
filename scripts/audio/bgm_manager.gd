@@ -37,6 +37,7 @@ func play(stream: AudioStream, with_crossfade: bool = true) -> void:
 		_crossfade_to(stream)
 	else:
 		_current.stream = stream
+		_set_stream_loop(stream) # AI辅助编程，Kimi Code，2026-04-21
 		_current.play()
 
 
@@ -68,6 +69,7 @@ func get_current_stream() -> AudioStream:
 func _crossfade_to(stream: AudioStream) -> void:
 	# 准备 next 播放器
 	_next.stream = stream
+	_set_stream_loop(stream)
 	_next.volume_db = -80.0
 	_next.play()
 
@@ -78,6 +80,11 @@ func _crossfade_to(stream: AudioStream) -> void:
 	_tween.tween_property(_current, "volume_db", -80.0, FADE_TIME)
 	_tween.tween_property(_next, "volume_db", 0.0, FADE_TIME)
 	_tween.finished.connect(_swap_players, CONNECT_ONE_SHOT)
+
+
+func _set_stream_loop(stream: AudioStream) -> void:
+	if stream is AudioStreamMP3:
+		(stream as AudioStreamMP3).loop = true
 
 
 func _swap_players() -> void:
