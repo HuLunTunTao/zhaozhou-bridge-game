@@ -90,7 +90,7 @@ const CUTSCENE_DATA: Dictionary = {
 			{
 				"type": "video",
 				"path": "res://assets/cutscenes/level1-2/1-2-begin.ogv",
-				"pause_points": [3.0, 6.0, 11.0, 15.5 ,18.0, 20.0, 23.0],
+				"pause_points": [3.0, 6.0, 11.0, 15.0 ,18.0, 20.0, 23.0],
 			},
 		],
 		"post": [
