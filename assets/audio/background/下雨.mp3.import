@@ -12,7 +12,7 @@ dest_files=["res://.godot/imported/下雨.mp3-e2fce5a346c773d14b8442f231f52e9b.m
 
 [params]
 
-loop=false
+loop=true
 loop_offset=0
 bpm=0
 beat_count=0

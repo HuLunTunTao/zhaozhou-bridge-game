@@ -12,7 +12,7 @@ dest_files=["res://.godot/imported/2：弧拱定式(Geometry_of_the_Arch).mp3-2e
 
 [params]
 
-loop=false
+loop=true
 loop_offset=0
 bpm=0
 beat_count=0

@@ -12,7 +12,7 @@ dest_files=["res://.godot/imported/3：二十八券(The_Twenty_Eighth_Arch).mp3-
 
 [params]
 
-loop=false
+loop=true
 loop_offset=0
 bpm=0
 beat_count=0
