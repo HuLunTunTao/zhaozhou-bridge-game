@@ -37,7 +37,7 @@ var base_url: String = "https://route.ffcrazy.top/v1"
 var api_key: String = "sk-T88jvv1yfilIaKI3EWOWgcXv09uDjJZ8gP4qRdMT7BFJQmd4"
 
 ## 模型名，按 base_url 服务方约定填写。
-var model: String = "grok-4-1-fast-non-reasoning"
+var model: String = "qwen-gamer"
 
 ## 单次请求超时秒数。0 表示不超时。
 var timeout_sec: float = 30.0
