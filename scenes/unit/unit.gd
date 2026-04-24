@@ -52,6 +52,12 @@ var _visual: UnitVisual = null
 ## 头顶血条。
 var _hp_bar: UnitHpBar = null
 
+## 局内对话记忆（由 ChatterScheduler 写入）。
+## 每项结构：{ "round": int, "trigger": String, "text": String }。
+## 限长 MEMORY_LIMIT 条，关卡退出时随单位节点一起释放。
+const MEMORY_LIMIT := 6
+var dialogue_memory: Array[Dictionary] = []
+
 
 func _ready() -> void:
 	if visual_scene:
@@ -268,3 +274,11 @@ func face_towards_cell(target_cell: Vector2i) -> void:
 	if _visual:
 		_visual.set_facing(_facing)
 		_visual.play_state(&"idle")
+
+
+## 追加一条对话记忆。超出 MEMORY_LIMIT 自动丢弃最老的一条。
+## entry 建议包含 round / trigger / text 三键。
+func append_dialogue_memory(entry: Dictionary) -> void:
+	dialogue_memory.append(entry)
+	if dialogue_memory.size() > MEMORY_LIMIT:
+		dialogue_memory = dialogue_memory.slice(dialogue_memory.size() - MEMORY_LIMIT)
