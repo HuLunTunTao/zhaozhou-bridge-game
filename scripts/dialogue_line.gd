@@ -9,6 +9,8 @@ extends Resource
 @export_multiline var text: String = ""
 ## 说话者头像（留空则不显示头像）
 @export var portrait: Texture2D = null
+## 头像底板（黄/绿/红，同状态栏风格）。留空则不显示底板，只有人物帧。
+@export var portrait_bg: Texture2D = null
 ## 头像位于左侧还是右侧
 @export_enum("left", "right") var portrait_side: String = "left"
 
@@ -18,11 +20,13 @@ static func create(
 	p_speaker: String,
 	p_text: String,
 	p_portrait: Texture2D = null,
-	p_side: String = "left"
+	p_side: String = "left",
+	p_portrait_bg: Texture2D = null
 ) -> DialogueLine:
 	var line := DialogueLine.new()
 	line.speaker = p_speaker
 	line.text = p_text
 	line.portrait = p_portrait
 	line.portrait_side = p_side
+	line.portrait_bg = p_portrait_bg
 	return line

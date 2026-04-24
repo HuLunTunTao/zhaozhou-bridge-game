@@ -53,8 +53,15 @@ signal unit_hp_changed(unit: Unit, old_hp: int, new_hp: int)
 ## 大回合开始（所有队伍各打完一次为一个大回合）。round_number 在 emit 前已递增。
 signal round_started(round_number: int)
 
+## 大回合结束：所有队伍都走完一轮，round_number 即将递增前 emit。
+## 参数是"刚刚结束的这个大回合号"。
+signal round_ended(round_number: int)
+
 ## 队伍小回合开始（team_index 从 0 起）。
 signal team_turn_started(team_index: int)
+
+## 队伍小回合结束。切到下一队伍之前 emit，参数是"刚结束的这个队伍号"。
+signal team_turn_ended(team_index: int)
 
 ## 某单位获得一个技能（通过 grant_skill 添加）。
 signal unit_gained_skill(unit: Unit, skill: SkillData)
@@ -83,6 +90,9 @@ const GrowthChoicePanelScript := preload("res://scenes/ui/growth_choice_panel.gd
 const LLMClientScript := preload("res://scripts/llm/llm_client.gd")
 const BattleContextScript := preload("res://scripts/llm/battle_context.gd")
 const LLMFallbackLinesScript := preload("res://scripts/llm/fallback_lines.gd")
+const NpcPersonasScript := preload("res://scripts/llm/npc_personas.gd")
+const PortraitResolverScript := preload("res://scripts/llm/portrait_resolver.gd")
+const ChatterSchedulerScript := preload("res://scripts/llm/chatter_scheduler.gd")
 const TutorialPanelScene := preload("res://scenes/ui/tutorial_panel.tscn")
 
 var tilemap: TileMapLayer
@@ -94,6 +104,8 @@ var unit_selected := false
 var _round_growth_selected_rounds: Array[int] = []
 var _llm_client: Node = null
 var _ai_busy := false
+## 单位闲聊调度器（LLM 驱动）。BRIEFING 之后的战斗中监听 team_turn_ended / round_ended 触发对话。
+var _chatter_scheduler: Node = null
 
 ## 输入状态机。
 enum InputState { IDLE, UNIT_SELECTED, TARGETING_MOVE, TARGETING_SKILL, ANIMATING }
@@ -275,6 +287,10 @@ func _ready() -> void:
 	_update_round_label(round_number)
 	# 每个大回合开始（玩家→友方→敌人 跑完一圈后）自动触发一次 AI
 	round_started.connect(_on_round_started_ai_call)
+	# LLM 单位闲聊：ChatterScheduler 内部订阅 skill_executed / team_turn_ended / round_ended
+	_chatter_scheduler = ChatterSchedulerScript.new()
+	add_child(_chatter_scheduler)
+	_chatter_scheduler.setup(self)
 	# 连接状态栏技能按钮信号
 	if status_bar and status_bar.has_signal("skill_button_pressed"):
 		status_bar.skill_button_pressed.connect(_on_skill_button_pressed)
@@ -689,7 +705,11 @@ func _do_end_turn() -> void:
 	if _end_turn_button:
 		_end_turn_button.visible = false
 	var next_index := (current_team_index + 1) % teams.size()
+	# 先广播当前小回合结束，给 ChatterScheduler / 教程脚本等挂钩
+	team_turn_ended.emit(current_team_index)
 	if next_index == 0:
+		# 大回合也到头了：先 emit round_ended（旧回合号），再推进 round_number
+		round_ended.emit(round_number)
 		round_number += 1
 		round_started.emit(round_number)
 	_start_team_turn(next_index)
@@ -1100,14 +1120,53 @@ func _on_unit_died(unit: Unit) -> void:
 
 
 ## 播放一段对话。阻塞直到对话结束。用法：await play_dialogue([line1, line2])
-func play_dialogue(lines: Array[DialogueLine]) -> void:
+## auto_dismiss=true 时走"打字机结束后自动飘过"，用于单位闲聊（chatter）；
+## 默认 false 保持原有"点击/空格推进"行为，关卡剧情调用无需改动。
+func play_dialogue(lines: Array[DialogueLine], auto_dismiss: bool = false, dismiss_delay: float = 2.5) -> void:
 	var DialogueBoxScene := preload("res://scenes/ui/dialogue_box.tscn")
 	var box = DialogueBoxScene.instantiate()
 	if not _open_overlay(ActiveOverlay.DIALOGUE, box, &"dialogue_finished"):
 		box.queue_free()
 		return
-	box.start(lines)
+	box.start(lines, auto_dismiss, dismiss_delay)
 	await box.dialogue_finished
+
+
+## 单行 chatter 对话的便捷入口。单位阵营决定头像左右，头像来自 PortraitResolver，自动飘过。
+## 返回值：true 表示对话已播放完毕；false 表示被拒绝（已有 overlay 占用）。
+func play_chatter_dialogue(unit: Node, text: String, dismiss_delay: float = 2.5) -> bool:
+	if unit == null or not (unit is Unit) or text.is_empty():
+		return false
+	var u := unit as Unit
+	if u.unit_data == null:
+		return false
+	var persona: Dictionary = NpcPersonasScript.get_persona(
+		u.unit_data.unit_id,
+		u.unit_data.camp
+	)
+	var line := DialogueLine.create(
+		persona.get("name", u.unit_data.unit_name),
+		text,
+		PortraitResolverScript.get_portrait(u),
+		PortraitResolverScript.side_for_unit(u),
+		PortraitResolverScript.get_portrait_bg(u)
+	)
+	# 如果已有 overlay（别的对话/面板在跑），chatter 直接放弃本次
+	if has_overlay():
+		return false
+	await play_dialogue([line], true, dismiss_delay)
+	return true
+
+
+## 多行 chatter 对话（邻接对话的双人场景用）。每条 line 已由调用方准备好 portrait/side。
+func play_chatter_lines(lines: Array[DialogueLine], dismiss_delay: float = 2.5) -> bool:
+	if lines.is_empty() or has_overlay():
+		return false
+	await play_dialogue(lines, true, dismiss_delay)
+	return true
+
+
+## 播放一段对话。阻塞直到对话结束。用法：await play_dialogue([line1, line2])
 
 
 ## 授予单位一个新技能。幂等：若单位已有该技能则不做任何操作，不 emit 信号。

@@ -62,14 +62,39 @@ grow_vertical = 0
 theme_override_constants/separation = 6
 
 [node name="LeftPortraitFrame" type="PanelContainer" parent="BottomBar" unique_id=615691728]
+unique_name_in_owner = true
 self_modulate = Color(1, 1, 1, 0)
 custom_minimum_size = Vector2(90, 70)
 layout_mode = 2
 theme_override_styles/panel = SubResource("portrait_border")
 
-[node name="LeftPortrait" type="TextureRect" parent="BottomBar/LeftPortraitFrame" unique_id=1145069728]
-unique_name_in_owner = true
+[node name="LeftPortraitContainer" type="Control" parent="BottomBar/LeftPortraitFrame" unique_id=615691729]
 layout_mode = 2
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="LeftPortraitBg" type="TextureRect" parent="BottomBar/LeftPortraitFrame/LeftPortraitContainer" unique_id=615691730]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="LeftPortrait" type="TextureRect" parent="BottomBar/LeftPortraitFrame/LeftPortraitContainer" unique_id=1145069728]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
 expand_mode = 1
 stretch_mode = 5
 
@@ -115,13 +140,38 @@ text = "▼ 点击继续"
 horizontal_alignment = 2
 
 [node name="RightPortraitFrame" type="PanelContainer" parent="BottomBar" unique_id=603370849]
+unique_name_in_owner = true
 self_modulate = Color(1, 1, 1, 0)
 custom_minimum_size = Vector2(90, 70)
 layout_mode = 2
 theme_override_styles/panel = SubResource("portrait_border")
 
-[node name="RightPortrait" type="TextureRect" parent="BottomBar/RightPortraitFrame" unique_id=1510589631]
-unique_name_in_owner = true
+[node name="RightPortraitContainer" type="Control" parent="BottomBar/RightPortraitFrame" unique_id=603370850]
 layout_mode = 2
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="RightPortraitBg" type="TextureRect" parent="BottomBar/RightPortraitFrame/RightPortraitContainer" unique_id=603370851]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="RightPortrait" type="TextureRect" parent="BottomBar/RightPortraitFrame/RightPortraitContainer" unique_id=1510589631]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
 expand_mode = 1
 stretch_mode = 5

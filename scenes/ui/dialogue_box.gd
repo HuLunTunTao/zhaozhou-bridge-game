@@ -10,13 +10,16 @@ extends CanvasLayer
 signal dialogue_finished
 
 const CHAR_DELAY := 0.03  # 每个字符的打字机间隔（秒）
+const AUTO_DISMISS_DELAY_DEFAULT := 2.5  # auto_dismiss 模式下的默认停留秒数
 
 @onready var backdrop: ColorRect = %Backdrop
 @onready var bottom_bar: HBoxContainer = %BottomBar
 @onready var left_portrait: TextureRect = %LeftPortrait
-@onready var left_frame: PanelContainer = %LeftPortrait.get_parent()
+@onready var left_portrait_bg: TextureRect = %LeftPortraitBg
+@onready var left_frame: PanelContainer = %LeftPortraitFrame
 @onready var right_portrait: TextureRect = %RightPortrait
-@onready var right_frame: PanelContainer = %RightPortrait.get_parent()
+@onready var right_portrait_bg: TextureRect = %RightPortraitBg
+@onready var right_frame: PanelContainer = %RightPortraitFrame
 @onready var speaker_label: Label = %SpeakerLabel
 @onready var text_label: RichTextLabel = %TextLabel
 @onready var continue_indicator: Label = %ContinueIndicator
@@ -25,6 +28,12 @@ var _lines: Array[DialogueLine] = []
 var _current_index: int = -1
 var _typing: bool = false
 var _finished: bool = false
+## auto_dismiss 模式：打字机结束后等 _dismiss_delay 秒自动推进 / 关闭，无需玩家点击。
+## 用于单位闲聊（chatter）等不该打断游戏节奏的场景。
+var _auto_dismiss: bool = false
+var _dismiss_delay: float = AUTO_DISMISS_DELAY_DEFAULT
+## 每次 _advance / _skip 会自增，用于取消上一轮的 auto-dismiss 计时协程。
+var _dismiss_token: int = 0
 
 
 func _ready() -> void:
@@ -34,10 +43,12 @@ func _ready() -> void:
 	bottom_bar.modulate.a = 0.0
 
 
-func start(lines: Array[DialogueLine]) -> void:
+func start(lines: Array[DialogueLine], auto_dismiss: bool = false, dismiss_delay: float = AUTO_DISMISS_DELAY_DEFAULT) -> void:
 	_lines = lines
 	_current_index = -1
 	_finished = false
+	_auto_dismiss = auto_dismiss
+	_dismiss_delay = dismiss_delay
 	# 先准备好第一行内容，再淡入，避免头像闪烁
 	if _lines.size() > 0:
 		_apply_line(_lines[0])
@@ -70,6 +81,7 @@ func _input(event: InputEvent) -> void:
 
 
 func _advance() -> void:
+	_dismiss_token += 1  # 使任何仍在等 auto_dismiss 延迟的协程失效
 	_current_index += 1
 	if _current_index >= _lines.size():
 		_finish()
@@ -91,14 +103,18 @@ func _apply_line(line: DialogueLine) -> void:
 	# 头像：frame 始终占位，通过 self_modulate.a 控制显隐
 	left_portrait.texture = null
 	right_portrait.texture = null
+	left_portrait_bg.texture = null
+	right_portrait_bg.texture = null
 	left_frame.self_modulate.a = 0.0
 	right_frame.self_modulate.a = 0.0
 	if line.portrait != null:
 		if line.portrait_side == "right":
 			right_portrait.texture = line.portrait
+			right_portrait_bg.texture = line.portrait_bg
 			right_frame.self_modulate.a = 1.0
 		else:
 			left_portrait.texture = line.portrait
+			left_portrait_bg.texture = line.portrait_bg
 			left_frame.self_modulate.a = 1.0
 
 	# 隐藏继续提示
@@ -113,7 +129,8 @@ func _start_typewriter(full_text: String) -> void:
 	var total_chars := full_text.length()
 	if total_chars == 0:
 		_typing = false
-		continue_indicator.visible = true
+		continue_indicator.visible = not _auto_dismiss
+		_schedule_auto_dismiss()
 		return
 
 	var tween := create_tween()
@@ -122,16 +139,28 @@ func _start_typewriter(full_text: String) -> void:
 
 	if _typing:  # 没有被跳过
 		_typing = false
-		continue_indicator.visible = true
+		continue_indicator.visible = not _auto_dismiss
+		_schedule_auto_dismiss()
 
 
 func _skip_typewriter() -> void:
 	_typing = false
 	text_label.visible_ratio = 1.0
-	continue_indicator.visible = true
-	# 停止正在播放的 tween
-	for child in get_children():
-		pass  # Tween 是内部对象，直接设置 visible_ratio=1 即可覆盖
+	continue_indicator.visible = not _auto_dismiss
+	# 跳过后同样触发 auto_dismiss 倒计时
+	_schedule_auto_dismiss()
+
+
+## 若开启 auto_dismiss，延迟 _dismiss_delay 秒后自动 _advance；
+## 玩家在此期间手动推进则 token 自增使本协程静默退出。
+func _schedule_auto_dismiss() -> void:
+	if not _auto_dismiss:
+		return
+	var token := _dismiss_token
+	await get_tree().create_timer(_dismiss_delay).timeout
+	if _finished or token != _dismiss_token:
+		return
+	_advance()
 
 
 func _finish() -> void:
