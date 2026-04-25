@@ -267,7 +267,8 @@ func _speak_line(unit: Node, line: DialogueLine, trigger_kind: String = "") -> b
 	if _level == null or not _level.has_method("play_chatter_lines"):
 		return false
 	var lines: Array[DialogueLine] = [line]
-	var result: Dictionary = await _level.play_chatter_lines(lines, _delay_for_lines(lines))
+	# voice_handle=_voice 让 dialogue_box 在 auto_dismiss 模式下等 TTS 播完 + 0.5s 才关
+	var result: Dictionary = await _level.play_chatter_lines(lines, _delay_for_lines(lines), _voice)
 	return bool(result.get("was_skipped", false))
 
 

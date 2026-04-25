@@ -1169,10 +1169,12 @@ func play_chatter_dialogue(unit: Node, text: String, dismiss_delay: float = 2.5)
 
 
 ## 多行 chatter 对话（邻接对话的双人场景用）。每条 line 已由调用方准备好 portrait/side。
+## voice_handle: 可选 TTS 句柄（鸭子接口：is_streaming() / streaming_done 信号），
+##   传入后 auto_dismiss 会等语音播完 +0.5s 才关；不传则只看 dismiss_delay 与文字打完。
 ## 返回 `{"ok": bool, "was_skipped": bool}`：
 ##   - ok=false 表示被拒绝（已有 overlay）；was_skipped 此时无意义
 ##   - was_skipped=true 表示玩家手动按键/点击关闭，false 表示 auto_dismiss 自然结束
-func play_chatter_lines(lines: Array[DialogueLine], dismiss_delay: float = 2.5) -> Dictionary:
+func play_chatter_lines(lines: Array[DialogueLine], dismiss_delay: float = 2.0, voice_handle: Node = null) -> Dictionary:
 	if lines.is_empty() or has_overlay():
 		return {"ok": false, "was_skipped": false}
 	var DialogueBoxScene := preload("res://scenes/ui/dialogue_box.tscn")
@@ -1180,7 +1182,7 @@ func play_chatter_lines(lines: Array[DialogueLine], dismiss_delay: float = 2.5) 
 	if not _open_overlay(ActiveOverlay.DIALOGUE, box, &"dialogue_finished"):
 		box.queue_free()
 		return {"ok": false, "was_skipped": false}
-	box.start(lines, true, dismiss_delay)
+	box.start(lines, true, dismiss_delay, voice_handle)
 	await box.dialogue_finished
 	# emit 在 queue_free 前，节点本帧仍在树上；was_skipped 已被 _finish 写入。
 	var skipped: bool = box.was_skipped if is_instance_valid(box) else false
