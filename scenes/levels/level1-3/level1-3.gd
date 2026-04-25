@@ -56,6 +56,8 @@ var _visual_misaligned: PackedScene = preload("res://scenes/unit/visual/monster/
 var _visual_stone_split: PackedScene = preload("res://scenes/unit/visual/monster/裂石兽/裂石兽_visual.tscn")
 var _visual_rope_sever: PackedScene = preload("res://scenes/unit/visual/monster/断索鬼/断索鬼_visual.tscn")
 var _visual_joint_shade: PackedScene = preload("res://scenes/unit/visual/monster/脱缝鬼/脱缝鬼_visual.tscn")
+# ── 我方视觉（动态生成的运石工用）──
+var _visual_carrier: PackedScene = preload("res://scenes/unit/visual/human/测量工/测量工_visual.tscn")
 
 
 # ── 地图固定锚点视觉（与第一关撤离区同款脉动光晕） ──
@@ -240,13 +242,16 @@ func _on_unit_moved() -> void:
 
 
 func _on_skill_executed(caster: Unit, skill: SkillData, cast_cell: Vector2i, exec_result: SkillExecutor.ExecuteResult) -> void:
-	# 李春墨绳校券：命中左/右券台 2×2 区域内任一格即 +1
+	# 李春墨绳校券：命中左/右券台 2×2 → 命中侧 +1，同时对侧 -1（左右调拨）。
+	# 总和不变，但能瞬间矫正失衡，让玩家有手段把扰券侧的扣减"挪"到富余侧。
 	if caster == _li_chun and skill.skill_id == "lc_inkline_balance_arch":
 		if _is_in_zone(cast_cell, _left_platform):
-			_adjust_arch_value(true, 1, "墨绳校券")
+			_adjust_arch_value(true, 1, "墨绳校券（左 +1）")
+			_adjust_arch_value(false, -1, "墨绳校券（右 -1）")
 			_update_status_panel()
 		elif _is_in_zone(cast_cell, _right_platform):
-			_adjust_arch_value(false, 1, "墨绳校券")
+			_adjust_arch_value(false, 1, "墨绳校券（右 +1）")
+			_adjust_arch_value(true, -1, "墨绳校券（左 -1）")
 			_update_status_panel()
 		return
 
@@ -376,6 +381,8 @@ func _setup_li_chun() -> void:
 func _setup_allies_from_scene() -> void:
 	# 工匠 / 运石工已在 .tscn 预置（unit_data + visual_scene + position）；
 	# 这里只补齐技能与战斗数值，并记录运石工的基础移动消耗用于载石后 +1。
+	# 同时在两石料场旁各动态生成 1 名额外运石工，加速运石节奏。
+	_spawn_extra_carriers()
 	for craftsman in _craftsmen:
 		set_unit_skills(craftsman, [_mallet, _guard])
 		setup_unit_stats(craftsman, "工匠", 118, 20, 92, 9)
@@ -384,6 +391,23 @@ func _setup_allies_from_scene() -> void:
 		setup_unit_stats(carrier, "运石工", 88, 13, 90, 9)
 		_carrier_base_move_cost[carrier.get_instance_id()] = carrier.combat_stats.move_cost_per_tile
 	_apply_persistent_growth_effects()
+	# 墨绳校券改为无 CD 的「左右调拨」式机制（命中侧 +1 / 对侧 -1），
+	# 必须在 growth 之后强制覆盖，否则 growth_balance_method 会把 CD 拉回 1。
+	modify_unit_skill(_li_chun, "lc_inkline_balance_arch", {"cooldown_turns": 0})
+
+
+## 在两个石料场旁各生成 1 名额外运石工。让运石节奏跟得上敌方扣券速度。
+## 生成的单位会被加入 _stone_carriers，由 _setup_allies_from_scene 的循环统一配齐技能/数值。
+func _spawn_extra_carriers() -> void:
+	var carrier_data: UnitData = preload("res://data/units/survey_worker.tres")
+	var spawn_targets: Array[Vector2i] = [
+		_stone_yard_cells[0] + Vector2i(0, -1),   # 左石料场北侧（靠桥一侧）
+		_stone_yard_cells[1] + Vector2i(-1, 0),   # 右石料场西侧（靠桥一侧）
+	]
+	for target in spawn_targets:
+		var cell := _nearest_walkable(target)
+		var carrier := spawn_unit(carrier_data, cell, PLAYER_TEAM, _visual_carrier)
+		_stone_carriers.append(carrier)
 
 
 func _spawn_enemies() -> void:
