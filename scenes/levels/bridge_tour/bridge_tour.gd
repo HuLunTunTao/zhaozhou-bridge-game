@@ -456,9 +456,13 @@ func _apply_npc_answer(npc: Unit, ans: Dictionary) -> void:
 
 ## 用 dialogue_box + chatter_voice 播一条 NPC 台词。
 ## with_voice=false 时不走 TTS（兜底文本如"沉吟不语"用），dialogue_box 仍按文本长度自然 dismiss。
-func _play_npc_line(npc: Unit, text: String, with_voice: bool = true) -> void:
+## 返回 was_skipped：true=玩家手动按键/点击关闭；false=auto_dismiss 自然结束。
+##
+## 关键：玩家手动跳过 + 语音还在流 → 立即 _voice.cancel()。
+## 否则未播完的 TTS 会在下一段 speak() 时被 stop() + 旧 session 的尾巴可能串到新 session 的播放队列里。
+func _play_npc_line(npc: Unit, text: String, with_voice: bool = true) -> bool:
 	if text.is_empty():
-		return
+		return false
 	var line := DialogueLine.create(
 		npc.unit_data.unit_name,
 		text,
@@ -466,12 +470,18 @@ func _play_npc_line(npc: Unit, text: String, with_voice: bool = true) -> void:
 		_PortraitResolverScript.side_for_unit(npc),
 		_PortraitResolverScript.get_portrait_bg(npc),
 	)
+	var result: Dictionary
 	if with_voice:
 		# 并行启动 TTS（不 await，让 dialogue_box 的 voice_handle 负责等收尾）
 		_get_voice().speak(npc, text, "bridge_topic_answer")
-		await play_chatter_lines([line], 2.0, _get_voice())
+		result = await play_chatter_lines([line], 2.0, _get_voice())
 	else:
-		await play_chatter_lines([line], 2.0)
+		result = await play_chatter_lines([line], 2.0)
+	var was_skipped: bool = bool(result.get("was_skipped", false))
+	# 跳过 + 语音还在流 → 立刻断声，避免尾音串到下一段
+	if was_skipped and with_voice and _get_voice().is_streaming():
+		_get_voice().cancel()
+	return was_skipped
 
 
 ## 从 LLM 回复中提取 JSON 对象 {reply, stance_delta, tone}。失败返回 {}。

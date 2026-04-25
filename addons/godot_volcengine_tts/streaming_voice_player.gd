@@ -52,6 +52,10 @@ var _speaking: bool = false
 ## 上一次终结的 session 是否"自然完成"。
 ## true = 正常播完；false = 失败 / 被 stop() 中断。speak() 用它决定返回值。
 var _last_session_succeeded: bool = false
+## 当前 active 的 bidi session id。stop() 清空，speak() 在 start_session 成功后回填。
+## 用于挡掉旧 session 的延迟 audio_chunk / session_finished / session_failed 信号。
+## 空字符串 = "当前没有活跃的 bidi session，所有 bidi 信号一律视为陈旧"。
+var _active_bidi_session_id: String = ""
 
 
 func _ready() -> void:
@@ -112,6 +116,8 @@ func speak(text: String, voice: String, opts: Dictionary = {}) -> bool:
 		_player.stop()
 		speak_finished.emit()
 		return false
+	# 启动成功——记下 session id 让 bidi 信号能甄别陈旧事件
+	_active_bidi_session_id = bidi_client.current_session_id()
 	bidi_client.feed_text(text)
 	bidi_client.finish_session()
 	# 等 _on_bidi_session_finished / _on_bidi_session_failed / stop() 触发 speak_finished
@@ -140,6 +146,9 @@ func start_streaming(voice: String, opts: Dictionary = {}) -> bool:
 		_last_session_succeeded = false
 		_speaking = false
 		speak_finished.emit()
+		return ok
+	# 启动成功——记下 session id（同 speak() 一样，挡掉旧 session 的延迟信号）
+	_active_bidi_session_id = bidi_client.current_session_id()
 	return ok
 
 
@@ -179,6 +188,9 @@ func is_speaking() -> bool:
 ## 多次调用安全。空闲时调也无副作用（不会 emit speak_finished）。
 func stop() -> void:
 	var was_speaking := _speaking
+	# 先把 active session id 清掉——旧 session 的任何延迟 audio_chunk / session_finished /
+	# session_failed 信号到达时，handler 会比对 id 不一致直接 return
+	_active_bidi_session_id = ""
 	if bidi_client != null and bidi_client.is_busy():
 		bidi_client.cancel()
 	if uni_client != null and uni_client.is_busy():
@@ -241,6 +253,9 @@ func _on_pcm_chunk(chunk: PackedByteArray) -> void:
 
 
 func _on_bidi_audio_chunk(chunk: PackedByteArray) -> void:
+	# 旧 session 的延迟 chunk 直接丢——_active_bidi_session_id 在 stop() 时清空
+	if _active_bidi_session_id.is_empty():
+		return
 	_enqueue_chunk(chunk)
 
 
@@ -265,6 +280,9 @@ func _drain_chunk_queue() -> void:
 
 
 func _on_bidi_session_finished(sid: String) -> void:
+	# 旧 session 的迟到 finished：sid 和当前 active 不匹配（或当前 active 已被 stop 清空）→ 丢弃
+	if sid != _active_bidi_session_id:
+		return
 	_last_session_id = sid
 	# 等队列里剩余的 chunk 全部 push 完，再做最终 drain
 	while _drain_running:
@@ -273,14 +291,19 @@ func _on_bidi_session_finished(sid: String) -> void:
 		await get_tree().process_frame
 	await _drain_player()
 	# 在上面的 await 期间，外部可能已经调用 stop()——不要把 stop 设的 false 覆盖回 true。
-	if not _speaking:
+	if not _speaking or sid != _active_bidi_session_id:
 		return
+	_active_bidi_session_id = ""
 	_last_session_succeeded = true
 	_speaking = false
 	speak_finished.emit()
 
 
 func _on_bidi_session_failed(_reason: String) -> void:
+	# 旧 session 的迟到 failed：active 已经清空 → 当前没有正在 await 的 speaker，直接丢
+	if _active_bidi_session_id.is_empty():
+		return
+	_active_bidi_session_id = ""
 	_chunk_queue.clear()
 	_last_session_succeeded = false
 	_speaking = false
