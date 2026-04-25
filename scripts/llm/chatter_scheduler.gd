@@ -12,19 +12,14 @@ extends Node
 
 const NpcPersonasScript := preload("res://scripts/llm/npc_personas.gd")
 const LLMClientScript := preload("res://scripts/llm/llm_client.gd")
-const BattleContextScript := preload("res://scripts/llm/battle_context.gd")
 const PortraitResolverScript := preload("res://scripts/llm/portrait_resolver.gd")
-const VoiceMappingScript := preload("res://scripts/tts/voice_mapping.gd")
-const VolcengineTTSClientScript := preload("res://scripts/tts/volcengine_tts_client.gd")
+const ChatterVoiceScript := preload("res://scripts/tts/chatter_voice.gd")
+const ChatterPromptsScript := preload("res://scripts/llm/chatter_prompts.gd")
 
 ## 三类触发的概率（0.0–1.0）。调试时可临时拉到 1.0 做强制触发测试。
-# const TRIGGER_PROB_ATTACKED := 0.45
-# const TRIGGER_PROB_ADJACENT := 0.35
-# const TRIGGER_PROB_HERO_OBS := 0.30
-
-const TRIGGER_PROB_ATTACKED := 1
-const TRIGGER_PROB_ADJACENT := 1
-const TRIGGER_PROB_HERO_OBS := 1
+const TRIGGER_PROB_ATTACKED := 0.45
+const TRIGGER_PROB_ADJACENT := 0.35
+const TRIGGER_PROB_HERO_OBS := 0.30
 ## 对话框自动飘过的停留秒数。
 const DIALOGUE_DISMISS_DELAY := 3.0
 ## 邻接对话中，对方回一句的概率。
@@ -45,18 +40,10 @@ const NEIGHBOR_OFFSETS: Array[Vector2i] = [
 
 var _level: Node = null
 var _llm: Node = null
-var _tts: Node = null
+var _voice: Node = null
 var _busy: bool = false
 ## 当前小回合里发生的攻击事件。条目结构：{ victim: Unit, attacker: Unit, skill: SkillData }。
 var _attacked_this_turn: Array[Dictionary] = []
-
-## 流式 TTS 专用 player，与 dialogue_box 的 player 解耦，并行播放。
-const _AUDIO_SAMPLE_RATE := 24000
-const _AUDIO_BUFFER_LENGTH := 0.5
-var _voice_player: AudioStreamPlayer = null
-## 流式 TTS 是否仍在收 chunk / 播放中，配合 _voice_streaming_done 信号收尾。
-var _voice_streaming: bool = false
-signal _voice_streaming_done
 
 
 ## 初始化。由 BaseLevel._on_level_ready 调用一次。
@@ -68,13 +55,10 @@ func setup(level: Node, llm_client: Node = null) -> void:
 	else:
 		_llm = LLMClientScript.new()
 		add_child(_llm)
-	# TTS 客户端：每次 synthesize_streaming 自管 WS
-	_tts = VolcengineTTSClientScript.new()
-	add_child(_tts)
-	# 流式语音播放器（bus=Voice，受设置面板「语音音量」滑块控制）
-	_voice_player = AudioStreamPlayer.new()
-	_voice_player.bus = &"Voice"
-	add_child(_voice_player)
+	# 闲聊语音通道（火山流式 TTS + 系统 TTS 兜底，独立于 dialogue_box 的预设音频）
+	_voice = ChatterVoiceScript.new()
+	_voice.use_system_tts_fallback = use_system_tts_fallback
+	add_child(_voice)
 	# 订阅 BaseLevel 的领域信号
 	if _level.has_signal("skill_executed"):
 		_level.skill_executed.connect(_on_skill_executed)
@@ -212,7 +196,7 @@ func _do_hero_observation(round_number: int) -> void:
 	var objectives: String = ""
 	if _level.has_method("get_objectives_text"):
 		var obj: Dictionary = _level.get_objectives_text()
-		objectives = _format_objectives(obj)
+		objectives = ChatterPromptsScript.format_objectives(obj)
 	await _say(hero, "hero_observation", {
 		"objectives": objectives,
 		"round": round_number,
@@ -233,17 +217,17 @@ func _say(unit: Node, trigger_kind: String, extra: Dictionary) -> void:
 ## 流式语音 + 对话框并行播放一行的统一入口。被 _say 和 _do_adjacent_chat 共用。
 func _speak_line(unit: Node, line: DialogueLine) -> void:
 	# 并行启动流式语音（不 await — 协程在第一个 await 后让出）
-	_stream_voice(unit, line.text)
+	_voice.speak(unit, line.text)
 	# 与此同时打开对话框
 	if _level != null and _level.has_method("play_chatter_lines"):
 		var lines: Array[DialogueLine] = [line]
 		await _level.play_chatter_lines(lines, _delay_for_lines(lines))
 	# 对话先关，但语音还没说完 → 等语音收尾，避免下一次 chatter 冲掉
-	if _voice_streaming:
-		await _voice_streaming_done
+	if _voice.is_streaming():
+		await _voice.streaming_done
 
 
-## 调 LLM 生成一条台词并组装成 DialogueLine（不带 audio_stream，配音由 _stream_voice 单独走）。
+## 调 LLM 生成一条台词并组装成 DialogueLine（不带 audio_stream，配音由 ChatterVoice 单独走）。
 ## LLM 失败 → 跳过本次 chatter（不用 fallback_lines，那是"老监工"语气，套到别的角色会严重出戏）。
 ## 被 _say / _do_adjacent_chat 共用。
 func _build_line(unit: Node, trigger_kind: String, extra: Dictionary) -> DialogueLine:
@@ -256,10 +240,10 @@ func _build_line(unit: Node, trigger_kind: String, extra: Dictionary) -> Dialogu
 		return null
 	_busy = true
 	var persona: Dictionary = NpcPersonasScript.get_persona(u.unit_data.unit_id, u.unit_data.camp)
-	var memory_text := _format_memory(u)
-	var context_json := _build_context_summary()
-	var system_msg := _build_system_prompt(persona, trigger_kind, memory_text, context_json)
-	var user_msg := _build_user_prompt(persona, trigger_kind, extra)
+	var memory_text := ChatterPromptsScript.format_memory(u)
+	var context_json := ChatterPromptsScript.build_context_summary(_level)
+	var system_msg := ChatterPromptsScript.build_system_prompt(persona, trigger_kind, memory_text, context_json)
+	var user_msg := ChatterPromptsScript.build_user_prompt(persona, trigger_kind, extra)
 
 	# 临时把 LLMClient 超时调短
 	var prev_timeout: float = _llm.timeout_sec if "timeout_sec" in _llm else 30.0
@@ -302,66 +286,6 @@ func _build_line(unit: Node, trigger_kind: String, extra: Dictionary) -> Dialogu
 	)
 
 
-## 流式语音：边收 PCM chunk 边推到 _voice_player（AudioStreamGenerator）。
-## 第一个 await 后控制权返还调用方，从而与 dialogue_box 并行。
-## 完成后 emit _voice_streaming_done。火山失败时回落到系统 TTS 或静默。
-func _stream_voice(unit: Node, text: String) -> void:
-	if _tts == null or _voice_player == null:
-		_maybe_speak_via_system_tts(text)
-		_voice_streaming_done.emit()
-		return
-	if not (unit is Unit) or (unit as Unit).unit_data == null:
-		_maybe_speak_via_system_tts(text)
-		_voice_streaming_done.emit()
-		return
-	var u := unit as Unit
-	var voice_cfg: Dictionary = VoiceMappingScript.get_voice(u.unit_data.unit_id, u.unit_data.camp)
-	var voice: String = voice_cfg.get("voice", "")
-	if voice.is_empty():
-		_maybe_speak_via_system_tts(text)
-		_voice_streaming_done.emit()
-		return
-
-	# 切到 AudioStreamGenerator 流并 play 拿 playback
-	_voice_player.stop()
-	var generator := AudioStreamGenerator.new()
-	generator.mix_rate = float(_AUDIO_SAMPLE_RATE)
-	generator.buffer_length = _AUDIO_BUFFER_LENGTH
-	_voice_player.stream = generator
-	_voice_player.play()
-	var pb := _voice_player.get_stream_playback() as AudioStreamGeneratorPlayback
-	if pb == null:
-		_voice_player.stop()
-		_maybe_speak_via_system_tts(text)
-		_voice_streaming_done.emit()
-		return
-
-	_voice_streaming = true
-	var ok: bool = await _tts.synthesize_streaming(text, voice, pb)
-	if not ok:
-		_voice_player.stop()
-		_maybe_speak_via_system_tts(text)
-	_voice_streaming = false
-	_voice_streaming_done.emit()
-
-
-## 系统 TTS 兜底：火山合成失败时由 OS 把文本读出来。
-## 不返回 AudioStream（系统 TTS 走另一条声道，不进 dialogue_box 的 player）。
-## 调用方只能依据文本长度估个 dismiss 延迟。
-func _maybe_speak_via_system_tts(text: String) -> void:
-	if not use_system_tts_fallback or text.is_empty():
-		return
-	if not DisplayServer.has_feature(DisplayServer.FEATURE_TEXT_TO_SPEECH):
-		return
-	var voices: Array = DisplayServer.tts_get_voices_for_language("zh")
-	if voices.is_empty():
-		# 没有中文系统语音，索性不发声（避免英文音念中文出洋相）
-		return
-	var voice_id: String = voices[0]
-	# interrupt=true 防止上一次系统朗读把这句压住
-	DisplayServer.tts_speak(text, voice_id, 50, 1.0, 1.0, 0, true)
-
-
 ## 给 play_chatter_lines 估算合理的 dismiss_delay。
 ## - 有 audio_stream：返回 base，dialogue_box 内会再用音频时长进一步拉长
 ## - 无 audio_stream（含系统 TTS 兜底）：按文本长度估时（中文约 3.5 字/秒 + 1s 缓冲）
@@ -373,108 +297,6 @@ func _delay_for_lines(lines: Array[DialogueLine]) -> float:
 		var est := float(line.text.length()) / 3.5 + 1.0
 		d = maxf(d, est)
 	return d
-
-
-# ─────────────────────────────────────────────────────────
-# Prompt 拼装
-# ─────────────────────────────────────────────────────────
-
-func _build_system_prompt(persona: Dictionary, trigger_kind: String, memory_text: String, context_json: String) -> String:
-	return """你是《安济桥成》中的角色「%s」。
-%s
-
-说话风格：%s
-
-硬约束：
-- 只说一句话，不超过 30 字
-- 不加括号动作描述，不提 HP/AP/技能名，不说教
-- 保持人设口吻
-- 当前触发是【%s】，按对应姿态开口
-
-最近你说过 / 听到的话：
-%s
-
-战场（自己心里有数，别复述）：
-%s""" % [
-		persona.get("name", "未名"),
-		persona.get("persona", ""),
-		persona.get("style", ""),
-		trigger_kind,
-		memory_text,
-		context_json,
-	]
-
-
-func _build_user_prompt(persona: Dictionary, trigger_kind: String, extra: Dictionary) -> String:
-	match trigger_kind:
-		"reaction_to_attack":
-			return "你（%s）刚被「%s」用「%s」打了，此刻 HP 只剩 %d%%。回一句。" % [
-				persona.get("name", "你"),
-				extra.get("attacker_name", "不知道谁"),
-				extra.get("skill_name", "一招"),
-				extra.get("hp_percent", 50),
-			]
-		"adjacent_chat":
-			return "你和「%s」此刻紧挨在一起。说点什么。" % extra.get("other_name", "旁边那位")
-		"adjacent_reply":
-			return "「%s」刚对你说：「%s」。以你的口吻回一句。" % [
-				extra.get("other_name", "对方"),
-				extra.get("heard", ""),
-			]
-		"hero_observation":
-			return "战况如上，本关目标进度：\n%s\n以你（李春）的口吻点评当下一局。" % extra.get("objectives", "（无）")
-		_:
-			return "随口说一句。"
-
-
-func _build_context_summary() -> String:
-	if _level == null:
-		return "{}"
-	var snapshot: Dictionary = BattleContextScript.build_snapshot(_level)
-	# 完整 snapshot 可能太长，chatter 只用摘要：关卡、回合、双方存活数
-	var summary := {
-		"关卡": snapshot.get("关卡", ""),
-		"回合": snapshot.get("回合", 0),
-		"当前行动队伍": snapshot.get("当前行动队伍", ""),
-	}
-	var teams_block: Array = snapshot.get("队伍", [])
-	var team_counts: Array = []
-	for t in teams_block:
-		var alive: int = (t.get("单位", []) as Array).size()
-		team_counts.append("%s(%s)×%d" % [t.get("名字", ""), t.get("控制方", ""), alive])
-	summary["阵容"] = team_counts
-	return JSON.stringify(summary)
-
-
-func _format_memory(unit: Node) -> String:
-	if not (unit is Unit):
-		return "（无）"
-	var u := unit as Unit
-	if u.dialogue_memory.is_empty():
-		return "（无）"
-	var lines: Array[String] = []
-	for entry: Dictionary in u.dialogue_memory:
-		lines.append("- [回合%s, %s] 「%s」" % [
-			entry.get("round", "?"),
-			entry.get("trigger", ""),
-			entry.get("text", ""),
-		])
-	return "\n".join(lines)
-
-
-func _format_objectives(obj: Dictionary) -> String:
-	var lines: Array[String] = []
-	var victory: Array = obj.get("victory", [])
-	var defeat: Array = obj.get("defeat", [])
-	if not victory.is_empty():
-		lines.append("胜利：")
-		for v in victory:
-			lines.append("  - %s" % str(v))
-	if not defeat.is_empty():
-		lines.append("失败：")
-		for d in defeat:
-			lines.append("  - %s" % str(d))
-	return "\n".join(lines) if not lines.is_empty() else "（无）"
 
 
 # ─────────────────────────────────────────────────────────
