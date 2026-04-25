@@ -17,7 +17,8 @@ signal dialogue_finished
 var was_skipped: bool = false
 
 const CHAR_DELAY := 0.03  # 每个字符的打字机间隔（秒）
-const AUTO_DISMISS_DELAY_DEFAULT := 2.5  # auto_dismiss 模式下的默认停留秒数
+const AUTO_DISMISS_DELAY_DEFAULT := 2.0  # auto_dismiss 模式下的"对话框最少展示秒数"（自开启起）
+const VOICE_AFTERMATH_DELAY := 0.5  # auto_dismiss 模式下，语音结束后再停留多久才关闭
 
 @onready var backdrop: ColorRect = %Backdrop
 @onready var bottom_bar: HBoxContainer = %BottomBar
@@ -37,6 +38,12 @@ var _typing: bool = false
 var _finished: bool = false
 ## auto_dismiss 模式：打字机结束后等 _dismiss_delay 秒自动推进 / 关闭，无需玩家点击。
 ## 用于单位闲聊（chatter）等不该打断游戏节奏的场景。
+##
+## auto_dismiss 关闭时机 = max(文字打完时刻, 语音结束 + 0.5s, 对话框开启 + _dismiss_delay)。
+## 也就是说：
+##   - 文字必须打完
+##   - 如果 _voice_handle 还在 streaming，必须等它结束并再多 0.5s
+##   - 整个对话框至少展示 _dismiss_delay 秒（默认 2s）
 var _auto_dismiss: bool = false
 var _dismiss_delay: float = AUTO_DISMISS_DELAY_DEFAULT
 ## 每次 _advance / _skip 会自增，用于取消上一轮的 auto-dismiss 计时协程。
@@ -44,6 +51,11 @@ var _dismiss_token: int = 0
 ## 当前行音频播放器（仅在有 line.audio_stream 时启用）。auto_dismiss 时长会被拉到不短于音频时长。
 var _audio_player: AudioStreamPlayer = null
 var _current_audio_length: float = 0.0
+## 外部 TTS 语音句柄（鸭子接口：is_streaming() -> bool, signal streaming_done）。
+## auto_dismiss 在它结束 + 0.5s 之前不会关闭。chatter 场景由 ChatterScheduler 注入。
+var _voice_handle: Node = null
+## start() 调用时刻，用作 "open + N 秒" 类下限的参考点。
+var _open_time: float = 0.0
 
 
 func _ready() -> void:
@@ -57,12 +69,14 @@ func _ready() -> void:
 	add_child(_audio_player)
 
 
-func start(lines: Array[DialogueLine], auto_dismiss: bool = false, dismiss_delay: float = AUTO_DISMISS_DELAY_DEFAULT) -> void:
+func start(lines: Array[DialogueLine], auto_dismiss: bool = false, dismiss_delay: float = AUTO_DISMISS_DELAY_DEFAULT, voice_handle: Node = null) -> void:
 	_lines = lines
 	_current_index = -1
 	_finished = false
 	_auto_dismiss = auto_dismiss
 	_dismiss_delay = dismiss_delay
+	_voice_handle = voice_handle
+	_open_time = Time.get_ticks_msec() / 1000.0
 	# 先准备好第一行内容，再淡入，避免头像闪烁
 	if _lines.size() > 0:
 		_apply_line(_lines[0])
@@ -176,17 +190,38 @@ func _skip_typewriter() -> void:
 	_schedule_auto_dismiss()
 
 
-## 若开启 auto_dismiss，延迟后自动 _advance；
-## 实际延迟取 max(_dismiss_delay, 当前行音频时长 + 0.3 秒)，避免话还没说完就关。
-## 玩家在此期间手动推进则 token 自增使本协程静默退出。
+## auto_dismiss 模式下，等满三个条件再关：
+##   1. 文字打完（本函数已是文字打完后才被调用，天然满足）
+##   2. 语音结束 + VOICE_AFTERMATH_DELAY（仅当 _voice_handle 在 streaming 时生效）
+##   3. 对话框开启时间 + _dismiss_delay
+## 玩家在此期间手动推进则 _dismiss_token 自增，本协程静默退出。
 func _schedule_auto_dismiss() -> void:
 	if not _auto_dismiss:
 		return
-	var delay := _dismiss_delay
-	if _current_audio_length > 0.0:
-		delay = maxf(delay, _current_audio_length + 0.3)
 	var token := _dismiss_token
-	await get_tree().create_timer(delay).timeout
+
+	# Phase 1: 等外部 TTS 语音播完（轮询避免 signal-race；is_streaming 同步可靠）
+	var voice_was_streaming := false
+	while _voice_handle != null and is_instance_valid(_voice_handle) \
+			and _voice_handle.has_method("is_streaming") and _voice_handle.is_streaming():
+		voice_was_streaming = true
+		if not is_inside_tree():
+			return
+		await get_tree().process_frame
+		if _finished or token != _dismiss_token:
+			return
+
+	# Phase 2: 计算 close 时刻
+	var now := Time.get_ticks_msec() / 1000.0
+	var close_at := _open_time + _dismiss_delay
+	if voice_was_streaming:
+		close_at = maxf(close_at, now + VOICE_AFTERMATH_DELAY)
+	# 兼容内置 audio_stream（非 chatter 路径）：若 line 自带音频且尚未播完，再额外补 0.3s
+	if _current_audio_length > 0.0:
+		close_at = maxf(close_at, _open_time + _current_audio_length + 0.3)
+
+	if close_at > now:
+		await get_tree().create_timer(close_at - now).timeout
 	if _finished or token != _dismiss_token:
 		return
 	_advance()
