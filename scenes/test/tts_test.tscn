@@ -105,6 +105,12 @@ layout_mode = 2
 custom_minimum_size = Vector2(180, 36)
 text = "🎙 火山合成并播放"
 
+[node name="StreamSynthBtn" type="Button" parent="Margin/VBox/ButtonRow"]
+unique_name_in_owner = true
+layout_mode = 2
+custom_minimum_size = Vector2(180, 36)
+text = "🌊 流式合成（边传边播）"
+
 [node name="SystemBtn" type="Button" parent="Margin/VBox/ButtonRow"]
 unique_name_in_owner = true
 layout_mode = 2
