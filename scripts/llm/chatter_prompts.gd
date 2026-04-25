@@ -52,6 +52,30 @@ static func build_user_prompt(persona: Dictionary, trigger_kind: String, extra: 
 			]
 		"hero_observation":
 			return "战况如上，本关目标进度：\n%s\n以你（李春）的口吻点评当下一局。" % extra.get("objectives", "（无）")
+		"bridge_topics_offer":
+			return """你站在桥的「%s」处。李春走到你面前。请按你的关注点和桥部位，列出 3-4 个李春**最可能问你**的话题（每条 8-15 字）。
+当前你对新桥的态度：%d/100（>70=支持，<30=反对）。
+已聊过的话题：%s
+请只输出 JSON 数组，不要任何其他文字，例如：
+["话题一", "话题二", "话题三"]""" % [
+				extra.get("bridge_part", "桥上"),
+				int(extra.get("stance", 50)),
+				str(extra.get("discussed_csv", "（无）")),
+			]
+		"bridge_topic_answer":
+			return """李春刚问你：「%s」。你此刻在「%s」处，对新桥态度 %d/100。
+按下面 JSON **严格输出**（仅 JSON，不要其他文字）：
+{"reply":"<一句话回答，30字内>", "stance_delta": <整数 -10..15>, "tone":"<两到四字情绪标签，如 犹豫/动容/嗤之以鼻>"}
+stance_delta 规则：李春论点务实/精彩 → 正数（最多 +15）；冒犯 / 不为所动 → 负数 / 0。""" % [
+				extra.get("topic", "?"),
+				extra.get("bridge_part", "桥上"),
+				int(extra.get("stance", 50)),
+			]
+		"bridge_neighbor_interject":
+			return "你刚听到「%s」对李春说：「%s」。以你的口吻插一句嘴（一句话，30 字内）。" % [
+				extra.get("speaker_name", "另一位"),
+				extra.get("heard", ""),
+			]
 		_:
 			return "随口说一句。"
 

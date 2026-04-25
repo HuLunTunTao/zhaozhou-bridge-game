@@ -54,7 +54,14 @@ const LEVEL_SCENES: Dictionary = {
 ## 与 LEVEL_SCENES 的区别在于不查 Progress.is_level_unlocked，也不参与通关奖励 / 关卡顺序。
 const EXTRA_LEVEL_SCENES: Dictionary = {
 	"无尽生存": "res://scenes/levels/survival/survival.tscn",
+	"验桥日": "res://scenes/levels/bridge_tour/bridge_tour.tscn",
 }
+
+## 这些关卡跳过战前 skill loadout 界面，直接进战斗场景。
+## 适用于"无战斗 / 用代码强制起手技能"的关卡，prebattle_setup 在这种情形下属于无效 UX。
+const LEVELS_SKIP_PREBATTLE: Array[String] = [
+	"验桥日",
+]
 
 ## 仅在测试模式下显示的关卡，始终解锁。
 const TEST_LEVEL_SCENES: Dictionary = {

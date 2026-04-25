@@ -97,6 +97,42 @@ const VOICES: Dictionary = {
 		"label": "擎苍",
 		"note": "怒水：BOSS 沉重宣告",
 	},
+	# ─── 验桥日 NPC（额外关卡专用，全部友方） ───
+	"bridge_old_master": {
+		"voice": "zh_male_tangseng_uranus_bigtts",
+		"label": "唐僧",
+		"note": "老匠首：旧制派老掌门，迂腐唠叨",
+	},
+	"bridge_river_chief": {
+		"voice": "zh_male_dayi_uranus_bigtts",
+		"label": "大壹",
+		"note": "河工总管：干脆务实",
+	},
+	"bridge_court_inspector": {
+		"voice": "zh_male_yizhipiannan_uranus_bigtts",
+		"label": "译制片男",
+		"note": "朝廷视察官：官腔有戏",
+	},
+	"bridge_apprentice": {
+		"voice": "zh_male_sunwukong_uranus_bigtts",
+		"label": "猴哥",
+		"note": "学徒工：雀跃眼里有光",
+	},
+	"bridge_merchant": {
+		"voice": "zh_male_cixingjieshuonan_uranus_bigtts",
+		"label": "磁性解说男",
+		"note": "商旅过客：市井算账气",
+	},
+	"bridge_scholar": {
+		"voice": "zh_male_dongfanghaoran_uranus_bigtts",
+		"label": "东方浩然",
+		"note": "游学书生：酸文人",
+	},
+	"bridge_old_overseer": {
+		"voice": "zh_male_baqiqingshu_uranus_bigtts",
+		"label": "霸气青叔",
+		"note": "老监工：言简意深",
+	},
 }
 
 ## 阵营兜底：查不到 unit_id 时的通用音色。

@@ -1,0 +1,7 @@
+[gd_scene format=3 uid="uid://d340bbkd4qaqy"]
+
+[ext_resource type="Script" path="res://scenes/ui/argument_input_panel.gd" id="1_script"]
+
+[node name="ArgumentInputPanel" type="CanvasLayer"]
+layer = 90
+script = ExtResource("1_script")

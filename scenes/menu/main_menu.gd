@@ -133,12 +133,15 @@ func _on_level_selected(level: String) -> void:
 	if battle_path == "":
 		return
 	GameState.pending_battle_scene = battle_path
+	# 验桥日等关卡跳过 prebattle_setup（无意义的 skill loadout）
+	var skip_prebattle: bool = level in GameState.LEVELS_SKIP_PREBATTLE
+	var post_cutscene_scene: String = battle_path if skip_prebattle else "res://scenes/ui/prebattle_setup.tscn"
 	if GameState.has_cutscene(level, "pre"):
 		GameState.pending_cutscene_pages = GameState.get_cutscene_pages(level, "pre")
-		GameState.pending_next_scene = "res://scenes/ui/prebattle_setup.tscn"
+		GameState.pending_next_scene = post_cutscene_scene
 		GameState.transition_to_scene("res://scenes/cutscene/cutscene_scene.tscn")
 	else:
-		GameState.transition_to_scene("res://scenes/ui/prebattle_setup.tscn")
+		GameState.transition_to_scene(post_cutscene_scene)
 	# TODO: 关卡锁定机制——未通关的关卡按钮置灰
 	# TODO: 已通关关卡显示评价（星级或其他标记）
 

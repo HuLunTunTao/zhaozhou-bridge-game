@@ -1,0 +1,7 @@
+[gd_scene load_steps=3 format=4 uid="uid://cbridgetourlvl1"]
+
+[ext_resource type="PackedScene" uid="uid://cthjtlx4i152j" path="res://scenes/levels/level1-4/level1-4.tscn" id="1_level1_4"]
+[ext_resource type="Script" path="res://scenes/levels/bridge_tour/bridge_tour.gd" id="2_bridge_tour"]
+
+[node name="BridgeTour" instance=ExtResource("1_level1_4")]
+script = ExtResource("2_bridge_tour")
