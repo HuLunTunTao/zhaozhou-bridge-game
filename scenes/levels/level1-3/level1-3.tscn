@@ -548,7 +548,7 @@ visual_scene = ExtResource("10_survey_vis")
 unit_color = Color(0.3, 0.9, 0.5, 1)
 
 [node name="MovementManager" parent="." index="6" unique_id=1144669128 node_paths=PackedStringArray("movement_tilemaps", "obstacle_tilemaps")]
-movement_tilemaps = [NodePath("../TileMaps/surface z=0"), NodePath("../TileMaps/buildiing bridge z=2")]
+movement_tilemaps = [NodePath("../TileMaps/buildiing bridge z=2"), NodePath("../TileMaps/surface z=0")]
 obstacle_tilemaps = [NodePath("../TileMaps/obstacle z=3"), NodePath("../TileMaps/unvisiable obstacle z=4")]
 
 [node name="Markers" type="Node2D" parent="." index="7" unique_id=1700000003]
