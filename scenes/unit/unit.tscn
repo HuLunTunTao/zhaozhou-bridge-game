@@ -297,6 +297,9 @@ sprite_frames = SubResource("SpriteFrames_540om")
 animation = &"right_front_idle"
 frame_progress = 0.42871425
 
+[node name="FootMarker" parent="Visual" index="0"]
+position = Vector2(0, 86.666664)
+
 [node name="Button" type="Button" parent="." unique_id=1235358697]
 modulate = Color(1, 1, 1, 0)
 offset_left = -9.0
@@ -304,3 +307,5 @@ offset_top = -32.0
 offset_right = 10.0
 
 [node name="HpBar" parent="." unique_id=1487701422 instance=ExtResource("3_hpbar")]
+
+[editable path="Visual"]
