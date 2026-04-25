@@ -50,6 +50,14 @@ var _busy: bool = false
 ## 当前小回合里发生的攻击事件。条目结构：{ victim: Unit, attacker: Unit, skill: SkillData }。
 var _attacked_this_turn: Array[Dictionary] = []
 
+## 流式 TTS 专用 player，与 dialogue_box 的 player 解耦，并行播放。
+const _AUDIO_SAMPLE_RATE := 24000
+const _AUDIO_BUFFER_LENGTH := 0.5
+var _voice_player: AudioStreamPlayer = null
+## 流式 TTS 是否仍在收 chunk / 播放中，配合 _voice_streaming_done 信号收尾。
+var _voice_streaming: bool = false
+signal _voice_streaming_done
+
 
 ## 初始化。由 BaseLevel._on_level_ready 调用一次。
 ## level 必须是 BaseLevel 实例（鸭子类型），llm_client 是 LLMClient 实例（或 null → 本器自建一个）。
@@ -60,9 +68,13 @@ func setup(level: Node, llm_client: Node = null) -> void:
 	else:
 		_llm = LLMClientScript.new()
 		add_child(_llm)
-	# TTS 客户端：每次 synthesize 自管 WS，长连接由其内部处理
+	# TTS 客户端：每次 synthesize_streaming 自管 WS
 	_tts = VolcengineTTSClientScript.new()
 	add_child(_tts)
+	# 流式语音播放器（bus=Voice，受设置面板「语音音量」滑块控制）
+	_voice_player = AudioStreamPlayer.new()
+	_voice_player.bus = &"Voice"
+	add_child(_voice_player)
 	# 订阅 BaseLevel 的领域信号
 	if _level.has_signal("skill_executed"):
 		_level.skill_executed.connect(_on_skill_executed)
@@ -169,14 +181,17 @@ func _do_adjacent_chat(round_number: int) -> void:
 		var tmp := a
 		a = b
 		b = tmp
-	var lines: Array[DialogueLine] = []
+
+	# 第一行：A 先开口，单独对话 + 流式语音
 	var line_a: DialogueLine = await _build_line(a, "adjacent_chat", {
 		"other_name": _unit_display_name(b),
 		"round": round_number,
 	})
 	if line_a == null:
 		return
-	lines.append(line_a)
+	await _speak_line(a, line_a)
+
+	# 第二行（30% 概率）：B 接话，独立的对话 + 流式语音
 	if randf() < ADJACENT_REPLY_PROB and _is_alive(b):
 		var line_b: DialogueLine = await _build_line(b, "adjacent_reply", {
 			"other_name": _unit_display_name(a),
@@ -184,12 +199,10 @@ func _do_adjacent_chat(round_number: int) -> void:
 			"round": round_number,
 		})
 		if line_b != null:
-			lines.append(line_b)
 			# 互相把对话纳入记忆
 			_append_memory(a, {"round": round_number, "trigger": "adjacent_heard", "text": line_b.text})
 			_append_memory(b, {"round": round_number, "trigger": "adjacent_heard", "text": line_a.text})
-	if _level != null and _level.has_method("play_chatter_lines"):
-		await _level.play_chatter_lines(lines, _delay_for_lines(lines))
+			await _speak_line(b, line_b)
 
 
 func _do_hero_observation(round_number: int) -> void:
@@ -214,13 +227,24 @@ func _say(unit: Node, trigger_kind: String, extra: Dictionary) -> void:
 	var line: DialogueLine = await _build_line(unit, trigger_kind, extra)
 	if line == null:
 		return
+	await _speak_line(unit, line)
+
+
+## 流式语音 + 对话框并行播放一行的统一入口。被 _say 和 _do_adjacent_chat 共用。
+func _speak_line(unit: Node, line: DialogueLine) -> void:
+	# 并行启动流式语音（不 await — 协程在第一个 await 后让出）
+	_stream_voice(unit, line.text)
+	# 与此同时打开对话框
 	if _level != null and _level.has_method("play_chatter_lines"):
 		var lines: Array[DialogueLine] = [line]
 		await _level.play_chatter_lines(lines, _delay_for_lines(lines))
+	# 对话先关，但语音还没说完 → 等语音收尾，避免下一次 chatter 冲掉
+	if _voice_streaming:
+		await _voice_streaming_done
 
 
-## 调 LLM 生成一条台词，再调 TTS 合成配音，组装成 DialogueLine。
-## LLM 失败 → fallback 台词；TTS 失败 → line 不带音频，对话仍正常显示。
+## 调 LLM 生成一条台词并组装成 DialogueLine（不带 audio_stream，配音由 _stream_voice 单独走）。
+## LLM 失败 → 跳过本次 chatter（不用 fallback_lines，那是"老监工"语气，套到别的角色会严重出戏）。
 ## 被 _say / _do_adjacent_chat 共用。
 func _build_line(unit: Node, trigger_kind: String, extra: Dictionary) -> DialogueLine:
 	if _busy:
@@ -252,8 +276,6 @@ func _build_line(unit: Node, trigger_kind: String, extra: Dictionary) -> Dialogu
 	if "timeout_sec" in _llm:
 		_llm.timeout_sec = prev_timeout
 
-	# LLM 失败 → 直接跳过本次 chatter（不能用 fallback_lines，那是"老监工"语气，
-	# 套到任意角色身上会严重出戏）。
 	if not resp.ok:
 		push_warning("[Chatter] LLM 失败 code=%s error=%s，跳过本次闲聊" % [resp.get("code", 0), resp.get("error", "")])
 		_busy = false
@@ -263,15 +285,12 @@ func _build_line(unit: Node, trigger_kind: String, extra: Dictionary) -> Dialogu
 		_busy = false
 		return null
 
-	# 追加到说话者自己的记忆（先加再 TTS，确保即使 TTS 慢也已记账）
+	# 追加到说话者自己的记忆
 	_append_memory(u, {
 		"round": extra.get("round", -1),
 		"trigger": trigger_kind,
 		"text": text,
 	})
-
-	# TTS：失败也不阻断对话
-	var audio_stream: AudioStream = await _synthesize_audio(u, text)
 	_busy = false
 
 	return DialogueLine.create(
@@ -279,29 +298,51 @@ func _build_line(unit: Node, trigger_kind: String, extra: Dictionary) -> Dialogu
 		text,
 		_get_portrait(u),
 		_side_for_unit(u),
-		PortraitResolverScript.get_portrait_bg(u),
-		audio_stream
+		PortraitResolverScript.get_portrait_bg(u)
 	)
 
 
-## 调 TTS，把文本合成成 mp3 并打包成 AudioStreamMP3。失败返回 null。
-## 失败路径：若 use_system_tts_fallback，则调用 DisplayServer.tts_speak；否则完全不发声。
-func _synthesize_audio(unit: Unit, text: String) -> AudioStream:
-	if _tts == null or unit.unit_data == null:
+## 流式语音：边收 PCM chunk 边推到 _voice_player（AudioStreamGenerator）。
+## 第一个 await 后控制权返还调用方，从而与 dialogue_box 并行。
+## 完成后 emit _voice_streaming_done。火山失败时回落到系统 TTS 或静默。
+func _stream_voice(unit: Node, text: String) -> void:
+	if _tts == null or _voice_player == null:
 		_maybe_speak_via_system_tts(text)
-		return null
-	var voice_cfg: Dictionary = VoiceMappingScript.get_voice(unit.unit_data.unit_id, unit.unit_data.camp)
+		_voice_streaming_done.emit()
+		return
+	if not (unit is Unit) or (unit as Unit).unit_data == null:
+		_maybe_speak_via_system_tts(text)
+		_voice_streaming_done.emit()
+		return
+	var u := unit as Unit
+	var voice_cfg: Dictionary = VoiceMappingScript.get_voice(u.unit_data.unit_id, u.unit_data.camp)
 	var voice: String = voice_cfg.get("voice", "")
 	if voice.is_empty():
 		_maybe_speak_via_system_tts(text)
-		return null
-	var mp3_bytes: PackedByteArray = await _tts.synthesize(text, voice)
-	if mp3_bytes.is_empty():
+		_voice_streaming_done.emit()
+		return
+
+	# 切到 AudioStreamGenerator 流并 play 拿 playback
+	_voice_player.stop()
+	var generator := AudioStreamGenerator.new()
+	generator.mix_rate = float(_AUDIO_SAMPLE_RATE)
+	generator.buffer_length = _AUDIO_BUFFER_LENGTH
+	_voice_player.stream = generator
+	_voice_player.play()
+	var pb := _voice_player.get_stream_playback() as AudioStreamGeneratorPlayback
+	if pb == null:
+		_voice_player.stop()
 		_maybe_speak_via_system_tts(text)
-		return null
-	var stream := AudioStreamMP3.new()
-	stream.data = mp3_bytes
-	return stream
+		_voice_streaming_done.emit()
+		return
+
+	_voice_streaming = true
+	var ok: bool = await _tts.synthesize_streaming(text, voice, pb)
+	if not ok:
+		_voice_player.stop()
+		_maybe_speak_via_system_tts(text)
+	_voice_streaming = false
+	_voice_streaming_done.emit()
 
 
 ## 系统 TTS 兜底：火山合成失败时由 OS 把文本读出来。

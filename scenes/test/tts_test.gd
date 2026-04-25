@@ -13,9 +13,13 @@ extends Control
 
 const VoiceMappingScript := preload("res://scripts/tts/voice_mapping.gd")
 const VolcengineTTSClientScript := preload("res://scripts/tts/volcengine_tts_client.gd")
-const ApiConfig := preload("res://scripts/config/api_config.gd")
+# ApiConfig 是 class_name，全局可访问，无需 preload
 
-const SAMPLE_TEXT := "桥要成，须得脚下踩稳。"
+## 长段测试文本（约 180 字）。短文本上 batch 与 streaming 的差异会被 WS 握手 ~1s
+## 的固定开销吃掉；用长文本能清楚听到 streaming 提前 ~10-30s 开口。
+const SAMPLE_TEXT := """赵郡有河，名曰洨水，春秋涨溢，每逢雨季便阻断南北交通。诸位匠人，我决意在此修建一座石桥，使百姓不再受困于洪水。
+
+此河宽逾三十丈，若用多孔桥恐怕根基不稳。所以我要造一座单孔大弧拱桥，以巨石为券，跨河而过。诸位放心，我已经反复推算。从底券起算，每石分三层叠压，按尺绳所测，三尺七寸为一节，依算筹推之，此桥若得二十年风霜不倒，便是我李春此生之愿。"""
 
 var _tts: Node = null
 var _voice_keys: Array[String] = []  # OptionButton index → unit_id
@@ -26,6 +30,7 @@ var _current_audio: AudioStream = null
 @onready var custom_voice_edit: LineEdit = %CustomVoiceEdit
 @onready var text_edit: TextEdit = %TextEdit
 @onready var synth_btn: Button = %SynthBtn
+@onready var stream_synth_btn: Button = %StreamSynthBtn
 @onready var system_btn: Button = %SystemBtn
 @onready var stop_btn: Button = %StopBtn
 @onready var status_label: Label = %StatusLabel
@@ -42,6 +47,7 @@ func _ready() -> void:
 	if api_key_edit.text.is_empty() and not ApiConfig.TTS_API_KEY.is_empty():
 		api_key_edit.text = ApiConfig.TTS_API_KEY
 	synth_btn.pressed.connect(_on_synth_pressed)
+	stream_synth_btn.pressed.connect(_on_stream_synth_pressed)
 	system_btn.pressed.connect(_on_system_pressed)
 	stop_btn.pressed.connect(_on_stop_pressed)
 	back_btn.pressed.connect(_on_back_pressed)
@@ -118,6 +124,47 @@ func _on_synth_pressed() -> void:
 	_set_busy(false)
 
 
+func _on_stream_synth_pressed() -> void:
+	var text := text_edit.text.strip_edges()
+	var voice := _resolved_voice()
+	var key := api_key_edit.text.strip_edges()
+	if text.is_empty():
+		_set_status("文本为空", Color(1, 0.6, 0.6))
+		return
+	if voice.is_empty():
+		_set_status("voice_type 为空", Color(1, 0.6, 0.6))
+		return
+	if key.is_empty():
+		_set_status("API Key 为空：流式合成无法调用。", Color(1, 0.85, 0.4))
+		return
+
+	_set_busy(true)
+	_set_status("[流式] 建立 WS，等待第一段音频…", Color(0.7, 0.85, 1))
+	_tts.api_key = key
+
+	# 把 player 的 stream 切到 AudioStreamGenerator，然后 play 拿 playback
+	var generator := AudioStreamGenerator.new()
+	generator.mix_rate = float(ApiConfig.TTS_SAMPLE_RATE)  # 24000，与 PCM 请求一致
+	generator.buffer_length = 0.5
+	player.stop()
+	player.stream = generator
+	player.play()
+	var playback := player.get_stream_playback() as AudioStreamGeneratorPlayback
+	if playback == null:
+		_set_status("[失败] 拿不到 AudioStreamGeneratorPlayback。", Color(1, 0.5, 0.5))
+		_set_busy(false)
+		return
+
+	var t0 := Time.get_ticks_msec()
+	var ok: bool = await _tts.synthesize_streaming(text, voice, playback)
+	var elapsed := (Time.get_ticks_msec() - t0) / 1000.0
+	if ok:
+		_set_status("[流式成功] WS 总耗时 %.1fs（首音应在第一秒内出现，剩余在后台继续播放）。" % elapsed, Color(0.7, 1, 0.7))
+	else:
+		_set_status("[流式失败] 见 Output 面板 [TTS] 警告。耗时 %.1fs。" % elapsed, Color(1, 0.5, 0.5))
+	_set_busy(false)
+
+
 func _on_system_pressed() -> void:
 	var text := text_edit.text.strip_edges()
 	if text.is_empty():
@@ -153,6 +200,7 @@ func _on_back_pressed() -> void:
 
 func _set_busy(busy: bool) -> void:
 	synth_btn.disabled = busy
+	stream_synth_btn.disabled = busy
 	system_btn.disabled = busy
 	api_key_edit.editable = not busy
 

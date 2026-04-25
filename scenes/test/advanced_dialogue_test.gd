@@ -9,7 +9,7 @@ extends Control
 const VoiceMappingScript := preload("res://scripts/tts/voice_mapping.gd")
 const VolcengineTTSClientScript := preload("res://scripts/tts/volcengine_tts_client.gd")
 const NpcPersonasScript := preload("res://scripts/llm/npc_personas.gd")
-const ApiConfig := preload("res://scripts/config/api_config.gd")
+# ApiConfig 是 class_name，全局可访问，无需 preload
 const DialogueBoxScene := preload("res://scenes/ui/dialogue_box.tscn")
 
 const BG_YELLOW := preload("res://assets/face_background/yellow.png")

@@ -45,7 +45,7 @@ const MSG_ERROR := 0xF0
 
 const SERIAL_JSON := 0x10
 
-const ApiConfig := preload("res://scripts/config/api_config.gd")
+# ApiConfig 是 class_name，全局可访问，无需 preload
 
 # ─── 默认配置（来自 ApiConfig，可在实例上覆盖）───────────────────
 const CONNECT_TIMEOUT_MSEC := 8000
@@ -154,16 +154,21 @@ func synthesize(text: String, voice: String, model: String = "", emotion: String
 	_send_packet(ws, EVENT_FINISH_SESSION, {}, session_id)
 
 	# 4. 收音频直到 SessionFinished
+	# 超时是"无活动"超时：只要还有包到达就重置 deadline，避免长文本（>20s）被误杀。
 	var audio := PackedByteArray()
 	var deadline := Time.get_ticks_msec() + SESSION_TIMEOUT_MSEC
 	var got_finish := false
 	while not got_finish:
 		if Time.get_ticks_msec() > deadline:
-			push_warning("[TTS] 等待 SessionFinished 超时，已收 %d 字节" % audio.size())
+			@warning_ignore("integer_division")
+			var seconds := SESSION_TIMEOUT_MSEC / 1000
+			push_warning("[TTS] 等待 SessionFinished 超时（无活动 %ds），已收 %d 字节" % [seconds, audio.size()])
 			break
 		ws.poll()
 		while ws.get_available_packet_count() > 0:
 			var raw: PackedByteArray = ws.get_packet()
+			# 收到任意包都视为活动 → 续命
+			deadline = Time.get_ticks_msec() + SESSION_TIMEOUT_MSEC
 			var msg := _parse_server_packet(raw)
 			if msg.msg_type == MSG_ERROR:
 				push_warning("[TTS] 服务端错误 code=%s payload=%s" % [msg.error_code, msg.payload])
@@ -183,6 +188,8 @@ func synthesize(text: String, voice: String, model: String = "", emotion: String
 				break
 		if ws.get_ready_state() == WebSocketPeer.STATE_CLOSED:
 			break
+		if not is_inside_tree():
+			break  # 节点已 detach，安全退出
 		await get_tree().process_frame
 
 	# 5. FinishConnection（best-effort）
@@ -190,6 +197,182 @@ func synthesize(text: String, voice: String, model: String = "", emotion: String
 	_safe_close(ws)
 	_busy = false
 	return audio
+
+
+## 流式合成：边接收 PCM chunk 边推到 AudioStreamGeneratorPlayback，
+## 第一个声波在 ~1s 内出现，比 batch synthesize 提前 ~3-5s。
+##
+## playback 必须从一个已经 play() 起来的 AudioStreamPlayer 上拿（其 stream 是
+## AudioStreamGenerator，mix_rate=24000 与本方法一致）。调用方负责 player 的生命周期。
+##
+## 返回值：
+##   true  → 收到 SessionFinished，正常播放结束
+##   false → 失败（鉴权/超时/SessionFailed），调用方应回落到系统 TTS 或静默
+func synthesize_streaming(
+	text: String,
+	voice: String,
+	playback: AudioStreamGeneratorPlayback,
+	model: String = "",
+	emotion: String = ""
+) -> bool:
+	if _busy:
+		push_warning("[TTS] 上次合成尚未完成，丢弃本次（streaming）")
+		return false
+	if api_key.is_empty():
+		push_warning("[TTS] api_key 未设置（ApiConfig.TTS_API_KEY 为空），跳过流式合成")
+		return false
+	if text.is_empty() or voice.is_empty() or playback == null:
+		return false
+
+	_busy = true
+	var ws := WebSocketPeer.new()
+	var connect_id := _gen_uuid()
+	ws.handshake_headers = PackedStringArray([
+		"X-Api-Key: " + api_key,
+		"X-Api-Resource-Id: " + resource_id,
+		"X-Api-Connect-Id: " + connect_id,
+		"X-Control-Require-Usage-Tokens-Return: *",
+	])
+
+	var err := ws.connect_to_url(ws_url)
+	if err != OK:
+		push_warning("[TTS] connect_to_url 失败（streaming）: %s" % error_string(err))
+		_busy = false
+		return false
+
+	if not await _wait_for_open(ws):
+		_busy = false
+		_safe_close(ws)
+		return false
+
+	# 1. StartConnection
+	_send_packet(ws, EVENT_START_CONNECTION, {}, "")
+	if not await _wait_event(ws, [EVENT_CONNECTION_STARTED]):
+		_busy = false
+		_safe_close(ws)
+		return false
+
+	# 2. StartSession（PCM；不传 bit_rate，文档说 bit_rate 仅对 mp3 生效）
+	var session_id := _gen_uuid()
+	var req_params := {
+		"speaker": voice,
+		"audio_params": {
+			"format": "pcm",
+			"sample_rate": ApiConfig.TTS_SAMPLE_RATE,
+			"speech_rate": 0,
+			"loudness_rate": 0,
+		},
+		"additions": JSON.stringify({
+			"disable_markdown_filter": false,
+			"enable_language_detector": true,
+		}),
+	}
+	var actual_model: String = model if not model.is_empty() else default_model
+	if not actual_model.is_empty():
+		req_params["model"] = actual_model
+	if not emotion.is_empty():
+		(req_params["audio_params"] as Dictionary)["emotion"] = emotion
+		(req_params["audio_params"] as Dictionary)["emotion_scale"] = 4
+
+	var start_payload := {
+		"event": EVENT_START_SESSION,
+		"namespace": "BidirectionalTTS",
+		"user": {"uid": user_uid},
+		"req_params": req_params,
+	}
+	_send_packet(ws, EVENT_START_SESSION, start_payload, session_id)
+	if not await _wait_event(ws, [EVENT_SESSION_STARTED]):
+		_busy = false
+		_safe_close(ws)
+		return false
+
+	# 3. TaskRequest + FinishSession
+	_send_packet(ws, EVENT_TASK_REQUEST, {
+		"event": EVENT_TASK_REQUEST,
+		"namespace": "BidirectionalTTS",
+		"req_params": {"text": text},
+	}, session_id)
+	_send_packet(ws, EVENT_FINISH_SESSION, {}, session_id)
+
+	# 4. 收 PCM chunk → 推 playback。每个 chunk 内部循环背压；buffer 满让出帧。
+	# 超时是"无活动"超时：只要还有包到达就重置 deadline，长文本（>20s 音频）也不会被误杀。
+	var deadline := Time.get_ticks_msec() + SESSION_TIMEOUT_MSEC
+	var got_finish := false
+	var ok := false
+	while not got_finish:
+		if Time.get_ticks_msec() > deadline:
+			@warning_ignore("integer_division")
+			var seconds := SESSION_TIMEOUT_MSEC / 1000
+			push_warning("[TTS] 等待 SessionFinished 超时（streaming，无活动 %ds）" % seconds)
+			break
+		ws.poll()
+		while ws.get_available_packet_count() > 0:
+			var raw: PackedByteArray = ws.get_packet()
+			# 收到任意包都视为活动 → 续命
+			deadline = Time.get_ticks_msec() + SESSION_TIMEOUT_MSEC
+			var msg := _parse_server_packet(raw)
+			if msg.msg_type == MSG_ERROR:
+				push_warning("[TTS] 服务端错误（streaming）code=%s payload=%s" % [msg.error_code, msg.payload])
+				got_finish = true
+				break
+			if msg.event == EVENT_SESSION_FAILED:
+				push_warning("[TTS] SessionFailed（streaming）: %s" % msg.payload)
+				got_finish = true
+				break
+			var chunk: PackedByteArray = msg.audio
+			if chunk.size() > 0:
+				var frames := _pcm_to_frames(chunk)
+				await _push_frames_with_backpressure(playback, frames)
+			if msg.event == EVENT_SESSION_FINISHED:
+				got_finish = true
+				ok = true
+				break
+		if ws.get_ready_state() == WebSocketPeer.STATE_CLOSED:
+			break
+		if not is_inside_tree():
+			break  # 节点已 detach，安全退出
+		await get_tree().process_frame
+
+	# 5. FinishConnection（best-effort）
+	_send_packet(ws, EVENT_FINISH_CONNECTION, {}, "")
+	_safe_close(ws)
+	_busy = false
+	return ok
+
+
+## 把 PCM int16-LE 字节流转成 AudioStreamGeneratorPlayback 期望的 PackedVector2Array。
+## mono 输入复制到立体声左右两通道。
+func _pcm_to_frames(bytes: PackedByteArray) -> PackedVector2Array:
+	@warning_ignore("integer_division")
+	var sample_count := bytes.size() / 2  # 故意 floor：丢弃奇数尾字节
+	if sample_count <= 0:
+		return PackedVector2Array()
+	var out := PackedVector2Array()
+	out.resize(sample_count)
+	var buf := StreamPeerBuffer.new()
+	buf.big_endian = false
+	buf.data_array = bytes
+	for i in sample_count:
+		var s := float(buf.get_16()) / 32768.0
+		out[i] = Vector2(s, s)
+	return out
+
+
+## 分批 push 一段帧到 generator playback。缓冲满时让出 frame 等空位。
+## 节点脱离场景树（场景切换/被 free）时安全退出，避免 get_tree() 为 null 崩溃。
+func _push_frames_with_backpressure(playback: AudioStreamGeneratorPlayback, frames: PackedVector2Array) -> void:
+	var idx := 0
+	while idx < frames.size():
+		if not is_inside_tree() or playback == null:
+			return  # 节点已 detach 或 player 已销毁，安全收手
+		var avail := playback.get_frames_available()
+		if avail <= 0:
+			await get_tree().process_frame
+			continue
+		var end := mini(idx + avail, frames.size())
+		var slice := frames.slice(idx, end)
+		playback.push_buffer(slice)
+		idx = end
 
 
 # ─── 内部：连接管理 ─────────────────────────────────────────
@@ -207,6 +390,8 @@ func _wait_for_open(ws: WebSocketPeer) -> bool:
 		if Time.get_ticks_msec() > deadline:
 			push_warning("[TTS] 连接超时")
 			return false
+		if not is_inside_tree():
+			return false  # 节点已 detach，安全退出
 		await get_tree().process_frame
 	return false
 
@@ -232,6 +417,8 @@ func _wait_event(ws: WebSocketPeer, expected: Array, timeout_msec: int = SESSION
 		if ws.get_ready_state() == WebSocketPeer.STATE_CLOSED:
 			push_warning("[TTS] 连接被远端关闭")
 			return false
+		if not is_inside_tree():
+			return false  # 节点已 detach，安全退出
 		await get_tree().process_frame
 	return false
 
