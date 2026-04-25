@@ -68,8 +68,8 @@ const VOICES: Dictionary = {
 		"note": "高拱幻影：戏剧化讥讽",
 	},
 	"old_method_supervisor": {
-		"voice": "zh_male_yuanboxiaoshu_uranus_bigtts",# 渊博小叔 2.0
-		"label": "渊博小叔",
+		"voice": "zh_male_silang_uranus_bigtts",# 四郎 2.0
+		"label": "四郎 2.0",
 		"note": "旧制监工：守旧长者教训口气",
 	},
 	"pier_gnawer": {
