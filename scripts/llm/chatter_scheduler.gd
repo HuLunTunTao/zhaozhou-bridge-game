@@ -62,6 +62,9 @@ var _voice: Node = null
 var _busy: bool = false
 ## 当前小回合里发生的攻击事件。条目结构：{ victim: Unit, attacker: Unit, skill: SkillData }。
 var _attacked_this_turn: Array[Dictionary] = []
+## 本大回合内已经讲过话的单位集合。round_started 时清空，_speak_line 时填充。
+## 用于让 chatter_always_each_round 的固定触发不与随机触发在同一单位上重复。
+var _spoke_this_round: Array[Node] = []
 
 
 ## 初始化。由 BaseLevel._on_level_ready 调用一次。
@@ -84,6 +87,8 @@ func setup(level: Node, llm_client: Node = null) -> void:
 		_level.team_turn_started.connect(_on_team_turn_started)
 	if _level.has_signal("team_turn_ended"):
 		_level.team_turn_ended.connect(_on_team_turn_ended)
+	if _level.has_signal("round_started"):
+		_level.round_started.connect(_on_round_started)
 	if _level.has_signal("round_ended"):
 		_level.round_ended.connect(_on_round_ended)
 
@@ -125,29 +130,55 @@ func _on_team_turn_ended(_team_index: int) -> void:
 		return
 	if randf() > TRIGGER_PROB_ATTACKED:
 		return
-	var entry: Dictionary = _attacked_this_turn[randi() % _attacked_this_turn.size()]
+	# 过滤掉本回合已发声的受害者（避免与固定 chatter 重复触发同一单位）
+	var available: Array[Dictionary] = []
+	for entry in _attacked_this_turn:
+		var victim = entry.get("victim")
+		if not is_instance_valid(victim) or _spoke_this_round.has(victim):
+			continue
+		available.append(entry)
+	if available.is_empty():
+		return
+	var entry: Dictionary = available[randi() % available.size()]
 	_busy = true
 	await _do_attacked_reaction(entry)
 	_busy = false
 
 
+func _on_round_started(_round_number: int) -> void:
+	# 大回合开始：清掉上一回合的 spoken 集合
+	_spoke_this_round.clear()
+
+
 func _on_round_ended(round_number: int) -> void:
 	if _busy or _level == null or _level.is_phase_ended():
 		return
-	var choices: Array[String] = []
-	if randf() < TRIGGER_PROB_ADJACENT:
-		choices.append("adjacent")
-	if randf() < TRIGGER_PROB_HERO_OBS:
-		choices.append("hero_obs")
-	if choices.is_empty():
-		return
 	_busy = true
-	var choice: String = choices[randi() % choices.size()]
-	match choice:
-		"adjacent":
-			await _do_adjacent_chat(round_number)
-		"hero_obs":
-			await _do_hero_observation(round_number)
+	# 阶段 1：场景内带 chatter_always_each_round 的单位强制说话（多个则依次）
+	var any_fixed_spoke: bool = false
+	for fixed_unit: Node in _collect_fixed_chatter_units():
+		if not _is_alive(fixed_unit) or _spoke_this_round.has(fixed_unit):
+			continue
+		if _level.is_phase_ended():
+			_busy = false
+			return
+		var full_map: bool = _is_full_map_range(fixed_unit)
+		await _do_fixed_chatter(fixed_unit, round_number, full_map)
+		any_fixed_spoke = true
+	# 阶段 2：随机邻接 / 主角观察。若阶段 1 已发声，本回合不再追加（避免一回合三段闲聊）
+	if not any_fixed_spoke:
+		var choices: Array[String] = []
+		if randf() < TRIGGER_PROB_ADJACENT:
+			choices.append("adjacent")
+		if randf() < TRIGGER_PROB_HERO_OBS:
+			choices.append("hero_obs")
+		if not choices.is_empty():
+			var choice: String = choices[randi() % choices.size()]
+			match choice:
+				"adjacent":
+					await _do_adjacent_chat(round_number)
+				"hero_obs":
+					await _do_hero_observation(round_number)
 	_busy = false
 
 
@@ -234,6 +265,9 @@ func _do_hero_observation(round_number: int) -> void:
 	var hero: Node = _level.hero if "hero" in _level else null
 	if hero == null or not _is_alive(hero):
 		return
+	# 主角本回合已发声 → 不再追加观察
+	if _spoke_this_round.has(hero):
+		return
 	var objectives: String = ""
 	if _level.has_method("get_objectives_text"):
 		var obj: Dictionary = _level.get_objectives_text()
@@ -242,6 +276,100 @@ func _do_hero_observation(round_number: int) -> void:
 		"objectives": objectives,
 		"round": round_number,
 	})
+
+
+# ─────────────────────────────────────────────────────────
+# 固定 chatter（场景中带 chatter_always_each_round 的单位）
+# ─────────────────────────────────────────────────────────
+
+## 扫场上所有 chatter_round_prob > 0 的存活单位，按各自概率独立 roll，返回本回合命中的。
+func _collect_fixed_chatter_units() -> Array[Node]:
+	var out: Array[Node] = []
+	if _level == null or not _level.has_method("_get_all_units"):
+		return out
+	for u in _level._get_all_units():
+		if not (u is Unit) or not _is_alive(u):
+			continue
+		var prob: float = (u as Unit).chatter_round_prob
+		if prob <= 0.0:
+			continue
+		if prob >= 1.0 or randf() < prob:
+			out.append(u)
+	return out
+
+
+func _is_full_map_range(unit: Node) -> bool:
+	if not (unit is Unit):
+		return false
+	return (unit as Unit).chatter_full_map_range
+
+
+## Boss-style 强制闲聊：unit 一定开口；若能找到对话伙伴则按 ADJACENT_REPLY_PROB 概率给一句回应。
+## full_map=true → 伙伴池忽略 5 格邻接限制，可选全地图任意单位。
+## 复用 adjacent_chat / adjacent_reply 的 prompt（无需新增模板，boss 语气交给 NpcPersonas 处理）。
+func _do_fixed_chatter(unit: Node, round_number: int, full_map: bool) -> void:
+	var partner: Node = _pick_partner_for_fixed(unit, full_map)
+	# 没找到伙伴：当独白处理（hero_observation 模板足够通用）
+	if partner == null:
+		await _say(unit, "hero_observation", {
+			"objectives": "",
+			"round": round_number,
+		})
+		return
+	var line_a: DialogueLine = await _build_line(unit, "adjacent_chat", {
+		"other_name": _unit_display_name(partner),
+		"round": round_number,
+	})
+	if line_a == null:
+		return
+	var was_skipped_a: bool = await _speak_line(unit, line_a, "adjacent_chat")
+	var has_reply: bool = randf() < ADJACENT_REPLY_PROB and _is_alive(partner)
+	if has_reply and was_skipped_a:
+		_voice.cancel()
+	else:
+		await _wait_for_voice_end()
+	if not has_reply:
+		return
+	var line_b: DialogueLine = await _build_line(partner, "adjacent_reply", {
+		"other_name": _unit_display_name(unit),
+		"heard": line_a.text,
+		"round": round_number,
+	})
+	if line_b == null:
+		return
+	_append_memory(unit, {"round": round_number, "trigger": "adjacent_heard", "text": line_b.text})
+	_append_memory(partner, {"round": round_number, "trigger": "adjacent_heard", "text": line_a.text})
+	@warning_ignore("unused_variable")
+	var _was_skipped_b: bool = await _speak_line(partner, line_b, "adjacent_reply")
+	await _wait_for_voice_end()
+
+
+## 给固定闲聊单位挑伙伴：先排除自己 / 已发声 / 已死亡，再按 full_map 决定是否压缩到邻接 5 格。
+## 优先敌阵营，没有则同阵营。
+func _pick_partner_for_fixed(unit: Node, full_map: bool) -> Node:
+	if not (unit is Unit) or _level == null or not _level.has_method("_get_all_units"):
+		return null
+	var u := unit as Unit
+	var enemies: Array[Node] = []
+	var friendlies: Array[Node] = []
+	for v in _level._get_all_units():
+		if not (v is Unit) or v == u or not _is_alive(v):
+			continue
+		if _spoke_this_round.has(v):
+			continue
+		if not full_map:
+			var delta: Vector2i = (v as Unit).cell - u.cell
+			if absi(delta.x) + absi(delta.y) > 5:
+				continue
+		if _are_different_camps(u, v):
+			enemies.append(v)
+		else:
+			friendlies.append(v)
+	if not enemies.is_empty():
+		return enemies[randi() % enemies.size()]
+	if not friendlies.is_empty():
+		return friendlies[randi() % friendlies.size()]
+	return null
 
 
 # ─────────────────────────────────────────────────────────
@@ -262,6 +390,9 @@ func _say(unit: Node, trigger_kind: String, extra: Dictionary) -> void:
 ## **不**在内部等语音收尾——caller 自己决定下一步是 _voice.cancel() 还是 _wait_for_voice_end()。
 ## trigger_kind 传给 voice adapter 用以做"上下文适配"（emotion / speech_rate）。
 func _speak_line(unit: Node, line: DialogueLine, trigger_kind: String = "") -> bool:
+	# 记录"本回合已发声"——避免随机触发与固定触发在同一单位上重复
+	if unit != null and not _spoke_this_round.has(unit):
+		_spoke_this_round.append(unit)
 	# 并行启动流式语音（不 await — 协程在第一个 await 后让出）
 	_voice.speak(unit, line.text, trigger_kind)
 	if _level == null or not _level.has_method("play_chatter_lines"):
@@ -357,6 +488,7 @@ func _find_unit_at_cell(cell: Vector2i) -> Node:
 	return null
 
 ## 扫出所有曼哈顿距离 <= 5 的单位对。返回 [a, b]，优先敌我混杂对。
+## 已在本大回合发声的单位会被过滤掉，避免 Boss 等固定 chatter 与随机抽签同回合撞车。
 func _pick_adjacent_pair() -> Array:
 	if _level == null or not _level.has_method("_get_all_units"):
 		return []
@@ -370,6 +502,8 @@ func _pick_adjacent_pair() -> Array:
 			if not (a is Unit) or not (b is Unit):
 				continue
 			if not _is_alive(a) or not _is_alive(b):
+				continue
+			if _spoke_this_round.has(a) or _spoke_this_round.has(b):
 				continue
 			var delta: Vector2i = (a as Unit).cell - (b as Unit).cell
 			var manhattan := absi(delta.x) + absi(delta.y)

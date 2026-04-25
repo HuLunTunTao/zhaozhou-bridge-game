@@ -265,6 +265,9 @@ func _spawn_boss() -> void:
 	_boss = spawn_unit(_boss_data, cell, ENEMY_TEAM)
 	set_unit_skills(_boss, [])
 	setup_unit_stats(_boss, _boss_data.unit_name, _boss_data.max_hp, 0, 0, 99, Enums.Element.NONE, 0)
+	# Boss 每回合固定开口（prob=1.0），对话伙伴池放开到全地图（boss 在角落）
+	_boss.chatter_round_prob = 1.0
+	_boss.chatter_full_map_range = true
 
 
 func _spawn_initial_minions() -> void:
