@@ -26,11 +26,12 @@ func _ready() -> void:
 	_player = VolcengineStreamingVoicePlayerScript.new()
 	_player.audio_bus = &"Voice"
 	_player.sample_rate = ApiConfig.TTS_SAMPLE_RATE
-	# 灌 api_key / resource_id / model / user_uid 到三个 client
+	# 必须先 add_child：三个 client 是在 player 的 _ready() 里 new 的，
+	# add_child 触发 _ready 后才存在，否则下面 _configure_client 会拿到 null。
+	add_child(_player)
 	_configure_client(_player.bidi_client)
 	_configure_client(_player.uni_client)
 	_configure_client(_player.http_client)
-	add_child(_player)
 	_player.speak_finished.connect(streaming_done.emit)
 
 
@@ -74,7 +75,7 @@ func speak(unit: Node, text: String, trigger_kind: String = "") -> void:
 	# _player 的 speak_finished 已经把 streaming_done emit 了
 
 
-## 当前是否还在说（chatter_scheduler 用来决定要不要 await streaming_done）。
+
 func is_streaming() -> bool:
 	return _player != null and _player.is_speaking()
 
