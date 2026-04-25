@@ -44,6 +44,14 @@ func _build_level_buttons() -> void:
 		btn.disabled = not Progress.is_level_unlocked(level_name)
 		UiSounds.bind_button(btn)
 		level_grid.add_child(btn)
+	# 额外关卡：不走主线解锁，常驻可玩
+	for level_name: String in GameState.EXTRA_LEVEL_SCENES.keys():
+		var btn := Button.new()
+		btn.text = level_name
+		btn.custom_minimum_size = Vector2(56, 32)
+		btn.pressed.connect(_on_level_selected.bind(level_name))
+		UiSounds.bind_button(btn)
+		level_grid.add_child(btn)
 	if Settings.debug_mode:
 		for level_name: String in GameState.TEST_LEVEL_SCENES.keys():
 			var btn := Button.new()
@@ -116,8 +124,9 @@ func _on_progress_pressed() -> void:
 
 # Level select
 func _on_level_selected(level: String) -> void:
-	var is_test_level := level in GameState.TEST_LEVEL_SCENES
-	if not is_test_level and not Progress.is_level_unlocked(level):
+	# 主线关卡需查解锁；额外关卡 / 测试关卡免查
+	var bypass_unlock: bool = level in GameState.EXTRA_LEVEL_SCENES or level in GameState.TEST_LEVEL_SCENES
+	if not bypass_unlock and not Progress.is_level_unlocked(level):
 		return
 	GameState.selected_level = level
 	var battle_path := GameState.get_level_scene_path(level)

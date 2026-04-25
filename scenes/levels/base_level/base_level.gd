@@ -35,6 +35,13 @@ const MONSTER_VISUALS: Dictionary = {
 	"漂木群洪水版": preload("res://scenes/unit/visual/monster/漂木群洪水版/漂木群洪水版_visual.tscn"),
 }
 
+## 友方名称 → Visual 场景映射表。spawn_unit 在 MONSTER_VISUALS 未命中时回落到这里。
+const HUMAN_VISUALS: Dictionary = {
+	"李春": preload("res://scenes/unit/visual/human/li_chun/li_chun_visual.tscn"),
+	"工匠": preload("res://scenes/unit/visual/human/工匠/工匠_visual.tscn"),
+	"测量工": preload("res://scenes/unit/visual/human/测量工/测量工_visual.tscn"),
+}
+
 @export var obstacles_tilemap_layer: TileMapLayer  # 障碍物所在的层，必须在编辑器中指定
 ## AI 回合中每个敌人一轮内最多走几步（每步 = 向相邻格移动一次）。
 ## 子关卡可在 _on_level_ready 里覆盖，例如 `ai_max_move_steps = 4`。
@@ -1087,10 +1094,13 @@ func spawn_unit(unit_data: UnitData, cell: Vector2i, team_index: int, visual: Pa
 	var UnitScene := preload("res://scenes/unit/unit.tscn")
 	var unit: Unit = UnitScene.instantiate()
 	unit.unit_data = unit_data
-	# 应用外观：优先使用传入的 visual，否则根据名称自动查表
+	# 应用外观：优先使用传入的 visual，否则根据名称自动查表（先怪后人）
 	var visual_to_use: PackedScene = visual
-	if visual_to_use == null and unit_data and MONSTER_VISUALS.has(unit_data.unit_name):
-		visual_to_use = MONSTER_VISUALS[unit_data.unit_name]
+	if visual_to_use == null and unit_data:
+		if MONSTER_VISUALS.has(unit_data.unit_name):
+			visual_to_use = MONSTER_VISUALS[unit_data.unit_name]
+		elif HUMAN_VISUALS.has(unit_data.unit_name):
+			visual_to_use = HUMAN_VISUALS[unit_data.unit_name]
 	if visual_to_use:
 		unit.visual_scene = visual_to_use
 	obstacles_tilemap_layer.add_child(unit)
