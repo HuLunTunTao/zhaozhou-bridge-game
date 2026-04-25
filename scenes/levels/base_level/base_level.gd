@@ -1159,14 +1159,22 @@ func play_chatter_dialogue(unit: Node, text: String, dismiss_delay: float = 2.5)
 
 
 ## 多行 chatter 对话（邻接对话的双人场景用）。每条 line 已由调用方准备好 portrait/side。
-func play_chatter_lines(lines: Array[DialogueLine], dismiss_delay: float = 2.5) -> bool:
+## 返回 `{"ok": bool, "was_skipped": bool}`：
+##   - ok=false 表示被拒绝（已有 overlay）；was_skipped 此时无意义
+##   - was_skipped=true 表示玩家手动按键/点击关闭，false 表示 auto_dismiss 自然结束
+func play_chatter_lines(lines: Array[DialogueLine], dismiss_delay: float = 2.5) -> Dictionary:
 	if lines.is_empty() or has_overlay():
-		return false
-	await play_dialogue(lines, true, dismiss_delay)
-	return true
-
-
-## 播放一段对话。阻塞直到对话结束。用法：await play_dialogue([line1, line2])
+		return {"ok": false, "was_skipped": false}
+	var DialogueBoxScene := preload("res://scenes/ui/dialogue_box.tscn")
+	var box = DialogueBoxScene.instantiate()
+	if not _open_overlay(ActiveOverlay.DIALOGUE, box, &"dialogue_finished"):
+		box.queue_free()
+		return {"ok": false, "was_skipped": false}
+	box.start(lines, true, dismiss_delay)
+	await box.dialogue_finished
+	# emit 在 queue_free 前，节点本帧仍在树上；was_skipped 已被 _finish 写入。
+	var skipped: bool = box.was_skipped if is_instance_valid(box) else false
+	return {"ok": true, "was_skipped": skipped}
 
 
 ## 授予单位一个新技能。幂等：若单位已有该技能则不做任何操作，不 emit 信号。

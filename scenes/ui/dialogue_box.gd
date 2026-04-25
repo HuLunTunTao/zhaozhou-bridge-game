@@ -7,7 +7,14 @@ extends CanvasLayer
 ##   box.start(lines)              # lines: Array[DialogueLine]
 ##   await box.dialogue_finished   # 全部对话结束后发出
 
+## 全部对话结束后发出。
+## 想知道是否被玩家手动跳过：emit 之前已把结果写到 `was_skipped` 属性，
+## 调用方在 `await dialogue_finished` 之后读取（队列释放是 deferred，下一帧才生效）。
 signal dialogue_finished
+
+## 上一段（最后一行）对话的关闭原因：true=玩家按键/点击，false=auto_dismiss 计时器。
+## 在 `dialogue_finished` 之前赋值，调用方 await 后可立即读。
+var was_skipped: bool = false
 
 const CHAR_DELAY := 0.03  # 每个字符的打字机间隔（秒）
 const AUTO_DISMISS_DELAY_DEFAULT := 2.5  # auto_dismiss 模式下的默认停留秒数
@@ -84,14 +91,14 @@ func _input(event: InputEvent) -> void:
 			# 跳过打字机，直接显示全文
 			_skip_typewriter()
 		else:
-			_advance()
+			_advance(true)
 
 
-func _advance() -> void:
+func _advance(from_user: bool = false) -> void:
 	_dismiss_token += 1  # 使任何仍在等 auto_dismiss 延迟的协程失效
 	_current_index += 1
 	if _current_index >= _lines.size():
-		_finish()
+		_finish(from_user)
 		return
 
 	var line := _lines[_current_index]
@@ -185,7 +192,8 @@ func _schedule_auto_dismiss() -> void:
 	_advance()
 
 
-func _finish() -> void:
+func _finish(from_user: bool = false) -> void:
+	was_skipped = from_user
 	_finished = true
 	if _audio_player:
 		_audio_player.stop()

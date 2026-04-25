@@ -8,7 +8,8 @@ extends Node
 ##   2. 邻接闲聊 —— 大回合结束时，扫出相邻的两单位，优先敌我混杂对
 ##   3. 李春观察 —— 大回合结束时，主角对全局战况发一句
 ##
-## 并发策略：单实例 LLMClient 串行。_busy 期间到来的触发直接丢弃（不排队，避免滞后）。
+## 并发策略：单实例 LLMClient 串行。整个 chatter 会话（LLM 请求 + 对话框 + 流式语音）
+## 由顶层 trigger 入口持有 `_busy`；期间到来的新触发直接丢弃，避免与正在播放的语音抢资源。
 
 const NpcPersonasScript := preload("res://scripts/llm/npc_personas.gd")
 const LLMClientScript := preload("res://scripts/llm/llm_client.gd")
@@ -17,15 +18,32 @@ const ChatterVoiceScript := preload("res://scripts/tts/chatter_voice_adapter.gd"
 const ChatterPromptsScript := preload("res://scripts/llm/chatter_prompts.gd")
 
 ## 三类触发的概率（0.0–1.0）。调试时可临时拉到 1.0 做强制触发测试。
-const TRIGGER_PROB_ATTACKED := 0.45
-const TRIGGER_PROB_ADJACENT := 0.35
-const TRIGGER_PROB_HERO_OBS := 0.30
-## 对话框自动飘过的停留秒数。
-const DIALOGUE_DISMISS_DELAY := 3.0
+# const TRIGGER_PROB_ATTACKED := 0.45
+# const TRIGGER_PROB_ADJACENT := 0.35
+# const TRIGGER_PROB_HERO_OBS := 0.30
+
+const TRIGGER_PROB_ATTACKED := 1.0
+const TRIGGER_PROB_ADJACENT := 1.0
+const TRIGGER_PROB_HERO_OBS := 1.0
 ## 邻接对话中，对方回一句的概率。
 const ADJACENT_REPLY_PROB := 0.3
+## 邻接对话先后顺序：混杂阵营时友方先开口的概率；同阵营时随机交换的概率。
+const ADJACENT_FRIENDLY_FIRST_PROB := 0.7
+const ADJACENT_SAME_CAMP_SWAP_PROB := 0.5
+
+## 对话框自动飘过的停留秒数（基线；无音频时按文本长度再拉长）。
+const DIALOGUE_DISMISS_DELAY := 3.0
+## 无音频时，按中文阅读速度估算时长：字数 / CHARS_PER_SEC + BUFFER。
+const DIALOGUE_CHARS_PER_SEC := 3.5
+const DIALOGUE_TEXT_BUFFER_SEC := 1.0
+
 ## 单条 LLM 请求的超时秒数（比全局 30s 短，避免阻塞过久）。
 const LLM_TIMEOUT_SEC := 12.0
+## 读不到 LLMClient.timeout_sec 时使用的兜底原值（用于 try/finally 还原）。
+const LLM_FALLBACK_RESTORE_TIMEOUT_SEC := 30.0
+## 闲聊台词的 LLM 采样参数。
+const LLM_MAX_TOKENS := 80
+const LLM_TEMPERATURE := 0.85
 ## 火山 TTS 不可用时的兜底策略：true → 调用 DisplayServer.tts_speak（系统 TTS）；
 ## false → 完全不发声。两者都不会让对话失败，只影响是否能听到声。
 @export var use_system_tts_fallback: bool = true
@@ -108,7 +126,9 @@ func _on_team_turn_ended(_team_index: int) -> void:
 	if randf() > TRIGGER_PROB_ATTACKED:
 		return
 	var entry: Dictionary = _attacked_this_turn[randi() % _attacked_this_turn.size()]
+	_busy = true
 	await _do_attacked_reaction(entry)
+	_busy = false
 
 
 func _on_round_ended(round_number: int) -> void:
@@ -121,12 +141,14 @@ func _on_round_ended(round_number: int) -> void:
 		choices.append("hero_obs")
 	if choices.is_empty():
 		return
+	_busy = true
 	var choice: String = choices[randi() % choices.size()]
 	match choice:
 		"adjacent":
 			await _do_adjacent_chat(round_number)
 		"hero_obs":
 			await _do_hero_observation(round_number)
+	_busy = false
 
 
 # ─────────────────────────────────────────────────────────
@@ -134,10 +156,14 @@ func _on_round_ended(round_number: int) -> void:
 # ─────────────────────────────────────────────────────────
 
 func _do_attacked_reaction(entry: Dictionary) -> void:
-	var victim: Node = entry.get("victim")
-	if victim == null or not _is_alive(victim):
+	# 受击单位可能在小回合内被打死并 queue_free，dict 里残留着 freed 引用。
+	# 必须先 untyped 取 + is_instance_valid 验，再做 typed 赋值。
+	var victim_raw = entry.get("victim")
+	if not is_instance_valid(victim_raw) or not _is_alive(victim_raw):
 		return
-	var attacker: Node = entry.get("attacker")
+	var victim: Node = victim_raw
+	var attacker_raw = entry.get("attacker")
+	var attacker: Node = attacker_raw if is_instance_valid(attacker_raw) else null
 	var skill: Resource = entry.get("skill")
 	var extra: Dictionary = {
 		"attacker_name": _unit_display_name(attacker),
@@ -153,13 +179,13 @@ func _do_adjacent_chat(round_number: int) -> void:
 		return
 	var a: Node = pair[0]
 	var b: Node = pair[1]
-	# 70% 概率由阵营混杂对中的友方先开口；纯同阵营对随机先后
+	# 混杂阵营让友方先开口；纯同阵营随机先后
 	var swap: bool = false
 	if _are_different_camps(a, b):
 		var a_is_friendly := _is_friendly(a)
-		if not a_is_friendly and randf() < 0.7:
+		if not a_is_friendly and randf() < ADJACENT_FRIENDLY_FIRST_PROB:
 			swap = true
-	elif randf() < 0.5:
+	elif randf() < ADJACENT_SAME_CAMP_SWAP_PROB:
 		swap = true
 	if swap:
 		var tmp := a
@@ -173,20 +199,35 @@ func _do_adjacent_chat(round_number: int) -> void:
 	})
 	if line_a == null:
 		return
-	await _speak_line(a, line_a, "adjacent_chat")
+	var was_skipped_a: bool = await _speak_line(a, line_a, "adjacent_chat")
 
-	# 第二行（30% 概率）：B 接话，独立的对话 + 流式语音
-	if randf() < ADJACENT_REPLY_PROB and _is_alive(b):
-		var line_b: DialogueLine = await _build_line(b, "adjacent_reply", {
-			"other_name": _unit_display_name(a),
-			"heard": line_a.text,
-			"round": round_number,
-		})
-		if line_b != null:
-			# 互相把对话纳入记忆
-			_append_memory(a, {"round": round_number, "trigger": "adjacent_heard", "text": line_b.text})
-			_append_memory(b, {"round": round_number, "trigger": "adjacent_heard", "text": line_a.text})
-			await _speak_line(b, line_b, "adjacent_reply")
+	# 决定是否有第二行；同时决定 A 的语音是切是等
+	var has_reply: bool = randf() < ADJACENT_REPLY_PROB and _is_alive(b)
+	if has_reply and was_skipped_a:
+		# 玩家手动跳过 + 还有下一句 → 立即切音，让 B 无缝接上
+		_voice.cancel()
+	else:
+		# 没下一句 / 自动飘过 → 让 A 自然播完
+		await _wait_for_voice_end()
+
+	if not has_reply:
+		return
+
+	# 第二行：B 接话
+	var line_b: DialogueLine = await _build_line(b, "adjacent_reply", {
+		"other_name": _unit_display_name(a),
+		"heard": line_a.text,
+		"round": round_number,
+	})
+	if line_b == null:
+		return
+	# 互相把对话纳入记忆
+	_append_memory(a, {"round": round_number, "trigger": "adjacent_heard", "text": line_b.text})
+	_append_memory(b, {"round": round_number, "trigger": "adjacent_heard", "text": line_a.text})
+	@warning_ignore("unused_variable")
+	var _was_skipped_b: bool = await _speak_line(b, line_b, "adjacent_reply")
+	# B 是闲聊段最后一句，无论是否被跳过都让它播完
+	await _wait_for_voice_end()
 
 
 func _do_hero_observation(round_number: int) -> void:
@@ -211,35 +252,40 @@ func _say(unit: Node, trigger_kind: String, extra: Dictionary) -> void:
 	var line: DialogueLine = await _build_line(unit, trigger_kind, extra)
 	if line == null:
 		return
-	await _speak_line(unit, line, trigger_kind)
+	# 单条触发（受击 / 主角观察）没有"下一条"，无论是否手动跳过都让语音收尾
+	@warning_ignore("unused_variable")
+	var _was_skipped: bool = await _speak_line(unit, line, trigger_kind)
+	await _wait_for_voice_end()
 
 
-## 流式语音 + 对话框并行播放一行的统一入口。被 _say 和 _do_adjacent_chat 共用。
+## 流式语音 + 对话框并行播放一行。返回 was_skipped（玩家是否手动跳过对话框）。
+## **不**在内部等语音收尾——caller 自己决定下一步是 _voice.cancel() 还是 _wait_for_voice_end()。
 ## trigger_kind 传给 voice adapter 用以做"上下文适配"（emotion / speech_rate）。
-func _speak_line(unit: Node, line: DialogueLine, trigger_kind: String = "") -> void:
+func _speak_line(unit: Node, line: DialogueLine, trigger_kind: String = "") -> bool:
 	# 并行启动流式语音（不 await — 协程在第一个 await 后让出）
 	_voice.speak(unit, line.text, trigger_kind)
-	# 与此同时打开对话框
-	if _level != null and _level.has_method("play_chatter_lines"):
-		var lines: Array[DialogueLine] = [line]
-		await _level.play_chatter_lines(lines, _delay_for_lines(lines))
-	# 对话先关，但语音还没说完 → 等语音收尾，避免下一次 chatter 冲掉
+	if _level == null or not _level.has_method("play_chatter_lines"):
+		return false
+	var lines: Array[DialogueLine] = [line]
+	var result: Dictionary = await _level.play_chatter_lines(lines, _delay_for_lines(lines))
+	return bool(result.get("was_skipped", false))
+
+
+## 等当前 chatter 语音自然收尾。无在播则立返回。
+func _wait_for_voice_end() -> void:
 	if _voice.is_streaming():
 		await _voice.streaming_done
 
 
 ## 调 LLM 生成一条台词并组装成 DialogueLine（不带 audio_stream，配音由 ChatterVoice 单独走）。
 ## LLM 失败 → 跳过本次 chatter（不用 fallback_lines，那是"老监工"语气，套到别的角色会严重出戏）。
-## 被 _say / _do_adjacent_chat 共用。
+## 被 _say / _do_adjacent_chat 共用。**调用方负责 _busy 锁**（外层 trigger 入口已设）。
 func _build_line(unit: Node, trigger_kind: String, extra: Dictionary) -> DialogueLine:
-	if _busy:
-		return null
 	if unit == null or not (unit is Unit) or not _is_alive(unit):
 		return null
 	var u := unit as Unit
 	if u.unit_data == null:
 		return null
-	_busy = true
 	var persona: Dictionary = NpcPersonasScript.get_persona(u.unit_data.unit_id, u.unit_data.camp)
 	var memory_text := ChatterPromptsScript.format_memory(u)
 	var context_json := ChatterPromptsScript.build_context_summary(_level)
@@ -247,7 +293,7 @@ func _build_line(unit: Node, trigger_kind: String, extra: Dictionary) -> Dialogu
 	var user_msg := ChatterPromptsScript.build_user_prompt(persona, trigger_kind, extra)
 
 	# 临时把 LLMClient 超时调短
-	var prev_timeout: float = _llm.timeout_sec if "timeout_sec" in _llm else 30.0
+	var prev_timeout: float = _llm.timeout_sec if "timeout_sec" in _llm else LLM_FALLBACK_RESTORE_TIMEOUT_SEC
 	if "timeout_sec" in _llm:
 		_llm.timeout_sec = LLM_TIMEOUT_SEC
 
@@ -256,18 +302,16 @@ func _build_line(unit: Node, trigger_kind: String, extra: Dictionary) -> Dialogu
 			{"role": "system", "content": system_msg},
 			{"role": "user", "content": user_msg},
 		],
-		{"max_tokens": 80, "temperature": 0.85}
+		{"max_tokens": LLM_MAX_TOKENS, "temperature": LLM_TEMPERATURE}
 	)
 	if "timeout_sec" in _llm:
 		_llm.timeout_sec = prev_timeout
 
 	if not resp.ok:
 		push_warning("[Chatter] LLM 失败 code=%s error=%s，跳过本次闲聊" % [resp.get("code", 0), resp.get("error", "")])
-		_busy = false
 		return null
 	var text: String = String(resp.text).strip_edges()
 	if text.is_empty():
-		_busy = false
 		return null
 
 	# 追加到说话者自己的记忆
@@ -276,7 +320,6 @@ func _build_line(unit: Node, trigger_kind: String, extra: Dictionary) -> Dialogu
 		"trigger": trigger_kind,
 		"text": text,
 	})
-	_busy = false
 
 	return DialogueLine.create(
 		persona.get("name", u.unit_data.unit_name),
@@ -295,7 +338,7 @@ func _delay_for_lines(lines: Array[DialogueLine]) -> float:
 	for line in lines:
 		if line.audio_stream != null:
 			continue
-		var est := float(line.text.length()) / 3.5 + 1.0
+		var est := float(line.text.length()) / DIALOGUE_CHARS_PER_SEC + DIALOGUE_TEXT_BUFFER_SEC
 		d = maxf(d, est)
 	return d
 
@@ -312,8 +355,7 @@ func _find_unit_at_cell(cell: Vector2i) -> Node:
 			return u
 	return null
 
-
-## 扫出所有曼哈顿距离=1 的单位对。返回 [a, b]，优先敌我混杂对。
+## 扫出所有曼哈顿距离 <= 5 的单位对。返回 [a, b]，优先敌我混杂对。
 func _pick_adjacent_pair() -> Array:
 	if _level == null or not _level.has_method("_get_all_units"):
 		return []
@@ -328,7 +370,9 @@ func _pick_adjacent_pair() -> Array:
 				continue
 			if not _is_alive(a) or not _is_alive(b):
 				continue
-			if not _are_adjacent(a, b):
+			var delta: Vector2i = (a as Unit).cell - (b as Unit).cell
+			var manhattan := absi(delta.x) + absi(delta.y)
+			if manhattan > 5:
 				continue
 			if _are_different_camps(a, b):
 				mixed.append([a, b])
