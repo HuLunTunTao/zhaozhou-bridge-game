@@ -13,6 +13,9 @@ extends Resource
 @export var portrait_bg: Texture2D = null
 ## 头像位于左侧还是右侧
 @export_enum("left", "right") var portrait_side: String = "left"
+## 配音（AudioStream，例如 AudioStreamMP3）。dialogue_box 会在显示这一行时播放它。
+## 留空则无配音。auto_dismiss 模式下，停留时长会被拉长到不短于音频长度。
+@export var audio_stream: AudioStream = null
 
 
 ## 快捷构造函数
@@ -21,7 +24,8 @@ static func create(
 	p_text: String,
 	p_portrait: Texture2D = null,
 	p_side: String = "left",
-	p_portrait_bg: Texture2D = null
+	p_portrait_bg: Texture2D = null,
+	p_audio_stream: AudioStream = null
 ) -> DialogueLine:
 	var line := DialogueLine.new()
 	line.speaker = p_speaker
@@ -29,4 +33,5 @@ static func create(
 	line.portrait = p_portrait
 	line.portrait_side = p_side
 	line.portrait_bg = p_portrait_bg
+	line.audio_stream = p_audio_stream
 	return line

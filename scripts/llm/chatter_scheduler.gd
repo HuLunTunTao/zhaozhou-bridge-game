@@ -13,8 +13,9 @@ extends Node
 const NpcPersonasScript := preload("res://scripts/llm/npc_personas.gd")
 const LLMClientScript := preload("res://scripts/llm/llm_client.gd")
 const BattleContextScript := preload("res://scripts/llm/battle_context.gd")
-const LLMFallbackLinesScript := preload("res://scripts/llm/fallback_lines.gd")
 const PortraitResolverScript := preload("res://scripts/llm/portrait_resolver.gd")
+const VoiceMappingScript := preload("res://scripts/tts/voice_mapping.gd")
+const VolcengineTTSClientScript := preload("res://scripts/tts/volcengine_tts_client.gd")
 
 ## 三类触发的概率（0.0–1.0）。调试时可临时拉到 1.0 做强制触发测试。
 # const TRIGGER_PROB_ATTACKED := 0.45
@@ -30,6 +31,9 @@ const DIALOGUE_DISMISS_DELAY := 3.0
 const ADJACENT_REPLY_PROB := 0.3
 ## 单条 LLM 请求的超时秒数（比全局 30s 短，避免阻塞过久）。
 const LLM_TIMEOUT_SEC := 12.0
+## 火山 TTS 不可用时的兜底策略：true → 调用 DisplayServer.tts_speak（系统 TTS）；
+## false → 完全不发声。两者都不会让对话失败，只影响是否能听到声。
+@export var use_system_tts_fallback: bool = true
 
 ## 曼哈顿相邻偏移（4 向）。
 const NEIGHBOR_OFFSETS: Array[Vector2i] = [
@@ -41,6 +45,7 @@ const NEIGHBOR_OFFSETS: Array[Vector2i] = [
 
 var _level: Node = null
 var _llm: Node = null
+var _tts: Node = null
 var _busy: bool = false
 ## 当前小回合里发生的攻击事件。条目结构：{ victim: Unit, attacker: Unit, skill: SkillData }。
 var _attacked_this_turn: Array[Dictionary] = []
@@ -55,6 +60,9 @@ func setup(level: Node, llm_client: Node = null) -> void:
 	else:
 		_llm = LLMClientScript.new()
 		add_child(_llm)
+	# TTS 客户端：每次 synthesize 自管 WS，长连接由其内部处理
+	_tts = VolcengineTTSClientScript.new()
+	add_child(_tts)
 	# 订阅 BaseLevel 的领域信号
 	if _level.has_signal("skill_executed"):
 		_level.skill_executed.connect(_on_skill_executed)
@@ -181,7 +189,7 @@ func _do_adjacent_chat(round_number: int) -> void:
 			_append_memory(a, {"round": round_number, "trigger": "adjacent_heard", "text": line_b.text})
 			_append_memory(b, {"round": round_number, "trigger": "adjacent_heard", "text": line_a.text})
 	if _level != null and _level.has_method("play_chatter_lines"):
-		await _level.play_chatter_lines(lines, DIALOGUE_DISMISS_DELAY)
+		await _level.play_chatter_lines(lines, _delay_for_lines(lines))
 
 
 func _do_hero_observation(round_number: int) -> void:
@@ -206,11 +214,13 @@ func _say(unit: Node, trigger_kind: String, extra: Dictionary) -> void:
 	var line: DialogueLine = await _build_line(unit, trigger_kind, extra)
 	if line == null:
 		return
-	if _level != null and _level.has_method("play_chatter_dialogue"):
-		await _level.play_chatter_dialogue(unit, line.text, DIALOGUE_DISMISS_DELAY)
+	if _level != null and _level.has_method("play_chatter_lines"):
+		var lines: Array[DialogueLine] = [line]
+		await _level.play_chatter_lines(lines, _delay_for_lines(lines))
 
 
-## 调 LLM 生成一条台词，并组装成 DialogueLine。失败走 fallback_lines。
+## 调 LLM 生成一条台词，再调 TTS 合成配音，组装成 DialogueLine。
+## LLM 失败 → fallback 台词；TTS 失败 → line 不带音频，对话仍正常显示。
 ## 被 _say / _do_adjacent_chat 共用。
 func _build_line(unit: Node, trigger_kind: String, extra: Dictionary) -> DialogueLine:
 	if _busy:
@@ -241,29 +251,87 @@ func _build_line(unit: Node, trigger_kind: String, extra: Dictionary) -> Dialogu
 	)
 	if "timeout_sec" in _llm:
 		_llm.timeout_sec = prev_timeout
-	_busy = false
 
-	var text: String
-	if resp.ok:
-		text = String(resp.text).strip_edges()
-	else:
-		push_warning("[Chatter] LLM 失败 code=%s error=%s" % [resp.get("code", 0), resp.get("error", "")])
-		text = LLMFallbackLinesScript.random()
-	if text.is_empty():
+	# LLM 失败 → 直接跳过本次 chatter（不能用 fallback_lines，那是"老监工"语气，
+	# 套到任意角色身上会严重出戏）。
+	if not resp.ok:
+		push_warning("[Chatter] LLM 失败 code=%s error=%s，跳过本次闲聊" % [resp.get("code", 0), resp.get("error", "")])
+		_busy = false
 		return null
-	# 追加到说话者自己的记忆
+	var text: String = String(resp.text).strip_edges()
+	if text.is_empty():
+		_busy = false
+		return null
+
+	# 追加到说话者自己的记忆（先加再 TTS，确保即使 TTS 慢也已记账）
 	_append_memory(u, {
 		"round": extra.get("round", -1),
 		"trigger": trigger_kind,
 		"text": text,
 	})
+
+	# TTS：失败也不阻断对话
+	var audio_stream: AudioStream = await _synthesize_audio(u, text)
+	_busy = false
+
 	return DialogueLine.create(
 		persona.get("name", u.unit_data.unit_name),
 		text,
 		_get_portrait(u),
 		_side_for_unit(u),
-		PortraitResolverScript.get_portrait_bg(u)
+		PortraitResolverScript.get_portrait_bg(u),
+		audio_stream
 	)
+
+
+## 调 TTS，把文本合成成 mp3 并打包成 AudioStreamMP3。失败返回 null。
+## 失败路径：若 use_system_tts_fallback，则调用 DisplayServer.tts_speak；否则完全不发声。
+func _synthesize_audio(unit: Unit, text: String) -> AudioStream:
+	if _tts == null or unit.unit_data == null:
+		_maybe_speak_via_system_tts(text)
+		return null
+	var voice_cfg: Dictionary = VoiceMappingScript.get_voice(unit.unit_data.unit_id, unit.unit_data.camp)
+	var voice: String = voice_cfg.get("voice", "")
+	if voice.is_empty():
+		_maybe_speak_via_system_tts(text)
+		return null
+	var mp3_bytes: PackedByteArray = await _tts.synthesize(text, voice)
+	if mp3_bytes.is_empty():
+		_maybe_speak_via_system_tts(text)
+		return null
+	var stream := AudioStreamMP3.new()
+	stream.data = mp3_bytes
+	return stream
+
+
+## 系统 TTS 兜底：火山合成失败时由 OS 把文本读出来。
+## 不返回 AudioStream（系统 TTS 走另一条声道，不进 dialogue_box 的 player）。
+## 调用方只能依据文本长度估个 dismiss 延迟。
+func _maybe_speak_via_system_tts(text: String) -> void:
+	if not use_system_tts_fallback or text.is_empty():
+		return
+	if not DisplayServer.has_feature(DisplayServer.FEATURE_TEXT_TO_SPEECH):
+		return
+	var voices: Array = DisplayServer.tts_get_voices_for_language("zh")
+	if voices.is_empty():
+		# 没有中文系统语音，索性不发声（避免英文音念中文出洋相）
+		return
+	var voice_id: String = voices[0]
+	# interrupt=true 防止上一次系统朗读把这句压住
+	DisplayServer.tts_speak(text, voice_id, 50, 1.0, 1.0, 0, true)
+
+
+## 给 play_chatter_lines 估算合理的 dismiss_delay。
+## - 有 audio_stream：返回 base，dialogue_box 内会再用音频时长进一步拉长
+## - 无 audio_stream（含系统 TTS 兜底）：按文本长度估时（中文约 3.5 字/秒 + 1s 缓冲）
+func _delay_for_lines(lines: Array[DialogueLine]) -> float:
+	var d := DIALOGUE_DISMISS_DELAY
+	for line in lines:
+		if line.audio_stream != null:
+			continue
+		var est := float(line.text.length()) / 3.5 + 1.0
+		d = maxf(d, est)
+	return d
 
 
 # ─────────────────────────────────────────────────────────
