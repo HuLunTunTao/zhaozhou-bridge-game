@@ -34,6 +34,9 @@ var _auto_dismiss: bool = false
 var _dismiss_delay: float = AUTO_DISMISS_DELAY_DEFAULT
 ## 每次 _advance / _skip 会自增，用于取消上一轮的 auto-dismiss 计时协程。
 var _dismiss_token: int = 0
+## 当前行音频播放器（仅在有 line.audio_stream 时启用）。auto_dismiss 时长会被拉到不短于音频时长。
+var _audio_player: AudioStreamPlayer = null
+var _current_audio_length: float = 0.0
 
 
 func _ready() -> void:
@@ -41,6 +44,10 @@ func _ready() -> void:
 	# 初始隐藏
 	backdrop.modulate.a = 0.0
 	bottom_bar.modulate.a = 0.0
+	# 配音播放器（走 Voice 母线，音量沿用其控制）
+	_audio_player = AudioStreamPlayer.new()
+	_audio_player.bus = &"Voice"
+	add_child(_audio_player)
 
 
 func start(lines: Array[DialogueLine], auto_dismiss: bool = false, dismiss_delay: float = AUTO_DISMISS_DELAY_DEFAULT) -> void:
@@ -117,6 +124,17 @@ func _apply_line(line: DialogueLine) -> void:
 			left_portrait_bg.texture = line.portrait_bg
 			left_frame.self_modulate.a = 1.0
 
+	# 配音：先停旧的，再播新的；记录时长供 auto_dismiss 用
+	_current_audio_length = 0.0
+	if _audio_player:
+		_audio_player.stop()
+		_audio_player.stream = null
+		if line.audio_stream != null:
+			_audio_player.stream = line.audio_stream
+			if line.audio_stream.has_method("get_length"):
+				_current_audio_length = line.audio_stream.get_length()
+			_audio_player.play()
+
 	# 隐藏继续提示
 	continue_indicator.visible = false
 
@@ -151,13 +169,17 @@ func _skip_typewriter() -> void:
 	_schedule_auto_dismiss()
 
 
-## 若开启 auto_dismiss，延迟 _dismiss_delay 秒后自动 _advance；
+## 若开启 auto_dismiss，延迟后自动 _advance；
+## 实际延迟取 max(_dismiss_delay, 当前行音频时长 + 0.3 秒)，避免话还没说完就关。
 ## 玩家在此期间手动推进则 token 自增使本协程静默退出。
 func _schedule_auto_dismiss() -> void:
 	if not _auto_dismiss:
 		return
+	var delay := _dismiss_delay
+	if _current_audio_length > 0.0:
+		delay = maxf(delay, _current_audio_length + 0.3)
 	var token := _dismiss_token
-	await get_tree().create_timer(_dismiss_delay).timeout
+	await get_tree().create_timer(delay).timeout
 	if _finished or token != _dismiss_token:
 		return
 	_advance()
@@ -165,6 +187,8 @@ func _schedule_auto_dismiss() -> void:
 
 func _finish() -> void:
 	_finished = true
+	if _audio_player:
+		_audio_player.stop()
 	var tween := create_tween().set_parallel(true)
 	tween.tween_property(backdrop, "modulate:a", 0.0, 0.15)
 	tween.tween_property(bottom_bar, "modulate:a", 0.0, 0.15)

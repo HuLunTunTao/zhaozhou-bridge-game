@@ -30,17 +30,19 @@ const _ALLOWED_OPTIONS := [
 	"user",
 ]
 
+const ApiConfig := preload("res://scripts/config/api_config.gd")
+
 ## API 根地址，不带尾部斜杠。chat completions 端点拼为 base_url + "/chat/completions"。
-var base_url: String = "https://route.ffcrazy.top/v1"
+var base_url: String = ApiConfig.LLM_BASE_URL
 
 ## 形如 "sk-..."。从 settings 或环境变量读入；本模块不负责持久化。
-var api_key: String = "sk-T88jvv1yfilIaKI3EWOWgcXv09uDjJZ8gP4qRdMT7BFJQmd4"
+var api_key: String = ApiConfig.LLM_API_KEY
 
 ## 模型名，按 base_url 服务方约定填写。
-var model: String = "qwen-gamer"
+var model: String = ApiConfig.LLM_MODEL
 
 ## 单次请求超时秒数。0 表示不超时。
-var timeout_sec: float = 30.0
+var timeout_sec: float = ApiConfig.LLM_TIMEOUT_SEC
 
 var _http: HTTPRequest
 var _busy: bool = false
