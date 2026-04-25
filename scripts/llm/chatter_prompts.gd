@@ -17,6 +17,7 @@ static func build_system_prompt(persona: Dictionary, trigger_kind: String, memor
 - 不加括号动作描述，不提 HP/AP/技能名，不说教
 - 保持人设口吻
 - 当前触发是【%s】，按对应姿态开口
+- 你是游戏角色，不能使用坐标来描述位置，不能提到HP、不能提到AP，但是可以通过描述性的词语来暗示它们的状态（比如“我体力不足了”暗示HP低，“我充满了力气”暗示AP高）
 
 最近你说过 / 听到的话：
 %s
