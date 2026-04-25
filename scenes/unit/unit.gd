@@ -230,6 +230,13 @@ func refresh_overhead_bars() -> void:
 		_hp_bar.update_element(combat_stats.current_element, combat_stats.current_element_amount)
 
 
+## 把头顶 ElemLabel 当作通用状态文字位用——主要给非战斗场景（验桥日 NPC 头顶问号 / 感叹号）。
+## 传 "" 清空。注意：之后任何 refresh_overhead_bars 都会用元素 tag 覆盖；调用方需在状态变化后再调一次本方法。
+func set_overhead_status_label(text: String, color: Color) -> void:
+	if _hp_bar and _hp_bar.has_method("set_custom_label"):
+		_hp_bar.set_custom_label(text, color)
+
+
 ## 根据等距坐标步进方向确定朝向。
 ## +x = 右前(SE), -x = 左后(NW), +y = 左前(SW), -y = 右后(NE)
 func _facing_from_step(step: Vector2i) -> UnitVisual.Facing:

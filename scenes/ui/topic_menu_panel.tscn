@@ -1,6 +1,6 @@
-[gd_scene load_steps=6 format=3 uid="uid://d340bbkd4qaqy"]
+[gd_scene load_steps=5 format=3 uid="uid://c188spbvm6v1i"]
 
-[ext_resource type="Script" path="res://scenes/ui/argument_input_panel.gd" id="1_script"]
+[ext_resource type="Script" path="res://scenes/ui/topic_menu_panel.gd" id="1_script"]
 
 [sub_resource type="StyleBoxFlat" id="SbPanel"]
 content_margin_left = 24.0
@@ -18,45 +18,40 @@ corner_radius_top_right = 8
 corner_radius_bottom_right = 8
 corner_radius_bottom_left = 8
 
-[sub_resource type="StyleBoxFlat" id="SbCancel"]
+[sub_resource type="StyleBoxFlat" id="SbTopicNormal"]
 content_margin_left = 12.0
 content_margin_top = 6.0
 content_margin_right = 12.0
 content_margin_bottom = 6.0
-bg_color = Color(0.25, 0.18, 0.18, 0.95)
+bg_color = Color(0.13, 0.15, 0.19, 0.95)
 corner_radius_top_left = 4
 corner_radius_top_right = 4
 corner_radius_bottom_right = 4
 corner_radius_bottom_left = 4
 
-[sub_resource type="StyleBoxFlat" id="SbSubmit"]
+[sub_resource type="StyleBoxFlat" id="SbTopicHover"]
 content_margin_left = 12.0
 content_margin_top = 6.0
 content_margin_right = 12.0
 content_margin_bottom = 6.0
-bg_color = Color(0.2, 0.32, 0.2, 0.95)
+bg_color = Color(0.2, 0.22, 0.27, 0.95)
 corner_radius_top_left = 4
 corner_radius_top_right = 4
 corner_radius_bottom_right = 4
 corner_radius_bottom_left = 4
 
-[sub_resource type="StyleBoxFlat" id="SbInputBg"]
-content_margin_left = 8.0
-content_margin_top = 4.0
-content_margin_right = 8.0
-content_margin_bottom = 4.0
-bg_color = Color(0.04, 0.05, 0.07, 0.85)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.32, 0.36, 0.42, 1)
+[sub_resource type="StyleBoxFlat" id="SbFreeButton"]
+content_margin_left = 12.0
+content_margin_top = 6.0
+content_margin_right = 12.0
+content_margin_bottom = 6.0
+bg_color = Color(0.18, 0.16, 0.1, 0.95)
 corner_radius_top_left = 4
 corner_radius_top_right = 4
 corner_radius_bottom_right = 4
 corner_radius_bottom_left = 4
 
-[node name="ArgumentInputPanel" type="CanvasLayer"]
+[node name="TopicMenuPanel" type="CanvasLayer"]
 layer = 90
 script = ExtResource("1_script")
 
@@ -68,15 +63,15 @@ mouse_filter = 0
 color = Color(0, 0, 0, 0.55)
 
 [node name="Panel" type="PanelContainer" parent="."]
-custom_minimum_size = Vector2(560, 0)
+custom_minimum_size = Vector2(540, 0)
 anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -280.0
-offset_top = -120.0
-offset_right = 280.0
-offset_bottom = 120.0
+offset_left = -270.0
+offset_top = -180.0
+offset_right = 270.0
+offset_bottom = 180.0
 grow_horizontal = 2
 grow_vertical = 2
 theme_override_styles/panel = SubResource("SbPanel")
@@ -90,45 +85,38 @@ unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.96, 0.94, 0.88, 1)
 theme_override_font_sizes/font_size = 18
-text = "对 ? 说点什么"
+text = "向 ? 请教什么？"
 horizontal_alignment = 1
-
-[node name="Subtitle" type="Label" parent="Panel/VBox"]
-unique_name_in_owner = true
-layout_mode = 2
-theme_override_colors/font_color = Color(0.7, 0.7, 0.65, 1)
-theme_override_font_sizes/font_size = 12
-horizontal_alignment = 1
-visible = false
 
 [node name="Sep" type="HSeparator" parent="Panel/VBox"]
 layout_mode = 2
 
-[node name="Input" type="LineEdit" parent="Panel/VBox"]
+[node name="TopicList" type="VBoxContainer" parent="Panel/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="TopicButtonTemplate" type="Button" parent="Panel/VBox/TopicList"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 36)
 layout_mode = 2
 theme_override_font_sizes/font_size = 14
-theme_override_styles/normal = SubResource("SbInputBg")
-placeholder_text = "用论据 / 反问 / 共情……试着打动 TA"
+theme_override_styles/normal = SubResource("SbTopicNormal")
+theme_override_styles/hover = SubResource("SbTopicHover")
+text = "（话题模板，运行时复制）"
+visible = false
 
-[node name="ButtonRow" type="HBoxContainer" parent="Panel/VBox"]
-layout_mode = 2
-alignment = 2
-theme_override_constants/separation = 8
-
-[node name="CancelButton" type="Button" parent="Panel/VBox/ButtonRow"]
+[node name="FreeButton" type="Button" parent="Panel/VBox"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(120, 32)
+custom_minimum_size = Vector2(0, 32)
 layout_mode = 2
 theme_override_font_sizes/font_size = 13
-theme_override_styles/normal = SubResource("SbCancel")
+theme_override_styles/normal = SubResource("SbFreeButton")
+text = "（自由提问）"
+
+[node name="CancelButton" type="Button" parent="Panel/VBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 28)
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
 text = "取消（ESC）"
-
-[node name="SubmitButton" type="Button" parent="Panel/VBox/ButtonRow"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(140, 32)
-layout_mode = 2
-theme_override_font_sizes/font_size = 13
-theme_override_styles/normal = SubResource("SbSubmit")
-text = "说出口（Enter）"

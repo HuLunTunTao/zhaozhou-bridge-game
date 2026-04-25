@@ -133,6 +133,16 @@ const VOICES: Dictionary = {
 		"label": "霸气青叔",
 		"note": "老监工：言简意深",
 	},
+	"bridge_old_stonemason": {
+		"voice": "zh_male_gaolengchenwen_uranus_bigtts",
+		"label": "高冷沉稳",
+		"note": "老石匠：手艺人沉稳",
+	},
+	"bridge_fisherman": {
+		"voice": "zh_male_guanggaojieshuo_uranus_bigtts",
+		"label": "广告解说 2.0",
+		"note": "渔夫：粗豪水边人（用机械狂暴的力度衬粗朴）",
+	},
 }
 
 ## 阵营兜底：查不到 unit_id 时的通用音色。

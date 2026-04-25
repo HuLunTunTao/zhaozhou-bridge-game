@@ -1,0 +1,119 @@
+[gd_scene format=3 uid="uid://d06xsug87gyrw"]
+
+[ext_resource type="Script" path="res://scenes/levels/bridge_tour/mission_hud.gd" id="1_script"]
+
+[node name="MissionHud" type="CanvasLayer"]
+layer = 70
+script = ExtResource("1_script")
+
+[node name="Root" type="Control" parent="."]
+anchors_preset = 5
+anchor_left = 0.0
+anchor_top = 0.0
+anchor_right = 0.0
+anchor_bottom = 0.0
+offset_left = 14.0
+offset_top = 78.0
+offset_right = 240.0
+offset_bottom = 350.0
+mouse_filter = 2
+
+[node name="VBox" type="VBoxContainer" parent="Root"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+theme_override_constants/separation = 2
+mouse_filter = 2
+
+[node name="Title" type="Label" parent="Root/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.86, 0.32, 1)
+theme_override_colors/font_outline_color = Color(0.07, 0.07, 0.08, 1)
+theme_override_constants/outline_size = 3
+theme_override_font_sizes/font_size = 14
+text = "桥成在望  0 / 7"
+
+[node name="HSep1" type="HSeparator" parent="Root/VBox"]
+layout_mode = 2
+
+[node name="PersuadeRow" type="HBoxContainer" parent="Root/VBox"]
+layout_mode = 2
+
+[node name="PersuadeLabel" type="Label" parent="Root/VBox/PersuadeRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.96, 0.94, 0.88, 1)
+theme_override_colors/font_outline_color = Color(0.07, 0.07, 0.08, 1)
+theme_override_constants/outline_size = 3
+theme_override_font_sizes/font_size = 12
+text = "说服"
+
+[node name="PersuadeCount" type="Label" parent="Root/VBox/PersuadeRow"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.96, 0.94, 0.88, 1)
+theme_override_colors/font_outline_color = Color(0.07, 0.07, 0.08, 1)
+theme_override_constants/outline_size = 3
+theme_override_font_sizes/font_size = 12
+text = "0 / 3"
+
+[node name="PersuadeList" type="VBoxContainer" parent="Root/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 0
+
+[node name="QaRow" type="HBoxContainer" parent="Root/VBox"]
+layout_mode = 2
+
+[node name="QaLabel" type="Label" parent="Root/VBox/QaRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.96, 0.94, 0.88, 1)
+theme_override_colors/font_outline_color = Color(0.07, 0.07, 0.08, 1)
+theme_override_constants/outline_size = 3
+theme_override_font_sizes/font_size = 12
+text = "解答"
+
+[node name="QaCount" type="Label" parent="Root/VBox/QaRow"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.96, 0.94, 0.88, 1)
+theme_override_colors/font_outline_color = Color(0.07, 0.07, 0.08, 1)
+theme_override_constants/outline_size = 3
+theme_override_font_sizes/font_size = 12
+text = "0 / 4"
+
+[node name="QaList" type="VBoxContainer" parent="Root/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 0
+
+[node name="MentorRow" type="HBoxContainer" parent="Root/VBox"]
+layout_mode = 2
+
+[node name="MentorLabel" type="Label" parent="Root/VBox/MentorRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.96, 0.94, 0.88, 1)
+theme_override_colors/font_outline_color = Color(0.07, 0.07, 0.08, 1)
+theme_override_constants/outline_size = 3
+theme_override_font_sizes/font_size = 12
+text = "求教"
+
+[node name="MentorList" type="VBoxContainer" parent="Root/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 0
+
+[node name="HSep2" type="HSeparator" parent="Root/VBox"]
+layout_mode = 2
+
+[node name="Tip" type="Label" parent="Root/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.7, 0.65, 0.55, 1)
+theme_override_colors/font_outline_color = Color(0.07, 0.07, 0.08, 1)
+theme_override_constants/outline_size = 3
+theme_override_font_sizes/font_size = 11
+text = "走近某人 → 状态栏点交互"

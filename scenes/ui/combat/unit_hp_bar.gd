@@ -19,6 +19,15 @@ func update_element(element: Enums.Element, amount: int) -> void:
 		_elem_label.add_theme_color_override("font_color", ElementDefs.get_color(element))
 
 
+## 把头顶 ElemLabel 当通用文字位用：直接覆盖 text + 颜色。
+## 主要给非战斗场景（如验桥日的状态图标 🔵?/🟢?/🟡!）。
+## 传 "" 清空标签。
+func set_custom_label(text: String, color: Color) -> void:
+	_elem_label.text = text
+	if text != "":
+		_elem_label.add_theme_color_override("font_color", color)
+
+
 ## 更新血条。ratio = current_hp / max_hp (0.0 ~ 1.0)。
 func update_hp(ratio: float) -> void:
 	ratio = clampf(ratio, 0.0, 1.0)
