@@ -388,7 +388,7 @@ func _setup_allies_from_scene() -> void:
 		setup_unit_stats(craftsman, "工匠", 118, 20, 92, 9)
 	for carrier in _stone_carriers:
 		set_unit_skills(carrier, [_staff])
-		setup_unit_stats(carrier, "运石工", 88, 13, 90, 9)
+		setup_unit_stats(carrier, "运石工", 88, 13, 100, 8)
 		_carrier_base_move_cost[carrier.get_instance_id()] = carrier.combat_stats.move_cost_per_tile
 	_apply_persistent_growth_effects()
 	# 墨绳校券改为无 CD 的「左右调拨」式机制（命中侧 +1 / 对侧 -1），
@@ -614,7 +614,7 @@ func _adjust_arch_value(is_left: bool, delta: int, reason: String) -> void:
 func _set_carrier_loaded(unit: Unit, loaded: bool) -> void:
 	var key := unit.get_instance_id()
 	var base_cost := int(_carrier_base_move_cost.get(key, unit.combat_stats.move_cost_per_tile))
-	unit.combat_stats.move_cost_per_tile = base_cost + 1 if loaded else base_cost
+	unit.combat_stats.move_cost_per_tile = base_cost + 3 if loaded else base_cost
 
 
 func _spawn_enemy(data: UnitData, cell: Vector2i, skills: Array[SkillData], visual: PackedScene = null) -> Unit:
