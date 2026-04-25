@@ -13,7 +13,7 @@ extends Node
 const NpcPersonasScript := preload("res://scripts/llm/npc_personas.gd")
 const LLMClientScript := preload("res://scripts/llm/llm_client.gd")
 const PortraitResolverScript := preload("res://scripts/llm/portrait_resolver.gd")
-const ChatterVoiceScript := preload("res://scripts/tts/chatter_voice.gd")
+const ChatterVoiceScript := preload("res://scripts/tts/chatter_voice_adapter.gd")
 const ChatterPromptsScript := preload("res://scripts/llm/chatter_prompts.gd")
 
 ## 三类触发的概率（0.0–1.0）。调试时可临时拉到 1.0 做强制触发测试。
@@ -173,7 +173,7 @@ func _do_adjacent_chat(round_number: int) -> void:
 	})
 	if line_a == null:
 		return
-	await _speak_line(a, line_a)
+	await _speak_line(a, line_a, "adjacent_chat")
 
 	# 第二行（30% 概率）：B 接话，独立的对话 + 流式语音
 	if randf() < ADJACENT_REPLY_PROB and _is_alive(b):
@@ -186,7 +186,7 @@ func _do_adjacent_chat(round_number: int) -> void:
 			# 互相把对话纳入记忆
 			_append_memory(a, {"round": round_number, "trigger": "adjacent_heard", "text": line_b.text})
 			_append_memory(b, {"round": round_number, "trigger": "adjacent_heard", "text": line_a.text})
-			await _speak_line(b, line_b)
+			await _speak_line(b, line_b, "adjacent_reply")
 
 
 func _do_hero_observation(round_number: int) -> void:
@@ -211,13 +211,14 @@ func _say(unit: Node, trigger_kind: String, extra: Dictionary) -> void:
 	var line: DialogueLine = await _build_line(unit, trigger_kind, extra)
 	if line == null:
 		return
-	await _speak_line(unit, line)
+	await _speak_line(unit, line, trigger_kind)
 
 
 ## 流式语音 + 对话框并行播放一行的统一入口。被 _say 和 _do_adjacent_chat 共用。
-func _speak_line(unit: Node, line: DialogueLine) -> void:
+## trigger_kind 传给 voice adapter 用以做"上下文适配"（emotion / speech_rate）。
+func _speak_line(unit: Node, line: DialogueLine, trigger_kind: String = "") -> void:
 	# 并行启动流式语音（不 await — 协程在第一个 await 后让出）
-	_voice.speak(unit, line.text)
+	_voice.speak(unit, line.text, trigger_kind)
 	# 与此同时打开对话框
 	if _level != null and _level.has_method("play_chatter_lines"):
 		var lines: Array[DialogueLine] = [line]

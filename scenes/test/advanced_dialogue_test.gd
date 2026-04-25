@@ -7,7 +7,7 @@ extends Control
 ## 系统 TTS 或纯静默；视觉无论如何都有效。
 
 const VoiceMappingScript := preload("res://scripts/tts/voice_mapping.gd")
-const VolcengineTTSClientScript := preload("res://scripts/tts/volcengine_tts_client.gd")
+const VolcengineTTSHttpClientScript := preload("res://addons/godot_volcengine_tts/volcengine_tts_http_client.gd")
 const NpcPersonasScript := preload("res://scripts/llm/npc_personas.gd")
 # ApiConfig 是 class_name，全局可访问，无需 preload
 const DialogueBoxScene := preload("res://scenes/ui/dialogue_box.tscn")
@@ -91,8 +91,13 @@ var _busy: bool = false
 
 
 func _ready() -> void:
-	_tts = VolcengineTTSClientScript.new()
+	_tts = VolcengineTTSHttpClientScript.new()
 	add_child(_tts)
+	# 灌 ApiConfig 配置进 SDK client
+	_tts.api_key = ApiConfig.TTS_API_KEY
+	_tts.resource_id = ApiConfig.TTS_RESOURCE_ID
+	_tts.user_uid = ApiConfig.TTS_USER_UID
+	_tts.default_model = ApiConfig.TTS_MODEL
 	tts_toggle.button_pressed = not ApiConfig.TTS_API_KEY.is_empty()
 	tts_toggle.disabled = ApiConfig.TTS_API_KEY.is_empty()
 	if ApiConfig.TTS_API_KEY.is_empty():
@@ -191,7 +196,8 @@ func _make_line(unit_id: String, text: String, use_tts: bool) -> DialogueLine:
 		var voice_cfg: Dictionary = VoiceMappingScript.get_voice(unit_id, camp)
 		var voice: String = voice_cfg.get("voice", "")
 		if not voice.is_empty():
-			var mp3: PackedByteArray = await _tts.synthesize(text, voice)
+			var out: Dictionary = {}
+			var mp3: PackedByteArray = await _tts.synthesize(text, voice, {"format": "mp3"}, out)
 			if not mp3.is_empty():
 				var stream := AudioStreamMP3.new()
 				stream.data = mp3
