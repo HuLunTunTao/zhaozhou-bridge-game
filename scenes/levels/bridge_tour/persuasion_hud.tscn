@@ -1,0 +1,44 @@
+[gd_scene load_steps=2 format=3 uid="uid://cpersuasionhud01"]
+
+[ext_resource type="Script" path="res://scenes/levels/bridge_tour/persuasion_hud.gd" id="1_script"]
+
+[node name="PersuasionHud" type="CanvasLayer"]
+layer = 70
+script = ExtResource("1_script")
+
+[node name="Root" type="Control" parent="."]
+anchors_preset = 5
+anchor_left = 0.0
+anchor_top = 0.0
+anchor_right = 0.0
+anchor_bottom = 0.0
+offset_left = 18.0
+offset_top = 84.0
+offset_right = 360.0
+offset_bottom = 320.0
+mouse_filter = 2
+
+[node name="VBox" type="VBoxContainer" parent="Root"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+theme_override_constants/separation = 2
+mouse_filter = 2
+
+[node name="Title" type="Label" parent="Root/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.86, 0.32, 1)
+theme_override_colors/font_outline_color = Color(0.07, 0.07, 0.08, 1)
+theme_override_constants/outline_size = 3
+theme_override_font_sizes/font_size = 16
+text = "说服进度 0 / 4"
+
+[node name="HSep" type="HSeparator" parent="Root/VBox"]
+layout_mode = 2
+
+[node name="List" type="VBoxContainer" parent="Root/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 1

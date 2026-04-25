@@ -527,7 +527,16 @@ func _apply_tilemap_texture_filter() -> void:
 			node.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 
 
+## 子类覆写：返回 true 表示这是"自由移动 / 实时"关卡，跳过回合系统。
+## 此模式下 _init_turn_system 直接 return，玩家用键盘自由控李春，AP / round / team_turn 等概念全部失效。
+## 关卡仍要在 _on_level_ready 里手动设 _waiting_for_player_input = true 让 _can_accept_command 通过。
+func is_free_roam_level() -> bool:
+	return false
+
+
 func _init_turn_system() -> void:
+	if is_free_roam_level():
+		return
 	# 若未通过 get_teams_config() 创建队伍，则将旧版 player 包装为单队伍
 	if teams.is_empty() and hero:
 		var team := TeamData.new("玩家", "", "player")

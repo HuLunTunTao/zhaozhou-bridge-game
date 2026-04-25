@@ -1,0 +1,7 @@
+[gd_scene format=3 uid="uid://kr2o2tr0vsry"]
+
+[ext_resource type="Script" path="res://scenes/ui/topic_choice_panel.gd" id="1_script"]
+
+[node name="TopicChoicePanel" type="CanvasLayer"]
+layer = 90
+script = ExtResource("1_script")
