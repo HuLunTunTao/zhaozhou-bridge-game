@@ -44,7 +44,7 @@ project/assembly_name="game"
 
 [editor_plugins]
 
-enabled=PackedStringArray("res://addons/godot_test_bridge/plugin.cfg")
+enabled=PackedStringArray("res://addons/godot_test_bridge/plugin.cfg", "res://addons/godot_volcengine_tts/plugin.cfg")
 
 [gui]
 

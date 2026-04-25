@@ -17,6 +17,9 @@ const VoiceMappingScript := preload("res://scripts/tts/voice_mapping.gd")
 var use_system_tts_fallback: bool = true
 
 var _player: VolcengineStreamingVoicePlayer = null
+## 每次 speak() 自增；用于在重入 / cancel 时让旧协程认出"我已经被取代了"，
+## 不要再触发系统 TTS 兜底。
+var _speak_token: int = 0
 
 ## ChatterScheduler 监听这个信号判断本次 chatter 是否说完。
 signal streaming_done
@@ -48,6 +51,8 @@ func _configure_client(client: Node) -> void:
 ## 串行播一句。trigger_kind 决定 emotion / speech_rate 等"上下文适配"。
 ## 调用方先不 await，开对话框时再 await streaming_done 等收尾。
 func speak(unit: Node, text: String, trigger_kind: String = "") -> void:
+	_speak_token += 1
+	var my_token := _speak_token
 	if _player == null:
 		_maybe_speak_via_system_tts(text)
 		streaming_done.emit()
@@ -70,10 +75,21 @@ func speak(unit: Node, text: String, trigger_kind: String = "") -> void:
 
 	var opts := _trigger_to_opts(unit, trigger_kind)
 	var ok: bool = await _player.speak(text, voice, opts)
+	# 旧协程被 cancel() / 重入打断时，不能再走系统 TTS 兜底——否则旧台词会被当成"失败"再读一遍。
+	if my_token != _speak_token:
+		return
 	if not ok:
 		_maybe_speak_via_system_tts(text)
 	# _player 的 speak_finished 已经把 streaming_done emit 了
 
+
+## 主动中断当前正在播放的语音。
+## ChatterScheduler 在"用户跳过 + 还有下一条"时调用：声音立即停，等待 streaming_done 的协程被唤醒。
+func cancel() -> void:
+	_speak_token += 1
+	if _player != null:
+		_player.stop()
+	streaming_done.emit()
 
 
 func is_streaming() -> bool:

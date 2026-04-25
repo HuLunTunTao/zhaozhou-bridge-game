@@ -174,6 +174,7 @@ VolcengineStreamingVoicePlayer extends Node       # 高层壳
 ├── 用法 B：start_streaming(voice, opts)          # 双向 WS
 │         feed_text(chunk) / finish_streaming()
 ├── 用法 C：fetch_audio(text, voice, opts) → PackedByteArray   # HTTP，全字节
+├── stop()                                        # 主动中断（详见"中断与并发"）
 ├── auto_context_chain / reset_context_chain()
 ├── is_speaking() / current_session_id()
 └── 暴露的 client：bidi_client / uni_client / http_client（用于配 api_key）
@@ -219,6 +220,48 @@ TtsOptions (静态工具)
    - `seed-icl-2.0` / `seed-icl-1.0` → 声音复刻
 8. **空文本 vs SSML**：用 SSML 时 `text` 字段火山要求空字符串；SDK 已自动处理。
 9. **HTTP 响应是行式 JSON**：每行一个 `{code, message, data: base64}`，data 字段需 base64 解码后 append 到字节流。SDK 内 `_process_line` 已实现。
+
+## 中断与并发
+
+`VolcengineStreamingVoicePlayer` 不允许两次合成同时跑——这块语义如果不写清楚，使用者
+很容易踩坑（先后两次 `speak()` 静默丢句、`stop` 行为含糊、`speak_finished` 何时触发不清）。
+约定如下：
+
+### 重入即取消
+
+```gdscript
+voice.speak("第一句", v1)         # 不 await
+voice.speak("第二句", v2)         # 立刻覆盖：内部先 stop()，再开新 session
+```
+
+不需要也不应该自己先 `stop()`。第二次 `speak()`/`start_streaming()` 检测到上一次仍在进行
+时，会自动把它中断、开新 session。这样写"我现在要换一句"的代码不会丢字。
+
+被打断的那一次 `await voice.speak(...)` 会**立刻醒来并返回 `false`**——它的 `_last_session_succeeded`
+被 `stop()` 置为 false。返回值正是"被中断 vs 自然完成"的唯一区分点。
+
+### 主动收声
+
+```gdscript
+voice.stop()
+```
+
+调用方意愿性中断。会做：
+
+- 关闭底层 WS（`bidi_client.cancel()` / `uni_client.cancel()`）
+- 停 `AudioStreamPlayer`、清音频块队列
+- 把任何在 `await voice.speak(...)` 上等待的协程唤醒并使其返回 `false`
+
+空闲时调 `stop()` 是 no-op。多次调用安全。
+
+### `speak_finished` 的语义
+
+凡是"声音不再继续"的终结状态都会 emit `speak_finished`：自然播完、`session_failed`、
+被 `stop()` 或重入中断。要区分"完成 vs 失败/中断"，看 `await speak()` 的返回值（true / false）
+或自己用 `current_session_id()` 判断 session 是否被记下。
+
+`session_failed` 信号仍由底层 client 发出（用作日志或外层降级路径），它会触发
+`speak_finished`；而 `stop()` 是调用方意愿，**不**单独发 `session_failed`。
 
 ## 限制
 

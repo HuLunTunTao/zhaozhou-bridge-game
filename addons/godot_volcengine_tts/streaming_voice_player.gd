@@ -49,6 +49,9 @@ var _generator: AudioStreamGenerator = null
 var _playback: AudioStreamGeneratorPlayback = null
 var _last_session_id: String = ""
 var _speaking: bool = false
+## 上一次终结的 session 是否"自然完成"。
+## true = 正常播完；false = 失败 / 被 stop() 中断。speak() 用它决定返回值。
+var _last_session_succeeded: bool = false
 
 
 func _ready() -> void:
@@ -73,11 +76,12 @@ func _ready() -> void:
 # 2. uni 端点对 model 字段较严，部分音色组合会报 "resource ID is mismatched with speaker"
 # 3. bidi 走 start_session→feed_text(全文)→finish_session 与一次性输入语义等价，延迟相当
 
-## 一次性给文本，流式播放。返回 true=正常播完；false=失败（会 emit speak_finished）。
+## 一次性给文本，流式播放。返回 true=自然播完；false=失败或被中断（任一情形都会 emit speak_finished）。
+## **重入即取消**：若上次 speak/start_streaming 仍在进行，会先 stop() 再开新 session。
+## 老的 speak() await 会立刻醒来并以 false 返回（_last_session_succeeded=false）。
 func speak(text: String, voice: String, opts: Dictionary = {}) -> bool:
 	if _speaking:
-		push_warning("[VoicePlayer] 上次 speak 未结束（重入）")
-		return false
+		stop()
 
 	# 自动 section_id 续接
 	var effective_opts := opts.duplicate()
@@ -97,28 +101,29 @@ func speak(text: String, voice: String, opts: Dictionary = {}) -> bool:
 		fmt = "pcm"
 
 	_speaking = true
+	_last_session_succeeded = false
 	_setup_streaming_player(int(effective_opts["sample_rate"]))
 
 	# 走双向：start → feed(全文) → finish。剩余的音频接收 + 播放结束由信号驱动
 	var ok: bool = await bidi_client.start_session(voice, effective_opts)
 	if not ok:
+		_last_session_succeeded = false
 		_speaking = false
 		_player.stop()
 		speak_finished.emit()
 		return false
 	bidi_client.feed_text(text)
 	bidi_client.finish_session()
-	# 等 _on_bidi_session_finished / _on_bidi_session_failed 触发 speak_finished
+	# 等 _on_bidi_session_finished / _on_bidi_session_failed / stop() 触发 speak_finished
 	await speak_finished
-	return true
+	return _last_session_succeeded
 
 
 # ─── 用法 B：真双向（走双向 WS）─────────────────────────────
 
 func start_streaming(voice: String, opts: Dictionary = {}) -> bool:
 	if _speaking:
-		push_warning("[VoicePlayer] 上次合成未结束")
-		return false
+		stop()
 	var effective_opts := opts.duplicate()
 	if auto_context_chain and not _last_session_id.is_empty() and not effective_opts.has("section_id"):
 		effective_opts["section_id"] = _last_session_id
@@ -128,9 +133,11 @@ func start_streaming(voice: String, opts: Dictionary = {}) -> bool:
 		effective_opts["sample_rate"] = sample_rate
 
 	_speaking = true
+	_last_session_succeeded = false
 	_setup_streaming_player(int(effective_opts["sample_rate"]))
 	var ok: bool = await bidi_client.start_session(voice, effective_opts)
 	if not ok:
+		_last_session_succeeded = false
 		_speaking = false
 		speak_finished.emit()
 	return ok
@@ -162,6 +169,29 @@ func reset_context_chain() -> void:
 
 func is_speaking() -> bool:
 	return _speaking
+
+
+## 主动中断当前 speak / start_streaming。把底层 client、播放器、缓冲队列全部拉回静止。
+##
+## 对正在 await speak() 的协程：会 emit `speak_finished` 把它唤醒，但此次 speak() 返回
+## false（`_last_session_succeeded` 被置 false）。这是"被中断"与"自然完成"的唯一区分点。
+##
+## 多次调用安全。空闲时调也无副作用（不会 emit speak_finished）。
+func stop() -> void:
+	var was_speaking := _speaking
+	if bidi_client != null and bidi_client.is_busy():
+		bidi_client.cancel()
+	if uni_client != null and uni_client.is_busy():
+		uni_client.cancel()
+	_chunk_queue.clear()
+	_drain_running = false
+	if _player != null and _player.playing:
+		_player.stop()
+	_playback = null
+	_last_session_succeeded = false
+	_speaking = false
+	if was_speaking:
+		speak_finished.emit()
 
 
 func current_session_id() -> String:
@@ -242,12 +272,17 @@ func _on_bidi_session_finished(sid: String) -> void:
 			break
 		await get_tree().process_frame
 	await _drain_player()
+	# 在上面的 await 期间，外部可能已经调用 stop()——不要把 stop 设的 false 覆盖回 true。
+	if not _speaking:
+		return
+	_last_session_succeeded = true
 	_speaking = false
 	speak_finished.emit()
 
 
 func _on_bidi_session_failed(_reason: String) -> void:
 	_chunk_queue.clear()
+	_last_session_succeeded = false
 	_speaking = false
 	if _player != null and _player.playing:
 		_player.stop()
