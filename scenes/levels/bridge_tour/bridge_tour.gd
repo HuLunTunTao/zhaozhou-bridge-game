@@ -2,21 +2,18 @@ class_name BridgeTourLevel
 extends BaseLevel
 ## 验桥日 · LLM Agent 关卡。
 ##
-## 实时自由移动（脱回合制），玩家控李春走到 NPC 旁边，技能栏点"交互"，曼哈顿 ≤2 内
-## 选目标 → LLM 生成话题三选一 → NPC 用 persona 语气回答 + 给 stance_delta。
-## 累计说服 4 名 NPC（stance ≥ 70）即胜利。
+## 9 个 NPC 三种 role：
+##   persuade（蓝？）：李春自由打字 → LLM 评 stance_delta，stance>=70 视为说服
+##   qa（绿？）：NPC 抛预设问题 → 李春答 → LLM 判 is_correct，对则视为解答
+##   mentor（黄！）：李春从主题菜单选一项 → LLM 用对应史实讲解，topic_key 记入"已学"
 ##
-## 复用 1-4 关地图（继承场景）；清掉所有预置单位；NPC 与李春全部由 _on_level_ready 运行时 spawn。
+## 已学知识注入 persuade / qa 的 prompt context，让 LLM 倾向给"用上知识的回答"更高分。
+## 胜利条件：说服 3/3 + 解答 4/4 全完成。
 
-# ── 玩家起手单位 ──
+# ── 资源 ──
 const _UD_LI_CHUN := preload("res://data/units/hero_li_chun.tres")
 const _UD_NPC_TEMPLATE := preload("res://data/units/craftsman_guard.tres")
 const _SK_INTERACT := preload("res://data/skills/bridge_tour_interact.tres")
-const _HERO_COLOR := Color(1, 0.85, 0, 1)
-## 起手位置（基于 1-4 关地图，桥头入口 — impl 时实测调整）。
-const _HERO_CELL := Vector2i(0, 0)
-
-# ── NPC 视觉资源（按 plan 复用工匠 / 测量工 visual） ──
 const _VISUAL_CRAFTSMAN := preload("res://scenes/unit/visual/human/工匠/工匠_visual.tscn")
 const _VISUAL_SURVEYOR := preload("res://scenes/unit/visual/human/测量工/测量工_visual.tscn")
 
@@ -26,90 +23,110 @@ const _ChatterPromptsScript := preload("res://scripts/llm/chatter_prompts.gd")
 const _LLMClientScript := preload("res://scripts/llm/llm_client.gd")
 const _ChatterVoiceScript := preload("res://scripts/tts/chatter_voice_adapter.gd")
 const _PortraitResolverScript := preload("res://scripts/llm/portrait_resolver.gd")
+const _BridgeKnowledgeScript := preload("res://scripts/data/bridge_knowledge.gd")
 const _ArgumentInputPanelScene := preload("res://scenes/ui/argument_input_panel.tscn")
-const _PersuasionHudScene := preload("res://scenes/levels/bridge_tour/persuasion_hud.tscn")
+const _TopicMenuPanelScene := preload("res://scenes/ui/topic_menu_panel.tscn")
+const _KnowledgePanelScene := preload("res://scenes/ui/knowledge_panel.tscn")
+const _ThinkingOverlayScene := preload("res://scenes/ui/thinking_overlay.tscn")
+const _MissionHudScene := preload("res://scenes/levels/bridge_tour/mission_hud.tscn")
 
-## stance >= 该值 视为已说服。
+# ── 数值常量 ──
+const _HERO_COLOR := Color(1, 0.85, 0, 1)
+const _HERO_CELL := Vector2i(0, 0)
 const STANCE_PERSUADED := 70
-## 胜利所需说服人数。
-const PERSUADE_TARGET := 4
-## 邻接插话概率（每次主对话结束后掷一次）。
+const PERSUADE_TARGET := 3
+const QA_TARGET := 4
 const NEIGHBOR_INTERJECT_PROB := 0.4
-## 邻接插话距离上限（曼哈顿）。
 const NEIGHBOR_INTERJECT_RANGE := 5
-## 李春 AP 设这么大相当于"无限"——配合移动后自动回满，玩家可以一直点格子走。
 const HERO_INFINITE_AP := 99999
 
-## NPC 配置表。impl 时按 1-4 关地图实测微调 cell / waypoints。
-## 字段：
-##   unit_id        : 唯一 id，喂给 voice_mapping / npc_personas
-##   unit_name      : 显示名 + 走 dialogue_box speaker
-##   bridge_part    : 桥部位（注入 prompt）
-##   cell           : 出生格
-##   color          : 染色（区分阵营 / 角色辨识）
-##   visual         : visual scene 资源
-##   stance         : 起手 stance（0–100）
-##   roam_mode      : RoamingAI.Mode
-##   waypoints      : PATROL 模式用，cell 列表
+# ── 头顶图标颜色 ──
+const _ICON_PERSUADE := Color(0.45, 0.7, 1.0)         # 蓝
+const _ICON_QA := Color(0.45, 0.95, 0.55)             # 绿
+const _ICON_MENTOR := Color(1.0, 0.85, 0.32)          # 黄
+const _ICON_DONE := Color(1.0, 0.85, 0.32)            # 完成态金（同 mentor）
+
+
+## NPC 配置表。3 persuade + 4 qa + 2 mentor = 9 人。
 func _get_npc_specs() -> Array[Dictionary]:
 	return [
+		# ─── 说服类（3）───
 		{
-			"unit_id": "bridge_old_master", "unit_name": "老匠首",
+			"unit_id": "bridge_old_master", "unit_name": "老匠首", "role": "persuade",
 			"bridge_part": "主拱", "cell": Vector2i(3, 0),
 			"color": Color(0.55, 0.4, 0.3), "visual": _VISUAL_CRAFTSMAN,
 			"stance": 10, "roam_mode": _RoamingAIScript.Mode.STATIONARY, "waypoints": [],
 		},
 		{
-			"unit_id": "bridge_river_chief", "unit_name": "河工总管",
+			"unit_id": "bridge_river_chief", "unit_name": "河工总管", "role": "persuade",
 			"bridge_part": "桥台", "cell": Vector2i(-3, 1),
 			"color": Color(0.4, 0.55, 0.7), "visual": _VISUAL_CRAFTSMAN,
 			"stance": 40, "roam_mode": _RoamingAIScript.Mode.PATROL,
 			"waypoints": [Vector2i(-3, 1), Vector2i(-3, 3), Vector2i(-5, 3), Vector2i(-5, 1)] as Array[Vector2i],
 		},
 		{
-			"unit_id": "bridge_court_inspector", "unit_name": "朝廷视察官",
+			"unit_id": "bridge_court_inspector", "unit_name": "朝廷视察官", "role": "persuade",
 			"bridge_part": "桥面中心", "cell": Vector2i(1, -2),
 			"color": Color(0.7, 0.55, 0.3), "visual": _VISUAL_CRAFTSMAN,
-			"stance": 40, "roam_mode": _RoamingAIScript.Mode.PATROL,
+			"stance": 30, "roam_mode": _RoamingAIScript.Mode.PATROL,
 			"waypoints": [Vector2i(1, -2), Vector2i(2, -2), Vector2i(2, -1), Vector2i(1, -1)] as Array[Vector2i],
 		},
+		# ─── 解答类（4）───
 		{
-			"unit_id": "bridge_apprentice", "unit_name": "学徒工",
+			"unit_id": "bridge_apprentice", "unit_name": "学徒工", "role": "qa",
 			"bridge_part": "小拱", "cell": Vector2i(-1, 2),
 			"color": Color(0.5, 0.85, 0.6), "visual": _VISUAL_SURVEYOR,
-			"stance": 90, "roam_mode": _RoamingAIScript.Mode.RANDOM_WALK, "waypoints": [],
+			"roam_mode": _RoamingAIScript.Mode.RANDOM_WALK, "waypoints": [],
 		},
 		{
-			"unit_id": "bridge_merchant", "unit_name": "商旅过客",
+			"unit_id": "bridge_merchant", "unit_name": "商旅过客", "role": "qa",
 			"bridge_part": "桥头", "cell": Vector2i(4, 2),
 			"color": Color(0.85, 0.7, 0.4), "visual": _VISUAL_SURVEYOR,
-			"stance": 60, "roam_mode": _RoamingAIScript.Mode.PATROL,
+			"roam_mode": _RoamingAIScript.Mode.PATROL,
 			"waypoints": [Vector2i(4, 2), Vector2i(5, 2), Vector2i(5, 3), Vector2i(4, 3)] as Array[Vector2i],
 		},
 		{
-			"unit_id": "bridge_scholar", "unit_name": "游学书生",
+			"unit_id": "bridge_scholar", "unit_name": "游学书生", "role": "qa",
 			"bridge_part": "望柱栏板", "cell": Vector2i(-4, -1),
 			"color": Color(0.85, 0.85, 0.95), "visual": _VISUAL_SURVEYOR,
-			"stance": 50, "roam_mode": _RoamingAIScript.Mode.RANDOM_WALK, "waypoints": [],
+			"roam_mode": _RoamingAIScript.Mode.RANDOM_WALK, "waypoints": [],
 		},
 		{
-			"unit_id": "bridge_old_overseer", "unit_name": "老监工",
+			"unit_id": "bridge_fisherman", "unit_name": "渔夫", "role": "qa",
+			"bridge_part": "桥下河滩", "cell": Vector2i(0, 4),
+			"color": Color(0.55, 0.7, 0.85), "visual": _VISUAL_SURVEYOR,
+			"roam_mode": _RoamingAIScript.Mode.PATROL,
+			"waypoints": [Vector2i(0, 4), Vector2i(1, 4), Vector2i(1, 5), Vector2i(0, 5)] as Array[Vector2i],
+		},
+		# ─── 求教类（2）───
+		{
+			"unit_id": "bridge_old_overseer", "unit_name": "老监工", "role": "mentor",
 			"bridge_part": "桥头远处", "cell": Vector2i(5, -3),
 			"color": Color(0.65, 0.55, 0.5), "visual": _VISUAL_CRAFTSMAN,
-			"stance": 50, "roam_mode": _RoamingAIScript.Mode.STATIONARY, "waypoints": [],
+			"roam_mode": _RoamingAIScript.Mode.STATIONARY, "waypoints": [],
+			# 老监工偏全局：拱形 / 时代 / 旧制
+			"mentor_topics": ["扁拱与半圆拱有何不同？", "为何在隋代建此奇桥？", "和旧制多孔小拱比，胜在哪？"],
+		},
+		{
+			"unit_id": "bridge_old_stonemason", "unit_name": "老石匠", "role": "mentor",
+			"bridge_part": "石作工棚", "cell": Vector2i(-2, -3),
+			"color": Color(0.7, 0.65, 0.55), "visual": _VISUAL_CRAFTSMAN,
+			"roam_mode": _RoamingAIScript.Mode.STATIONARY, "waypoints": [],
+			# 老石匠偏材料 / 桥券 / 桥台 / 装饰
+			"mentor_topics": ["二十八道券怎么锁住不散？", "本地青石比别处好在哪？", "桥台只埋一丈余怎么扛得住？", "栏板蛟龙也是结构？"],
 		},
 	]
 
-## 在场 NPC 列表（与 _get_npc_specs 对应，但持有 spawn 后的实际 Unit 引用）。
+# ── 状态 ──
 var _npcs: Array[Unit] = []
-## NPC 当前正与玩家对话的目标（RoamingAI 据此暂停）。
 var _interaction_target: Unit = null
-## 懒初始化的 LLM 客户端，复用同一份避免每次新建 HTTP 节点。
 var _llm: Node = null
-## 懒初始化的 chatter voice adapter，给 dialogue_box 当 voice_handle。
 var _voice: Node = null
-## 左上角说服进度面板。类型用 Node 避免 class_name 注册顺序问题。
-var _persuasion_hud: Node = null
+var _mission_hud: Node = null
+## 玩家通过 mentor 学过的知识 key（来自 BridgeKnowledge.TOPICS）。
+var _player_learned_topics: Array[String] = []
+## 玩家在 persuade / qa 中实际"用上了"的知识 key（在 prompt eval 时 LLM 标记的）。
+var _player_used_topics: Array[String] = []
 
 
 func _get_llm() -> Node:
@@ -127,32 +144,27 @@ func _get_voice() -> Node:
 
 
 func get_teams_config() -> Array:
-	# 清掉 1-4 关留下的占位单位（李春 + 工匠 + 测量工）—— 我们自己用 spawn_unit 重起手
 	if has_node("Entities/Units"):
 		for child in $"Entities/Units".get_children():
 			$"Entities/Units".remove_child(child)
 			child.queue_free()
-	# 玩家队 + NPC 队分开，但同 faction"好人"——这样玩家点 NPC 不会把它们当自己人选中
-	# 而 _get_friendly_cells_except / 战斗相关查询仍按 faction 算"友方"，不会误判敌对
 	return [
-		{
-			"name": "玩家",
-			"faction": "好人",
-			"controller": "player",
-			"units": [],
-		},
-		{
-			"name": "桥上众人",
-			"faction": "好人",
-			"controller": "ai",
-			"units": [],
-		},
+		{"name": "玩家", "faction": "好人", "controller": "player", "units": []},
+		{"name": "桥上众人", "faction": "好人", "controller": "ai", "units": []},
 	]
 
 
 func get_objectives_text() -> Dictionary:
-	# 不显示 BRIEFING 面板，直接进 PLAYING（让 base_level._on_initial_briefing_done 立即转 PLAYING）
-	return {"victory": [], "defeat": []}
+	# 进入时显示 BRIEFING——和别的关卡一样
+	return {
+		"victory": [
+			"说服 3 名持疑者支持新桥 — 头顶 [color=#7ab2ff]?[/color] 即可对话",
+			"为 4 名疑问者解答桥梁问题 — 头顶 [color=#73f28c]?[/color] 即可对话",
+			"如果不知道答案，向头顶 [color=#ffd24a]![/color] 的工地长辈求教",
+			"也可以随时打开右上的「桥梁知识」按钮翻阅",
+		],
+		"defeat": [],
+	}
 
 
 func is_free_roam_level() -> bool:
@@ -165,40 +177,34 @@ func get_wave_config() -> Dictionary:
 
 func _on_level_ready() -> void:
 	# 隐藏回合制 UI（自由移动模式不需要）
-	if _turn_label:
-		_turn_label.visible = false
-	if _round_label:
-		_round_label.visible = false
-	if _end_turn_button:
-		_end_turn_button.visible = false
+	if _turn_label: _turn_label.visible = false
+	if _round_label: _round_label.visible = false
+	if _end_turn_button: _end_turn_button.visible = false
 	# 起手 spawn 李春
 	var li_chun := spawn_unit(_UD_LI_CHUN, _HERO_CELL, 0)
 	li_chun.unit_color = _HERO_COLOR
-	# AP 设得极大 + _on_unit_moved 里每次回满 = 无限移动
 	setup_unit_stats(li_chun, "李春", 130, 24, HERO_INFINITE_AP, 6, Enums.Element.NONE, 0, true)
 	hero = li_chun
-	# 李春身上只挂"交互"技能（此关无战斗）
 	set_unit_skills(li_chun, [_SK_INTERACT])
 	# Spawn NPCs
 	for spec in _get_npc_specs():
 		_spawn_npc(spec)
-	# 说服进度 HUD
-	_persuasion_hud = _PersuasionHudScene.instantiate()
-	add_child(_persuasion_hud)
-	_persuasion_hud.set_target(PERSUADE_TARGET)
+	# Mission HUD（左上）
+	_mission_hud = _MissionHudScene.instantiate()
+	add_child(_mission_hud)
+	_mission_hud.set_targets(PERSUADE_TARGET, QA_TARGET)
 	for npc in _npcs:
-		var stance: int = int(npc.get_meta("npc_stance", 50))
-		var persuaded: bool = bool(npc.get_meta("npc_persuaded", false))
-		_persuasion_hud.add_npc(npc.unit_data.unit_name, stance, persuaded)
-	# 自由移动模式不走 _init_turn_system，但 _can_accept_command 仍要 _waiting_for_player_input=true。
-	# 同时 confirm_cell 守卫要求 current_team_index >= 0（line 1427），手动设回 0。
+		var role: String = String(npc.get_meta("npc_role", "persuade"))
+		var done: bool = _npc_done(npc)
+		_mission_hud.add_npc(role, npc.unit_data.unit_name, done)
+	# 顶栏"桥梁知识"按钮
+	_add_knowledge_button()
+	# 自由移动模式不走 _init_turn_system，但 _can_accept_command 仍要 _waiting_for_player_input=true
 	_waiting_for_player_input = true
 	current_team_index = 0
-	# 自动选中李春，让 status_bar 显示"交互"技能按钮
 	_select_hero_silently()
 
 
-## 把 selected_unit 设为 hero，但跳过 _enter_targeting_move（自由移动模式下不需要移动 overlay）。
 func _select_hero_silently() -> void:
 	if hero == null or not (hero is Unit):
 		return
@@ -209,38 +215,112 @@ func _select_hero_silently() -> void:
 	selection_changed.emit(hero)
 
 
-## 工厂：用 craftsman_guard 模板克隆 UnitData 并改 id / name，spawn 后挂 RoamingAI。
-## NPC 自定义状态（stance / bridge_part / discussed_topics）通过 Unit.set_meta 存。
-## 注意 spawn 到 team 1（"桥上众人"），让玩家点击不会把它们当自己人选中。
 func _spawn_npc(spec: Dictionary) -> Unit:
 	var data: UnitData = _UD_NPC_TEMPLATE.duplicate()
 	data.resource_local_to_scene = true
 	data.unit_id = spec["unit_id"]
 	data.unit_name = spec["unit_name"]
-	data.skills = []   # NPC 不参战，清掉模板的技能
+	data.skills = []
 	var unit := spawn_unit(data, spec["cell"], 1, spec["visual"])
 	unit.unit_color = spec["color"]
-	# 自定义 NPC 元数据
-	unit.set_meta("npc_bridge_part", spec["bridge_part"])
-	unit.set_meta("npc_stance", int(spec["stance"]))
+	# NPC 元数据
+	var role: String = String(spec.get("role", "persuade"))
+	unit.set_meta("npc_role", role)
+	unit.set_meta("npc_bridge_part", spec.get("bridge_part", ""))
 	unit.set_meta("npc_discussed_topics", [] as Array[String])
-	unit.set_meta("npc_persuaded", int(spec["stance"]) >= STANCE_PERSUADED)
-	# RoamingAI 节点
+	if role == "persuade":
+		var stance: int = int(spec.get("stance", 50))
+		unit.set_meta("npc_stance", stance)
+		unit.set_meta("npc_persuaded", stance >= STANCE_PERSUADED)
+	elif role == "qa":
+		var persona: Dictionary = _NpcPersonasScript.get_persona(unit.unit_data.unit_id, unit.unit_data.camp)
+		unit.set_meta("npc_qa_question", String(persona.get("qa_question", "我有一事相问，可解么？")))
+		unit.set_meta("npc_qa_solved", false)
+	elif role == "mentor":
+		var topics_raw: Array = spec.get("mentor_topics", [])
+		var topics: Array[String] = []
+		for t in topics_raw:
+			topics.append(String(t))
+		unit.set_meta("npc_mentor_topics", topics)
+	# RoamingAI
 	var ai := _RoamingAIScript.new()
 	ai.name = "RoamingAI"
 	unit.add_child(ai)
 	ai.setup(unit, self, spec["roam_mode"], spec.get("waypoints", []))
 	_npcs.append(unit)
+	# 头顶图标
+	_refresh_npc_icon(unit)
 	return unit
 
 
-## 给 RoamingAI 暂停判定用：返回当前与玩家对话的 NPC（无则 null）。
+## 头顶图标：role + 完成态决定文字 + 颜色。直接借用 UnitHpBar 的 ElemLabel 位。
+func _refresh_npc_icon(unit: Unit) -> void:
+	var role: String = String(unit.get_meta("npc_role", ""))
+	var done: bool = _npc_done(unit)
+	if done and role != "mentor":
+		unit.set_overhead_status_label("✓", _ICON_DONE)
+		return
+	match role:
+		"persuade":
+			unit.set_overhead_status_label("?", _ICON_PERSUADE)
+		"qa":
+			unit.set_overhead_status_label("?", _ICON_QA)
+		"mentor":
+			unit.set_overhead_status_label("!", _ICON_MENTOR)
+		_:
+			unit.set_overhead_status_label("", Color.WHITE)
+
+
+## 该 NPC 是否完成了交互目标（persuade=已说服，qa=已解答；mentor 永不"完成"）。
+func _npc_done(unit: Unit) -> bool:
+	var role: String = String(unit.get_meta("npc_role", ""))
+	match role:
+		"persuade":
+			return bool(unit.get_meta("npc_persuaded", false))
+		"qa":
+			return bool(unit.get_meta("npc_qa_solved", false))
+		_:
+			return false
+
+
 func get_interaction_target() -> Unit:
 	return _interaction_target
 
 
 # ─────────────────────────────────────────────
-# 交互技能：拦截 _confirm_targeting_skill，根据 skill_id 走对话流而非 SkillExecutor
+# 顶栏"桥梁知识"按钮 + 知识面板
+# ─────────────────────────────────────────────
+
+func _add_knowledge_button() -> void:
+	if gui == null:
+		return
+	var btn := Button.new()
+	btn.name = "KnowledgeButton"
+	btn.text = "📖 桥梁知识"
+	btn.add_theme_font_size_override("font_size", 14)
+	btn.anchor_left = 1.0
+	btn.anchor_right = 1.0
+	btn.offset_left = -250
+	btn.offset_top = 75
+	btn.offset_right = -90
+	btn.offset_bottom = 105
+	btn.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	btn.pressed.connect(_open_knowledge_panel)
+	gui.add_child(btn)
+
+
+func _open_knowledge_panel() -> void:
+	if has_overlay():
+		return
+	var panel: Node = _KnowledgePanelScene.instantiate()
+	if not _open_overlay(ActiveOverlay.TUTORIAL_PANEL, panel, &"closed"):
+		panel.queue_free()
+		return
+	panel.set_state(_player_learned_topics, _player_used_topics)
+
+
+# ─────────────────────────────────────────────
+# 交互入口：按 role 分支
 # ─────────────────────────────────────────────
 
 func _confirm_targeting_skill(cell: Vector2i) -> void:
@@ -262,25 +342,19 @@ func _confirm_interact_target(cell: Vector2i) -> void:
 		_select_hero_silently()
 		return
 	_interaction_target = npc
-	# 关掉相机 + 状态机进入 ANIMATING，拦下方向键 / 点击 / 技能等所有"操作世界"的输入
 	_set_world_input_locked(true)
-	await _open_topic_choice(npc)
+	await _dispatch_interaction(npc)
 	_set_world_input_locked(false)
 	_interaction_target = null
-	# 对话完后保持 hero 选中，方便连续交互
 	_input_state = InputState.IDLE
 	_select_hero_silently()
 
 
-## 对话期间锁住"操作世界"的输入：相机方向键、地块点击、技能等。
-## 通过 LevelCamera.input_enabled 关掉相机平移；
-## _input_state 设 ANIMATING 让 _can_accept_command 返回 false 拦截 tile click。
 func _set_world_input_locked(locked: bool) -> void:
 	if camera != null and "input_enabled" in camera:
 		camera.input_enabled = not locked
 	if locked:
 		_input_state = InputState.ANIMATING
-	# 解锁时由调用方自己把 _input_state 调回 IDLE（不在此处覆盖，避免覆盖中间状态）
 
 
 func _find_npc_at_cell(cell: Vector2i) -> Unit:
@@ -290,59 +364,247 @@ func _find_npc_at_cell(cell: Vector2i) -> Unit:
 	return null
 
 
-## 玩家选中 NPC 后的对话主流程：弹文本输入框 → 玩家自由输入论点 → LLM 评分 + 回话。
-func _open_topic_choice(npc: Unit) -> void:
+## 主交互入口——按 NPC role 派发到三种流。
+func _dispatch_interaction(npc: Unit) -> void:
+	var role: String = String(npc.get_meta("npc_role", "persuade"))
+	match role:
+		"persuade":
+			await _flow_persuade(npc)
+		"qa":
+			await _flow_qa(npc)
+		"mentor":
+			await _flow_mentor(npc)
+
+
+# ─────────────────────────────────────────────
+# Flow 1：说服（同旧版，加 learned_csv 注入 + 头顶图标更新）
+# ─────────────────────────────────────────────
+
+func _flow_persuade(npc: Unit) -> void:
+	if _npc_done(npc):
+		# 已说服的不再交互——给个轻提示就走
+		Notify.notify("已说服 %s" % npc.unit_data.unit_name, Notify.Position.TOP_RIGHT, Notify.Style.INFO, 1.5)
+		return
 	var bridge_part: String = String(npc.get_meta("npc_bridge_part", ""))
 	var panel: Node = _ArgumentInputPanelScene.instantiate()
 	add_child(panel)
 	panel.show_for(npc.unit_data.unit_name, bridge_part)
 	var argument: String = await panel.argument_submitted
 	if argument.is_empty():
-		# 取消（ESC / 空文本）—— 直接退出，不计入 stance / discussed
 		return
-	# 把玩家说过的论点写入 NPC memory（同一论点重复说服，LLM 看得到）
 	var discussed: Array = npc.get_meta("npc_discussed_topics", [] as Array[String])
 	discussed.append(argument)
 	npc.set_meta("npc_discussed_topics", discussed)
-	# LLM 评分玩家原话——期间用一个全屏 thinking overlay 拦住所有输入，
-	# 等待 LLM 时不让玩家走来走去。
 	var thinking := _make_thinking_overlay()
 	add_child(thinking)
-	var ans: Dictionary = await _generate_answer(npc, argument)
+	var ans: Dictionary = await _generate_persuade_answer(npc, argument)
 	thinking.queue_free()
-	_apply_npc_answer(npc, ans)
-	# 兜底回话（如"沉吟不语"）不走 TTS——念出来太出戏
+	_apply_persuade_result(npc, ans)
 	var with_voice: bool = not bool(ans.get("is_fallback", false))
 	await _play_npc_line(npc, String(ans.get("reply", "")), with_voice)
-	# 邻接 NPC 偶尔插话
 	await _maybe_neighbor_interject(npc, String(ans.get("reply", "")))
 
 
-## 一个轻量的全屏阻塞层：等 LLM 期间盖在世界上方，吃掉所有点击和键盘事件。
+func _generate_persuade_answer(npc: Unit, topic: String) -> Dictionary:
+	var persona: Dictionary = _NpcPersonasScript.get_persona(npc.unit_data.unit_id, npc.unit_data.camp)
+	var bridge_part: String = String(npc.get_meta("npc_bridge_part", ""))
+	var stance: int = int(npc.get_meta("npc_stance", 50))
+	var sys: String = _ChatterPromptsScript.build_system_prompt(persona, "bridge_topic_answer", _learned_memo(), "{}")
+	var user: String = _ChatterPromptsScript.build_user_prompt(persona, "bridge_topic_answer", {
+		"topic": topic,
+		"bridge_part": bridge_part,
+		"stance": stance,
+	})
+	var resp: Dictionary = await _get_llm().chat_completion([
+		{"role": "system", "content": sys},
+		{"role": "user", "content": user},
+	], {"max_tokens": 220, "temperature": 0.85})
+	if resp.get("ok", false):
+		var parsed := _parse_object_json(String(resp.get("text", "")))
+		if not parsed.is_empty() and parsed.has("reply"):
+			if not parsed.has("stance_delta"): parsed["stance_delta"] = 0
+			if not parsed.has("tone"): parsed["tone"] = ""
+			return parsed
+	return {
+		"reply": "（%s 沉吟不语）" % persona.get("name", npc.unit_data.unit_name),
+		"stance_delta": 0,
+		"tone": "沉默",
+		"is_fallback": true,
+	}
+
+
+func _apply_persuade_result(npc: Unit, ans: Dictionary) -> void:
+	var delta: int = int(ans.get("stance_delta", 0))
+	var old_stance: int = int(npc.get_meta("npc_stance", 50))
+	var new_stance: int = clampi(old_stance + delta, 0, 100)
+	npc.set_meta("npc_stance", new_stance)
+	# LLM 引用过的知识 → 加入 used 集合，知识面板高亮
+	for k in ans.get("knowledge_used", []):
+		var key := String(k)
+		if not key.is_empty() and not _player_used_topics.has(key):
+			_player_used_topics.append(key)
+	var was_persuaded: bool = bool(npc.get_meta("npc_persuaded", false))
+	var now_persuaded: bool = new_stance >= STANCE_PERSUADED
+	if not was_persuaded and now_persuaded:
+		npc.set_meta("npc_persuaded", true)
+		Notify.notify("已说服 %s" % npc.unit_data.unit_name, Notify.Position.TOP_RIGHT, Notify.Style.SUCCESS, 3.0)
+		_refresh_npc_icon(npc)
+		_check_all_done_for_victory()
+	elif delta < 0:
+		Notify.notify("%s 摇头：「此说不通」" % npc.unit_data.unit_name, Notify.Position.TOP_RIGHT, Notify.Style.WARNING, 2.5)
+	if _mission_hud:
+		_mission_hud.update_npc("persuade", npc.unit_data.unit_name, now_persuaded)
+
+
+# ─────────────────────────────────────────────
+# Flow 2：解答（NPC 抛预设问题 → 玩家答 → LLM 判对错）
+# ─────────────────────────────────────────────
+
+func _flow_qa(npc: Unit) -> void:
+	if _npc_done(npc):
+		Notify.notify("%s 的疑问已解" % npc.unit_data.unit_name, Notify.Position.TOP_RIGHT, Notify.Style.INFO, 1.5)
+		return
+	var bridge_part: String = String(npc.get_meta("npc_bridge_part", ""))
+	var question: String = String(npc.get_meta("npc_qa_question", ""))
+	# 先让 NPC 把问题抛给玩家——dialogue_box 显示 + TTS
+	await _play_npc_line(npc, question, true)
+	# 玩家输入答案；副标题用 NPC 名 + 桥部位
+	var panel: Node = _ArgumentInputPanelScene.instantiate()
+	add_child(panel)
+	panel.show_for(npc.unit_data.unit_name, "%s · 「%s」" % [bridge_part, question])
+	var answer: String = await panel.argument_submitted
+	if answer.is_empty():
+		return
+	var thinking := _make_thinking_overlay()
+	add_child(thinking)
+	var eval: Dictionary = await _generate_qa_eval(npc, question, answer)
+	thinking.queue_free()
+	_apply_qa_result(npc, eval)
+	var with_voice: bool = not bool(eval.get("is_fallback", false))
+	await _play_npc_line(npc, String(eval.get("feedback", "")), with_voice)
+	await _maybe_neighbor_interject(npc, String(eval.get("feedback", "")))
+
+
+func _generate_qa_eval(npc: Unit, question: String, answer: String) -> Dictionary:
+	var persona: Dictionary = _NpcPersonasScript.get_persona(npc.unit_data.unit_id, npc.unit_data.camp)
+	var sys: String = _ChatterPromptsScript.build_system_prompt(persona, "bridge_qa_eval", _learned_memo(), "{}")
+	var user: String = _ChatterPromptsScript.build_user_prompt(persona, "bridge_qa_eval", {
+		"question": question,
+		"answer": answer,
+		"learned_csv": _learned_csv(),
+	})
+	var resp: Dictionary = await _get_llm().chat_completion([
+		{"role": "system", "content": sys},
+		{"role": "user", "content": user},
+	], {"max_tokens": 220, "temperature": 0.7})
+	if resp.get("ok", false):
+		var parsed := _parse_object_json(String(resp.get("text", "")))
+		if not parsed.is_empty() and parsed.has("feedback"):
+			if not parsed.has("is_correct"): parsed["is_correct"] = false
+			return parsed
+	return {
+		"is_correct": false,
+		"feedback": "（%s 摇头不语）" % persona.get("name", npc.unit_data.unit_name),
+		"knowledge_used": [],
+		"is_fallback": true,
+	}
+
+
+func _apply_qa_result(npc: Unit, eval: Dictionary) -> void:
+	for k in eval.get("knowledge_used", []):
+		var key := String(k)
+		if not key.is_empty() and not _player_used_topics.has(key):
+			_player_used_topics.append(key)
+	var is_correct: bool = bool(eval.get("is_correct", false))
+	if is_correct and not bool(npc.get_meta("npc_qa_solved", false)):
+		npc.set_meta("npc_qa_solved", true)
+		Notify.notify("已解答 %s 的疑问" % npc.unit_data.unit_name, Notify.Position.TOP_RIGHT, Notify.Style.SUCCESS, 3.0)
+		_refresh_npc_icon(npc)
+		_check_all_done_for_victory()
+	elif not is_correct:
+		Notify.notify("%s 摇头：尚有疑虑" % npc.unit_data.unit_name, Notify.Position.TOP_RIGHT, Notify.Style.WARNING, 2.5)
+	if _mission_hud:
+		_mission_hud.update_npc("qa", npc.unit_data.unit_name, is_correct)
+
+
+# ─────────────────────────────────────────────
+# Flow 3：求教（mentor 给主题菜单 → 玩家选 → LLM 用一条知识讲解）
+# ─────────────────────────────────────────────
+
+func _flow_mentor(npc: Unit) -> void:
+	var topics_raw: Array = npc.get_meta("npc_mentor_topics", [])
+	var topics: Array[String] = []
+	for t in topics_raw:
+		topics.append(String(t))
+	var menu: Node = _TopicMenuPanelScene.instantiate()
+	add_child(menu)
+	menu.show_for(npc.unit_data.unit_name, topics)
+	var pick: String = await menu.topic_picked
+	if pick.is_empty():
+		return
+	var query: String = pick
+	if pick == "__free__":
+		var inp: Node = _ArgumentInputPanelScene.instantiate()
+		add_child(inp)
+		inp.show_for(npc.unit_data.unit_name, "向 %s 自由请教" % npc.unit_data.unit_name)
+		query = await inp.argument_submitted
+		if query.is_empty():
+			return
+	var thinking := _make_thinking_overlay()
+	add_child(thinking)
+	var lesson: Dictionary = await _generate_mentor_lesson(npc, query)
+	thinking.queue_free()
+	_apply_mentor_lesson(npc, lesson)
+	var with_voice: bool = not bool(lesson.get("is_fallback", false))
+	await _play_npc_line(npc, String(lesson.get("reply", "")), with_voice)
+
+
+func _generate_mentor_lesson(npc: Unit, query: String) -> Dictionary:
+	var persona: Dictionary = _NpcPersonasScript.get_persona(npc.unit_data.unit_id, npc.unit_data.camp)
+	var sys: String = _ChatterPromptsScript.build_system_prompt(persona, "bridge_knowledge_explain", _learned_memo(), "{}")
+	var user: String = _ChatterPromptsScript.build_user_prompt(persona, "bridge_knowledge_explain", {
+		"query": query,
+		"topics_csv": _BridgeKnowledgeScript.key_to_title_csv(),
+	})
+	var resp: Dictionary = await _get_llm().chat_completion([
+		{"role": "system", "content": sys},
+		{"role": "user", "content": user},
+	], {"max_tokens": 280, "temperature": 0.7})
+	if resp.get("ok", false):
+		var parsed := _parse_object_json(String(resp.get("text", "")))
+		if not parsed.is_empty() and parsed.has("reply"):
+			return parsed
+	return {
+		"reply": "（%s 摸了摸下巴，没说出口）" % persona.get("name", npc.unit_data.unit_name),
+		"topic_key": "",
+		"is_fallback": true,
+	}
+
+
+func _apply_mentor_lesson(npc: Unit, lesson: Dictionary) -> void:
+	var key: String = String(lesson.get("topic_key", "")).strip_edges()
+	if key.is_empty():
+		return
+	# 要在 BridgeKnowledge 里能找到这个 key 才算"学到"
+	var topic: Dictionary = _BridgeKnowledgeScript.get_topic(key)
+	if topic.is_empty():
+		return
+	if not _player_learned_topics.has(key):
+		_player_learned_topics.append(key)
+		Notify.notify(
+			"向 %s 学到了「%s」" % [npc.unit_data.unit_name, topic.get("title", key)],
+			Notify.Position.TOP_RIGHT, Notify.Style.SUCCESS, 3.5
+		)
+
+
+# ─────────────────────────────────────────────
+# 邻居插话 + 通用工具
+# ─────────────────────────────────────────────
+
 func _make_thinking_overlay() -> CanvasLayer:
-	var c := CanvasLayer.new()
-	c.layer = 95
-	var center := CenterContainer.new()
-	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	center.mouse_filter = Control.MOUSE_FILTER_STOP
-	# 半透明压暗
-	var blocker := ColorRect.new()
-	blocker.color = Color(0, 0, 0, 0.45)
-	blocker.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	blocker.mouse_filter = Control.MOUSE_FILTER_STOP
-	c.add_child(blocker)
-	c.add_child(center)
-	var label := Label.new()
-	label.text = "……（思忖中）……"
-	label.add_theme_font_size_override("font_size", 22)
-	label.add_theme_color_override("font_color", Color(0.96, 0.94, 0.88))
-	label.add_theme_color_override("font_outline_color", Color(0.05, 0.05, 0.06))
-	label.add_theme_constant_override("outline_size", 4)
-	center.add_child(label)
-	return c
+	return _ThinkingOverlayScene.instantiate()
 
 
-## 主对话结束后，按概率挑一个 5 格内的其他 NPC 起一句插嘴。
 func _maybe_neighbor_interject(speaker: Unit, heard: String) -> void:
 	if heard.is_empty():
 		return
@@ -372,11 +634,8 @@ func _pick_neighbor_for_interject(speaker: Unit) -> Unit:
 	return candidates[randi() % candidates.size()]
 
 
-## 让邻居 NPC 用 bridge_neighbor_interject prompt 起一句话。LLM 失败 → 返回空跳过。
 func _generate_neighbor_line(neighbor: Unit, speaker: Unit, heard: String) -> String:
-	var persona: Dictionary = _NpcPersonasScript.get_persona(
-		neighbor.unit_data.unit_id, neighbor.unit_data.camp
-	)
+	var persona: Dictionary = _NpcPersonasScript.get_persona(neighbor.unit_data.unit_id, neighbor.unit_data.camp)
 	var sys: String = _ChatterPromptsScript.build_system_prompt(persona, "bridge_neighbor_interject", "（无）", "{}")
 	var user: String = _ChatterPromptsScript.build_user_prompt(persona, "bridge_neighbor_interject", {
 		"speaker_name": speaker.unit_data.unit_name,
@@ -391,7 +650,6 @@ func _generate_neighbor_line(neighbor: Unit, speaker: Unit, heard: String) -> St
 	return _strip_quotes(String(resp.get("text", ""))).strip_edges()
 
 
-## LLM 偶尔会在台词外面加一对引号 / 中文引号 / 顶格"——"，去掉。
 func _strip_quotes(s: String) -> String:
 	var out := s.strip_edges()
 	while out.length() > 1:
@@ -404,62 +662,6 @@ func _strip_quotes(s: String) -> String:
 	return out
 
 
-## 调 LLM 让 NPC 回答某话题；返回 {reply, stance_delta, tone}。失败返回兜底回话。
-func _generate_answer(npc: Unit, topic: String) -> Dictionary:
-	var persona: Dictionary = _NpcPersonasScript.get_persona(
-		npc.unit_data.unit_id, npc.unit_data.camp
-	)
-	var bridge_part: String = String(npc.get_meta("npc_bridge_part", ""))
-	var stance: int = int(npc.get_meta("npc_stance", 50))
-	var sys: String = _ChatterPromptsScript.build_system_prompt(persona, "bridge_topic_answer", "（无）", "{}")
-	var user: String = _ChatterPromptsScript.build_user_prompt(persona, "bridge_topic_answer", {
-		"topic": topic,
-		"bridge_part": bridge_part,
-		"stance": stance,
-	})
-	var resp: Dictionary = await _get_llm().chat_completion([
-		{"role": "system", "content": sys},
-		{"role": "user", "content": user},
-	], {"max_tokens": 200, "temperature": 0.85})
-	if resp.get("ok", false):
-		var parsed := _parse_answer_json(String(resp.get("text", "")))
-		if not parsed.is_empty():
-			return parsed
-	# Fallback：沉默不语，stance 不变。标记 is_fallback 让上层跳过 TTS（念"沉吟不语"很出戏）
-	return {
-		"reply": "（%s 沉吟不语）" % persona.get("name", npc.unit_data.unit_name),
-		"stance_delta": 0,
-		"tone": "沉默",
-		"is_fallback": true,
-	}
-
-
-## 应用 stance_delta、记录已说服。HUD 更新由 step 8 的 _update_persuasion_hud 接管（暂占位）。
-func _apply_npc_answer(npc: Unit, ans: Dictionary) -> void:
-	var delta: int = int(ans.get("stance_delta", 0))
-	var old_stance: int = int(npc.get_meta("npc_stance", 50))
-	var new_stance: int = clampi(old_stance + delta, 0, 100)
-	npc.set_meta("npc_stance", new_stance)
-	var was_persuaded: bool = bool(npc.get_meta("npc_persuaded", false))
-	var now_persuaded: bool = new_stance >= STANCE_PERSUADED
-	if not was_persuaded and now_persuaded:
-		npc.set_meta("npc_persuaded", true)
-		Notify.notify("已说服 %s" % npc.unit_data.unit_name, Notify.Position.TOP_RIGHT, Notify.Style.SUCCESS, 3.0)
-		# 命中胜利目标：弹横幅 + 走标准结算（complete_level 会切场景回主菜单）
-		if _persuaded_count() >= PERSUADE_TARGET:
-			Notify.notify("桥成在望！你已说服 %d 位" % _persuaded_count(), Notify.Position.TOP_CENTER, Notify.Style.SUCCESS, 5.0)
-			# free-roam 模式不会自动触发 _check_win_lose（无 unit_died / round_started），手动调
-			_check_win_lose.call_deferred()
-	if _persuasion_hud:
-		_persuasion_hud.update_npc(npc.unit_data.unit_name, new_stance, now_persuaded)
-
-
-## 用 dialogue_box + chatter_voice 播一条 NPC 台词。
-## with_voice=false 时不走 TTS（兜底文本如"沉吟不语"用），dialogue_box 仍按文本长度自然 dismiss。
-## 返回 was_skipped：true=玩家手动按键/点击关闭；false=auto_dismiss 自然结束。
-##
-## 关键：玩家手动跳过 + 语音还在流 → 立即 _voice.cancel()。
-## 否则未播完的 TTS 会在下一段 speak() 时被 stop() + 旧 session 的尾巴可能串到新 session 的播放队列里。
 func _play_npc_line(npc: Unit, text: String, with_voice: bool = true) -> bool:
 	if text.is_empty():
 		return false
@@ -472,20 +674,17 @@ func _play_npc_line(npc: Unit, text: String, with_voice: bool = true) -> bool:
 	)
 	var result: Dictionary
 	if with_voice:
-		# 并行启动 TTS（不 await，让 dialogue_box 的 voice_handle 负责等收尾）
 		_get_voice().speak(npc, text, "bridge_topic_answer")
 		result = await play_chatter_lines([line], 2.0, _get_voice())
 	else:
 		result = await play_chatter_lines([line], 2.0)
 	var was_skipped: bool = bool(result.get("was_skipped", false))
-	# 跳过 + 语音还在流 → 立刻断声，避免尾音串到下一段
 	if was_skipped and with_voice and _get_voice().is_streaming():
 		_get_voice().cancel()
 	return was_skipped
 
 
-## 从 LLM 回复中提取 JSON 对象 {reply, stance_delta, tone}。失败返回 {}。
-func _parse_answer_json(text: String) -> Dictionary:
+func _parse_object_json(text: String) -> Dictionary:
 	var s := text.strip_edges()
 	var l := s.find("{")
 	var r := s.rfind("}")
@@ -495,44 +694,69 @@ func _parse_answer_json(text: String) -> Dictionary:
 	var parsed: Variant = JSON.parse_string(json_text)
 	if not (parsed is Dictionary):
 		return {}
-	var d: Dictionary = parsed
-	if not d.has("reply"):
-		return {}
-	# 容错：缺字段补默认
-	if not d.has("stance_delta"):
-		d["stance_delta"] = 0
-	if not d.has("tone"):
-		d["tone"] = ""
-	return d
+	return parsed
 
+
+## 拼"已学知识"渲染给 LLM。空时给"（无）"。
+func _learned_memo() -> String:
+	if _player_learned_topics.is_empty():
+		return "（玩家尚未学过任何桥梁知识）"
+	var titles: Array[String] = []
+	for k in _player_learned_topics:
+		var topic := _BridgeKnowledgeScript.get_topic(k)
+		if not topic.is_empty():
+			titles.append(String(topic.get("title", k)))
+	return "玩家已学知识：" + "、".join(titles)
+
+
+func _learned_csv() -> String:
+	if _player_learned_topics.is_empty():
+		return "（无）"
+	return ", ".join(_player_learned_topics)
+
+
+# ─────────────────────────────────────────────
+# 胜利 / 失败 / 移动
+# ─────────────────────────────────────────────
 
 func check_victory() -> bool:
-	return _persuaded_count() >= PERSUADE_TARGET
+	return _persuaded_count() >= PERSUADE_TARGET and _qa_solved_count() >= QA_TARGET
 
 
 func check_defeat() -> String:
-	return ""   # 永不失败
+	return ""
 
 
 func _persuaded_count() -> int:
 	var n := 0
 	for npc in _npcs:
-		if is_instance_valid(npc) and bool(npc.get_meta("npc_persuaded", false)):
+		if is_instance_valid(npc) and String(npc.get_meta("npc_role", "")) == "persuade" \
+				and bool(npc.get_meta("npc_persuaded", false)):
 			n += 1
 	return n
 
 
-## 移动结束钩子：把李春 AP 回满，等同"无限步数"。
-## 同时把 selected_unit 重选回 hero，让玩家走完一格后还能继续点格子或开技能。
+func _qa_solved_count() -> int:
+	var n := 0
+	for npc in _npcs:
+		if is_instance_valid(npc) and String(npc.get_meta("npc_role", "")) == "qa" \
+				and bool(npc.get_meta("npc_qa_solved", false)):
+			n += 1
+	return n
+
+
+## 任一进度推进后调，达标就显胜利横幅 + complete_level。
+func _check_all_done_for_victory() -> void:
+	if _persuaded_count() >= PERSUADE_TARGET and _qa_solved_count() >= QA_TARGET:
+		Notify.notify(
+			"桥成在望！群众心服口服。",
+			Notify.Position.TOP_CENTER, Notify.Style.SUCCESS, 5.0
+		)
+		_check_win_lose.call_deferred()
+
+
 func _on_unit_moved() -> void:
 	if hero != null and hero is Unit and (hero as Unit).combat_stats != null:
 		var stats: CombatStats = (hero as Unit).combat_stats
 		stats.ap_current = stats.ap_max
 		(hero as Unit).refresh_overhead_bars()
-
-
-# ─────────────────────────────────────────────
-# 自由移动：点击地块 — 复用 base_level 的 click-to-move（无回合制 + AP 无限）。
-# 玩家点李春 → _confirm_idle 选中并进入 TARGETING_MOVE → 点目的地 → 移动。
-# 由 _on_unit_moved 在每次移动后把 AP 顶满，等同无步数限制。
-# ─────────────────────────────────────────────

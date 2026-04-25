@@ -76,6 +76,41 @@ stance_delta 规则：李春论点务实/精彩 → 正数（最多 +15）；冒
 				extra.get("speaker_name", "另一位"),
 				extra.get("heard", ""),
 			]
+		"bridge_qa_eval":
+			return """你刚问了李春：「%s」
+他这样回答你：「%s」
+
+李春此关已学到的桥梁知识（key 列表，可作判分参考）：%s
+
+请以你（%s）的视角判断他的回答是否切中你关心的要点。
+**严格 JSON 输出**（只输出 JSON）：
+{"is_correct": true/false, "feedback": "<一句口吻 reaction，<= 30 字>", "knowledge_used": ["<引用到的 key>", ...]}
+判分标准：
+  - 切中要害（即便用词不一样）→ true，feedback 用你的口吻表示信服
+  - 答非所问 / 完全不懂 → false，feedback 用你的口吻表达困惑或不满
+  - 模棱两可、勉强能扯上 → 倾向 false，feedback 给个台阶让他再说
+knowledge_used 给出他的回答里**确实**用到的 key（没用就给空数组），用于面板高亮。""" % [
+				extra.get("question", "?"),
+				extra.get("answer", "?"),
+				str(extra.get("learned_csv", "（无）")),
+				persona.get("name", "你"),
+			]
+		"bridge_knowledge_explain":
+			return """李春想向你（%s）请教这件事：「%s」
+
+下面是桥梁知识库的全部条目（key 与简介），请你**只挑一条最贴切**的来讲解：
+%s
+
+**严格 JSON 输出**（只输出 JSON）：
+{"reply": "<以你的口吻把这条知识讲给李春听，70 字以内>", "topic_key": "<knowledge.gd 里那条的 key>"}
+要点：
+  - 用你的人设语气讲，不是干巴的教科书
+  - 必须用上知识库里那条 key 的核心内容（数字、史实、要点都可以引）
+  - topic_key 必须是上面列出的 key 之一，不能编造""" % [
+				persona.get("name", "你"),
+				extra.get("query", "?"),
+				str(extra.get("topics_csv", "")),
+			]
 		_:
 			return "随口说一句。"
 
