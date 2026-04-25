@@ -27,6 +27,17 @@ signal clicked
 		unit_color = value
 		_apply_color()
 
+# ── 闲聊（chatter）配置 ────────────────────────────────
+## 每大回合结束时该单位主动开口的概率（与其他触发机制分离）：
+##   0.0 = 完全不参与（仍可被随机抽签捎上，但不会"主动触发"）
+##   1.0 = 每回合必触发（Boss 用）
+##   0.x = 按概率，例如 0.5 约莫两回合一次。
+## 同回合内若已经发声会自动跳过（去重靠 ChatterScheduler._spoke_this_round）。
+@export_range(0.0, 1.0, 0.05) var chatter_round_prob: float = 0.0
+## true：上述触发挑选对话伙伴时不再受 5 格邻接限制，可选全地图任意单位。
+## 仅在 chatter_round_prob>0 触发那一次生效。
+@export var chatter_full_map_range: bool = false
+
 var cell: Vector2i
 var is_moving := false
 ## 由 BaseLevel 在场景就绪后赋值，用于触发地块进入/退出钩子。
