@@ -252,9 +252,10 @@ func _on_pcm_chunk(chunk: PackedByteArray) -> void:
 	_enqueue_chunk(chunk)
 
 
-func _on_bidi_audio_chunk(chunk: PackedByteArray) -> void:
-	# 旧 session 的延迟 chunk 直接丢——_active_bidi_session_id 在 stop() 时清空
-	if _active_bidi_session_id.is_empty():
+func _on_bidi_audio_chunk(sid: String, chunk: PackedByteArray) -> void:
+	# 严格 sid 比对：旧 session 的延迟 chunk（在 cancel 后才到达）即便 _active_bidi_session_id
+	# 已被新 session 覆盖也会被挡掉，避免串台。
+	if _active_bidi_session_id.is_empty() or sid != _active_bidi_session_id:
 		return
 	_enqueue_chunk(chunk)
 

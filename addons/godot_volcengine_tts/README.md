@@ -182,7 +182,7 @@ VolcengineStreamingVoicePlayer extends Node       # 高层壳
 VolcengineTTSBidirectionalClient extends Node     # 端点 1（低层）
 ├── start_session(voice, opts) → bool
 ├── feed_text(chunk) / finish_session()
-├── signal audio_chunk_received(chunk)
+├── signal audio_chunk_received(session_id, chunk)
 ├── signal session_finished(session_id) / session_failed(reason)
 └── @export api_key / base_url / path / resource_id / user_uid / default_model
 

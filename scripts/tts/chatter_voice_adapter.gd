@@ -24,8 +24,17 @@ var _speak_token: int = 0
 ## ChatterScheduler 监听这个信号判断本次 chatter 是否说完。
 signal streaming_done
 
+## 流式通道相关信号（仅 start_stream / feed_stream / finish_stream 路径用）。
+signal stream_started
+signal stream_failed(reason: String)
+
 ## 去括号正则：匹配成对（含不严格成对）的全角 `（）` 与半角 `()`。内层不允许再含括号，靠 _sanitize_for_tts 多轮替换处理嵌套。
 var _bracket_re: RegEx = null
+
+## 流式会话状态。start_stream 成功置 true，finish_stream / cancel 清回 false。
+var _stream_active: bool = false
+## 流式 token：start_stream / cancel 自增，让被打断的协程认出"我已被取代"。
+var _stream_token: int = 0
 
 
 func _build_bracket_re() -> RegEx:
@@ -118,6 +127,8 @@ func speak(unit: Node, text: String, trigger_kind: String = "") -> void:
 ## ChatterScheduler 在"用户跳过 + 还有下一条"时调用：声音立即停，等待 streaming_done 的协程被唤醒。
 func cancel() -> void:
 	_speak_token += 1
+	_stream_token += 1
+	_stream_active = false
 	if _player != null:
 		_player.stop()
 	streaming_done.emit()
@@ -125,6 +136,74 @@ func cancel() -> void:
 
 func is_streaming() -> bool:
 	return _player != null and _player.is_speaking()
+
+
+# ─────────────────────────────────────────────
+# 流式通道（LLM token → TTS bidi 直连）
+# ─────────────────────────────────────────────
+
+## 启动一段双向流式会话。voice 由 unit 经 VoiceMapping 解析。
+## 成功后调用方反复调 feed_stream(chunk) 喂 LLM token，结束时调 finish_stream()。
+## 流式失败**不**走系统 TTS 兜底（OS TTS 不支持流式喂入）；改 emit stream_failed。
+func start_stream(unit: Node, trigger_kind: String = "") -> bool:
+	if not (unit is Unit) or (unit as Unit).unit_data == null:
+		return false
+	var u := unit as Unit
+	var voice_cfg: Dictionary = VoiceMappingScript.get_voice(u.unit_data.unit_id, u.unit_data.camp)
+	var voice: String = voice_cfg.get("voice", "")
+	if voice.is_empty():
+		return false
+	var opts := _trigger_to_opts(unit, trigger_kind)
+	return await start_stream_with_voice(voice, opts)
+
+
+## 直接用 voice id 启动流式（绕过 Unit 查询）。测试场景用这个。
+func start_stream_with_voice(voice: String, opts: Dictionary = {}) -> bool:
+	# 互斥：旧流式或一次性 speak 还在跑就先停
+	if _stream_active or is_streaming():
+		if _player != null:
+			_player.stop()  # 同步 emit speak_finished → streaming_done
+		_stream_active = false
+	_stream_token += 1
+	_speak_token += 1            # 同时让 speak() 协程退出
+	var my_token := _stream_token
+	if _player == null or voice.is_empty():
+		return false
+	if ApiConfig.TTS_API_KEY.is_empty():
+		return false
+	var ok: bool = await _player.start_streaming(voice, opts)
+	# 启动期间被 cancel / 重入：丢弃本次启动结果
+	if my_token != _stream_token:
+		return false
+	if not ok:
+		stream_failed.emit("start_streaming 失败")
+		return false
+	_stream_active = true
+	stream_started.emit()
+	return true
+
+
+## 喂一段文本到当前流式会话。返回是否成功（false 时多半是会话已 cancel / WS 断了）。
+func feed_stream(text_chunk: String) -> bool:
+	if not _stream_active or _player == null:
+		return false
+	var clean := _sanitize_for_tts(text_chunk)
+	if clean.is_empty():
+		return true                # 空字符串当作 noop，不视作失败
+	return _player.feed_text(clean)
+
+
+## 通知服务端文本喂完。剩余音频由 SDK 的 session_finished 信号自然收尾，
+## 最终触发 _player.speak_finished → streaming_done。
+func finish_stream() -> void:
+	if not _stream_active or _player == null:
+		return
+	_stream_active = false
+	_player.finish_streaming()
+
+
+func is_stream_active() -> bool:
+	return _stream_active
 
 
 ## 把 (unit, trigger_kind) 映射到火山的 emotion / speech_rate / loudness_rate。

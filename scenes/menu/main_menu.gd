@@ -157,6 +157,7 @@ const TEST_SCENES: Dictionary = {
 	"化势通知": "res://scenes/test/phase_notify_test.tscn",
 	"TTS": "res://scenes/test/tts_test.tscn",
 	"高级对话": "res://scenes/test/advanced_dialogue_test.tscn",
+	"流式LLM+TTS": "res://scenes/test/llm_tts_streaming_test.tscn",
 }
 
 
