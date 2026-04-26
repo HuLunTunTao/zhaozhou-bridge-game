@@ -252,33 +252,32 @@ func _onboarding_hints() -> void:
 	Notify.notify("开 1/2/3/4 肩 → Boss 伤害上限 1/6/12/∞；全开 Boss -15% 伤", Notify.Position.TOP_CENTER, Notify.Style.INFO, 5.0)
 
 
-# 在 4 个小拱格注册 SmallArchTile 用作状态指示（closed/open/blocked）。
-# 实际状态仍存在 _side_arch_states，这些 tile 只是它的视觉镜像。
+# 在 4 座小拱「2×2 区域」中心生成 TilePulsingMarker 用作状态指示。
+# marker.position 偏移 Vector2(0, -8) 让 marker polygon 正好盖住 2×2 区域
+# （polygon 64×32 = 2 cells 视觉宽 × 2 cells 视觉高）。
+# z_index 走基类默认 1：halo/core/label 浮在地表上但被角色覆盖；Floater(120) 仍抢 top。
 func _setup_arch_tiles() -> void:
 	for arch_key in _side_arch_cells.keys():
-		var tile: SmallArchTile = _make_small_arch_tile()
-		var cell: Vector2i = _side_arch_cells[arch_key]
-		register_special_tile(tile, cell)
-		_arch_tiles[arch_key] = tile
+		var marker := spawn_tile_pulsing_marker(
+			_side_arch_cells[arch_key],
+			SmallArchTile.COLOR_CLOSED,
+			"肩",
+			Vector2(0, -8),
+			"ArchMarker_" + arch_key,
+		) as TilePulsingMarker
+		marker.show_label = true
+		_arch_tiles[arch_key] = marker
 
 
-func _make_small_arch_tile() -> SmallArchTile:
-	var tile := SmallArchTileClass.new() as SmallArchTile
-	var visual := Polygon2D.new()
-	visual.name = "Visual"
-	visual.polygon = PackedVector2Array([0, -24, 24, -12, 0, 0, -24, -12])
-	tile.add_child(visual)
-	var label := Label.new()
-	label.name = "Label"
-	label.text = "肩"
-	label.add_theme_font_override("font", Fonts.PIXEL_10)
-	label.add_theme_font_size_override("font_size", 14)
-	label.add_theme_color_override("font_color", Color(1, 1, 1, 1))
-	label.add_theme_color_override("font_outline_color", Color(0.1, 0.05, 0.0, 1))
-	label.add_theme_constant_override("outline_size", 4)
-	label.position = Vector2(-7, -24)
-	tile.add_child(label)
-	return tile
+# 返回一座小拱占据的 2×2 cells（start + 左 + 上 + 左上）
+func _arch_cells_for(arch_key: String) -> Array[Vector2i]:
+	var start: Vector2i = _side_arch_cells[arch_key]
+	return [
+		start,
+		start + Vector2i(-1, 0),
+		start + Vector2i(0, -1),
+		start + Vector2i(-1, -1),
+	]
 
 
 func _make_silt_tile() -> SiltTile:
@@ -299,12 +298,22 @@ func _make_rapid_edge_tile() -> RapidEdgeTile:
 	return tile
 
 
-# SmallArchTile 状态同步：每次改 _side_arch_states 都走这里。
+# 小拱状态同步：每次改 _side_arch_states 都走这里，更新 marker 视觉。
 func _set_arch_state(arch_key: String, new_state: String) -> void:
 	_side_arch_states[arch_key] = new_state
-	var tile: SmallArchTile = _arch_tiles.get(arch_key)
-	if tile != null:
-		tile.set_state(new_state)
+	var marker: TilePulsingMarker = _arch_tiles.get(arch_key)
+	if marker == null:
+		return
+	match new_state:
+		"open":
+			marker.halo_color = SmallArchTile.COLOR_OPEN
+			marker.label_text = "通"
+		"blocked":
+			marker.halo_color = SmallArchTile.COLOR_BLOCKED
+			marker.label_text = "塞"
+		_:
+			marker.halo_color = SmallArchTile.COLOR_CLOSED
+			marker.label_text = "肩"
 
 
 func _on_stage_round_started(_r: int) -> void:
@@ -339,7 +348,7 @@ func _on_unit_moved() -> void:
 func _on_skill_executed(caster: Unit, skill: SkillData, cast_cell: Vector2i, _exec_result: SkillExecutor.ExecuteResult) -> void:
 	if caster == _li_chun and skill.skill_id == "lc_guide_flood_open_arch":
 		for arch_key in _side_arch_cells.keys():
-			if cast_cell == _side_arch_cells[arch_key]:
+			if cast_cell in _arch_cells_for(arch_key):
 				_open_arch(arch_key, "导汛开肩")
 		return
 
@@ -607,11 +616,15 @@ func _setup_anchor_cells() -> void:
 	_watch_point = _nearest_walkable(anchor + Vector2i(0, -1))
 	_left_pier = _nearest_walkable(anchor + Vector2i(-4, 0))
 	_right_pier = _nearest_walkable(anchor + Vector2i(4, 0))
+	# 4 座小拱：surface z=0 的绝对 cell 坐标，每座是 2×2 区域（start + 左 + 上 + 左上）。
+	# 原始读数在 TileMaps/bridge1（position=Vector2(0,440)）的 cell 系下；surface z=0 在
+	# 原点，两者 tile_set 一致（iso DIAMOND_DOWN, tile_size=32x16），因此换算为
+	# surface_cell = bridge1_cell + Vector2i(27, 27)（local_to_map floor 后的等价偏移）。
 	_side_arch_cells = {
-		"left_front": _nearest_walkable(anchor + _side_arch_config.left_front_offset),
-		"left_back": _nearest_walkable(anchor + _side_arch_config.left_back_offset),
-		"right_front": _nearest_walkable(anchor + _side_arch_config.right_front_offset),
-		"right_back": _nearest_walkable(anchor + _side_arch_config.right_back_offset),
+		"left_back": Vector2i(-16, 15),     # 西侧后肩  (bridge1: -43,-12)
+		"left_front": Vector2i(-13, 11),    # 西侧前肩  (bridge1: -40,-16)
+		"right_front": Vector2i(9, -12),    # 东侧前肩  (bridge1: -18,-39)
+		"right_back": Vector2i(14, -15),    # 东侧后肩  (bridge1: -13,-42)
 	}
 
 
@@ -658,7 +671,7 @@ func _try_open_side_arch(unit: Unit) -> void:
 	if unit != _li_chun and unit not in _stone_carriers:
 		return
 	for arch_key in _side_arch_cells.keys():
-		if not _is_adjacent_or_same(unit.cell, _side_arch_cells[arch_key]):
+		if not _is_adjacent_to_arch(unit.cell, arch_key):
 			continue
 		var cost := 30 if unit == _li_chun else 35
 		if unit.combat_stats.ap_current < cost:
@@ -706,7 +719,7 @@ func _resolve_enemy_pressure() -> void:
 		var u_name: String = enemy.combat_stats.unit_name
 		if u_name == "漂木群·洪水版" or u_name == "泥沙魇":
 			for arch_key in _side_arch_cells.keys():
-				if enemy.cell == _side_arch_cells[arch_key]:
+				if enemy.cell in _arch_cells_for(arch_key):
 					_set_arch_state(arch_key, "blocked")
 		# 泥沙魇「淤行」第二部分：若行动结束不在小拱上，自身格生成淤泥 2 回合
 		if u_name == "泥沙魇" and not _cell_is_small_arch(enemy.cell):
@@ -815,7 +828,14 @@ func _is_adjacent_or_same(a: Vector2i, b: Vector2i) -> bool:
 
 func _cell_is_small_arch(cell: Vector2i) -> bool:
 	for arch_key in _side_arch_cells.keys():
-		if _side_arch_cells[arch_key] == cell:
+		if cell in _arch_cells_for(arch_key):
+			return true
+	return false
+
+
+func _is_adjacent_to_arch(cell: Vector2i, arch_key: String) -> bool:
+	for arch_cell in _arch_cells_for(arch_key):
+		if _is_adjacent_or_same(cell, arch_cell):
 			return true
 	return false
 
