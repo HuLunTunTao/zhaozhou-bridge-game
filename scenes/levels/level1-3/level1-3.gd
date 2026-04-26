@@ -481,20 +481,21 @@ func _shift_load() -> void:
 
 ## 偏载傀「倾压之号」：整关只触发一次的急召。
 ##
-## 当两侧施工都逼近上限（min >= 7）且差值已收拢（<= 1）、但玩家还没合龙，
-## 偏载傀从较高一侧突然召唤 2 名错券兵。错券兵本身带扰券被动——下回合末
-## 会把那一侧 −2，瞬间把玩家从"就差合龙一步"推回"需要先清兵再合龙"的决策点。
+## 当任一侧券值已经 > 8（即 ≥9）、且玩家还没合龙，偏载傀立刻把那一侧 −1（瞬间打断"凑满"
+## 节奏），然后从同一侧召唤 2 名错券兵；下回合末错券兵的扰券被动会再把那侧 −2。
+## 总效果：触发侧瞬时 −1 + 下回合 −2 = −3，玩家从"差一步合龙"被推回需要先清兵再补券。
 ##
-## 这个机制与 _shift_load（每回合温和地 −1）互补：shift_load 是慢性压力，
-## 倾压之号是临门一脚的爆发。触发后 _clutch_fired 置 true，整关不再触发。
+## 与 _shift_load 互补：shift_load 是慢性压力，倾压之号是临门一脚的爆发。
+## 触发后 _clutch_fired 置 true，整关不再触发。
+##
+## 历史上用过 `mini(...) < 9 + gap <= 1` 双闸门——shift_load 持续压高侧导致 min 长期不到 9，
+## clutch 几乎死代码。改为"任一侧 > 8 即触发，不看差值"，让此机制必然出现一次。
 func _maybe_boss_clutch_summon() -> void:
 	if _clutch_fired or _arch_closed:
 		return
 	if _boss == null or _boss.combat_stats == null or not _boss.combat_stats.is_alive():
 		return
-	if mini(_left_arch_value, _right_arch_value) < 9:
-		return
-	if _arch_gap() > 1:
+	if maxi(_left_arch_value, _right_arch_value) <= 8:
 		return
 	# 选定较高一侧；相等则随机
 	var target_left: bool
@@ -504,6 +505,9 @@ func _maybe_boss_clutch_summon() -> void:
 		target_left = false
 	else:
 		target_left = randi() % 2 == 0
+	# 触发瞬间先扣 1：把"凑满"节奏直接打断，再让召唤的错券兵继续扰券
+	_adjust_arch_value(target_left, -1, "倾压之号瞬时扣券")
+	_update_status_panel()
 	var platform: Vector2i = _left_platform if target_left else _right_platform
 	var side_name: String = "左" if target_left else "右"
 	var offsets: Array[Vector2i]
@@ -521,7 +525,7 @@ func _maybe_boss_clutch_summon() -> void:
 		summoned.append(unit)
 	_clutch_fired = true
 	Notify.notify(
-		"偏载傀倾压之号！%s侧突现 2 名错券兵，下回合末将扰券 −2" % side_name,
+		"偏载傀倾压之号！%s侧瞬时 −1 + 突现 2 名错券兵（下回合末再扰券 −2）" % side_name,
 		Notify.Position.TOP_CENTER, Notify.Style.ERROR, 4.0,
 	)
 	if not summoned.is_empty():
