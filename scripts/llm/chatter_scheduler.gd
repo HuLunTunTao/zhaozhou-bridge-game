@@ -10,12 +10,18 @@ extends Node
 ##
 ## 并发策略：单实例 LLMClient 串行。整个 chatter 会话（LLM 请求 + 对话框 + 流式语音）
 ## 由顶层 trigger 入口持有 `_busy`；期间到来的新触发直接丢弃，避免与正在播放的语音抢资源。
+##
+## LLM ↔ TTS 流式：_build_line 走 `voice_adapter.speak_streaming`（LLM SSE 一边出 token、
+## 一边按 MIXED 切分喂给火山 bidi WS），首字音延迟从"全文耗时"压缩到"首 token 延迟"。
+## _speak_line 不再独立 fire `_voice.speak`——TTS 已在 _build_line 中跑完 finish_streaming，
+## 进 dialogue_box 时 audio 还在异步播放，靠 voice_handle=_voice 让对话框等播完。
 
 const NpcPersonasScript := preload("res://scripts/llm/npc_personas.gd")
 const LLMClientScript := preload("res://scripts/llm/llm_client.gd")
 const PortraitResolverScript := preload("res://scripts/llm/portrait_resolver.gd")
 const ChatterVoiceScript := preload("res://scripts/tts/chatter_voice_adapter.gd")
 const ChatterPromptsScript := preload("res://scripts/llm/chatter_prompts.gd")
+const StreamChunkerScript := preload("res://scripts/llm/stream_chunker.gd")
 
 ## 三类触发的概率（0.0–1.0）。调试时可临时拉到 1.0 做强制触发测试。
 # const TRIGGER_PROB_ATTACKED := 0.45
@@ -37,10 +43,9 @@ const DIALOGUE_DISMISS_DELAY := 3.0
 const DIALOGUE_CHARS_PER_SEC := 3.5
 const DIALOGUE_TEXT_BUFFER_SEC := 1.0
 
-## 单条 LLM 请求的超时秒数（比全局 30s 短，避免阻塞过久）。
+## 单条 LLM 请求的超时秒数 —— 流式改造后不再生效（流式靠服务端推送，没有客户端超时拉短逻辑）。
+## 保留常量供未来需要时参考。
 const LLM_TIMEOUT_SEC := 12.0
-## 读不到 LLMClient.timeout_sec 时使用的兜底原值（用于 try/finally 还原）。
-const LLM_FALLBACK_RESTORE_TIMEOUT_SEC := 30.0
 ## 闲聊台词的 LLM 采样参数。
 const LLM_MAX_TOKENS := 80
 const LLM_TEMPERATURE := 0.85
@@ -407,13 +412,13 @@ func _say(unit: Node, trigger_kind: String, extra: Dictionary) -> void:
 
 ## 流式语音 + 对话框并行播放一行。返回 was_skipped（玩家是否手动跳过对话框）。
 ## **不**在内部等语音收尾——caller 自己决定下一步是 _voice.cancel() 还是 _wait_for_voice_end()。
-## trigger_kind 传给 voice adapter 用以做"上下文适配"（emotion / speech_rate）。
-func _speak_line(unit: Node, line: DialogueLine, trigger_kind: String = "") -> bool:
+## 注意：TTS 已在 _build_line 中通过 speak_streaming 启动；本函数只负责打开 dialogue_box，
+## audio 由 voice_handle=_voice 让 dialogue_box 等播完。
+## trigger_kind 参数保留以兼容旧调用方（实际由 _build_line 传给 speak_streaming）。
+func _speak_line(unit: Node, line: DialogueLine, _trigger_kind: String = "") -> bool:
 	# 记录"本回合已发声"——避免随机触发与固定触发在同一单位上重复
 	if unit != null and not _spoke_this_round.has(unit):
 		_spoke_this_round.append(unit)
-	# 并行启动流式语音（不 await — 协程在第一个 await 后让出）
-	_voice.speak(unit, line.text, trigger_kind)
 	if _level == null or not _level.has_method("play_chatter_lines"):
 		return false
 	var lines: Array[DialogueLine] = [line]
@@ -428,8 +433,9 @@ func _wait_for_voice_end() -> void:
 		await _voice.streaming_done
 
 
-## 调 LLM 生成一条台词并组装成 DialogueLine（不带 audio_stream，配音由 ChatterVoice 单独走）。
-## LLM 失败 → 跳过本次 chatter（不用 fallback_lines，那是"老监工"语气，套到别的角色会严重出戏）。
+## 调 LLM 流式生成 + TTS 流式播放并行进行，组装 DialogueLine。
+## 返回时 LLM 已完成、TTS 已 finish_streaming（audio 还在异步播放，dialogue_box 会等播完）。
+## LLM 失败 → 跳过本次 chatter（不用 fallback_lines，那是"老监工"语气，套到别的角色严重出戏）。
 ## 被 _say / _do_adjacent_chat 共用。**调用方负责 _busy 锁**（外层 trigger 入口已设）。
 func _build_line(unit: Node, trigger_kind: String, extra: Dictionary) -> DialogueLine:
 	if unit == null or not (unit is Unit) or not _is_alive(unit):
@@ -443,25 +449,24 @@ func _build_line(unit: Node, trigger_kind: String, extra: Dictionary) -> Dialogu
 	var system_msg := ChatterPromptsScript.build_system_prompt(persona, trigger_kind, memory_text, context_json)
 	var user_msg := ChatterPromptsScript.build_user_prompt(persona, trigger_kind, extra)
 
-	# 临时把 LLMClient 超时调短
-	var prev_timeout: float = _llm.timeout_sec if "timeout_sec" in _llm else LLM_FALLBACK_RESTORE_TIMEOUT_SEC
-	if "timeout_sec" in _llm:
-		_llm.timeout_sec = LLM_TIMEOUT_SEC
-
-	var resp: Dictionary = await _llm.chat_completion(
+	# 流式：LLM SSE 一边返回 token、一边按 MIXED 策略 feed 给 TTS bidi。
+	# 首字音延迟 ≈ LLM 首 token 延迟（~0.5s），不再等全文（~3-5s）。
+	var resp: Dictionary = await _voice.speak_streaming(
+		unit,
+		_llm,
 		[
 			{"role": "system", "content": system_msg},
 			{"role": "user", "content": user_msg},
 		],
-		{"max_tokens": LLM_MAX_TOKENS, "temperature": LLM_TEMPERATURE}
+		{"max_tokens": LLM_MAX_TOKENS, "temperature": LLM_TEMPERATURE},
+		StreamChunkerScript.Mode.MIXED,
+		trigger_kind,
 	)
-	if "timeout_sec" in _llm:
-		_llm.timeout_sec = prev_timeout
 
-	if not resp.ok:
-		push_warning("[Chatter] LLM 失败 code=%s error=%s，跳过本次闲聊" % [resp.get("code", 0), resp.get("error", "")])
+	if not resp.get("ok", false):
+		push_warning("[Chatter] LLM 流式失败 error=%s，跳过本次闲聊" % resp.get("error", ""))
 		return null
-	var text: String = String(resp.text).strip_edges()
+	var text: String = String(resp.get("full_text", "")).strip_edges()
 	if text.is_empty():
 		return null
 
