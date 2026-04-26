@@ -511,32 +511,6 @@ func _build_fallback_line(u: Unit, persona: Dictionary, trigger_kind: String, ex
 		PortraitResolverScript.get_portrait_bg(u)
 	)
 
-
-## LLM 失败时的兜底文本路径：拿 PersonaFallback 多变体 + 用 _voice.speak() 一次性 TTS 播放
-## （走 chatter_voice_adapter 的 火山 → pre-baked MP3 → OS TTS 三级降级）。
-## 返回 null 表示"连兜底文本都没有，本轮静默跳过"（neighbor trigger 默认空）。
-func _build_fallback_line(u: Unit, persona: Dictionary, trigger_kind: String, extra: Dictionary) -> DialogueLine:
-	var text: String = PersonaFallbackScript.pick(persona, trigger_kind).strip_edges()
-	if text.is_empty():
-		return null
-	# 触发一次性 TTS（speak_streaming 已失败，转 speak() 走兜底链）
-	_voice.speak(u, text, trigger_kind)
-	# 记忆里也记一笔，避免下次 prompt 看不到这次发声
-	_append_memory(u, {
-		"round": extra.get("round", -1),
-		"trigger": trigger_kind,
-		"text": text,
-		"is_fallback": true,
-	})
-	return DialogueLine.create(
-		persona.get("name", u.unit_data.unit_name),
-		text,
-		_get_portrait(u),
-		_side_for_unit(u),
-		PortraitResolverScript.get_portrait_bg(u)
-	)
-
-
 ## 给 play_chatter_lines 估算合理的 dismiss_delay。
 ## - 有 audio_stream：返回 base，dialogue_box 内会再用音频时长进一步拉长
 ## - 无 audio_stream（含系统 TTS 兜底）：按文本长度估时（中文约 3.5 字/秒 + 1s 缓冲）
