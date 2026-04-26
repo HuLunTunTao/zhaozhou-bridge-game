@@ -29,6 +29,7 @@ Progress="*res://scripts/progress.gd"
 BgmManager="*res://scripts/audio/bgm_manager.gd"
 SfxManager="*res://scripts/audio/sfx_manager.gd"
 UiSounds="*res://scripts/audio/ui_sounds.gd"
+TtsFallbackIndex="*res://scripts/tts/tts_fallback_index.gd"
 
 [display]
 
