@@ -27,60 +27,15 @@ const VoiceMappingScript := preload("res://scripts/tts/voice_mapping.gd")
 const NpcPersonasScript := preload("res://scripts/llm/npc_personas.gd")
 const LLMClientScript := preload("res://scripts/llm/llm_client.gd")
 const ChatterVoiceAdapterScript := preload("res://scripts/tts/chatter_voice_adapter.gd")
+const StreamChunkerScript := preload("res://scripts/llm/stream_chunker.gd")
 
 const PUNCT_CHARS := "，。？！；：、,.?!;:\n"
 const FIXED_LEN := 30
 
 
-## 三种切分策略的累积器。push() 进 token，returns 应该立刻 flush 出去的 chunks 数组。
-## 内部类无法访问外部常量，所以 PUNCT/FIXED_LEN 在这里再声明一遍。
-class ChunkBuffer:
-	const PUNCT := "，。？！；：、,.?!;:\n"
-	const FIXED_LEN := 30
-	## 标点模式的兜底：累积超过此阈值仍未遇标点 → 强制 flush，避免退化成"全文一次性合成"。
-	const PUNCT_SOFT_LIMIT := 50
-	var mode: int = 0
-	var buf: String = ""
-
-	func push(s: String) -> Array:
-		var out: Array = []
-		for i in s.length():
-			var c := s.substr(i, 1)
-			buf += c
-			if _should_flush():
-				out.append(buf)
-				buf = ""
-		return out
-
-	func _should_flush() -> bool:
-		if buf.is_empty():
-			return false
-		var last := buf.substr(buf.length() - 1, 1)
-		match mode:
-			0:
-				if _is_punct(last):
-					return true
-				return buf.length() >= PUNCT_SOFT_LIMIT
-			1:
-				return buf.length() >= FIXED_LEN
-			2:
-				if buf.length() >= FIXED_LEN:
-					return true
-				return _is_punct(last)
-		return false
-
-	func _is_punct(c: String) -> bool:
-		return PUNCT.contains(c)
-
-	func flush_remaining() -> String:
-		var r := buf
-		buf = ""
-		return r
-
-
 var _llm: LLMClient = null
 var _voice: Node = null
-var _chunker: ChunkBuffer = null
+var _chunker = null     # StreamChunker 实例（避免类型标注，class_name 注册时序问题）
 var _running: bool = false
 var _t0_msec: int = 0
 var _first_chunk_msec: int = 0
@@ -178,8 +133,7 @@ func _on_start_pressed() -> void:
 	_t0_msec = Time.get_ticks_msec()
 	_first_chunk_msec = 0
 	_first_feed_msec = 0
-	_chunker = ChunkBuffer.new()
-	_chunker.mode = chunk_option.selected
+	_chunker = StreamChunkerScript.new(chunk_option.selected)
 	_running = true
 
 	# 1) 先开 TTS 流（如果启用），再发 LLM 请求——首 token 来了立刻能 feed
@@ -240,7 +194,7 @@ func _on_llm_finished(_full: String, ok: bool, err: String) -> void:
 	# 把残余 buffer flush 出去再 finish 流式
 	var had_tail := false
 	if _chunker != null:
-		var tail := _chunker.flush_remaining()
+		var tail: String = _chunker.flush_remaining()
 		if not tail.is_empty():
 			_log_feed(tail, true)
 			if _voice.is_stream_active():

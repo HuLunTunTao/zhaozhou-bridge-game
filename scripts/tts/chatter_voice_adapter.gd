@@ -206,6 +206,93 @@ func is_stream_active() -> bool:
 	return _stream_active
 
 
+# ─────────────────────────────────────────────
+# 高层封装：LLM 流式 → 混合切分 → TTS 流式 一体化
+# ─────────────────────────────────────────────
+
+const StreamChunkerScript := preload("res://scripts/llm/stream_chunker.gd")
+
+## 一次完成 LLM 流式 → 切分 → TTS 流式播放，并把每个 LLM token chunk 通过 on_token 回调转发给 caller（用于同步刷字幕）。
+##
+## - llm_client: LLMClient 实例（由 caller 持有/管理生命周期，本函数只调它的 stream_chat_completion）
+## - messages: OpenAI Chat Completions 风格 messages
+## - llm_opts: temperature / max_tokens 等（透传到 stream_chat_completion）
+## - chunk_mode: StreamChunker.Mode.MIXED（默认）/ PUNCT / FIXED
+## - on_token: 可选回调 func(text: String)，每次收到 LLM chunk 时调一次（用于刷 dialogue_box 字幕）
+##
+## 返回：{"ok": bool, "full_text": String, "error": String}
+##
+## 行为：
+##   - LLM 启动失败 → ok=false，TTS 不开（如果已开会被 cancel）
+##   - TTS 启动失败 → ok=true（继续吐文字），stream_failed 信号已 emit；尾段不再 feed
+##   - LLM 中途失败 → ok=false 但 full_text 含部分内容；TTS 已 feed 的部分会自然播完
+##
+## 不调 cancel()——caller 想中途停就自己调 voice_adapter.cancel() + llm_client.abort_stream()。
+func speak_streaming(
+		unit: Node,
+		llm_client: LLMClient,
+		messages: Array,
+		llm_opts: Dictionary = {},
+		chunk_mode: int = StreamChunkerScript.Mode.MIXED,
+		trigger_kind: String = "",
+		on_token: Callable = Callable(),
+	) -> Dictionary:
+	if llm_client == null:
+		return {"ok": false, "full_text": "", "error": "llm_client 为空"}
+	if messages.is_empty():
+		return {"ok": false, "full_text": "", "error": "messages 为空"}
+
+	var chunker = StreamChunkerScript.new(chunk_mode)
+	var has_tts: bool = await start_stream(unit, trigger_kind)
+
+	var done := [false]
+	var ok_state := [true]
+	var err_state := [""]
+	var full_text := [""]
+
+	var on_chunk := func(text: String) -> void:
+		full_text[0] += text
+		if on_token.is_valid():
+			on_token.call(text)
+		if has_tts and _stream_active:
+			for c in chunker.push(text):
+				feed_stream(c)
+
+	var on_finished := func(_full_unused: String, ok: bool, err: String) -> void:
+		ok_state[0] = ok
+		err_state[0] = err
+		# 残余冲掉
+		var tail: String = chunker.flush_remaining()
+		if not tail.is_empty() and has_tts and _stream_active:
+			feed_stream(tail)
+		if has_tts and _stream_active:
+			finish_stream()
+		done[0] = true
+
+	llm_client.stream_chunk_received.connect(on_chunk)
+	llm_client.stream_finished.connect(on_finished, CONNECT_ONE_SHOT)
+	var started: bool = llm_client.stream_chat_completion(messages, llm_opts)
+	if not started:
+		if llm_client.stream_chunk_received.is_connected(on_chunk):
+			llm_client.stream_chunk_received.disconnect(on_chunk)
+		if llm_client.stream_finished.is_connected(on_finished):
+			llm_client.stream_finished.disconnect(on_finished)
+		if has_tts:
+			cancel()
+		return {"ok": false, "full_text": "", "error": "stream_chat_completion 启动失败"}
+
+	# 等 stream_finished 回调把 done 翻成 true。get_tree() 拿不到时退化成单帧 await。
+	while not done[0]:
+		var tree := get_tree()
+		if tree == null:
+			break
+		await tree.process_frame
+	if llm_client.stream_chunk_received.is_connected(on_chunk):
+		llm_client.stream_chunk_received.disconnect(on_chunk)
+
+	return {"ok": ok_state[0], "full_text": full_text[0], "error": err_state[0]}
+
+
 ## 把 (unit, trigger_kind) 映射到火山的 emotion / speech_rate / loudness_rate。
 ## 这层逻辑是**游戏特化**的，不属于 SDK。
 func _trigger_to_opts(unit: Node, trigger_kind: String) -> Dictionary:
