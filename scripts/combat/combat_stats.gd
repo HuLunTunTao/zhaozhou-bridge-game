@@ -134,6 +134,8 @@ func reset_turn_counters() -> void:
 func can_move() -> bool:
 	if ap_current < move_cost_per_tile:
 		return false
+	if not is_hero and camp == Enums.Camp.ALLY:
+		return true
 	return move_limit < 0 or moves_used < move_limit
 
 
