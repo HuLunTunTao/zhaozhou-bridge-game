@@ -585,7 +585,7 @@ func _random_enemy_spawn_cell() -> Vector2i:
 
 
 func _spawn_enemy(base: UnitData, uname: String, hp: int, atk: int, ap: int, move_cost: int, cell: Vector2i, skills: Array[SkillData], visual: PackedScene = null, element: Enums.Element = Enums.Element.NONE, element_amount: int = 0) -> Unit:
-	var unit := spawn_unit(base, _nearest_walkable(cell), ENEMY_TEAM, visual)
+	var unit := spawn_unit(base, _find_empty_walkable_cell(cell), ENEMY_TEAM, visual)
 	set_unit_skills(unit, skills)
 	setup_unit_stats(unit, uname, hp, atk, ap, move_cost, element, element_amount)
 	return unit

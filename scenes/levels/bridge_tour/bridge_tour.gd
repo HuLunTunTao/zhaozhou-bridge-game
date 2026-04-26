@@ -171,6 +171,27 @@ func is_free_roam_level() -> bool:
 	return true
 
 
+## 移动占位守卫：自由移动模式下，玩家点击的目标格在"NPC 边漫游边变格"过程中
+## 可能从空变占。range overlay 是 show_range_ap 时刻的快照，无法实时刷新。
+## 此处在 confirm 路径加最后一道闸：占用就拒绝并提示，不让李春叠到 NPC 头上。
+## TARGETING_SKILL（交互 NPC）不在此守卫范围——那条路径就是要点 NPC 的格。
+func confirm_cell(cell: Vector2i) -> void:
+	if _input_state == InputState.IDLE or _input_state == InputState.UNIT_SELECTED:
+		if _is_cell_occupied_by_other(cell, hero):
+			Notify.notify("目标格已被占用", Notify.Position.TOP_RIGHT, Notify.Style.WARNING, 1.5)
+			return
+	super.confirm_cell(cell)
+
+
+func _is_cell_occupied_by_other(cell: Vector2i, exclude: Node) -> bool:
+	for unit in _get_all_units():
+		if unit == exclude:
+			continue
+		if is_instance_valid(unit) and unit is Unit and (unit as Unit).cell == cell:
+			return true
+	return false
+
+
 func get_wave_config() -> Dictionary:
 	return {}
 
