@@ -14,6 +14,6 @@ attach_amount = 0
 extra_effect_id = "stage_open_arch"
 duration_turns = 0
 cooldown_turns = 0
-description = "第四关机制技，快速启肩泄洪并为桥面争取稳定"
+description = "启动小拱泄洪，为桥面稳定值争取喘息（第四关专用）。"
 cast_offsets = Array[Vector2i]([Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1), Vector2i(2, 0), Vector2i(-2, 0), Vector2i(0, 2), Vector2i(0, -2), Vector2i(1, 1), Vector2i(1, -1), Vector2i(-1, 1), Vector2i(-1, -1), Vector2i(3, 0), Vector2i(-3, 0), Vector2i(0, 3), Vector2i(0, -3)])
 effect_offsets = Array[Vector2i]([Vector2i(0, 0)])

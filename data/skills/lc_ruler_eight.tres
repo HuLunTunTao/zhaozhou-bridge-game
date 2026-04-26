@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="SkillData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/skill_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+skill_id = "lc_ruler_eight"
+skill_name = "围尺八方"
+skill_type = 0
+ap_cost = 35
+damage_ratio = 0.95
+damage_element = 1
+attach_amount = 2
+extra_effect_id = "ring_per_hit_scale"
+duration_turns = 0
+cooldown_turns = 0
+description = "对自身周围 8 格中的敌人同时挥尺扫击；每命中 1 人整体伤害再提 10%（最高加成 40%）。"
+cast_offsets = Array[Vector2i]([Vector2i(0, 0)])
+effect_offsets = Array[Vector2i]([Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1), Vector2i(1, 1), Vector2i(1, -1), Vector2i(-1, 1), Vector2i(-1, -1)])

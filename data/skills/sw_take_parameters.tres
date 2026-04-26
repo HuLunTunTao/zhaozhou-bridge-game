@@ -9,4 +9,4 @@ skill_name = "测尺取参"
 skill_type = 2
 ap_cost = 40
 extra_effect_id = "take_parameter"
-description = "站在参数点上施放，对该参数点完成取参"
+description = "站到参数点上施放，对该参数点完成取参。"

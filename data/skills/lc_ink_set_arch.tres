@@ -9,5 +9,5 @@ skill_name = "执墨定拱"
 skill_type = 2
 ap_cost = 35
 extra_effect_id = "ink_set_arch"
-description = "完成全部参数点后，李春在绘样台上执墨定拱"
+description = "全部参数点确认后，于绘样台上执墨定拱，完成本关任务。"
 cast_offsets = Array[Vector2i]([Vector2i(0, 0)])

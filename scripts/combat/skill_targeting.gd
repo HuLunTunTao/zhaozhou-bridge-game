@@ -67,7 +67,7 @@ func update_hover(cell: Vector2i) -> void:
 			if _target_set.has(ec):
 				_hover_has_target = true
 		# 穿刺直线：hover 预览同样展示从施法者到 cast_cell 的中间格
-		if _skill.extra_effect_id == "line_piercing":
+		if _skill.is_line_piercing or _skill.extra_effect_id == "line_piercing":
 			for line_cell in SkillExecutor.get_line_piercing_cells(_caster_cell, cell):
 				_effect_cells.append(line_cell)
 				if _target_set.has(line_cell):

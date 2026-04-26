@@ -14,6 +14,6 @@ attach_amount = 0
 extra_effect_id = "stage_special_overturn"
 duration_turns = 1
 cooldown_turns = 0
-description = "Boss 全局技能：对较低稳定桥台 -1；若开启小拱 <=1 则整桥 -1；在一条桥面边缘线生成激流压区 1 回合。具体效果由关卡脚本处理，本资源仅作为挂载点。"
+description = "Boss 全局技：稳定较低的桥台 −1；若开启的小拱不超过 1 个，整桥稳定再 −1；并在桥面边缘生成激流压区 1 回合。"
 cast_offsets = Array[Vector2i]([Vector2i(0, 0)])
 effect_offsets = Array[Vector2i]([Vector2i(0, 0)])

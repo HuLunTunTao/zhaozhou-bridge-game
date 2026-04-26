@@ -653,46 +653,7 @@ func _cell_occupied(cell: Vector2i) -> bool:
 # ─────────────────────────────────────────────
 
 func get_post_level_growth_options() -> Array[Dictionary]:
-	return [
-		{"id": "growth_drawing_discipline", "name": "墨绳习算", "description": "李春基础攻击力 +4，分规定弧伤害倍率 +0.05"},
-		{"id": "growth_center_hold", "name": "护模齐作", "description": "全体工匠最大生命值 +10，基础攻击力 +2"},
-		{"id": "growth_arch_refine", "name": "参校定弧", "description": "李春获得新技能绳准锁弧"},
-		{"id": "growth_quick_measure", "name": "熟尺知度", "description": "测尺取参 AP -10，相水定址 AP -5，李春行动力上限 +5"},
-	]
+	return Progress.get_level_growth_options("关卡1-2")
 
 
-func _apply_persistent_growth_effects() -> void:
-	# 第一关成长继承
-	if Progress.has_growth_option("growth_training_mobilize"):
-		for unit in get_friendly_units():
-			apply_unit_growth_bonus(unit, 10, 0, 5)
-	if Progress.has_growth_option("growth_maps_measures"):
-		var hero_unit := get_hero_unit()
-		if hero_unit:
-			apply_unit_growth_bonus(hero_unit, 0, 4, 0)
-			modify_unit_skill(hero_unit, "lc_rule_strike", {"damage_ratio": 1.05})
-	if Progress.has_growth_option("growth_stone_reinforce"):
-		for craftsman in _craftsmen:
-			modify_unit_skill(craftsman, "cg_guard_the_works", {"duration_turns": 3})
-
-	# 第二关成长（若玩家已完本关，二周目继承）
-	if Progress.has_growth_option("growth_drawing_discipline"):
-		var hero_unit := get_hero_unit()
-		if hero_unit:
-			apply_unit_growth_bonus(hero_unit, 0, 4, 0)
-			modify_unit_skill(hero_unit, "lc_divider_mark_arc", {"damage_ratio": 0.95})
-	if Progress.has_growth_option("growth_center_hold"):
-		for craftsman in _craftsmen:
-			apply_unit_growth_bonus(craftsman, 10, 2, 0)
-	if Progress.has_growth_option("growth_arch_refine"):
-		var hero_unit := get_hero_unit()
-		if hero_unit:
-			var replace_candidates: Array[String] = ["lc_rule_strike", "lc_wedge_bank_probe"]
-			add_skill_to_unit(hero_unit, _line_lock_arc, replace_candidates)
-	if Progress.has_growth_option("growth_quick_measure"):
-		for sw in _survey_workers:
-			modify_unit_skill(sw, "sw_take_parameters", {"ap_cost": 30})
-		var hero_unit := get_hero_unit()
-		if hero_unit:
-			modify_unit_skill(hero_unit, "lc_read_water_fix_site", {"ap_cost": 25})
-			apply_unit_growth_bonus(hero_unit, 0, 0, 5)
+# 持久成长选项的应用逻辑统一在 base_level._apply_persistent_growth_effects 中处理。

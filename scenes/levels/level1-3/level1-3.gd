@@ -392,7 +392,7 @@ func _setup_allies_from_scene() -> void:
 		_carrier_base_move_cost[carrier.get_instance_id()] = carrier.combat_stats.move_cost_per_tile
 	_apply_persistent_growth_effects()
 	# 墨绳校券改为无 CD 的「左右调拨」式机制（命中侧 +1 / 对侧 -1），
-	# 必须在 growth 之后强制覆盖，否则 growth_balance_method 会把 CD 拉回 1。
+	# 在所有成长应用之后强制覆盖一次以确保 CD=0（防止以后再加成长项时被改回）。
 	modify_unit_skill(_li_chun, "lc_inkline_balance_arch", {"cooldown_turns": 0})
 
 
@@ -717,41 +717,10 @@ func _is_in_any_zone(cell: Vector2i, anchors: Array[Vector2i]) -> bool:
 
 
 func get_post_level_growth_options() -> Array[Dictionary]:
-	return [
-		{"id": "growth_balance_method", "name": "校券有法", "description": "墨绳校券冷却 -1，李春行动力上限 +5"},
-		{"id": "growth_joint_finish", "name": "收缝习熟", "description": "收缝合龙消耗 -10，李春基础攻击力 +4"},
-		{"id": "growth_link_arch", "name": "连楔并拱", "description": "李春获得连楔并拱，可替换规尺击或木楔勘岸"},
-		{"id": "growth_team_hold", "name": "立券同力", "description": "全体工匠最大生命值 +10，全体运石工行动力上限 +5"},
-	]
+	return Progress.get_level_growth_options("关卡1-3")
 
 
-func _apply_persistent_growth_effects() -> void:
-	if Progress.has_growth_option("growth_training_mobilize"):
-		for unit in get_friendly_units():
-			apply_unit_growth_bonus(unit, 10, 0, 5)
-	if Progress.has_growth_option("growth_maps_measures"):
-		apply_unit_growth_bonus(get_hero_unit(), 0, 4, 0)
-		modify_unit_skill(get_hero_unit(), "lc_rule_strike", {"damage_ratio": 1.05})
-	if Progress.has_growth_option("growth_stone_reinforce"):
-		for craftsman in _craftsmen:
-			modify_unit_skill(craftsman, "cg_guard_the_works", {"duration_turns": 3})
-	if Progress.has_growth_option("growth_drawing_discipline"):
-		apply_unit_growth_bonus(get_hero_unit(), 0, 4, 0)
-		modify_unit_skill(get_hero_unit(), "lc_divider_mark_arc", {"damage_ratio": 0.95})
-	if Progress.has_growth_option("growth_center_hold"):
-		for craftsman in _craftsmen:
-			apply_unit_growth_bonus(craftsman, 10, 2, 0)
-	if Progress.has_growth_option("growth_balance_method"):
-		apply_unit_growth_bonus(get_hero_unit(), 0, 0, 5)
-		modify_unit_skill(get_hero_unit(), "lc_inkline_balance_arch", {"cooldown_turns": 1})
-	if Progress.has_growth_option("growth_joint_finish"):
-		_close_arch_ap_cost = 25
-		apply_unit_growth_bonus(get_hero_unit(), 0, 4, 0)
-	if Progress.has_growth_option("growth_team_hold"):
-		for craftsman in _craftsmen:
-			apply_unit_growth_bonus(craftsman, 10, 0, 0)
-		for carrier in _stone_carriers:
-			apply_unit_growth_bonus(carrier, 0, 0, 5)
+# 持久成长选项的应用逻辑统一在 base_level._apply_persistent_growth_effects 中处理。
 
 
 # ─────────────────────────────────────────────

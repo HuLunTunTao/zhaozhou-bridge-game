@@ -327,7 +327,12 @@ func _update_slots(unit: Node2D, is_active: bool, stats: CombatStats) -> void:
 	for i in range(mini(data.skills.size(), MAX_SKILLS)):
 		var skill: SkillData = data.skills[i]
 		var desc := skill.description if skill.description != "" else "消耗 %dAP" % skill.ap_cost
-		var ratio := "x%.1f" % skill.damage_ratio if skill.damage_ratio > 0.0 else ""
+		var stat_parts: Array[String] = []
+		if skill.damage_ratio > 0.0:
+			stat_parts.append("倍率：%.1f" % skill.damage_ratio)
+		if skill.ap_cost > 0:
+			stat_parts.append("AP：%d" % skill.ap_cost)
+		var ratio := "  ".join(stat_parts)
 		_set_slot(i + 1, true, skill.skill_name, desc, not stats.can_use_skill(skill), skill.damage_element, skill.attach_amount, ratio)
 
 
@@ -359,7 +364,10 @@ func _set_slot(index: int, active: bool, title: String, desc: String, disabled_f
 				d.meta_hover_started.connect(_on_desc_meta_hover_started)
 			if not d.meta_hover_ended.is_connected(_on_desc_meta_hover_ended):
 				d.meta_hover_ended.connect(_on_desc_meta_hover_ended)
-		_ensure_ratio_label(btn).text = ratio
+		var ratio_label := _ensure_ratio_label(btn)
+		ratio_label.text = ratio
+		var stat_color := ElementDefs.get_color(element) if element != Enums.Element.NONE else Color(0.8, 0.9, 1.0, 0.9)
+		ratio_label.add_theme_color_override("font_color", stat_color)
 	else:
 		btn.modulate = Color(1, 1, 1, 0)
 		btn.disabled = true

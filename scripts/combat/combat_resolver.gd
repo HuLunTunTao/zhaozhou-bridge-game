@@ -20,7 +20,7 @@ class HitResult:
 	var phase_bonus_damage: int = 0
 
 
-static func resolve_hit(attacker: CombatStats, target: CombatStats, skill: SkillData) -> HitResult:
+static func resolve_hit(attacker: CombatStats, target: CombatStats, skill: SkillData, ratio_override: float = -1.0) -> HitResult:
 	var result := HitResult.new()
 
 	# 0. 记录攻击前状态供 UI 使用
@@ -29,8 +29,30 @@ static func resolve_hit(attacker: CombatStats, target: CombatStats, skill: Skill
 	result.skill_attach_element = skill.damage_element
 	result.skill_attach_amount = skill.attach_amount
 
-	# 1. 基础伤害
-	var base_damage: float = attacker.base_atk * skill.damage_ratio
+	# 1. 决定本次结算使用的伤害倍率：
+	#    - ratio_override 由 SkillExecutor 传入（中心/周围分倍率、命中数缩放等场合用）。
+	#    - 否则：若 skill.conditional_ratio > 0 且 extra_effect_id 对应条件命中，改用 conditional_ratio。
+	var ratio: float = skill.damage_ratio
+	var conditional_used := false
+	if ratio_override >= 0.0:
+		ratio = ratio_override
+	elif skill.conditional_ratio > 0.0:
+		match skill.extra_effect_id:
+			"cond_no_attached_bonus":
+				if target.current_element_amount == 0:
+					ratio = skill.conditional_ratio
+					conditional_used = true
+			"low_hp_bonus":
+				if target.max_hp > 0 and float(target.current_hp) / float(target.max_hp) < 0.30:
+					ratio = skill.conditional_ratio
+					conditional_used = true
+			"cond_attached_earth_knockback":
+				if target.current_element == Enums.Element.EARTH:
+					ratio = skill.conditional_ratio
+					conditional_used = true
+	if conditional_used:
+		CombatLog.msg("    技能条件命中【%s】: 倍率改为 %.2f" % [skill.extra_effect_id, ratio])
+	var base_damage: float = attacker.base_atk * ratio
 
 	# 2. 化势判定
 	var phase := PhaseTable.lookup(skill.damage_element, target.current_element)
@@ -49,6 +71,13 @@ static func resolve_hit(attacker: CombatStats, target: CombatStats, skill: Skill
 		multiplier = 1.15
 		result.non_element_bonus = true
 		phase_name = "无属性加成"
+
+	# 3.5 技能条件性 multiplier（叠加在最终 multiplier 上，与化势/状态共同作用）
+	match skill.extra_effect_id:
+		"cond_has_attached_aoe":
+			if target.current_element_amount > 0:
+				multiplier *= 1.20
+				CombatLog.msg("    技能条件【已附着AOE】: 倍率×1.20")
 
 	# 4. 攻击方状态修正
 	for s in attacker.statuses:
@@ -93,10 +122,10 @@ static func resolve_hit(attacker: CombatStats, target: CombatStats, skill: Skill
 	result.damage = maxi(final_damage, 0)
 	result.is_kill = target.current_hp - result.damage <= 0
 
-	# 日志: 伤害计算过程
+	# 日志: 伤害计算过程（使用最终采用的 ratio，不再是 skill.damage_ratio）
 	CombatLog.log_damage_calc(
 		attacker.unit_name, target.unit_name,
-		attacker.base_atk, skill.damage_ratio, base_damage,
+		attacker.base_atk, ratio, base_damage,
 		phase_name, multiplier, bonus, result.damage
 	)
 

@@ -15,18 +15,25 @@ const INITIAL_SKILL_IDS: Array[String] = [
 	"lc_rule_strike",
 	"lc_wedge_bank_probe",
 	"lc_cast_stone_arrest_flow",
+	"lc_plumb_line",
 ]
 
 const SKILL_PATHS := {
 	"lc_rule_strike": "res://data/skills/lc_rule_strike.tres",
 	"lc_wedge_bank_probe": "res://data/skills/lc_wedge_bank_probe.tres",
 	"lc_cast_stone_arrest_flow": "res://data/skills/lc_cast_stone_arrest_flow.tres",
-	"lc_read_water_fix_site": "res://data/skills/lc_read_water_fix_site.tres",
+	"lc_plumb_line": "res://data/skills/lc_plumb_line.tres",
+	"lc_settle_pile": "res://data/skills/lc_settle_pile.tres",
+	"lc_water_push": "res://data/skills/lc_water_push.tres",
 	"lc_pile_bind_wave": "res://data/skills/lc_pile_bind_wave.tres",
-	"lc_divider_mark_arc": "res://data/skills/lc_divider_mark_arc.tres",
+	"lc_ruler_eight": "res://data/skills/lc_ruler_eight.tres",
 	"lc_line_lock_arc": "res://data/skills/lc_line_lock_arc.tres",
-	"lc_inkline_balance_arch": "res://data/skills/lc_inkline_balance_arch.tres",
+	"lc_anchor_pile": "res://data/skills/lc_anchor_pile.tres",
 	"lc_link_wedges_arch": "res://data/skills/lc_link_wedges_arch.tres",
+	"lc_divider_mark_arc": "res://data/skills/lc_divider_mark_arc.tres",
+	"lc_read_water_fix_site": "res://data/skills/lc_read_water_fix_site.tres",
+	"lc_ink_set_arch": "res://data/skills/lc_ink_set_arch.tres",
+	"lc_inkline_balance_arch": "res://data/skills/lc_inkline_balance_arch.tres",
 	"lc_guide_flood_open_arch": "res://data/skills/lc_guide_flood_open_arch.tres",
 }
 
@@ -39,29 +46,36 @@ const LEVEL_STAGE_SKILLS := {
 
 const LEVEL_GROWTH_OPTIONS := {
 	"关卡1-1": [
-		{"id": "growth_training_mobilize", "name": "操练与动员", "description": "全体我方最大生命值 +10，行动力上限 +5"},
-		{"id": "growth_maps_measures", "name": "习图记尺", "description": "李春基础攻击力 +4，规尺击伤害倍率 +0.05"},
-		{"id": "growth_river_master", "name": "请益河工", "description": "李春获得新技能“束桩缓波”"},
-		{"id": "growth_stone_reinforce", "name": "备石加固", "description": "工匠的捍作护行持续时间 +1 回合"},
+		{"id": "g1_1_river", "name": "请益河工", "description": "李春获得新技能“分波束桩”（水属性 2×2 群击退）"},
+		{"id": "g1_1_push", "name": "顺水推舟", "description": "李春获得新技能“顺水推舟”（水属性直线 3 击退 / 推水加伤）"},
+		{"id": "g1_1_pile", "name": "镇基沉桩", "description": "李春获得新技能“镇基沉桩”（土属性单体重击 / 残血处决）"},
+		{"id": "g1_1_atk", "name": "习图记尺", "description": "李春基础攻击力 +4"},
+		{"id": "g1_1_ap", "name": "操练与动员", "description": "全体我方行动力上限 +5"},
 	],
 	"关卡1-2": [
-		{"id": "growth_drawing_discipline", "name": "墨绳习算", "description": "李春基础攻击力 +4，分规定弧伤害倍率 +0.05"},
-		{"id": "growth_center_hold", "name": "护模齐作", "description": "全体工匠最大生命值 +10，基础攻击力 +2"},
-		{"id": "growth_arch_refine", "name": "参校定弧", "description": "李春获得新技能“绳准锁弧”"},
-		{"id": "growth_quick_measure", "name": "熟尺知度", "description": "测量工参数采集消耗 -10，李春参数确认消耗 -5，李春行动力上限 +5"},
+		{"id": "g1_2_ring", "name": "围尺八方", "description": "李春获得新技能“围尺八方”（金属性自身环形 8 格 / 越围越疼）"},
+		{"id": "g1_2_lock", "name": "参校定弧", "description": "李春获得新技能“绳准锁弧”（木属性直线 4 全员拖拽）"},
+		{"id": "g1_2_atk", "name": "墨绳习算", "description": "李春基础攻击力 +4"},
+		{"id": "g1_2_ap", "name": "熟尺知度", "description": "全体我方行动力上限 +5"},
+		{"id": "g1_2_craft", "name": "护模齐作", "description": "全体工匠最大生命值 +10，基础攻击力 +2"},
 	],
 	"关卡1-3": [
-		{"id": "growth_balance_method", "name": "校券有法", "description": "墨绳校券冷却 -1，李春行动力上限 +5"},
-		{"id": "growth_joint_finish", "name": "收缝习熟", "description": "收缝合龙消耗 -10，李春基础攻击力 +4"},
-		{"id": "growth_link_arch", "name": "连楔并拱", "description": "李春获得新技能“连楔并拱”"},
-		{"id": "growth_team_hold", "name": "立券同力", "description": "全体工匠最大生命值 +10，全体运石工行动力上限 +5"},
+		{"id": "g1_3_link", "name": "连楔并拱", "description": "李春获得新技能“连楔并拱”（木属性直线 4 + 每命中回 5 AP）"},
+		{"id": "g1_3_anchor", "name": "阵心立桩", "description": "李春获得新技能“阵心立桩”（土属性 3×3 大 AOE）"},
+		{"id": "g1_3_atk", "name": "收缝习熟", "description": "李春基础攻击力 +4"},
+		{"id": "g1_3_ap", "name": "立券同力", "description": "全体我方行动力上限 +5"},
+		{"id": "g1_3_team", "name": "同心护城", "description": "全体我方最大生命值 +10，运石工行动力上限 +5"},
 	],
 }
 
 const GROWTH_SKILL_UNLOCKS := {
-	"growth_river_master": "lc_pile_bind_wave",
-	"growth_arch_refine": "lc_line_lock_arc",
-	"growth_link_arch": "lc_link_wedges_arch",
+	"g1_1_river": "lc_pile_bind_wave",
+	"g1_1_push": "lc_water_push",
+	"g1_1_pile": "lc_settle_pile",
+	"g1_2_ring": "lc_ruler_eight",
+	"g1_2_lock": "lc_line_lock_arc",
+	"g1_3_link": "lc_link_wedges_arch",
+	"g1_3_anchor": "lc_anchor_pile",
 }
 
 const CLEAR_REWARDS := {
@@ -79,7 +93,21 @@ const CLEAR_REWARDS := {
 	},
 	"关卡1-4": {
 		"unlock_levels": [],
-		"unlock_skills": [],
+		# 通关 1-4 → 把所有伤害技能补齐，作为生存挑战模式准备。
+		"unlock_skills": [
+			"lc_rule_strike",
+			"lc_wedge_bank_probe",
+			"lc_cast_stone_arrest_flow",
+			"lc_plumb_line",
+			"lc_settle_pile",
+			"lc_water_push",
+			"lc_pile_bind_wave",
+			"lc_ruler_eight",
+			"lc_line_lock_arc",
+			"lc_anchor_pile",
+			"lc_link_wedges_arch",
+			"lc_divider_mark_arc",
+		],
 	},
 }
 
@@ -460,9 +488,9 @@ func set_level_growth_choices(level_name: String, option_ids: Array[String]) -> 
 		if growth_id in normalized_ids:
 			continue
 		normalized_ids.append(growth_id)
-		if normalized_ids.size() >= 2:
+		if normalized_ids.size() >= 3:
 			break
-	if normalized_ids.size() != 2:
+	if normalized_ids.size() != 3:
 		return false
 	selected_growth_by_level[level_name] = normalized_ids
 	_normalize_progress()
@@ -492,9 +520,9 @@ func _normalize_growth_choice_dict(value: Dictionary) -> Dictionary:
 			if option_id not in available_ids or option_id in normalized_ids:
 				continue
 			normalized_ids.append(option_id)
-			if normalized_ids.size() >= 2:
+			if normalized_ids.size() >= 3:
 				break
-		if normalized_ids.size() == 2:
+		if normalized_ids.size() == 3:
 			result[level_name] = normalized_ids
 	return result
 
