@@ -1,7 +1,16 @@
-[gd_scene load_steps=3 format=4 uid="uid://cbridgetourlvl1"]
+[gd_scene format=3 uid="uid://b03oyc2xo14ls"]
 
 [ext_resource type="PackedScene" uid="uid://cthjtlx4i152j" path="res://scenes/levels/level1-4/level1-4.tscn" id="1_level1_4"]
-[ext_resource type="Script" path="res://scenes/levels/bridge_tour/bridge_tour.gd" id="2_bridge_tour"]
+[ext_resource type="Script" uid="uid://duprdtgj6kcdq" path="res://scenes/levels/bridge_tour/bridge_tour.gd" id="2_bridge_tour"]
 
-[node name="BridgeTour" instance=ExtResource("1_level1_4")]
+[node name="BridgeTour" unique_id=869913448 instance=ExtResource("1_level1_4")]
 script = ExtResource("2_bridge_tour")
+
+[node name="knowledge_button" type="Button" parent="GUI" parent_id_path=PackedInt32Array(256892229) index="10" unique_id=626511278]
+offset_left = 532.0
+offset_top = 3.0
+offset_right = 612.0
+offset_bottom = 35.0
+text = "桥梁知识"
+
+[connection signal="pressed" from="GUI/knowledge_button" to="." method="_open_knowledge_panel"]

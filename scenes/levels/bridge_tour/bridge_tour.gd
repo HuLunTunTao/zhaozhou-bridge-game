@@ -197,8 +197,7 @@ func _on_level_ready() -> void:
 		var role: String = String(npc.get_meta("npc_role", "persuade"))
 		var done: bool = _npc_done(npc)
 		_mission_hud.add_npc(role, npc.unit_data.unit_name, done)
-	# 顶栏"桥梁知识"按钮
-	_add_knowledge_button()
+
 	# 自由移动模式不走 _init_turn_system，但 _can_accept_command 仍要 _waiting_for_player_input=true
 	_waiting_for_player_input = true
 	current_team_index = 0
@@ -290,23 +289,6 @@ func get_interaction_target() -> Unit:
 # ─────────────────────────────────────────────
 # 顶栏"桥梁知识"按钮 + 知识面板
 # ─────────────────────────────────────────────
-
-func _add_knowledge_button() -> void:
-	if gui == null:
-		return
-	var btn := Button.new()
-	btn.name = "KnowledgeButton"
-	btn.text = "📖 桥梁知识"
-	btn.add_theme_font_size_override("font_size", 14)
-	btn.anchor_left = 1.0
-	btn.anchor_right = 1.0
-	btn.offset_left = -250
-	btn.offset_top = 75
-	btn.offset_right = -90
-	btn.offset_bottom = 105
-	btn.grow_horizontal = Control.GROW_DIRECTION_BEGIN
-	btn.pressed.connect(_open_knowledge_panel)
-	gui.add_child(btn)
 
 
 func _open_knowledge_panel() -> void:
