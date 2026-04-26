@@ -24,6 +24,32 @@ var _speak_token: int = 0
 ## ChatterScheduler 监听这个信号判断本次 chatter 是否说完。
 signal streaming_done
 
+## 去括号正则：匹配成对（含不严格成对）的全角 `（）` 与半角 `()`。内层不允许再含括号，靠 _sanitize_for_tts 多轮替换处理嵌套。
+var _bracket_re: RegEx = null
+
+
+func _build_bracket_re() -> RegEx:
+	if _bracket_re == null:
+		_bracket_re = RegEx.new()
+		_bracket_re.compile("[（(][^（）()]*[)）]")
+	return _bracket_re
+
+
+## 把 LLM / 兜底文本里的 `（动作描写）` `(stage direction)` 这类括号块剥掉，留下"该读出来"的正文。
+## 全 LLM 文本经 chatter_voice_adapter.speak 时都会先过这层；显示路径走 dialogue_box，不受影响。
+func _sanitize_for_tts(text: String) -> String:
+	var re := _build_bracket_re()
+	var cleaned := text
+	var prev := ""
+	# 嵌套括号需要多轮替换（典型 LLM 输出深度 ≤ 2，循环极少超过 2 次）
+	while cleaned != prev:
+		prev = cleaned
+		cleaned = re.sub(cleaned, "", true)
+	# 收拾连续空格 / 全角空格 / 边缘空白
+	while cleaned.find("  ") >= 0:
+		cleaned = cleaned.replace("  ", " ")
+	return cleaned.strip_edges()
+
 
 func _ready() -> void:
 	_player = VolcengineStreamingVoicePlayerScript.new()
@@ -53,33 +79,38 @@ func _configure_client(client: Node) -> void:
 func speak(unit: Node, text: String, trigger_kind: String = "") -> void:
 	_speak_token += 1
 	var my_token := _speak_token
+	# 先剥离动作描写括号；如果全是括号动作（剥完为空）→ 跳过 TTS，让显示路径自己计时收尾。
+	var clean_text := _sanitize_for_tts(text)
+	if clean_text.is_empty():
+		streaming_done.emit()
+		return
 	if _player == null:
-		_maybe_speak_via_system_tts(text)
+		_maybe_speak_via_system_tts(clean_text)
 		streaming_done.emit()
 		return
 	if not (unit is Unit) or (unit as Unit).unit_data == null:
-		_maybe_speak_via_system_tts(text)
+		_maybe_speak_via_system_tts(clean_text)
 		streaming_done.emit()
 		return
 	var u := unit as Unit
 	var voice_cfg: Dictionary = VoiceMappingScript.get_voice(u.unit_data.unit_id, u.unit_data.camp)
 	var voice: String = voice_cfg.get("voice", "")
 	if voice.is_empty():
-		_maybe_speak_via_system_tts(text)
+		_maybe_speak_via_system_tts(clean_text)
 		streaming_done.emit()
 		return
 	if ApiConfig.TTS_API_KEY.is_empty():
-		_maybe_speak_via_system_tts(text)
+		_maybe_speak_via_system_tts(clean_text)
 		streaming_done.emit()
 		return
 
 	var opts := _trigger_to_opts(unit, trigger_kind)
-	var ok: bool = await _player.speak(text, voice, opts)
+	var ok: bool = await _player.speak(clean_text, voice, opts)
 	# 旧协程被 cancel() / 重入打断时，不能再走系统 TTS 兜底——否则旧台词会被当成"失败"再读一遍。
 	if my_token != _speak_token:
 		return
 	if not ok:
-		_maybe_speak_via_system_tts(text)
+		_maybe_speak_via_system_tts(clean_text)
 	# _player 的 speak_finished 已经把 streaming_done emit 了
 
 
