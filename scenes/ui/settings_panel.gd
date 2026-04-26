@@ -15,6 +15,7 @@ signal closed
 @onready var ambience_slider: HSlider = %AmbienceSlider
 @onready var resolution_option: OptionButton = %ResolutionOption
 @onready var apply_display_button: Button = %ApplyDisplayButton
+@onready var difficulty_option: OptionButton = %DifficultyOption
 @onready var settings_title: Label = %SettingsTitle
 @onready var quick_save_button: Button = %QuickSaveButton
 @onready var restart_button: Button = %RestartButton
@@ -28,6 +29,7 @@ var _title_tap_reset_timer: SceneTreeTimer
 
 func _ready() -> void:
 	layer = 90
+	_wrap_content_in_scroll()
 	quick_save_button.visible = show_back_to_menu
 	restart_button.visible = show_back_to_menu
 	back_to_menu_button.visible = show_back_to_menu
@@ -38,11 +40,32 @@ func _ready() -> void:
 	voice_slider.value = Settings.voice_volume * 100.0
 	ambience_slider.value = Settings.ambience_volume * 100.0
 	_populate_resolution_options()
+	_populate_difficulty_options()
 	for button in find_children("*", "BaseButton", true, false):
 		UiSounds.bind_button(button as BaseButton)
 	UiSounds.play_popup()
 
 # AI辅助编程，Kimi Code，2026-04-20
+
+## 把 Content 重新塞进一个 ScrollContainer，并把面板高度卡在视口内（420px），
+## 内容超出时自动出现纵向滚动条。运行时包装而非 .tscn 改结构，避免重写一堆节点路径，
+## 也保留了 % unique_name 引用对脚本透明。
+func _wrap_content_in_scroll() -> void:
+	var panel: PanelContainer = $Backdrop/Panel as PanelContainer
+	var content := panel.get_node_or_null("Content") as VBoxContainer
+	if content == null or content.get_parent() is ScrollContainer:
+		return
+	var scroll := ScrollContainer.new()
+	scroll.name = "ContentScroll"
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.custom_minimum_size = Vector2(0, 420)
+	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	panel.remove_child(content)
+	scroll.add_child(content)
+	panel.add_child(scroll)
+	content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+
 
 ## 填充分辨率下拉框，并将当前选项指向 Settings 中的窗口大小 / 全屏状态。
 func _populate_resolution_options() -> void:
@@ -67,6 +90,26 @@ func _find_resolution_index(width: int, height: int) -> int:
 		if res.x == width and res.y == height:
 			return i
 	return 1  # 默认 1920×1080
+
+
+## 填充难度下拉框，按 GameState.DIFFICULTY_ORDER 顺序加项，并选中当前 Settings.difficulty。
+func _populate_difficulty_options() -> void:
+	difficulty_option.clear()
+	for i in GameState.DIFFICULTY_ORDER.size():
+		var id: String = GameState.DIFFICULTY_ORDER[i]
+		var label: String = GameState.DIFFICULTY_LABELS.get(id, id)
+		difficulty_option.add_item(label, i)
+		difficulty_option.set_item_metadata(i, id)
+	var idx: int = GameState.DIFFICULTY_ORDER.find(Settings.difficulty)
+	if idx < 0:
+		idx = GameState.DIFFICULTY_ORDER.find("normal")
+	difficulty_option.select(idx)
+
+
+func _on_difficulty_option_item_selected(index: int) -> void:
+	var meta: Variant = difficulty_option.get_item_metadata(index)
+	if meta is String:
+		Settings.set_difficulty(meta)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -248,6 +291,7 @@ func _clear_all_local_data() -> void:
 	voice_slider.value = Settings.voice_volume * 100.0
 	ambience_slider.value = Settings.ambience_volume * 100.0
 	_populate_resolution_options()
+	_populate_difficulty_options()
 
 	Notify.notify("本地数据已清除", Notify.Position.TOP_CENTER, Notify.Style.SUCCESS, 2.5)
 

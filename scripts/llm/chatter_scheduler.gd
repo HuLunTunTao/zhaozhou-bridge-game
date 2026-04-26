@@ -60,6 +60,8 @@ var _level: Node = null
 var _llm: Node = null
 var _voice: Node = null
 var _busy: bool = false
+## setup() 时记录的 (signal_name, callable)，供 _exit_tree 配对 disconnect。
+var _level_subs: Array[Dictionary] = []
 ## 当前小回合里发生的攻击事件。条目结构：{ victim: Unit, attacker: Unit, skill: SkillData }。
 var _attacked_this_turn: Array[Dictionary] = []
 ## 本大回合内已经讲过话的单位集合。round_started 时清空，_speak_line 时填充。
@@ -81,16 +83,33 @@ func setup(level: Node, llm_client: Node = null) -> void:
 	_voice.use_system_tts_fallback = use_system_tts_fallback
 	add_child(_voice)
 	# 订阅 BaseLevel 的领域信号
-	if _level.has_signal("skill_executed"):
-		_level.skill_executed.connect(_on_skill_executed)
-	if _level.has_signal("team_turn_started"):
-		_level.team_turn_started.connect(_on_team_turn_started)
-	if _level.has_signal("team_turn_ended"):
-		_level.team_turn_ended.connect(_on_team_turn_ended)
-	if _level.has_signal("round_started"):
-		_level.round_started.connect(_on_round_started)
-	if _level.has_signal("round_ended"):
-		_level.round_ended.connect(_on_round_ended)
+	_subscribe_level_signal(&"skill_executed", _on_skill_executed)
+	_subscribe_level_signal(&"team_turn_started", _on_team_turn_started)
+	_subscribe_level_signal(&"team_turn_ended", _on_team_turn_ended)
+	_subscribe_level_signal(&"round_started", _on_round_started)
+	_subscribe_level_signal(&"round_ended", _on_round_ended)
+
+
+## 把 _level 的指定信号连到 callable 上，并记录到 _level_subs，供 _exit_tree 配对断开。
+func _subscribe_level_signal(signal_name: StringName, callable: Callable) -> void:
+	if _level == null or not _level.has_signal(signal_name):
+		return
+	_level.connect(signal_name, callable)
+	_level_subs.append({"signal": signal_name, "callable": callable})
+
+
+func _exit_tree() -> void:
+	if _level == null or not is_instance_valid(_level):
+		_level_subs.clear()
+		return
+	for sub in _level_subs:
+		var sig: StringName = sub.get("signal", &"")
+		var cb: Callable = sub.get("callable", Callable())
+		if sig == &"" or not cb.is_valid():
+			continue
+		if _level.is_connected(sig, cb):
+			_level.disconnect(sig, cb)
+	_level_subs.clear()
 
 
 # ─────────────────────────────────────────────────────────

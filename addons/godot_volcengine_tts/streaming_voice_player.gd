@@ -299,9 +299,9 @@ func _on_bidi_session_finished(sid: String) -> void:
 	speak_finished.emit()
 
 
-func _on_bidi_session_failed(_reason: String) -> void:
-	# 旧 session 的迟到 failed：active 已经清空 → 当前没有正在 await 的 speaker，直接丢
-	if _active_bidi_session_id.is_empty():
+func _on_bidi_session_failed(sid: String, _reason: String) -> void:
+	# 旧 session 的迟到 failed：active 已清空 或 sid 不匹配新 session → 直接丢
+	if _active_bidi_session_id.is_empty() or sid != _active_bidi_session_id:
 		return
 	_active_bidi_session_id = ""
 	_chunk_queue.clear()

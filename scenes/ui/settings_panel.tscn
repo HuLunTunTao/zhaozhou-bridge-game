@@ -45,6 +45,27 @@ horizontal_alignment = 1
 [node name="Separator1" type="HSeparator" parent="Backdrop/Panel/Content" unique_id=822055930]
 layout_mode = 2
 
+[node name="GameplaySection" type="VBoxContainer" parent="Backdrop/Panel/Content" unique_id=2007327196]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="DifficultyRow" type="HBoxContainer" parent="Backdrop/Panel/Content/GameplaySection" unique_id=1564876428]
+layout_mode = 2
+
+[node name="DifficultyLabel" type="Label" parent="Backdrop/Panel/Content/GameplaySection/DifficultyRow" unique_id=46960701]
+custom_minimum_size = Vector2(48, 0)
+layout_mode = 2
+text = "难度"
+
+[node name="DifficultyOption" type="OptionButton" parent="Backdrop/Panel/Content/GameplaySection/DifficultyRow" unique_id=666463432]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(160, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+tooltip_text = "战斗中切换会立即按比例重算所有单位的 HP/AP，伤害自下次攻击生效。"
+clip_text = true
+fit_to_longest_item = false
+
 [node name="AudioSection" type="VBoxContainer" parent="Backdrop/Panel/Content" unique_id=2007327194]
 layout_mode = 2
 theme_override_constants/separation = 4
@@ -202,6 +223,7 @@ text = "关闭"
 [connection signal="value_changed" from="Backdrop/Panel/Content/AudioSection/VoiceRow/VoiceSlider" to="." method="_on_voice_slider_value_changed"]
 [connection signal="value_changed" from="Backdrop/Panel/Content/AudioSection/AmbienceRow/AmbienceSlider" to="." method="_on_ambience_slider_value_changed"]
 [connection signal="item_selected" from="Backdrop/Panel/Content/DisplaySection/ResolutionRow/ResolutionOption" to="." method="_on_resolution_option_item_selected"]
+[connection signal="item_selected" from="Backdrop/Panel/Content/GameplaySection/DifficultyRow/DifficultyOption" to="." method="_on_difficulty_option_item_selected"]
 [connection signal="pressed" from="Backdrop/Panel/Content/DisplaySection/ApplyDisplayButton" to="." method="_on_apply_display_pressed"]
 [connection signal="gui_input" from="Backdrop/Panel/Content/SettingsTitle" to="." method="_on_settings_title_gui_input"]
 [connection signal="pressed" from="Backdrop/Panel/Content/SaveSettingsButton" to="." method="_on_save_settings_button_pressed"]

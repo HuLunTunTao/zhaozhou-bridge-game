@@ -268,7 +268,7 @@ func _on_bidi_finished(_sid: String) -> void:
 	_set_busy(false)
 
 
-func _on_bidi_failed(reason: String) -> void:
+func _on_bidi_failed(_session_id: String, reason: String) -> void:
 	_set_status("[双向 失败] %s" % reason, Color(1, 0.5, 0.5))
 	_bidi_chunk_queue.clear()
 	_bidi_playback = null

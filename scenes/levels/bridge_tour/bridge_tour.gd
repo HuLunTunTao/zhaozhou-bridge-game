@@ -324,19 +324,11 @@ func _confirm_interact_target(cell: Vector2i) -> void:
 		_select_hero_silently()
 		return
 	_interaction_target = npc
-	_set_world_input_locked(true)
+	_begin_input_lock()
 	await _dispatch_interaction(npc)
-	_set_world_input_locked(false)
+	_end_input_lock()
 	_interaction_target = null
-	_input_state = InputState.IDLE
 	_select_hero_silently()
-
-
-func _set_world_input_locked(locked: bool) -> void:
-	if camera != null and "input_enabled" in camera:
-		camera.input_enabled = not locked
-	if locked:
-		_input_state = InputState.ANIMATING
 
 
 func _find_npc_at_cell(cell: Vector2i) -> Unit:
