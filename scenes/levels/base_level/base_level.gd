@@ -1502,6 +1502,9 @@ func select_skill(skill: SkillData) -> void:
 			if t.faction != caster_faction:
 				for eu: Node2D in t.units:
 					enemy_cells.append(eu.cell)
+					if eu is Unit:
+						for offset in (eu as Unit).extra_target_cells:
+							enemy_cells.append(eu.cell + offset)
 		_skill_targeting.show_skill_range(tilemap, skill, unit.cell, enemy_cells)
 	_input_state = InputState.TARGETING_SKILL
 

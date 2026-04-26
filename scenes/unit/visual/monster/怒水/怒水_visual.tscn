@@ -83,6 +83,7 @@ animations = [{
 }]
 
 [node name="Visual" unique_id=1878430534 instance=ExtResource("1_xomok")]
+scale = Vector2(0.5, 0.5)
 material = SubResource("ShaderMaterial_713nk")
 sprite_frames = SubResource("SpriteFrames_ualjr")
 animation = &"left"

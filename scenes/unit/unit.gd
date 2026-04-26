@@ -39,6 +39,10 @@ signal clicked
 @export var chatter_full_map_range: bool = false
 
 var cell: Vector2i
+## 扩展判定格（offsets from .cell）。命中检查与施法 UI 高亮用——boss 等"巨型"单位
+## 可注册一组额外格子，让玩家从更远位置也能用普通技能击中。AI 仍按 .cell 计算
+## 距离与可达性，移动系统也只查 .cell，不污染其他逻辑。默认空 = 单格，行为不变。
+var extra_target_cells: Array[Vector2i] = []
 var is_moving := false
 ## 由 BaseLevel 在场景就绪后赋值，用于触发地块进入/退出钩子。
 var movement_manager = null

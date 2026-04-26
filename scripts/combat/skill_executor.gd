@@ -338,7 +338,7 @@ static func _collect_targets(
 		var u := unit as Unit
 		if u.combat_stats == null:
 			continue
-		if not effect_cells.has(u.cell):
+		if not _unit_in_effect(u, effect_cells):
 			continue
 		match skill.skill_type:
 			Enums.SkillType.ATTACK:
@@ -354,3 +354,13 @@ static func _collect_targets(
 		targets.append(unit)
 
 	return targets
+
+
+## 单位是否落入技能影响区。先查 .cell，再查 extra_target_cells（巨型单位用）。
+static func _unit_in_effect(u: Unit, effect_cells: Dictionary) -> bool:
+	if effect_cells.has(u.cell):
+		return true
+	for offset in u.extra_target_cells:
+		if effect_cells.has(u.cell + offset):
+			return true
+	return false
