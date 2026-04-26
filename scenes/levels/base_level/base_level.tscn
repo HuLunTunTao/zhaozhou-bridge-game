@@ -5,6 +5,7 @@
 [ext_resource type="Script" uid="uid://y23vshydkrvf" path="res://scenes/levels/base_level/level_camera.gd" id="3_xqiwy"]
 [ext_resource type="Script" uid="uid://dtbq71h31mwwx" path="res://scenes/levels/base_level/movement_manager.gd" id="4_movemgr"]
 [ext_resource type="PackedScene" uid="uid://drujkj0i8k8lh" path="res://scenes/ui/status_bar.tscn" id="5_statusbar"]
+[ext_resource type="Script" path="res://scenes/levels/base_level/hover_overlay.gd" id="6_hover"]
 
 [node name="BaseLevel" type="Node2D" unique_id=553442049]
 script = ExtResource("1_base")
@@ -17,6 +18,9 @@ script = ExtResource("1_base")
 
 [node name="MoveOverlay" type="Node2D" parent="." unique_id=1306819768]
 script = ExtResource("2_overlay")
+
+[node name="HoverOverlay" type="Node2D" parent="."]
+script = ExtResource("6_hover")
 
 [node name="Camera2D" type="Camera2D" parent="." unique_id=1804751050]
 script = ExtResource("3_xqiwy")

@@ -84,6 +84,7 @@ signal skill_executed(caster: Unit, skill: SkillData, cast_cell: Vector2i)
 @onready var units_container: Node2D = $Entities/Units
 @onready var special_tiles_container: Node2D = $SpecialTiles
 @onready var move_overlay: Node2D = $MoveOverlay
+@onready var hover_overlay: Node2D = $HoverOverlay
 @onready var movement_manager: Node = $MovementManager
 @onready var camera: Camera2D = $Camera2D
 @onready var gui: CanvasLayer = $GUI
@@ -242,6 +243,8 @@ var current_team_index: int = -1
 var round_number: int = 1
 ## 当前选中的单位（玩家回合时有效）。
 var selected_unit: Node2D = null
+## 当前鼠标 hover 上的 unit（含 boss extra_target_cells 命中），用于驱动单位高亮叠加。
+var _hovered_unit: Unit = null
 ## 当前是否等待玩家输入。
 var _waiting_for_player_input: bool = false
 
@@ -1144,6 +1147,9 @@ func _on_unit_died(unit: Unit) -> void:
 	# 若正选中该单位，取消选中
 	if selected_unit == unit:
 		_go_idle()
+	# 若正 hover 在该单位上，清掉 hover 引用避免 freed 指针
+	if _hovered_unit == unit:
+		_hovered_unit = null
 	# TODO: 替换为实际倒下音效
 	# SfxManager.play_sfx(preload("res://assets/audio/sfx/death.wav"), "SFX")
 	# 播放退场动画并移除节点
@@ -1435,6 +1441,8 @@ func _end_input_lock() -> void:
 
 
 func preview_cell(cell: Vector2i) -> void:
+	# Hover 框 / 单位高亮独立于命令闸门——观察反馈在 PLAYING 期间始终给出。
+	_update_hover_visual(cell)
 	if not _can_accept_command():
 		return
 	match _input_state:
@@ -1443,6 +1451,63 @@ func preview_cell(cell: Vector2i) -> void:
 		InputState.TARGETING_SKILL:
 			if _skill_targeting:
 				_skill_targeting.update_hover(cell)
+
+
+## 鼠标 hover 反馈：白色脉冲框 + 命中 unit 的 modulate 脉动。
+## 在 preview_cell / 模态面板开关 / 鼠标离屏处统一调度。
+func _update_hover_visual(cell: Vector2i) -> void:
+	if hover_overlay == null:
+		return
+	var should_show := _should_show_hover(cell)
+	hover_overlay.set_hover(cell, tilemap)
+	hover_overlay.set_visible_state(should_show)
+	_update_hovered_unit(cell if should_show else Vector2i(-9999, -9999))
+
+
+func _should_show_hover(cell: Vector2i) -> bool:
+	if _level_phase != LevelPhase.PLAYING:
+		return false
+	if _active_overlay != ActiveOverlay.NONE:
+		return false
+	if tilemap == null:
+		return false
+	if _input_state == InputState.ANIMATING or _input_state == InputState.LOCKED:
+		return false
+	if tilemap.get_cell_source_id(cell) == -1:
+		return false
+	return true
+
+
+## 维护"鼠标当前 hover 的单位"。切换时调旧的关高亮、新的开高亮。
+## 支持 boss 多格：cell 命中 extra_target_cells 任一格视为命中本体。
+func _update_hovered_unit(cell: Vector2i) -> void:
+	var unit: Unit = _find_unit_under_cell(cell)
+	if unit == _hovered_unit:
+		return
+	if _hovered_unit != null and is_instance_valid(_hovered_unit):
+		_hovered_unit.set_hover_highlight(false)
+	_hovered_unit = unit
+	if unit != null:
+		unit.set_hover_highlight(true)
+
+
+func _find_unit_under_cell(cell: Vector2i) -> Unit:
+	for u in _get_all_units():
+		if not is_instance_valid(u) or not (u is Unit):
+			continue
+		var unit := u as Unit
+		if unit.cell == cell:
+			return unit
+		for offset in unit.extra_target_cells:
+			if unit.cell + offset == cell:
+				return unit
+	return null
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_MOUSE_EXIT and hover_overlay != null:
+		hover_overlay.set_visible_state(false)
+		_update_hovered_unit(Vector2i(-9999, -9999))
 
 ## MCP 兼容：接受两个 int 参数。
 func preview_cell_xy(x: int, y: int) -> void:
