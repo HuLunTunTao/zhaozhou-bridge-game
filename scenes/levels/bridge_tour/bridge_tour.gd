@@ -27,12 +27,13 @@ const _PersonaFallbackScript := preload("res://scripts/llm/persona_fallback.gd")
 const _ChatterPromptsScript := preload("res://scripts/llm/chatter_prompts.gd")
 const _LLMClientScript := preload("res://scripts/llm/llm_client.gd")
 const _ChatterVoiceScript := preload("res://scripts/tts/chatter_voice_adapter.gd")
+const _StreamChunkerScript := preload("res://scripts/llm/stream_chunker.gd")
+const _META_SENTINEL := "###META###"
 const _PortraitResolverScript := preload("res://scripts/llm/portrait_resolver.gd")
 const _BridgeKnowledgeScript := preload("res://scripts/data/bridge_knowledge.gd")
 const _ArgumentInputPanelScene := preload("res://scenes/ui/argument_input_panel.tscn")
 const _TopicMenuPanelScene := preload("res://scenes/ui/topic_menu_panel.tscn")
 const _KnowledgePanelScene := preload("res://scenes/ui/knowledge_panel.tscn")
-const _ThinkingOverlayScene := preload("res://scenes/ui/thinking_overlay.tscn")
 const _MissionHudScene := preload("res://scenes/levels/bridge_tour/mission_hud.tscn")
 
 # ── 数值常量 ──
@@ -436,21 +437,23 @@ func _flow_persuade(npc: Unit) -> void:
 	if argument.is_empty():
 		return
 	var is_cheat: bool = _argument_has_cheat(argument)
-	var thinking := _make_thinking_overlay()
-	add_child(thinking)
+	# 流式：LLM 一边吐 token、TTS bidi 一边播——首字音延迟 ≈ 0.5s。
+	# 比之前的 thinking overlay + 等全文 + 一次性 TTS 体验快 1-2 秒。
 	var ans: Dictionary = await _generate_persuade_answer(npc, argument, is_cheat)
-	thinking.queue_free()
 	_apply_persuade_result(npc, ans)
 	var reply: String = String(ans.get("reply", ""))
 	var is_fallback: bool = bool(ans.get("is_fallback", false))
+	var is_streaming: bool = bool(ans.get("is_streaming", false))
 	# 记入对话历史；fallback 文本仍记（让玩家看到"NPC 没接到话"），但 LLM 失败那条
 	# 后续不会被注入 prompt context（chatter_prompts.bridge_topic_answer 不读 dialogue_log）
 	if not is_fallback:
 		_append_dialogue_log(npc, argument, reply, String(ans.get("tone", "")))
 	else:
 		_append_dialogue_log(npc, argument, reply, "fallback")
-	await _play_npc_line(npc, reply, not is_fallback)
-	await _maybe_neighbor_interject(npc, reply)
+	# 邻居插话与第一句话 dialog 显示并发：先 fire LLM，再开 dialog（TTS 已流式或现在播），最后等邻居完成
+	var neighbor_spec := _start_neighbor_interject(npc, reply)
+	await _play_npc_line(npc, reply, not is_fallback, is_streaming)
+	await _play_pending_neighbor(neighbor_spec)
 
 
 ## 检测玩家输入是否包含演示用作弊暗语。命中即整轮强制通过。
@@ -459,6 +462,111 @@ func _argument_has_cheat(argument: String) -> bool:
 		if phrase in argument:
 			return true
 	return false
+
+
+## LLM+TTS 一体化流式：LLM SSE token 一边到一边按 ###META### 分流——前半（reply 纯文本）
+## 实时喂 TTS bidi 播放，后半 JSON 元数据收集到末尾解析。
+##
+## 期望 LLM 输出格式：
+##     <reply 纯文本>
+##     ###META###
+##     {"key":val,...}
+##
+## 返回：{"ok": bool, "reply": String, "meta": Dictionary, "error": String}
+##   - ok=false：LLM 启动失败 / 中途断流。reply / meta 仍可能有部分内容
+##   - 没出现 sentinel：整段当 reply，meta 给 {}
+##
+## 流式失败兜底：调用方判断 ok/reply.is_empty() 再决定要不要回落到 _PersonaFallbackScript。
+func _stream_llm_with_meta_split(unit: Unit, messages: Array, llm_opts: Dictionary, trigger_kind: String) -> Dictionary:
+	var sentinel := _META_SENTINEL
+	var chunker = _StreamChunkerScript.new(_StreamChunkerScript.Mode.MIXED)
+	var has_tts: bool = await _get_voice().start_stream(unit, trigger_kind)
+	if not has_tts:
+		push_warning("[bridge_tour TTS] start_stream 失败 unit=%s trigger=%s" % [unit.unit_data.unit_id, trigger_kind])
+
+	var done := [false]
+	var ok_state := [true]
+	var err_state := [""]
+	var reply_collected := [""]   # 已 feed 给 TTS 的 reply 内容
+	var meta_buffer := [""]       # sentinel 之后累积的 JSON 文本
+	var pre_buf := [""]           # 还没决定 feed/丢弃的滑动窗口
+	var sentinel_seen := [false]
+
+	var feed_to_tts := func(piece: String) -> void:
+		if piece.is_empty():
+			return
+		reply_collected[0] += piece
+		if has_tts and _get_voice().is_stream_active():
+			for c in chunker.push(piece):
+				_get_voice().feed_stream(c)
+
+	var on_chunk := func(text: String) -> void:
+		if sentinel_seen[0]:
+			meta_buffer[0] += text
+			return
+		pre_buf[0] += text
+		var idx: int = pre_buf[0].find(sentinel)
+		if idx >= 0:
+			sentinel_seen[0] = true
+			var pre: String = pre_buf[0].substr(0, idx)
+			meta_buffer[0] = pre_buf[0].substr(idx + sentinel.length())
+			pre_buf[0] = ""
+			feed_to_tts.call(pre)
+		else:
+			# 还没看到 sentinel：feed 除最后 (sentinel.length()-1) 字符外的安全段
+			# （万一末尾正在拼 sentinel 的前几个字符，留住别 feed）
+			var safe_len: int = pre_buf[0].length() - sentinel.length() + 1
+			if safe_len > 0:
+				var safe_text: String = pre_buf[0].substr(0, safe_len)
+				pre_buf[0] = pre_buf[0].substr(safe_len)
+				feed_to_tts.call(safe_text)
+
+	var on_finished := func(_full: String, ok: bool, err: String) -> void:
+		ok_state[0] = ok
+		err_state[0] = err
+		# 收尾：如果整段都没出现 sentinel，pre_buf 里的内容都是 reply 尾巴
+		if not sentinel_seen[0] and not pre_buf[0].is_empty():
+			feed_to_tts.call(pre_buf[0])
+			pre_buf[0] = ""
+		if has_tts and _get_voice().is_stream_active():
+			var tail: String = chunker.flush_remaining()
+			if not tail.is_empty():
+				_get_voice().feed_stream(tail)
+			_get_voice().finish_stream()
+		done[0] = true
+
+	_get_llm().stream_chunk_received.connect(on_chunk)
+	_get_llm().stream_finished.connect(on_finished, CONNECT_ONE_SHOT)
+	var started: bool = _get_llm().stream_chat_completion(messages, llm_opts)
+	if not started:
+		push_warning("[bridge_tour LLM] stream_chat_completion 启动失败 unit=%s trigger=%s" % [unit.unit_data.unit_id, trigger_kind])
+		if _get_llm().stream_chunk_received.is_connected(on_chunk):
+			_get_llm().stream_chunk_received.disconnect(on_chunk)
+		if _get_llm().stream_finished.is_connected(on_finished):
+			_get_llm().stream_finished.disconnect(on_finished)
+		if has_tts:
+			_get_voice().cancel()
+		return {"ok": false, "reply": "", "meta": {}, "error": "stream start failed"}
+
+	while not done[0]:
+		var tree := get_tree()
+		if tree == null:
+			break
+		await tree.process_frame
+	if _get_llm().stream_chunk_received.is_connected(on_chunk):
+		_get_llm().stream_chunk_received.disconnect(on_chunk)
+
+	if not ok_state[0]:
+		push_warning("[bridge_tour LLM] stream 中断 unit=%s trigger=%s err=%s" % [unit.unit_data.unit_id, trigger_kind, err_state[0]])
+
+	var meta_final: Dictionary = _parse_object_json(meta_buffer[0]) if sentinel_seen[0] else {}
+	var reply_final: String = reply_collected[0].strip_edges()
+	return {
+		"ok": ok_state[0],
+		"reply": reply_final,
+		"meta": meta_final,
+		"error": err_state[0],
+	}
 
 
 func _generate_persuade_answer(npc: Unit, topic: String, is_cheat: bool = false) -> Dictionary:
@@ -476,24 +584,26 @@ func _generate_persuade_answer(npc: Unit, topic: String, is_cheat: bool = false)
 		"learned_csv": _learned_csv(),
 		"is_cheat": is_cheat,
 	})
-	var resp: Dictionary = await _get_llm().chat_completion([
+	var resp: Dictionary = await _stream_llm_with_meta_split(npc, [
 		{"role": "system", "content": sys},
 		{"role": "user", "content": user},
-	], {"max_tokens": 220, "temperature": 0.85})
-	if resp.get("ok", false):
-		var parsed := _parse_object_json(String(resp.get("text", "")))
-		if not parsed.is_empty() and parsed.has("reply"):
-			if not parsed.has("stance_delta"):
-				parsed["stance_delta"] = 0
-			else:
-				parsed["stance_delta"] = clampi(int(parsed["stance_delta"]), -6, 18)
-			parsed["base_bonus"] = clampi(int(parsed.get("base_bonus", 0)), 0, 5)
-			if not parsed.has("tone"): parsed["tone"] = ""
-			if not parsed.has("knowledge_used"): parsed["knowledge_used"] = []
-			if not parsed.has("matched_points"): parsed["matched_points"] = []
-			if not parsed.has("missed_points"): parsed["missed_points"] = []
-			parsed["is_cheat"] = is_cheat
-			return parsed
+	], {"max_tokens": 280, "temperature": 0.85}, "bridge_topic_answer")
+	var reply_text: String = String(resp.get("reply", "")).strip_edges()
+	var meta: Dictionary = resp.get("meta", {})
+	if resp.get("ok", false) and not reply_text.is_empty():
+		# 只在 meta 真的解析成功时按字段填；否则给保底
+		var parsed: Dictionary = {
+			"reply": reply_text,
+			"stance_delta": clampi(int(meta.get("stance_delta", 0)), -6, 18),
+			"base_bonus": clampi(int(meta.get("base_bonus", 0)), 0, 5),
+			"tone": String(meta.get("tone", "")),
+			"knowledge_used": meta.get("knowledge_used", []),
+			"matched_points": meta.get("matched_points", []),
+			"missed_points": meta.get("missed_points", []),
+			"is_cheat": is_cheat,
+			"is_streaming": true,   # 让 _flow_persuade 知道 TTS 已经流式播了，dialog_box 不要重播
+		}
+		return parsed
 	# LLM 失败也保留 cheat 通过：fallback 文本配合 + is_cheat 让 _apply_persuade_result 强制通过
 	return {
 		"reply": "（一时怔住，连连点头）" if is_cheat else _PersonaFallbackScript.pick(persona, "persuade"),
@@ -562,18 +672,19 @@ func _flow_qa(npc: Unit) -> void:
 	var answer: String = await panel.argument_submitted
 	if answer.is_empty():
 		return
-	var thinking := _make_thinking_overlay()
-	add_child(thinking)
+	# 流式：LLM + TTS 一起推进
 	var eval: Dictionary = await _generate_qa_eval(npc, question, answer)
-	thinking.queue_free()
 	_apply_qa_result(npc, eval)
 	var feedback: String = String(eval.get("feedback", ""))
 	var is_fallback: bool = bool(eval.get("is_fallback", false))
+	var is_streaming: bool = bool(eval.get("is_streaming", false))
 	# 记入对话历史。问题用本轮抛出的 question + 玩家答案 + NPC feedback 三段拼接：
 	# 历史每条记 player（玩家答案）/ npc（feedback），question 在显示时上下文已隐含。
 	_append_dialogue_log(npc, answer, feedback, "fallback" if is_fallback else "qa")
-	await _play_npc_line(npc, feedback, not is_fallback)
-	await _maybe_neighbor_interject(npc, feedback)
+	# 邻居插话与 feedback 显示并发：先 fire LLM，再开 dialog，最后等邻居完成
+	var neighbor_spec := _start_neighbor_interject(npc, feedback)
+	await _play_npc_line(npc, feedback, not is_fallback, is_streaming)
+	await _play_pending_neighbor(neighbor_spec)
 
 
 ## 把一轮交互写入 NPC 的 dialogue_log meta。供 set_history 显示给玩家看。
@@ -616,15 +727,19 @@ func _generate_qa_eval(npc: Unit, question: String, answer: String) -> Dictionar
 		"answer": answer,
 		"learned_csv": _learned_csv(),
 	})
-	var resp: Dictionary = await _get_llm().chat_completion([
+	var resp: Dictionary = await _stream_llm_with_meta_split(npc, [
 		{"role": "system", "content": sys},
 		{"role": "user", "content": user},
-	], {"max_tokens": 220, "temperature": 0.7})
-	if resp.get("ok", false):
-		var parsed := _parse_object_json(String(resp.get("text", "")))
-		if not parsed.is_empty() and parsed.has("feedback"):
-			if not parsed.has("is_correct"): parsed["is_correct"] = false
-			return parsed
+	], {"max_tokens": 280, "temperature": 0.7}, "bridge_qa_eval")
+	var feedback_text: String = String(resp.get("reply", "")).strip_edges()
+	var meta: Dictionary = resp.get("meta", {})
+	if resp.get("ok", false) and not feedback_text.is_empty():
+		return {
+			"feedback": feedback_text,
+			"is_correct": bool(meta.get("is_correct", false)),
+			"knowledge_used": meta.get("knowledge_used", []),
+			"is_streaming": true,
+		}
 	return {
 		"is_correct": false,
 		"feedback": _PersonaFallbackScript.pick(persona, "qa"),
@@ -674,13 +789,12 @@ func _flow_mentor(npc: Unit) -> void:
 		query = await inp.argument_submitted
 		if query.is_empty():
 			return
-	var thinking := _make_thinking_overlay()
-	add_child(thinking)
+	# 流式：LLM + TTS 一起推进
 	var lesson: Dictionary = await _generate_mentor_lesson(npc, query)
-	thinking.queue_free()
 	_apply_mentor_lesson(npc, lesson)
 	var with_voice: bool = not bool(lesson.get("is_fallback", false))
-	await _play_npc_line(npc, String(lesson.get("reply", "")), with_voice)
+	var is_streaming: bool = bool(lesson.get("is_streaming", false))
+	await _play_npc_line(npc, String(lesson.get("reply", "")), with_voice, is_streaming)
 
 
 func _generate_mentor_lesson(npc: Unit, query: String) -> Dictionary:
@@ -690,14 +804,18 @@ func _generate_mentor_lesson(npc: Unit, query: String) -> Dictionary:
 		"query": query,
 		"topics_csv": _BridgeKnowledgeScript.key_to_title_csv(),
 	})
-	var resp: Dictionary = await _get_llm().chat_completion([
+	var resp: Dictionary = await _stream_llm_with_meta_split(npc, [
 		{"role": "system", "content": sys},
 		{"role": "user", "content": user},
-	], {"max_tokens": 280, "temperature": 0.7})
-	if resp.get("ok", false):
-		var parsed := _parse_object_json(String(resp.get("text", "")))
-		if not parsed.is_empty() and parsed.has("reply"):
-			return parsed
+	], {"max_tokens": 320, "temperature": 0.7}, "bridge_knowledge_explain")
+	var reply_text: String = String(resp.get("reply", "")).strip_edges()
+	var meta: Dictionary = resp.get("meta", {})
+	if resp.get("ok", false) and not reply_text.is_empty():
+		return {
+			"reply": reply_text,
+			"topic_key": String(meta.get("topic_key", "")),
+			"is_streaming": true,
+		}
 	return {
 		"reply": _PersonaFallbackScript.pick(persona, "mentor"),
 		"topic_key": "",
@@ -725,22 +843,52 @@ func _apply_mentor_lesson(npc: Unit, lesson: Dictionary) -> void:
 # 邻居插话 + 通用工具
 # ─────────────────────────────────────────────
 
-func _make_thinking_overlay() -> CanvasLayer:
-	return _ThinkingOverlayScene.instantiate()
-
-
 func _maybe_neighbor_interject(speaker: Unit, heard: String) -> void:
+	# 旧入口（同步：先 LLM 后播）。新代码请用 _start_neighbor_interject + _play_pending_neighbor，
+	# 把 LLM 与第一句话播放并发，省 1~2 秒等待。这里保留以便兼容。
+	var spec := _start_neighbor_interject(speaker, heard)
+	await _play_pending_neighbor(spec)
+
+
+## 在第一句话播放前调用。立即决定是否要邻居插话；如果要，立刻 fire-and-forget 跑邻居 LLM。
+## 返回 spec dict 给 _play_pending_neighbor 用：{neighbor: Unit?, pending: {done, text}}。
+## 这样 LLM 调用与第一句 TTS 播放并发，第一句结束时邻居台词通常已生成完。
+func _start_neighbor_interject(speaker: Unit, heard: String) -> Dictionary:
+	var spec: Dictionary = {"neighbor": null, "pending": {"done": false, "text": ""}}
 	if heard.is_empty():
-		return
+		return spec
 	if randf() >= NEIGHBOR_INTERJECT_PROB:
-		return
+		return spec
 	var neighbor: Unit = _pick_neighbor_for_interject(speaker)
 	if neighbor == null:
+		return spec
+	spec["neighbor"] = neighbor
+	_spawn_neighbor_gen_async(neighbor, speaker, heard, spec["pending"])  # fire-and-forget
+	return spec
+
+
+## 配套 _start_neighbor_interject：第一句话播完后调，等邻居 LLM 收尾再播邻居台词。
+func _play_pending_neighbor(spec: Dictionary) -> void:
+	var neighbor: Variant = spec.get("neighbor")
+	if neighbor == null:
 		return
-	var line_text: String = await _generate_neighbor_line(neighbor, speaker, heard)
-	if line_text.is_empty():
+	var pending: Dictionary = spec.get("pending", {})
+	while not bool(pending.get("done", false)):
+		var tree := get_tree()
+		if tree == null:
+			break
+		await tree.process_frame
+	var text: String = String(pending.get("text", "")).strip_edges()
+	if text.is_empty():
 		return
-	await _play_npc_line(neighbor, line_text)
+	await _play_npc_line(neighbor as Unit, text)
+
+
+## fire-and-forget 协程：跑邻居 LLM，把结果写到 out["text"]，设 out["done"] = true。
+func _spawn_neighbor_gen_async(neighbor: Unit, speaker: Unit, heard: String, out: Dictionary) -> void:
+	var t: String = await _generate_neighbor_line(neighbor, speaker, heard)
+	out["text"] = t
+	out["done"] = true
 
 
 func _pick_neighbor_for_interject(speaker: Unit) -> Unit:
@@ -770,6 +918,7 @@ func _generate_neighbor_line(neighbor: Unit, speaker: Unit, heard: String) -> St
 		{"role": "user", "content": user},
 	], {"max_tokens": 100, "temperature": 0.85})
 	if not resp.get("ok", false):
+		push_warning("[bridge_tour LLM] neighbor 调用失败 unit=%s code=%s err=%s" % [neighbor.unit_data.unit_id, resp.get("code", "?"), resp.get("error", "?")])
 		# LLM 失败 → 用 PersonaFallback 抽 neighbor 变体；空字符串则维持跳过插话
 		return _PersonaFallbackScript.pick(persona, "neighbor").strip_edges()
 	return _strip_quotes(String(resp.get("text", ""))).strip_edges()
@@ -787,13 +936,18 @@ func _strip_quotes(s: String) -> String:
 	return out
 
 
-func _play_npc_line(npc: Unit, text: String, with_voice: bool = true) -> bool:
+## 三种播放模式：
+##   - 默认 (with_voice=true)：调 _voice.speak 一次性 TTS，dialog_box 等 voice 收尾
+##   - with_voice=false：fallback 路径，优先 pre-baked MP3，否则降级 OS TTS
+##   - tts_already_streamed=true：TTS 已通过 _stream_llm_with_meta_split 流式播过/正在播，
+##     dialog_box 只显示文字 + 用 _voice 句柄等流式收尾，**不再调 speak**
+func _play_npc_line(npc: Unit, text: String, with_voice: bool = true, tts_already_streamed: bool = false) -> bool:
 	if text.is_empty():
 		return false
 	# is_fallback=true 时（with_voice=false）跳过火山 TTS，但优先注入 pre-baked
 	# AudioStreamMP3 让 dialogue_box 自己播——这样 fallback 文本仍能听到 NPC 自己音色。
 	var pre_baked: AudioStream = null
-	if not with_voice:
+	if not with_voice and not tts_already_streamed:
 		pre_baked = TtsFallbackIndex.get_fallback_audio(npc.unit_data.unit_id, text)
 	var line := DialogueLine.create(
 		npc.unit_data.unit_name,
@@ -804,13 +958,16 @@ func _play_npc_line(npc: Unit, text: String, with_voice: bool = true) -> bool:
 		pre_baked,
 	)
 	var result: Dictionary
-	if with_voice:
+	if tts_already_streamed:
+		# TTS 已在流式播放；dialog_box 通过 voice handle 等 streaming_done 自然收尾
+		result = await play_chatter_lines([line], 2.0, _get_voice())
+	elif with_voice:
 		_get_voice().speak(npc, text, "bridge_topic_answer")
 		result = await play_chatter_lines([line], 2.0, _get_voice())
 	else:
 		result = await play_chatter_lines([line], 2.0)
 	var was_skipped: bool = bool(result.get("was_skipped", false))
-	if was_skipped and with_voice and _get_voice().is_streaming():
+	if was_skipped and (with_voice or tts_already_streamed) and _get_voice().is_streaming():
 		_get_voice().cancel()
 	return was_skipped
 

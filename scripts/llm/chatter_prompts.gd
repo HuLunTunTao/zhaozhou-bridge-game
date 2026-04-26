@@ -90,8 +90,10 @@ static func build_user_prompt(persona: Dictionary, trigger_kind: String, extra: 
    - base_bonus：玩家是否在认真聊（0~5），宁多勿少
    - knowledge_used：李春这次回答里**实际用到**的 key（不是你想到的）
 
-━━━ 输出格式（严格 JSON，无其它文字）━━━
-{"reply":"<你这次的一句话>","stance_delta":<-6..18>,"base_bonus":<0..5>,"tone":"<2~4字情绪>","knowledge_used":[],"matched_points":[],"missed_points":[]}""" % [
+━━━ 输出格式（严格按以下两段输出，先纯文本回复，再 ###META### 分隔，再 JSON 元数据，**不要把整段塞进 JSON 里**）━━━
+<你这次的一句话回复，纯文本，不带引号>
+###META###
+{"stance_delta":<-6..18>,"base_bonus":<0..5>,"tone":"<2~4字情绪>","knowledge_used":[],"matched_points":[],"missed_points":[]}""" % [
 				cheat_preamble,
 				extra.get("bridge_part", "桥上"),
 				extra.get("topic", "?"),
@@ -122,8 +124,10 @@ feedback 是你这次的真实反应（≤ 30 字），承接历史，不要重�
 
 李春此关已学知识 key（参考用）：%s
 
-━━━ 输出（严格 JSON）━━━
-{"is_correct":<bool>,"feedback":"<你的反应>","knowledge_used":[<实际用到的 key>]}""" % [
+━━━ 输出格式（先纯文本 feedback，再 ###META### 分隔，再 JSON 元数据）━━━
+<你的反应，纯文本，不带引号>
+###META###
+{"is_correct":<bool>,"knowledge_used":[<key>]}""" % [
 				extra.get("question", "?"),
 				extra.get("answer", "?"),
 				persona.get("name", "你"),
@@ -143,8 +147,10 @@ feedback 是你这次的真实反应（≤ 30 字），承接历史，不要重�
 - 结合你与李春的对话历史（system prompt 里），承接前文，不要重复你之前说过的字眼
 - reply ≤ 70 字
 
-━━━ 输出（严格 JSON）━━━
-{"reply":"<以你的口吻把这条讲给李春>","topic_key":"<key>"}""" % [
+━━━ 输出格式（先纯文本讲解，再 ###META### 分隔，再 JSON 元数据）━━━
+<你以人设口吻把这条讲给李春，70 字内，纯文本不带引号>
+###META###
+{"topic_key":"<key>"}""" % [
 				persona.get("name", "你"),
 				extra.get("query", "?"),
 				str(extra.get("topics_csv", "")),
