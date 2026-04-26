@@ -38,7 +38,9 @@
       "Bash(python)",
       "Bash(python auditscr.py)",
       "Bash(python -c ' *)",
-      "Bash(timeout 30 godot --headless --import)"
+      "Bash(timeout 30 godot --headless --import)",
+      "Read(//home/user/projects/scenes/**)",
+      "Read(//home/**)"
     ]
   }
 }
