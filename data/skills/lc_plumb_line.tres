@@ -16,6 +16,6 @@ extra_effect_id = "cond_no_attached_bonus"
 is_line_piercing = true
 duration_turns = 0
 cooldown_turns = 0
-description = "金属性直线 2 格穿刺：路径全部命中；对无任何属性附着的目标倍率 1.40。"
+description = "抛出准绳沿直线穿透前方 2 格敌人；对当前无属性附着的目标伤害倍率提升至1.40"
 cast_offsets = Array[Vector2i]([Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1), Vector2i(2, 0), Vector2i(-2, 0), Vector2i(0, 2), Vector2i(0, -2)])
 effect_offsets = Array[Vector2i]([Vector2i(0, 0)])

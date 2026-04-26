@@ -14,6 +14,6 @@ attach_amount = 1
 extra_effect_id = ""
 duration_turns = 0
 cooldown_turns = 0
-description = "铁杵近战，造成金属性伤害"
+description = "用铁杵向邻近敌人挥出一击，造成金属性伤害。"
 cast_offsets = Array[Vector2i]([Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)])
 effect_offsets = Array[Vector2i]([Vector2i(0, 0)])
