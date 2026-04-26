@@ -21,6 +21,9 @@ extends Resource
 ## 仅限水域移动。为 true 时 AI 只在 is_water() 地块上移动。
 @export var water_only: bool = false
 @export var is_escort_target: bool = false
+## 是否为人形单位。非人形（怪物 / 水流 / 石块等）使用更弱的描边和选中高光，
+## 避免大量怪物挤在一起时高光过度刺眼。
+@export var is_humanoid: bool = true
 ## 技能列表，上限 5 个。
 @export var skills: Array[SkillData] = []:
 	set(v):

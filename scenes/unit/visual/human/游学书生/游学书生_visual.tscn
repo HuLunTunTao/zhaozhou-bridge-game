@@ -1,0 +1,58 @@
+[gd_scene format=3 uid="uid://7puc72kt0m1q"]
+
+[ext_resource type="PackedScene" uid="uid://cbjso0lvbcag1" path="res://scenes/unit/visual/visual.tscn" id="1_0amgb"]
+[ext_resource type="Shader" uid="uid://w8w41kw1kylj" path="res://scenes/unit/shader/unit_edge_light.gdshader" id="2_hlw1v"]
+[ext_resource type="Texture2D" uid="uid://pbdp4p7bswye" path="res://assets/character/游学书生/游学书生.png" id="3_hlw1v"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_w0v3n"]
+resource_local_to_scene = true
+shader = ExtResource("2_hlw1v")
+shader_parameter/outline_color = Color(1, 1, 0, 0.3)
+shader_parameter/outline_width = 7.0
+shader_parameter/frame_uv_rect = Vector4(0, 0, 1, 1)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_w0v3n"]
+atlas = ExtResource("3_hlw1v")
+region = Rect2(0, 0, 256, 256)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_61atl"]
+atlas = ExtResource("3_hlw1v")
+region = Rect2(256, 0, 256, 256)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_kybis"]
+atlas = ExtResource("3_hlw1v")
+region = Rect2(0, 256, 256, 256)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_pov41"]
+atlas = ExtResource("3_hlw1v")
+region = Rect2(256, 256, 256, 256)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_fihe6"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_w0v3n")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_61atl")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_kybis")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_pov41")
+}],
+"loop": true,
+"name": &"default",
+"speed": 5.0
+}]
+
+[node name="Visual" unique_id=1878430534 instance=ExtResource("1_0amgb")]
+material = SubResource("ShaderMaterial_w0v3n")
+sprite_frames = SubResource("SpriteFrames_fihe6")
+move_is_idle = true
+flip_h_for_turning = true
+default_facing_left = true
+
+[node name="FootMarker" parent="." index="0"]
+position = Vector2(0, 113.33333)

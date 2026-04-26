@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="SideArchConfig" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="SideArchConfig" format=3 uid="uid://cu3ap8cywc4s6"]
 
 [ext_resource type="Script" path="res://scripts/data/side_arch_config.gd" id="1"]
 

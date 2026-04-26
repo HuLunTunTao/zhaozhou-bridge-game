@@ -1182,7 +1182,7 @@ func play_chatter_dialogue(unit: Node, text: String, dismiss_delay: float = 2.5)
 		u.unit_data.camp
 	)
 	var line := DialogueLine.create(
-		persona.get("name", u.unit_data.unit_name),
+		u.combat_stats.unit_name if u.combat_stats != null else u.unit_data.unit_name,
 		text,
 		PortraitResolverScript.get_portrait(u),
 		PortraitResolverScript.side_for_unit(u),

@@ -12,7 +12,7 @@ extends Node2D
 const PULSE_PERIOD := 0.9  # 一次完整脉动秒数
 const ALPHA_MIN := 0.45
 const ALPHA_MAX := 1.0
-const STROKE_WIDTH := 2.0
+const STROKE_WIDTH := 1.0
 
 var tilemap: TileMapLayer = null
 var hover_cell: Vector2i = Vector2i(-9999, -9999)

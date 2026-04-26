@@ -203,10 +203,23 @@ func set_hover_highlight(active: bool) -> void:
 		var bright_modulate: Color = _saved_hover_modulate * 1.8
 		bright_modulate.a = _saved_hover_modulate.a
 		# 白色脉动：alpha 0.7 ↔ 1.0；宽度 8 ↔ 18 px（shader hint_range 是编辑器提示，运行时不限）
-		var dim_outline := Color(1.0, 1.0, 1.0, 0.7)
-		var bright_outline := Color(1.0, 1.0, 1.0, 1.0)
-		var dim_width := 8.0
-		var bright_width := 18.0
+		# 非人形单位用更弱的脉动参数（怪物挤一堆时高光更不刺眼）
+		var dim_outline: Color
+		var bright_outline: Color
+		var dim_width: float
+		var bright_width: float
+		if _is_humanoid():
+			dim_outline = Color(1.0, 1.0, 1.0, 0.7)
+			bright_outline = Color(1.0, 1.0, 1.0, 1.0)
+			dim_width = 8.0
+			bright_width = 18.0
+		else:
+			dim_outline = Color(1.0, 1.0, 1.0, 0.4)
+			bright_outline = Color(1.0, 1.0, 1.0, 0.65)
+			dim_width = 3.0
+			bright_width = 8.0
+			bright_modulate = _saved_hover_modulate * 1.35
+			bright_modulate.a = _saved_hover_modulate.a
 		var period := 0.7
 		_hover_pulse_tween = create_tween().set_loops()
 		_hover_pulse_tween.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
@@ -249,6 +262,8 @@ func _apply_color() -> void:
 
 
 ## 根据阵营设置描边颜色。主角黄色，友方绿色，敌方红色。
+## 非人形单位（is_humanoid=false）会进一步弱化描边 alpha 和宽度，
+## 避免怪物挤在一起时一片刺眼。
 func apply_faction_outline() -> void:
 	if _visual == null:
 		return
@@ -259,7 +274,18 @@ func apply_faction_outline() -> void:
 		color = OUTLINE_COLOR_ALLY
 	else:
 		color = OUTLINE_COLOR_ENEMY
+	if not _is_humanoid():
+		color.a *= 0.4   # 非人形描边再淡一档
 	_visual.set_outline_color(color)
+	# 非人形把 shader outline_width 也压低（默认 7 → 3）
+	if not _is_humanoid():
+		var mat := _visual.material as ShaderMaterial
+		if mat:
+			mat.set_shader_parameter("outline_width", 3.0)
+
+
+func _is_humanoid() -> bool:
+	return unit_data == null or unit_data.is_humanoid
 
 
 ## 单位倒下：播放淡出动画后从场景树移除，并发出 died 信号。

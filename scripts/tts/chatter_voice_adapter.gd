@@ -20,6 +20,9 @@ var _player: VolcengineStreamingVoicePlayer = null
 ## 每次 speak() 自增；用于在重入 / cancel 时让旧协程认出"我已经被取代了"，
 ## 不要再触发系统 TTS 兜底。
 var _speak_token: int = 0
+## fallback 路径专用的 AudioStreamPlayer（pre-baked MP3 或 OS TTS 之前的占位）。
+## 复用同一节点避免反复 add_child / queue_free。
+var _fallback_player: AudioStreamPlayer = null
 
 ## ChatterScheduler 监听这个信号判断本次 chatter 是否说完。
 signal streaming_done
@@ -93,23 +96,27 @@ func speak(unit: Node, text: String, trigger_kind: String = "") -> void:
 	if clean_text.is_empty():
 		streaming_done.emit()
 		return
+	# 解析 unit_id（用于 fallback 查表）
+	var unit_id: String = ""
+	if unit is Unit and (unit as Unit).unit_data != null:
+		unit_id = String((unit as Unit).unit_data.unit_id)
 	if _player == null:
-		_maybe_speak_via_system_tts(clean_text)
+		await _fallback_voice(unit_id, clean_text)
 		streaming_done.emit()
 		return
-	if not (unit is Unit) or (unit as Unit).unit_data == null:
-		_maybe_speak_via_system_tts(clean_text)
+	if unit_id.is_empty():
+		await _fallback_voice(unit_id, clean_text)
 		streaming_done.emit()
 		return
 	var u := unit as Unit
 	var voice_cfg: Dictionary = VoiceMappingScript.get_voice(u.unit_data.unit_id, u.unit_data.camp)
 	var voice: String = voice_cfg.get("voice", "")
 	if voice.is_empty():
-		_maybe_speak_via_system_tts(clean_text)
+		await _fallback_voice(unit_id, clean_text)
 		streaming_done.emit()
 		return
 	if ApiConfig.TTS_API_KEY.is_empty():
-		_maybe_speak_via_system_tts(clean_text)
+		await _fallback_voice(unit_id, clean_text)
 		streaming_done.emit()
 		return
 
@@ -119,7 +126,7 @@ func speak(unit: Node, text: String, trigger_kind: String = "") -> void:
 	if my_token != _speak_token:
 		return
 	if not ok:
-		_maybe_speak_via_system_tts(clean_text)
+		await _fallback_voice(unit_id, clean_text)
 	# _player 的 speak_finished 已经把 streaming_done emit 了
 
 
@@ -131,6 +138,9 @@ func cancel() -> void:
 	_stream_active = false
 	if _player != null:
 		_player.stop()
+	# 同步停 fallback player（如果正在播 pre-baked mp3）
+	if _fallback_player != null and _fallback_player.playing:
+		_fallback_player.stop()
 	streaming_done.emit()
 
 
@@ -323,6 +333,24 @@ func _hp_percent(unit: Node) -> int:
 	if stats == null or stats.max_hp <= 0:
 		return 100
 	return int(round(100.0 * float(stats.current_hp) / float(stats.max_hp)))
+
+
+## 失败兜底链入口：火山失败 / api_key 空 / voice 空 / unit 无 unit_data 等情况都进这里。
+## 优先级：pre-baked MP3 (TtsFallbackIndex) → OS TTS (DisplayServer.tts_speak) → 静默
+## 文本 text 应已经过 _sanitize_for_tts；unit_id 为空时跳过查表直接走 OS TTS。
+func _fallback_voice(unit_id: String, text: String) -> void:
+	if unit_id != "":
+		var pre: AudioStream = TtsFallbackIndex.get_fallback_audio(unit_id, text)
+		if pre != null:
+			if _fallback_player == null:
+				_fallback_player = AudioStreamPlayer.new()
+				_fallback_player.bus = &"Voice"
+				add_child(_fallback_player)
+			_fallback_player.stream = pre
+			_fallback_player.play()
+			await _fallback_player.finished
+			return
+	_maybe_speak_via_system_tts(text)
 
 
 ## 系统 TTS 兜底：火山合成失败时由 OS 把文本读出来。

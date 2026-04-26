@@ -21,6 +21,7 @@ const HISTORY_MAX := 10
 
 @onready var _title: Label = %Title
 @onready var _subtitle: Label = %Subtitle
+@onready var _goal_hint: RichTextLabel = %GoalHint
 @onready var _history_scroll: ScrollContainer = %HistoryScroll
 @onready var _history_list: VBoxContainer = %HistoryList
 @onready var _player_template: RichTextLabel = %PlayerLineTemplate
@@ -34,6 +35,8 @@ const HISTORY_MAX := 10
 var _pending_learned: Array = []
 var _pending_used: Array = []
 var _has_pending_learned: bool = false
+var _pending_goal: Dictionary = {}
+var _has_pending_goal: bool = false
 var _pending_history: Array = []
 var _has_pending_history: bool = false
 
@@ -49,6 +52,11 @@ func _ready() -> void:
 	else:
 		if _learned_hint:
 			_learned_hint.visible = false
+	if _has_pending_goal:
+		_render_goal(_pending_goal)
+	else:
+		if _goal_hint:
+			_goal_hint.visible = false
 	if _has_pending_history:
 		_render_history(_pending_history)
 
@@ -77,6 +85,15 @@ func show_for(npc_name: String, subtitle_text: String) -> void:
 		_subtitle.visible = true
 
 
+## 显示说服目标。仅 persuade 流程调用；qa / mentor 保持隐藏。
+func set_persuasion_goal(goal: Dictionary) -> void:
+	if not is_inside_tree() or _goal_hint == null:
+		_pending_goal = goal.duplicate()
+		_has_pending_goal = true
+		return
+	_render_goal(goal)
+
+
 ## 显示玩家已学的桥梁知识。learned 是 key 数组，used 是已在 persuade/qa 中引用过的 key 数组。
 ## learned 为空时显示提示文字"先去找 ★ NPC 求教"。
 func set_learned_topics(learned: Array, used: Array) -> void:
@@ -86,6 +103,26 @@ func set_learned_topics(learned: Array, used: Array) -> void:
 		_has_pending_learned = true
 		return
 	_render_learned(learned, used)
+
+
+func _render_goal(goal: Dictionary) -> void:
+	if _goal_hint == null:
+		return
+	if goal.is_empty():
+		_goal_hint.visible = false
+		return
+	var title := String(goal.get("goal", "")).strip_edges()
+	var objection := String(goal.get("objection", "")).strip_edges()
+	var hint := String(goal.get("hint", "")).strip_edges()
+	var lines: Array[String] = []
+	if not title.is_empty():
+		lines.append("[color=#ffd97a]说服目标：[/color][color=#e8dfc8]%s[/color]" % title)
+	if not objection.is_empty():
+		lines.append("[color=#9ec3ff]对方疑虑：[/color][color=#cfd2c2]%s[/color]" % objection)
+	if not hint.is_empty():
+		lines.append("[color=#8fd18f]提示：[/color][color=#cfd2c2]%s[/color]" % hint)
+	_goal_hint.text = "\n".join(lines)
+	_goal_hint.visible = not lines.is_empty()
 
 
 ## 显示本次 NPC 会话的历史。log 数组每条 {player: String, npc: String, ...}；

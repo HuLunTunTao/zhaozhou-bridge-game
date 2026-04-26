@@ -1,12 +1,11 @@
-[gd_resource type="Resource" script_class="SkillData" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="SkillData" format=3 uid="uid://05887tbf32gm"]
 
-[ext_resource type="Script" path="res://scripts/data/skill_data.gd" id="1"]
+[ext_resource type="Script" uid="uid://cp0ew5p75uio0" path="res://scripts/data/skill_data.gd" id="1"]
 
 [resource]
 script = ExtResource("1")
 skill_id = "cg_mallet_strike"
 skill_name = "杵槌击"
-skill_type = 0
 ap_cost = 25
 damage_ratio = 1.0
 damage_element = 1

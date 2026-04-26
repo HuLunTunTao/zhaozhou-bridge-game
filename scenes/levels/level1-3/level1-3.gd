@@ -743,6 +743,7 @@ func _setup_status_panel() -> void:
 	_status_panel.add_theme_color_override("default_color", Color(0.96, 0.94, 0.88))
 	_status_panel.add_theme_color_override("font_outline_color", Color(0.08, 0.08, 0.08))
 	_status_panel.add_theme_constant_override("outline_size", 3)
+	_status_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	gui.add_child(_status_panel)
 
 
