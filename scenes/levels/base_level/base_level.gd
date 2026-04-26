@@ -32,7 +32,7 @@ const MONSTER_VISUALS: Dictionary = {
 	"重墩石像": preload("res://scenes/unit/visual/monster/重墩石像/重墩石像_visual.tscn"),
 	"裂石兽": preload("res://scenes/unit/visual/monster/裂石兽/裂石兽_visual.tscn"),
 	"错券兵": preload("res://scenes/unit/visual/monster/错券兵/错券兵_visual.tscn"),
-	"漂木群洪水版": preload("res://scenes/unit/visual/monster/漂木群洪水版/漂木群洪水版_visual.tscn"),
+	"漂木群·洪水版": preload("res://scenes/unit/visual/monster/漂木群洪水版/漂木群洪水版_visual.tscn"),
 }
 
 ## 友方名称 → Visual 场景映射表。spawn_unit 在 MONSTER_VISUALS 未命中时回落到这里。
