@@ -86,7 +86,6 @@ func _ready() -> void:
 		_visual.play_state(&"idle")
 	_init_combat_stats()
 	_init_hp_bar()
-	_init_click_button()
 
 
 ## 将 visual_scene 的属性复制到当前 Visual 节点（不替换节点）。
@@ -165,20 +164,83 @@ func _init_hp_bar() -> void:
 		_hp_bar.update_element(combat_stats.current_element, combat_stats.current_element_amount)
 
 
-## 初始化透明点击按钮（不再拦截左键，选择改由地块点击处理）。
-func _init_click_button() -> void:
-	if Engine.is_editor_hint():
-		return
-	var btn := get_node_or_null("Button") as Button
-	if btn:
-		btn.mouse_filter = Control.MOUSE_FILTER_IGNORE
-
-
 func _update_acted_visual() -> void:
 	if not is_inside_tree():
 		return
 	if _visual:
 		_visual.set_acted(has_acted)
+
+
+## 鼠标 hover 高亮：在 visual 的 outline 上叠一层白色脉动。
+## - shader outline_color / outline_width 是 ShaderMaterial uniform，可独立 tween，互不影响 modulate / 阵营色
+## - 同时把 modulate 推亮（≈1.8×）作为辅助视觉
+## - 已 acted 单位保留 set_acted 的暗色调，不脉动避免与变暗效果打架
+## 退出时还原 outline_color / outline_width / modulate。
+var _hover_highlight_active: bool = false
+var _saved_hover_modulate: Color = Color.WHITE
+var _saved_outline_color: Color = Color(1, 1, 0, 0.3)
+var _saved_outline_width: float = 7.0
+var _hover_pulse_tween: Tween = null
+
+
+func set_hover_highlight(active: bool) -> void:
+	if _visual == null:
+		return
+	if active == _hover_highlight_active:
+		return
+	_hover_highlight_active = active
+	if _hover_pulse_tween != null and _hover_pulse_tween.is_valid():
+		_hover_pulse_tween.kill()
+		_hover_pulse_tween = null
+	var mat: ShaderMaterial = _visual.material as ShaderMaterial
+	if active:
+		if has_acted:
+			return  # 已行动单位不脉动
+		_saved_hover_modulate = _visual.modulate
+		if mat:
+			_saved_outline_color = mat.get_shader_parameter("outline_color")
+			_saved_outline_width = float(mat.get_shader_parameter("outline_width"))
+		var bright_modulate: Color = _saved_hover_modulate * 1.8
+		bright_modulate.a = _saved_hover_modulate.a
+		# 白色脉动：alpha 0.7 ↔ 1.0；宽度 8 ↔ 18 px（shader hint_range 是编辑器提示，运行时不限）
+		var dim_outline := Color(1.0, 1.0, 1.0, 0.7)
+		var bright_outline := Color(1.0, 1.0, 1.0, 1.0)
+		var dim_width := 8.0
+		var bright_width := 18.0
+		var period := 0.7
+		_hover_pulse_tween = create_tween().set_loops()
+		_hover_pulse_tween.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+		_hover_pulse_tween.set_parallel(true)
+		_hover_pulse_tween.tween_property(_visual, "modulate", bright_modulate, period)
+		if mat:
+			_hover_pulse_tween.tween_method(_set_outline_color, dim_outline, bright_outline, period)
+			_hover_pulse_tween.tween_method(_set_outline_width, dim_width, bright_width, period)
+		_hover_pulse_tween.chain().set_parallel(true)
+		_hover_pulse_tween.tween_property(_visual, "modulate", _saved_hover_modulate, period)
+		if mat:
+			_hover_pulse_tween.tween_method(_set_outline_color, bright_outline, dim_outline, period)
+			_hover_pulse_tween.tween_method(_set_outline_width, bright_width, dim_width, period)
+	else:
+		_visual.modulate = _saved_hover_modulate
+		if mat:
+			mat.set_shader_parameter("outline_color", _saved_outline_color)
+			mat.set_shader_parameter("outline_width", _saved_outline_width)
+
+
+func _set_outline_color(c: Color) -> void:
+	if _visual == null:
+		return
+	var mat := _visual.material as ShaderMaterial
+	if mat:
+		mat.set_shader_parameter("outline_color", c)
+
+
+func _set_outline_width(w: float) -> void:
+	if _visual == null:
+		return
+	var mat := _visual.material as ShaderMaterial
+	if mat:
+		mat.set_shader_parameter("outline_width", w)
 
 
 func _apply_color() -> void:
