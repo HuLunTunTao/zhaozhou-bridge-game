@@ -1,10 +1,10 @@
-[gd_resource type="Resource" script_class="SideArchConfig" format=3 uid="uid://cu3ap8cywc4s6"]
+[gd_resource type="Resource" script_class="SideArchConfig" format=3 uid="uid://h0pnmf4chl3q"]
 
-[ext_resource type="Script" path="res://scripts/data/side_arch_config.gd" id="1"]
+[ext_resource type="Script" uid="uid://biwhtlki7b5eh" path="res://scripts/data/side_arch_config.gd" id="1"]
 
 [resource]
 script = ExtResource("1")
-left_front_offset = Vector2i(-3, 1)
-left_back_offset = Vector2i(-3, -1)
-right_front_offset = Vector2i(3, 1)
-right_back_offset = Vector2i(3, -1)
+left_front_offset = Vector2i(-4, 1)
+left_back_offset = Vector2i(-4, -1)
+right_front_offset = Vector2i(38, 1)
+right_back_offset = Vector2i(38, -1)
