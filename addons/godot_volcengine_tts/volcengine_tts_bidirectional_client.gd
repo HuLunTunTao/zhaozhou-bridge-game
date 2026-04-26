@@ -57,7 +57,9 @@ const SERIAL_JSON := 0x10
 
 # ─── 信号 ───────────────────────────────────────────────────
 ## 收到一段音频字节。format（mp3/pcm/...）由 start_session 时的 opts 决定。
-signal audio_chunk_received(chunk: PackedByteArray)
+## session_id 必须由调用方比对：cancel 之后到达的 in-flight chunk 仍可能 emit，
+## 必须靠 sid 区分新旧 session（详见 streaming_voice_player._on_bidi_audio_chunk）。
+signal audio_chunk_received(session_id: String, chunk: PackedByteArray)
 ## session 正常结束。session_id 可被调用方保存做 section_id 链。
 signal session_finished(session_id: String)
 ## session 任意失败原因（鉴权、超时、SessionFailed、WS 断）。
@@ -216,7 +218,7 @@ func _run_audio_recv_loop(token: int) -> void:
 				return
 			var chunk: PackedByteArray = msg.audio
 			if chunk.size() > 0:
-				audio_chunk_received.emit(chunk)
+				audio_chunk_received.emit(_session_id, chunk)
 			if msg.event == EVENT_SESSION_FINISHED:
 				_send_packet(EVENT_FINISH_CONNECTION, {}, "")
 				var sid := _session_id

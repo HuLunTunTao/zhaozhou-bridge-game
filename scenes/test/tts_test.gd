@@ -236,7 +236,7 @@ func _on_bidi_pressed() -> void:
 	# 后续 audio_chunk_received / session_finished 由信号驱动
 
 
-func _on_bidi_chunk(chunk: PackedByteArray) -> void:
+func _on_bidi_chunk(_sid: String, chunk: PackedByteArray) -> void:
 	if _bidi_playback == null:
 		return
 	# 入队，由单 drain 协程串行 push，避免多协程争抢 playback 引起破音
