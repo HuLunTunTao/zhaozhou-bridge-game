@@ -25,10 +25,15 @@ var _prev_balance_state: String = "均衡"
 var _clutch_fired: bool = false
 # 偏压移衡调用次数计数：每 2 次才真正扣 1 点，避免每回合压得太狠
 var _shift_load_tick: int = 0
-# 券台 / 石料场的脉动光晕标记（仿第一关撤离区）
+# 券台 / 石料场 / 拱冠点的脉动光晕标记（仿第一关撤离区）
 var _left_platform_marker: Node2D = null
 var _right_platform_marker: Node2D = null
 var _stone_yard_markers: Array[Node2D] = []
+var _crown_marker: Node2D = null
+## 紫色拱冠染色 tile，初始隐藏；Boss 死 + 两侧 10 + gap≤1 时才 .visible = true
+var _crown_tile: Node2D = null
+## 拱冠点是否已经"激活并通知过玩家"——避免反复弹通知
+var _crown_activated: bool = false
 
 var _left_platform: Vector2i
 var _right_platform: Vector2i
@@ -64,9 +69,11 @@ var _visual_carrier: PackedScene = preload("res://scenes/unit/visual/human/测�
 const COLOR_LEFT_PLATFORM := Color(0.95, 0.75, 0.25, 0.65)    # 金色 —— 左券台
 const COLOR_RIGHT_PLATFORM := Color(0.25, 0.65, 0.95, 0.65)   # 蓝色 —— 右券台
 const COLOR_STONE_YARD := Color(0.55, 0.40, 0.25, 0.35)       # 棕色 —— 石料场（较淡）
+const COLOR_CROWN_PLATFORM := Color(0.75, 0.40, 0.95, 0.70)   # 紫色 —— 拱冠合龙点
 const COLOR_LEFT_HALO := Color(1.0, 0.80, 0.25, 0.50)         # 金色光晕
 const COLOR_RIGHT_HALO := Color(0.30, 0.70, 1.0, 0.50)        # 蓝色光晕
 const COLOR_STONE_HALO := Color(0.70, 0.50, 0.30, 0.30)       # 棕色光晕（更淡）
+const COLOR_CROWN_HALO := Color(0.85, 0.50, 1.0, 0.55)        # 紫色光晕
 
 # ── 地图固定锚点（按桥面 tile 实际位置解码得出，视觉关于桥中轴 x==y 镜像对称）──
 # 桥图层并集范围：grid x=[-19,16] y=[-18,17]；视觉中轴位于 x-y=0 这条竖线（即 x==y）。
@@ -191,8 +198,8 @@ func get_objectives_text() -> Dictionary:
 			"- 左券值达到 10（当前 %d/10）" % _left_arch_value,
 			"- 右券值达到 10（当前 %d/10）" % _right_arch_value,
 			"- 左右差值保持 ≤1（当前 %d）" % gap,
-			"- 李春在拱冠点执行「收缝合龙」（%s）" % ("已完成" if _arch_closed else "未完成"),
 			"- 击败偏载傀（%s）" % ("已击败" if not boss_alive else "存活"),
+			"- 上述三项满足后，李春走到桥中央[color=#c060f0]紫色拱冠点[/color]执行「收缝合龙」（%s）" % ("已完成" if _arch_closed else "未完成"),
 		],
 		"defeat": [
 			"- 李春倒下",
@@ -229,8 +236,10 @@ func _on_level_ready() -> void:
 	unit_hp_changed.connect(_on_stage_hp_changed)
 	round_started.connect(_on_stage_round_started)
 	_update_status_panel()
+	_update_crown_visibility()
 	_prev_balance_state = _balance_state()
 	Notify.notify("推进券值：运石工去棕色石料场取石，再走到金/蓝券台旁 +1；或李春用「墨绳校券」远程 +1（CD 2）", Notify.Position.TOP_CENTER, Notify.Style.INFO, 5.0)
+	Notify.notify("击败偏载傀 + 两侧凑满 10 后，桥中央紫色拱冠合龙点才会激活，李春走过去消耗 35 AP 合龙即胜利", Notify.Position.TOP_CENTER, Notify.Style.INFO, 6.0)
 
 
 func _on_unit_moved() -> void:
@@ -310,6 +319,8 @@ func _on_stage_hp_changed(unit: Unit, old_hp: int, new_hp: int) -> void:
 	if damage > cap:
 		unit.combat_stats.current_hp = old_hp - cap
 		unit.refresh_overhead_bars()
+	# Boss HP 变化（含被打死）→ 重新评估拱冠是否激活
+	_update_crown_visibility()
 
 
 func _setup_anchor_cells() -> void:
@@ -334,7 +345,8 @@ func _setup_anchor_cells() -> void:
 	print("  STONE_YARD_CELL_B=", STONE_YARD_CELL_B, " → snap=", _stone_yard_cells[1])
 	_setup_platform_markers()
 	_setup_stone_yard_markers()
-	print("[Level1-3] markers spawned: left=", _left_platform_marker, " right=", _right_platform_marker, " stone_yard_markers=", _stone_yard_markers.size())
+	_setup_crown_marker()
+	print("[Level1-3] markers spawned: left=", _left_platform_marker, " right=", _right_platform_marker, " stone_yard_markers=", _stone_yard_markers.size(), " crown=", _crown_marker)
 
 
 ## 左/右券台视觉：2×2 彩色地块 + 预置的脉动光晕（见 level1-3.tscn 的 Markers 节点）。
@@ -361,6 +373,41 @@ func _setup_stone_yard_markers() -> void:
 			tile.name = "StoneYardTile_%d_%d_%d" % [i, c.x, c.y]
 			register_special_tile(tile, c)
 		_stone_yard_markers.append(get_node("Markers/StoneYardMarker_%d" % i))
+
+
+## 拱冠合龙点视觉：单格紫色染色 + 预置的脉动光晕。
+## 初始**隐藏**——Boss 死 + 两侧凑满 10 + gap≤1 时由 _update_crown_visibility 显示。
+## 这是关卡"最终交互点"：所有前置完成后才浮现，李春走过去合龙即胜利。
+func _setup_crown_marker() -> void:
+	var tile := _make_platform_tile(COLOR_CROWN_PLATFORM)
+	tile.name = "CrownTile_%d_%d" % [_crown_point.x, _crown_point.y]
+	register_special_tile(tile, _crown_point)
+	tile.visible = false
+	_crown_tile = tile
+	if has_node("Markers/CrownMarker"):
+		_crown_marker = get_node("Markers/CrownMarker")
+		_crown_marker.visible = false
+
+
+## 检查拱冠激活条件并切换可见性 + 首次激活弹通知。
+## 条件：Boss 死亡 + 左右券值都 ≥10 + gap≤1 + 尚未合龙。
+## 任意券值变动 / Boss HP 变动后调用一次即可。
+func _update_crown_visibility() -> void:
+	if _arch_closed:
+		return
+	var boss_dead: bool = _boss == null or _boss.combat_stats == null or not _boss.combat_stats.is_alive()
+	var arches_full: bool = _left_arch_value >= 10 and _right_arch_value >= 10 and _arch_gap() <= 1
+	var should_show: bool = boss_dead and arches_full
+	if _crown_tile != null:
+		_crown_tile.visible = should_show
+	if _crown_marker != null:
+		_crown_marker.visible = should_show
+	if should_show and not _crown_activated:
+		_crown_activated = true
+		Notify.notify(
+			"拱冠合龙点已激活！李春走到桥中央紫色拱冠点完成「收缝合龙」即胜利",
+			Notify.Position.TOP_CENTER, Notify.Style.SUCCESS, 5.0,
+		)
 
 
 func _make_platform_tile(color: Color) -> SpecialTile:
@@ -411,10 +458,11 @@ func _spawn_extra_carriers() -> void:
 
 
 func _spawn_enemies() -> void:
-	# Boss 在桥北端正中（BOSS_CELL 是地图常量），合龙前不动、不主动出手；
-	# 只靠被动的偏压移衡扣券值 + 压台对相邻我方扣血。空技能表 + AP 1 / move_cost 99
-	# 保证 AI 不会尝试攻击或移动。合龙后由 _unlock_boss 解锁机动与近战。
-	_boss = _spawn_enemy(_make_unit_data(_mud_data, "偏载傀", 320, 22, 1, 99, Enums.Element.EARTH, 2), _nearest_bridge_cell(BOSS_CELL), [], _visual_boss)
+	# Boss 在桥北端正中（BOSS_CELL 是地图常量），初始固定位（AP=1 / move_cost=99 / 空技能表）
+	# —— **倾压之号触发前不能动也不能主动出手**，只靠被动机制（偏压移衡 / 压台）压玩家。
+	# 倾压之号触发时调 _unlock_boss 放开机动 + 补土系近战，Boss 开始下桥还手。
+	# 玩家仍可远程打 Boss，Boss 受击伤害仍按 _boss_damage_cap 截断。
+	_boss = _spawn_enemy(_make_unit_data(_mud_data, "偏载傀", 320, 18, 1, 99, Enums.Element.EARTH, 2), _nearest_bridge_cell(BOSS_CELL), [], _visual_boss)
 	# 两个错券兵分别贴在左右券台外侧（关于桥中轴镜像），与券台 2×2 相邻以便扰券。
 	_spawn_enemy(_make_unit_data(_craftsman_data, "错券兵", 90, 17, 90, 9), _nearest_bridge_cell(_left_platform + Vector2i(-1, -1)), [_mallet], _visual_misaligned)
 	_spawn_enemy(_make_unit_data(_craftsman_data, "错券兵", 90, 17, 90, 9), _nearest_bridge_cell(_right_platform + Vector2i(1, 1)), [_mallet], _visual_misaligned)
@@ -454,14 +502,21 @@ func _try_close_arch(unit: Unit) -> void:
 		return
 	if _left_arch_value < 10 or _right_arch_value < 10 or _arch_gap() > 1:
 		return
+	# 新流程：合龙是最后一步，必须先击败 Boss
+	if _boss == null or _boss.combat_stats == null or _boss.combat_stats.is_alive():
+		return
 	if unit.combat_stats.ap_current < _close_arch_ap_cost:
 		return
 	unit.combat_stats.ap_current -= _close_arch_ap_cost
 	unit.refresh_overhead_bars()
 	_arch_closed = true
-	_unlock_boss()
+	# Boss 已死，无需再 _unlock_boss
+	if _crown_tile != null:
+		_crown_tile.visible = false
+	if _crown_marker != null:
+		_crown_marker.visible = false
 	_update_status_panel()
-	Notify.notify("收缝合龙完成，偏载傀的核心开始暴露", Notify.Position.TOP_CENTER, Notify.Style.SUCCESS, 3.0)
+	Notify.notify("收缝合龙完成，安济桥成！", Notify.Position.TOP_CENTER, Notify.Style.SUCCESS, 3.0)
 
 
 func _shift_load() -> void:
@@ -481,20 +536,21 @@ func _shift_load() -> void:
 
 ## 偏载傀「倾压之号」：整关只触发一次的急召。
 ##
-## 当两侧施工都逼近上限（min >= 7）且差值已收拢（<= 1）、但玩家还没合龙，
-## 偏载傀从较高一侧突然召唤 2 名错券兵。错券兵本身带扰券被动——下回合末
-## 会把那一侧 −2，瞬间把玩家从"就差合龙一步"推回"需要先清兵再合龙"的决策点。
+## 当任一侧券值已经 > 8（即 ≥9）、且玩家还没合龙，偏载傀立刻把那一侧 −1（瞬间打断"凑满"
+## 节奏），然后从同一侧召唤 2 名错券兵；下回合末错券兵的扰券被动会再把那侧 −2。
+## 总效果：触发侧瞬时 −1 + 下回合 −2 = −3，玩家从"差一步合龙"被推回需要先清兵再补券。
 ##
-## 这个机制与 _shift_load（每回合温和地 −1）互补：shift_load 是慢性压力，
-## 倾压之号是临门一脚的爆发。触发后 _clutch_fired 置 true，整关不再触发。
+## 与 _shift_load 互补：shift_load 是慢性压力，倾压之号是临门一脚的爆发。
+## 触发后 _clutch_fired 置 true，整关不再触发。
+##
+## 历史上用过 `mini(...) < 9 + gap <= 1` 双闸门——shift_load 持续压高侧导致 min 长期不到 9，
+## clutch 几乎死代码。改为"任一侧 > 8 即触发，不看差值"，让此机制必然出现一次。
 func _maybe_boss_clutch_summon() -> void:
 	if _clutch_fired or _arch_closed:
 		return
 	if _boss == null or _boss.combat_stats == null or not _boss.combat_stats.is_alive():
 		return
-	if mini(_left_arch_value, _right_arch_value) < 9:
-		return
-	if _arch_gap() > 1:
+	if maxi(_left_arch_value, _right_arch_value) <= 8:
 		return
 	# 选定较高一侧；相等则随机
 	var target_left: bool
@@ -504,6 +560,9 @@ func _maybe_boss_clutch_summon() -> void:
 		target_left = false
 	else:
 		target_left = randi() % 2 == 0
+	# 触发瞬间先扣 1：把"凑满"节奏直接打断，再让召唤的错券兵继续扰券
+	_adjust_arch_value(target_left, -1, "倾压之号瞬时扣券")
+	_update_status_panel()
 	var platform: Vector2i = _left_platform if target_left else _right_platform
 	var side_name: String = "左" if target_left else "右"
 	var offsets: Array[Vector2i]
@@ -520,16 +579,17 @@ func _maybe_boss_clutch_summon() -> void:
 		)
 		summoned.append(unit)
 	_clutch_fired = true
+	_unlock_boss()                      # 倾压之号触发后 Boss 才能下桥行动
 	Notify.notify(
-		"偏载傀倾压之号！%s侧突现 2 名错券兵，下回合末将扰券 −2" % side_name,
+		"偏载傀倾压之号！%s侧瞬时 −1 + 突现 2 名错券兵（下回合末再扰券 −2），偏载傀开始下桥还手" % side_name,
 		Notify.Position.TOP_CENTER, Notify.Style.ERROR, 4.0,
 	)
 	if not summoned.is_empty():
 		_camera_focus_spawned(summoned)
 
 
-## 合龙成功后解锁偏载傀：从固定位 AP=1 / move_cost=99 放开到正常值，
-## 并补上一把土系近战技能。Boss 从此可以下桥还手。
+## 让偏载傀进入"全程活跃"配置：放开移动、补土系近战。
+## 在倾压之号触发时（_maybe_boss_clutch_summon 末尾）调用——这是 Boss 下桥还手的节点。
 func _unlock_boss() -> void:
 	if _boss == null or _boss.combat_stats == null or not _boss.combat_stats.is_alive():
 		return
@@ -538,7 +598,6 @@ func _unlock_boss() -> void:
 	_boss.combat_stats.ap_current = _boss.combat_stats.ap_max
 	_boss.refresh_overhead_bars()
 	set_unit_skills(_boss, [_crush])
-	Notify.notify("偏载傀开始下桥还手", Notify.Position.TOP_CENTER, Notify.Style.WARNING, 3.0)
 
 
 func _resolve_enemy_pressure() -> void:
@@ -572,29 +631,42 @@ func _resolve_enemy_pressure() -> void:
 			_bridge_stability -= 1
 			Notify.notify("脱缝鬼侵蚀缝口，桥体稳定值 -1", Notify.Position.TOP_CENTER, Notify.Style.WARNING, 2.0)
 
-	# 4. 偏载傀「压台」——周围 1 格内我方扣 base_atk × 0.5 无属伤
+	# 4. 偏载傀「压台」——以 Boss 为中心 12×12 范围（切比雪夫半径 6）内，按距离最近选至多 2 个我方扣 base_atk × 0.5 无属伤
 	if _boss != null and _boss.combat_stats != null and _boss.combat_stats.is_alive():
 		var press_damage := int(_boss.combat_stats.base_atk * 0.5)
+		var press_radius := 6                       # 12×12 = 中心 ±6 切比雪夫
+		var press_max_targets := 2
+		var candidates: Array[Dictionary] = []
 		for ally in teams[PLAYER_TEAM].units:
 			if not (ally is Unit) or ally.combat_stats == null or not ally.combat_stats.is_alive():
 				continue
-			if _is_adjacent_or_same(ally.cell, _boss.cell) and ally.cell != _boss.cell:
-				ally.combat_stats.current_hp = maxi(ally.combat_stats.current_hp - press_damage, 0)
-				ally.refresh_overhead_bars()
-				Notify.notify("%s 被偏载傀压台击中（-%d HP）" % [ally.combat_stats.unit_name, press_damage], Notify.Position.TOP_RIGHT, Notify.Style.WARNING, 1.5)
+			if ally.cell == _boss.cell:
+				continue
+			var d: int = maxi(absi(ally.cell.x - _boss.cell.x), absi(ally.cell.y - _boss.cell.y))
+			if d > press_radius:
+				continue
+			candidates.append({"ally": ally, "dist": d})
+		# 按距离升序——同距离稳定保留输入顺序，不引入随机
+		candidates.sort_custom(func(a, b): return a.dist < b.dist)
+		var hit_count: int = mini(candidates.size(), press_max_targets)
+		for i in hit_count:
+			var ally: Unit = candidates[i].ally
+			ally.combat_stats.current_hp = maxi(ally.combat_stats.current_hp - press_damage, 0)
+			ally.refresh_overhead_bars()
+			Notify.notify("%s 被偏载傀压台击中（-%d HP）" % [ally.combat_stats.unit_name, press_damage], Notify.Position.TOP_RIGHT, Notify.Style.WARNING, 1.5)
 
 	_update_status_panel()
 	_maybe_notify_balance_transition()
 	_check_win_lose()
 
 
+## Boss 受击伤害上限：和"平衡状态"挂钩，玩家必须维持左右差值才能高效打 Boss。
+## 差值 ≤1（均衡）= 无限；2-3（偏衡）= 10；≥4（失衡）= 1。
 func _boss_damage_cap() -> int:
-	if not _arch_closed:
-		return 1
 	if _arch_gap() >= 4:
 		return 1
 	if _arch_gap() >= 2:
-		return 8
+		return 10
 	return 9999
 
 
@@ -608,6 +680,7 @@ func _adjust_arch_value(is_left: bool, delta: int, reason: String) -> void:
 	else:
 		_right_arch_value = clampi(_right_arch_value + delta, 0, 10)
 	Notify.notify("%s  左券:%d 右券:%d 稳定:%d" % [reason, _left_arch_value, _right_arch_value, _bridge_stability], Notify.Position.TOP_RIGHT, Notify.Style.INFO, 2.5)
+	_update_crown_visibility()
 	_update_status_panel()
 
 
@@ -782,7 +855,7 @@ func _maybe_notify_balance_transition() -> void:
 		"均衡":
 			Notify.notify("左右回到均衡。", Notify.Position.TOP_CENTER, Notify.Style.SUCCESS, 2.5)
 		"偏衡":
-			Notify.notify("左右偏衡，偏载傀直接受到的伤害上限 8。", Notify.Position.TOP_CENTER, Notify.Style.WARNING, 3.0)
+			Notify.notify("左右偏衡，偏载傀直接受到的伤害上限 10。", Notify.Position.TOP_CENTER, Notify.Style.WARNING, 3.0)
 		"失衡":
 			Notify.notify("左右失衡！偏载傀几乎无伤，每敌方回合末桥体 -1。", Notify.Position.TOP_CENTER, Notify.Style.ERROR, 3.5)
 	_prev_balance_state = new_state
