@@ -3,6 +3,7 @@
 [ext_resource type="PackedScene" uid="uid://cbjso0lvbcag1" path="res://scenes/unit/visual/visual.tscn" id="1_6rach"]
 [ext_resource type="Shader" uid="uid://w8w41kw1kylj" path="res://scenes/unit/shader/unit_edge_light.gdshader" id="2_te8d3"]
 [ext_resource type="Texture2D" uid="uid://bwdbxq8vo8hd8" path="res://assets/character/石匠/石匠.png" id="3_te8d3"]
+[ext_resource type="Script" path="res://scenes/unit/visual/human/石匠/石匠_visual.gd" id="4_script"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_gcrqt"]
 resource_local_to_scene = true
@@ -50,6 +51,7 @@ animations = [{
 [node name="Visual" unique_id=1878430534 instance=ExtResource("1_6rach")]
 material = SubResource("ShaderMaterial_gcrqt")
 sprite_frames = SubResource("SpriteFrames_syv0b")
+script = ExtResource("4_script")
 move_is_idle = true
 flip_h_for_turning = true
 default_facing_left = true

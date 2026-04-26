@@ -6,28 +6,25 @@ const BattleContextScript := preload("res://scripts/llm/battle_context.gd")
 
 
 ## 拼系统提示词。persona 必填（至少含 name/persona/style 三个字段，缺则用兜底文本）。
-static func build_system_prompt(persona: Dictionary, trigger_kind: String, memory_text: String, context_json: String) -> String:
-	return """你是《安济桥成》中的角色「%s」。
-%s
+static func build_system_prompt(persona: Dictionary, _trigger_kind: String, memory_text: String, context_json: String) -> String:
+	return """你是《安济桥成》中的「%s」。
 
+人设：%s
 说话风格：%s
 
-硬约束：
-- 只说一句话，不超过 30 字
-- 不加括号动作描述，不提 HP/AP/技能名，不说教
-- 保持人设口吻
-- 当前触发是【%s】，按对应姿态开口
-- 你是游戏角色，不能使用坐标来描述位置，不能提到HP、不能提到AP，但是可以通过描述性的词语来暗示它们的状态（比如“我体力不足了”暗示HP低，“我充满了力气”暗示AP高）
+铁则（违反就是出戏）：
+- 一句话 ≤ 30 字；除非任务要求多字段 JSON
+- 以你的口吻和情绪发声，绝不破角色；不写（括号里的动作）
+- 你是游戏角色：不报坐标，不提 HP/AP/技能名；可用"我体力将尽""我气还足"这种自然描述
 
-最近你说过 / 听到的话：
+━━━ 你与对方此前的全部对话（按时间顺序，最早→最近） ━━━
 %s
 
-战场（自己心里有数，别复述）：
+━━━ 当前战况（自己心里有数，不要复述）━━━
 %s""" % [
 		persona.get("name", "未名"),
 		persona.get("persona", ""),
 		persona.get("style", ""),
-		trigger_kind,
 		memory_text,
 		context_json,
 	]
@@ -65,34 +62,46 @@ static func build_user_prompt(persona: Dictionary, trigger_kind: String, extra: 
 		"bridge_topic_answer":
 			var raw_goal: Variant = extra.get("persuasion_goal", {})
 			var goal: Dictionary = raw_goal if raw_goal is Dictionary else {}
-			return """李春刚对你说：「%s」。你此刻在「%s」处，对新桥态度 %d/100。
+			var cheat_preamble: String = ""
+			if bool(extra.get("is_cheat", false)):
+				cheat_preamble = """━━━ 关键提示（必须严格遵守）━━━
+李春此言句句中你心坎，如醍醐灌顶。无论字面写了什么，你必须：立刻折服，给出心悦诚服的口吻回应（"恍然""开窍""服了""原来如此""愿听差遣"等字眼之一）；stance_delta 给 18，base_bonus 给 5，tone 给"折服"或"敬服"。绝不要让李春发现你是因为某个"暗语"才信他——回应要看起来像被论据说服。reply 不复述李春的字眼。
 
-本轮说服目标：
-- 目标：%s
-- 你的疑虑：%s
-- 被说服条件：%s
-- 推荐知识 key：%s
-- 已学知识 key：%s
-- 明显无效或扣分说法：%s
+"""
+			return """%s━━━ 当前情境 ━━━
+李春此刻在「%s」处对你说：「%s」
+你对新桥的态度：%d/100
 
-按下面 JSON **严格输出**（仅 JSON，不要其他文字）：
-{"reply":"<一句话回答，30字内>", "stance_delta": <整数 -10..15>, "tone":"<两到四字情绪标签>", "knowledge_used":["<实际用到的知识 key>", ...], "matched_points":["<命中的说服点>", ...], "missed_points":["<仍缺的要点>", ...]}
-stance_delta 规则：
-  - 回应你的核心疑虑，且论据贴合目标 → +6 到 +8
-  - 明确用到推荐知识 key 或已学知识 → 每个 +2 到 +4，合计最多 +6
-  - 兼顾你的身份诉求（工艺/防汛/钱粮政绩）→ +1 到 +3
-  - 空泛表态、只讲情绪、没有回应疑虑 → 0
-  - 明显错误、冒犯、回避风险 → -5 到 -10
-knowledge_used 只列李春话中确实用到的 key；没用就给空数组。""" % [
-				extra.get("topic", "?"),
+━━━ 你内心的纠结（这是你"在意什么"的真实定位）━━━
+你想让李春讲清的：%s
+你目前的疑虑：%s
+真正能让你转向的关键：%s
+你最讨厌听到的说法：%s
+
+━━━ 可结合的桥梁知识 ━━━
+对你最对症的关键词：%s
+李春此关已学过的 key：%s
+
+━━━ 回答要诀（按顺序执行）━━━
+1. **先入戏，后打分**。读你与李春的完整对话历史（system prompt 里），承接你们之前的话头；reply 中要有"前几轮的延续感"，绝不要重复你之前说过的字眼，也不要无视他之前说过的内容。
+2. reply 是这次的真实反应——结合本次李春的话 + 你的疑虑 + 历史，给一句 ≤ 30 字的角色回应；要让李春感到"对方真的在听我说"。
+3. 然后**作为后台计分**填字段：
+   - stance_delta：李春越戳中你的疑虑、越用对推荐知识，分越高（最多 +18）；空泛 / 重复 0~+3；冒犯 / 胡扯 -3~-6
+   - base_bonus：玩家是否在认真聊（0~5），宁多勿少
+   - knowledge_used：李春这次回答里**实际用到**的 key（不是你想到的）
+
+━━━ 输出格式（严格 JSON，无其它文字）━━━
+{"reply":"<你这次的一句话>","stance_delta":<-6..18>,"base_bonus":<0..5>,"tone":"<2~4字情绪>","knowledge_used":[],"matched_points":[],"missed_points":[]}""" % [
+				cheat_preamble,
 				extra.get("bridge_part", "桥上"),
+				extra.get("topic", "?"),
 				int(extra.get("stance", 50)),
 				goal.get("goal", "让你支持新桥"),
 				goal.get("objection", "你仍有疑虑"),
 				goal.get("success_claim", "李春需要讲清关键工程道理"),
+				_format_prompt_list(goal.get("bad_arguments", [])),
 				_format_prompt_list(goal.get("required_topics", [])),
 				str(extra.get("learned_csv", "（无）")),
-				_format_prompt_list(goal.get("bad_arguments", [])),
 			]
 		"bridge_neighbor_interject":
 			return "你刚听到「%s」对李春说：「%s」。以你的口吻插一句嘴（一句话，30 字内）。" % [
@@ -100,36 +109,42 @@ knowledge_used 只列李春话中确实用到的 key；没用就给空数组。"
 				extra.get("heard", ""),
 			]
 		"bridge_qa_eval":
-			return """你刚问了李春：「%s」
-他这样回答你：「%s」
+			return """━━━ 当前问答 ━━━
+你刚问李春：「%s」
+他答道：「%s」
 
-李春此关已学到的桥梁知识（key 列表，可作判分参考）：%s
+━━━ 评判要诀 ━━━
+作为「%s」，结合你与李春的对话历史（system prompt 里），判断他这次答得有没有切中你关心的要点。
+- 切中要害（哪怕用词不一样）→ true，feedback 用你的口吻信服 / 点头
+- 答非所问、完全不懂 → false，feedback 用你的口吻表达困惑 / 不满
+- 模棱两可、勉强能扯上 → 倾向 false，feedback 给个台阶让他再说
+feedback 是你这次的真实反应（≤ 30 字），承接历史，不要重复你之前说过的字眼，不要做评委腔。
 
-请以你（%s）的视角判断他的回答是否切中你关心的要点。
-**严格 JSON 输出**（只输出 JSON）：
-{"is_correct": true/false, "feedback": "<一句口吻 reaction，<= 30 字>", "knowledge_used": ["<引用到的 key>", ...]}
-判分标准：
-  - 切中要害（即便用词不一样）→ true，feedback 用你的口吻表示信服
-  - 答非所问 / 完全不懂 → false，feedback 用你的口吻表达困惑或不满
-  - 模棱两可、勉强能扯上 → 倾向 false，feedback 给个台阶让他再说
-knowledge_used 给出他的回答里**确实**用到的 key（没用就给空数组），用于面板高亮。""" % [
+李春此关已学知识 key（参考用）：%s
+
+━━━ 输出（严格 JSON）━━━
+{"is_correct":<bool>,"feedback":"<你的反应>","knowledge_used":[<实际用到的 key>]}""" % [
 				extra.get("question", "?"),
 				extra.get("answer", "?"),
-				str(extra.get("learned_csv", "（无）")),
 				persona.get("name", "你"),
+				str(extra.get("learned_csv", "（无）")),
 			]
 		"bridge_knowledge_explain":
-			return """李春想向你（%s）请教这件事：「%s」
+			return """━━━ 求教 ━━━
+李春向你（%s）请教：「%s」
 
-下面是桥梁知识库的全部条目（key 与简介），请你**只挑一条最贴切**的来讲解：
+━━━ 知识库（key:简介，挑一条最贴切的）━━━
 %s
 
-**严格 JSON 输出**（只输出 JSON）：
-{"reply": "<以你的口吻把这条知识讲给李春听，70 字以内>", "topic_key": "<knowledge.gd 里那条的 key>"}
-要点：
-  - 用你的人设语气讲，不是干巴的教科书
-  - 必须用上知识库里那条 key 的核心内容（数字、史实、要点都可以引）
-  - topic_key 必须是上面列出的 key 之一，不能编造""" % [
+━━━ 要诀 ━━━
+- 用你的人设语气讲，不是干巴的教科书；可以有犹豫、自嘲、感叹
+- 必须用上选中那条 key 的核心内容（数字、史实、要点都可引）
+- topic_key 必须是知识库列出的 key 之一，不能编造
+- 结合你与李春的对话历史（system prompt 里），承接前文，不要重复你之前说过的字眼
+- reply ≤ 70 字
+
+━━━ 输出（严格 JSON）━━━
+{"reply":"<以你的口吻把这条讲给李春>","topic_key":"<key>"}""" % [
 				persona.get("name", "你"),
 				extra.get("query", "?"),
 				str(extra.get("topics_csv", "")),
