@@ -57,20 +57,21 @@ func _build_body() -> String:
 		var body: String = String(topic.get("body", ""))
 		var is_learned: bool = key in _learned
 		var is_used: bool = key in _used
-		# 标题
+		# 标题（不加粗，三种状态用三种深色区分）
 		if is_used:
-			lines.append("[b][color=#e8c067]◆ %s（已用于说服 / 解答）[/color][/b]" % title)
+			lines.append("[color=#7a2614]◆ %s（已用于说服 / 解答）[/color]" % title)  # 深朱红：已用
 		elif is_learned:
-			lines.append("[b][color=#f5edd5]● %s[/color][/b]" % title)
+			lines.append("[color=#1a1108]● %s[/color]" % title)  # 深墨：已学
 		else:
-			lines.append("[b][color=#7d7a72]○ %s（未学）[/color][/b]" % title)
-		# 正文
+			lines.append("[color=#3e3220]○ %s（未学）[/color]" % title)  # 褪墨褐：未学
+		# 正文：已学=深炭墨，未学 summary=深石青斜体（冷色与标题褐色区分）
 		if is_learned:
-			lines.append("[color=#d6cdb6]%s[/color]" % body)
+			lines.append("[color=#2b1d0c]%s[/color]" % body)
 		else:
-			lines.append("[color=#7a766b][i]%s[/i][/color]" % summary)
+			lines.append("[color=#2c4a52][i]%s[/i][/color]" % summary)
 		lines.append("")  # blank
-	lines.append("[color=#7a766b][i]提示：向头顶有 [color=#ffd24a]![/color] 标记的 NPC 求教，可解锁更多详情。[/i][/color]")
+	# 底部提示用深栗紫，与上面四种色都不撞
+	lines.append("[color=#4a2c3a][i]提示：向头顶有 [color=#8a4814]![/color] 标记的 NPC 求教，可解锁更多详情。[/i][/color]")
 	return "\n".join(lines)
 
 
