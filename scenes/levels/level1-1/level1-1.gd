@@ -499,7 +499,7 @@ func get_post_level_growth_options() -> Array[Dictionary]:
 	return [
 		{"id": "growth_training_mobilize", "name": "操练与动员", "description": "全体我方最大生命值 +10，行动力上限 +5"},
 		{"id": "growth_maps_measures", "name": "习图记尺", "description": "李春基础攻击力 +4，规尺击伤害倍率 +0.05"},
-		{"id": "growth_river_master", "name": "请益河工", "description": "李春获得束桩缓波，可替换规尺击或木楔勘岸"},
+		{"id": "growth_river_master", "name": "请益河工", "description": "李春获得分波束桩，可替换规尺击或木楔勘岸"},
 		{"id": "growth_stone_reinforce", "name": "备石加固", "description": "工匠的捍作护行持续时间 +1 回合"},
 	]
 
@@ -511,7 +511,7 @@ func _apply_persistent_growth_effects() -> void:
 	if Progress.has_growth_option("growth_maps_measures"):
 		var hero_unit := get_hero_unit()
 		apply_unit_growth_bonus(hero_unit, 0, 4, 0)
-		modify_unit_skill(hero_unit, "lc_rule_strike", {"damage_ratio": 1.05})
+		modify_unit_skill(hero_unit, "lc_rule_strike", {"damage_ratio": 1.20})
 	if Progress.has_growth_option("growth_stone_reinforce"):
 		for unit in get_friendly_units():
 			if unit.combat_stats.unit_name == "工匠":

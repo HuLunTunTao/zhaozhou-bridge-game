@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="SkillData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/skill_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+skill_id = "lc_anchor_pile"
+skill_name = "阵心立桩"
+skill_type = 0
+ap_cost = 30
+damage_ratio = 1.10
+surround_ratio = 0.80
+damage_element = 5
+attach_amount = 2
+extra_effect_id = ""
+duration_turns = 0
+cooldown_turns = 0
+description = "土属性 3×3 大群伤：邻接 1 格点选，命中 9 格。中 ×1.10 / 周 ×0.80。"
+cast_offsets = Array[Vector2i]([Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1), Vector2i(1, 1), Vector2i(1, -1), Vector2i(-1, 1), Vector2i(-1, -1)])
+effect_offsets = Array[Vector2i]([Vector2i(0, 0), Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1), Vector2i(1, 1), Vector2i(1, -1), Vector2i(-1, 1), Vector2i(-1, -1)])

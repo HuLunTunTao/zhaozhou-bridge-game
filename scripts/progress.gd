@@ -41,7 +41,7 @@ const LEVEL_GROWTH_OPTIONS := {
 	"关卡1-1": [
 		{"id": "growth_training_mobilize", "name": "操练与动员", "description": "全体我方最大生命值 +10，行动力上限 +5"},
 		{"id": "growth_maps_measures", "name": "习图记尺", "description": "李春基础攻击力 +4，规尺击伤害倍率 +0.05"},
-		{"id": "growth_river_master", "name": "请益河工", "description": "李春获得新技能“束桩缓波”"},
+		{"id": "growth_river_master", "name": "请益河工", "description": "李春获得新技能“分波束桩”"},
 		{"id": "growth_stone_reinforce", "name": "备石加固", "description": "工匠的捍作护行持续时间 +1 回合"},
 	],
 	"关卡1-2": [

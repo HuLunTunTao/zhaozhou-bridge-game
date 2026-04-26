@@ -42,13 +42,43 @@ static func execute(
 	stats.skills_used += 1
 	CombatLog.msg("  消耗 %dAP → 剩余 %dAP" % [skill.ap_cost, stats.ap_current])
 
+	# 命中前预扫描：统计有效目标数，决定全局倍率乘数（环形命中数缩放、连击门槛等）
+	var damage_targets: Array = []
+	for target_unit: Node2D in targets:
+		var tu := target_unit as Unit
+		if tu == null or tu.combat_stats == null:
+			continue
+		if skill.damage_ratio > 0.0:
+			damage_targets.append(target_unit)
+
+	var hit_count: int = damage_targets.size()
+	var global_ratio_mult: float = 1.0
+	match skill.extra_effect_id:
+		"ring_per_hit_scale":
+			# 围尺八方：每命中 +0.1，最多 ×1.4
+			global_ratio_mult = minf(1.0 + 0.1 * float(hit_count), 1.4)
+			if global_ratio_mult > 1.0 and hit_count > 0:
+				CombatLog.msg("  环形命中数缩放: %d 命中 → 倍率×%.2f" % [hit_count, global_ratio_mult])
+		"ap_refund_and_count_bonus":
+			# 连楔并拱：≥3 命中 → 全员 ×1.2
+			if hit_count >= 3:
+				global_ratio_mult = 1.2
+				CombatLog.msg("  连击加成: %d 命中 → 倍率×1.20" % hit_count)
+
 	# 对每个目标结算伤害
 	for target_unit: Node2D in targets:
 		var tu := target_unit as Unit
 		if tu == null or tu.combat_stats == null:
 			continue
 		if skill.damage_ratio > 0.0:
-			var hit := CombatResolver.resolve_hit(stats, tu.combat_stats, skill)
+			# 计算本目标使用的倍率：考虑中心/周围分倍率 + 全局乘数
+			var per_ratio: float = -1.0
+			if skill.surround_ratio >= 0.0 and tu.cell != cast_cell:
+				per_ratio = skill.surround_ratio
+			if global_ratio_mult != 1.0:
+				var base_for_mult: float = (skill.damage_ratio if per_ratio < 0.0 else per_ratio)
+				per_ratio = base_for_mult * global_ratio_mult
+			var hit := CombatResolver.resolve_hit(stats, tu.combat_stats, skill, per_ratio)
 			CombatResolver.apply_hit(tu.combat_stats, skill, hit)
 			result.hit_results.append({"unit": target_unit, "hit": hit})
 			CombatLog.msg("  结果: %s HP %d → %d" % [
@@ -63,7 +93,7 @@ static func execute(
 
 	# 处理额外效果
 	if skill.extra_effect_id != "":
-		_apply_extra_effect(skill, unit, cast_cell, targets, all_units, caster_faction)
+		_apply_extra_effect(skill, unit, cast_cell, targets, all_units, caster_faction, result.hit_results, hit_count)
 
 	result.success = true
 	return result
@@ -79,7 +109,9 @@ static func _apply_extra_effect(
 	cast_cell: Vector2i,
 	targets: Array,
 	all_units: Array,
-	caster_faction: String
+	caster_faction: String,
+	hit_results: Array = [],
+	hit_count: int = 0
 ) -> void:
 	match skill.extra_effect_id:
 		"knockback_1":
@@ -94,6 +126,8 @@ static func _apply_extra_effect(
 			_effect_first_target_status(targets, "overgrow_bind", skill.duration_turns, caster.combat_stats.unit_name)
 		"pull_first":
 			_effect_pull_first(caster, targets, 1)
+		"pull_all":
+			_effect_pull(caster, targets, 1)
 		"brittle_all":
 			_effect_apply_status(targets, "brittle", skill.duration_turns, 0, caster.combat_stats.unit_name)
 		"read_water":
@@ -106,6 +140,24 @@ static func _apply_extra_effect(
 			CombatLog.msg("  额外效果: 关卡交互 '%s' (由关卡脚本处理)" % skill.extra_effect_id)
 		"line_piercing":
 			# 穿刺已在 _collect_targets 内通过 get_line_piercing_cells 扩大目标；此处无须重复处理
+			pass
+		# ── 李春技能新条件 ──────────────────────────────
+		"cond_attached_earth_knockback":
+			# 投石遏流：击退 1 格（条件加伤已在 resolver 处理）
+			_effect_knockback(caster, targets, 1)
+		"knockback_1_wall_bonus":
+			# 分波束桩：击退 1 格；推不动则追加 30% 伤害
+			_effect_knockback_with_block_bonus(caster, hit_results, 1, 0.30)
+		"knockback_2_water_bonus":
+			# 顺水推舟：击退 2 格；推到水格追加 50% 伤害
+			_effect_knockback_with_water_bonus(caster, hit_results, 2, 0.50)
+		"ap_refund_and_count_bonus":
+			# 连楔并拱：每命中回 5 AP（最多 25）
+			var refund: int = mini(hit_count * 5, 25)
+			caster.combat_stats.ap_current = mini(caster.combat_stats.ap_max, caster.combat_stats.ap_current + refund)
+			CombatLog.msg("  额外效果: 连楔回 %d AP（命中 %d 人）" % [refund, hit_count])
+		"ring_per_hit_scale", "cond_no_attached_bonus", "cond_has_attached_aoe", "low_hp_bonus", "non_element_bonus":
+			# 这些条件 / 缩放在 resolver 与执行循环里已经处理，此处无额外位移效果
 			pass
 		_:
 			CombatLog.msg("  额外效果: 未知 effect_id '%s'" % skill.extra_effect_id)
@@ -125,6 +177,49 @@ static func _effect_knockback(caster: Unit, targets: Array, distance: int) -> vo
 		CombatLog.msg("  额外效果: 击退%d格 (%s 从%s→%s)" % [distance, tu.combat_stats.unit_name, from, to])
 		# 击退时检查剖隙状态
 		_check_open_fissure(tu, caster)
+
+
+## 击退 N 格；若推不动（cell 没变），对该目标按本次原伤害的 bonus_ratio 追加伤害。
+static func _effect_knockback_with_block_bonus(caster: Unit, hit_results: Array, distance: int, bonus_ratio: float) -> void:
+	for entry in hit_results:
+		var tu: Unit = entry.get("unit") as Unit
+		var hit = entry.get("hit")
+		if tu == null or tu.combat_stats == null or hit == null:
+			continue
+		var dir := _get_direction(caster.cell, tu.cell)
+		if dir == Vector2i.ZERO:
+			continue
+		var from := tu.cell
+		var to := _force_move_cell(tu, dir, distance)
+		CombatLog.msg("  额外效果: 击退%d格 (%s 从%s→%s)" % [distance, tu.combat_stats.unit_name, from, to])
+		_check_open_fissure(tu, caster)
+		if to == from:
+			# 推不动 → 追加伤害
+			var bonus_dmg: int = roundi(hit.damage * bonus_ratio)
+			if bonus_dmg > 0:
+				tu.combat_stats.current_hp = maxi(tu.combat_stats.current_hp - bonus_dmg, 0)
+				CombatLog.msg("  额外效果: 推不动 → %s 追加 %d 伤害" % [tu.combat_stats.unit_name, bonus_dmg])
+
+
+## 击退 N 格；若被推到水类地块，对该目标按原伤害的 bonus_ratio 追加伤害。
+static func _effect_knockback_with_water_bonus(caster: Unit, hit_results: Array, distance: int, bonus_ratio: float) -> void:
+	for entry in hit_results:
+		var tu: Unit = entry.get("unit") as Unit
+		var hit = entry.get("hit")
+		if tu == null or tu.combat_stats == null or hit == null:
+			continue
+		var dir := _get_direction(caster.cell, tu.cell)
+		if dir == Vector2i.ZERO:
+			continue
+		var from := tu.cell
+		var to := _force_move_cell(tu, dir, distance)
+		CombatLog.msg("  额外效果: 击退%d格 (%s 从%s→%s)" % [distance, tu.combat_stats.unit_name, from, to])
+		_check_open_fissure(tu, caster)
+		if tu.movement_manager and tu.movement_manager.has_method("is_water_cell") and tu.movement_manager.is_water_cell(to):
+			var bonus_dmg: int = roundi(hit.damage * bonus_ratio)
+			if bonus_dmg > 0:
+				tu.combat_stats.current_hp = maxi(tu.combat_stats.current_hp - bonus_dmg, 0)
+				CombatLog.msg("  额外效果: 推入水格 → %s 追加 %d 伤害" % [tu.combat_stats.unit_name, bonus_dmg])
 
 
 ## 拖拽：将每个目标沿目标→施法者方向拉近 distance 格。
@@ -327,7 +422,8 @@ static func _collect_targets(
 	for offset in skill.effect_offsets:
 		effect_cells[cast_cell + offset] = true
 	# 穿刺直线：从 caster_cell 到 cast_cell 中间的格子也计入效果
-	if skill.extra_effect_id == "line_piercing" and caster is Unit:
+	# 兼容旧 extra_effect_id == "line_piercing"，新走 SkillData.is_line_piercing 标志位
+	if (skill.is_line_piercing or skill.extra_effect_id == "line_piercing") and caster is Unit:
 		for line_cell in get_line_piercing_cells((caster as Unit).cell, cast_cell):
 			effect_cells[line_cell] = true
 

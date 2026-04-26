@@ -640,13 +640,13 @@ func _apply_persistent_growth_effects() -> void:
 			apply_unit_growth_bonus(unit, 10, 0, 5)
 	if Progress.has_growth_option("growth_maps_measures"):
 		apply_unit_growth_bonus(get_hero_unit(), 0, 4, 0)
-		modify_unit_skill(get_hero_unit(), "lc_rule_strike", {"damage_ratio": 1.05})
+		modify_unit_skill(get_hero_unit(), "lc_rule_strike", {"damage_ratio": 1.20})
 	if Progress.has_growth_option("growth_stone_reinforce"):
 		for craftsman in _craftsmen:
 			modify_unit_skill(craftsman, "cg_guard_the_works", {"duration_turns": 3})
 	if Progress.has_growth_option("growth_drawing_discipline"):
 		apply_unit_growth_bonus(get_hero_unit(), 0, 4, 0)
-		modify_unit_skill(get_hero_unit(), "lc_divider_mark_arc", {"damage_ratio": 0.95})
+		modify_unit_skill(get_hero_unit(), "lc_divider_mark_arc", {"damage_ratio": 1.15})
 	if Progress.has_growth_option("growth_center_hold"):
 		for craftsman in _craftsmen:
 			apply_unit_growth_bonus(craftsman, 10, 2, 0)
