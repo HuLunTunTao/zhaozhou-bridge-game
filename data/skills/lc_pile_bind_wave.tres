@@ -14,6 +14,6 @@ attach_amount = 2
 extra_effect_id = "knockback_1_wall_bonus"
 duration_turns = 0
 cooldown_turns = 0
-description = "对邻近 2×2 区域的 4 名敌人同时下桩并击退 1 格；被墙挡住推不动的目标额外受到 30% 伤害。"
+description = "对邻近 2×2 区域 4 名敌人下桩并击退 1 格；被墙挡住的额外受 30% 伤害"
 cast_offsets = Array[Vector2i]([Vector2i(1, 0), Vector2i(0, 1), Vector2i(1, -1), Vector2i(-1, 1)])
 effect_offsets = Array[Vector2i]([Vector2i(0, 0), Vector2i(1, 0), Vector2i(0, 1), Vector2i(1, 1)])

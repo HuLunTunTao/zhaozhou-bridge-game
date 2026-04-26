@@ -15,6 +15,6 @@ attach_amount = 2
 extra_effect_id = ""
 duration_turns = 0
 cooldown_turns = 0
-description = "在邻接的 1 格沉下重桩，对该格及其周围 8 格中的敌人造成伤害；中央伤害 1.10 倍 / 周围 0.80 倍。"
+description = "在邻格沉桩，伤害该格及其周围 8 格敌人；中央 1.10 倍 / 周围 0.80 倍"
 cast_offsets = Array[Vector2i]([Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1), Vector2i(1, 1), Vector2i(1, -1), Vector2i(-1, 1), Vector2i(-1, -1)])
 effect_offsets = Array[Vector2i]([Vector2i(0, 0), Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1), Vector2i(1, 1), Vector2i(1, -1), Vector2i(-1, 1), Vector2i(-1, -1)])

@@ -15,6 +15,6 @@ attach_amount = 2
 extra_effect_id = "cond_has_attached_aoe"
 duration_turns = 0
 cooldown_turns = 0
-description = "以圆规划弧扫击中央点和它的十字四邻共 5 名敌人；中央伤害 1.10 倍 / 周围 0.85 倍；已沾五行属性的敌人再受 20% 伤害。"
+description = "划弧扫击中央及十字四邻共 5 名敌人；中央 1.10 倍 / 周围 0.85 倍；已附属性目标再受 20% 伤害"
 cast_offsets = Array[Vector2i]([Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1), Vector2i(2, 0), Vector2i(-2, 0), Vector2i(0, 2), Vector2i(0, -2), Vector2i(1, 1), Vector2i(1, -1), Vector2i(-1, 1), Vector2i(-1, -1), Vector2i(3, 0), Vector2i(-3, 0), Vector2i(0, 3), Vector2i(0, -3), Vector2i(2, 1), Vector2i(2, -1), Vector2i(-2, 1), Vector2i(-2, -1), Vector2i(1, 2), Vector2i(1, -2), Vector2i(-1, 2), Vector2i(-1, -2)])
 effect_offsets = Array[Vector2i]([Vector2i(0, 0), Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)])

@@ -15,6 +15,6 @@ extra_effect_id = "ap_refund_and_count_bonus"
 is_line_piercing = true
 duration_turns = 0
 cooldown_turns = 0
-description = "沿直线连续楔击前方 4 格敌人；每命中 1 人归还 5 AP（最多 25），命中 3 人以上整线伤害再提 20%。"
+description = "沿直线连击前方 4 格敌人；每命中 1 人归还 5 AP（上限 25），命中≥3 人整线伤害提 20%"
 cast_offsets = Array[Vector2i]([Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1), Vector2i(2, 0), Vector2i(-2, 0), Vector2i(0, 2), Vector2i(0, -2), Vector2i(3, 0), Vector2i(-3, 0), Vector2i(0, 3), Vector2i(0, -3), Vector2i(4, 0), Vector2i(-4, 0), Vector2i(0, 4), Vector2i(0, -4)])
 effect_offsets = Array[Vector2i]([Vector2i(0, 0)])
