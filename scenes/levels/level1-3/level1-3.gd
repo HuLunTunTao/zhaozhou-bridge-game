@@ -25,10 +25,11 @@ var _prev_balance_state: String = "均衡"
 var _clutch_fired: bool = false
 # 偏压移衡调用次数计数：每 2 次才真正扣 1 点，避免每回合压得太狠
 var _shift_load_tick: int = 0
-# 券台 / 石料场的脉动光晕标记（仿第一关撤离区）
+# 券台 / 石料场 / 拱冠点的脉动光晕标记（仿第一关撤离区）
 var _left_platform_marker: Node2D = null
 var _right_platform_marker: Node2D = null
 var _stone_yard_markers: Array[Node2D] = []
+var _crown_marker: Node2D = null
 
 var _left_platform: Vector2i
 var _right_platform: Vector2i
@@ -64,9 +65,11 @@ var _visual_carrier: PackedScene = preload("res://scenes/unit/visual/human/测�
 const COLOR_LEFT_PLATFORM := Color(0.95, 0.75, 0.25, 0.65)    # 金色 —— 左券台
 const COLOR_RIGHT_PLATFORM := Color(0.25, 0.65, 0.95, 0.65)   # 蓝色 —— 右券台
 const COLOR_STONE_YARD := Color(0.55, 0.40, 0.25, 0.35)       # 棕色 —— 石料场（较淡）
+const COLOR_CROWN_PLATFORM := Color(0.75, 0.40, 0.95, 0.70)   # 紫色 —— 拱冠合龙点
 const COLOR_LEFT_HALO := Color(1.0, 0.80, 0.25, 0.50)         # 金色光晕
 const COLOR_RIGHT_HALO := Color(0.30, 0.70, 1.0, 0.50)        # 蓝色光晕
 const COLOR_STONE_HALO := Color(0.70, 0.50, 0.30, 0.30)       # 棕色光晕（更淡）
+const COLOR_CROWN_HALO := Color(0.85, 0.50, 1.0, 0.55)        # 紫色光晕
 
 # ── 地图固定锚点（按桥面 tile 实际位置解码得出，视觉关于桥中轴 x==y 镜像对称）──
 # 桥图层并集范围：grid x=[-19,16] y=[-18,17]；视觉中轴位于 x-y=0 这条竖线（即 x==y）。
@@ -191,7 +194,7 @@ func get_objectives_text() -> Dictionary:
 			"- 左券值达到 10（当前 %d/10）" % _left_arch_value,
 			"- 右券值达到 10（当前 %d/10）" % _right_arch_value,
 			"- 左右差值保持 ≤1（当前 %d）" % gap,
-			"- 李春在拱冠点执行「收缝合龙」（%s）" % ("已完成" if _arch_closed else "未完成"),
+			"- 李春走到桥中央[color=#c060f0]紫色拱冠点[/color]执行「收缝合龙」（%s）" % ("已完成" if _arch_closed else "未完成"),
 			"- 击败偏载傀（%s）" % ("已击败" if not boss_alive else "存活"),
 		],
 		"defeat": [
@@ -231,6 +234,7 @@ func _on_level_ready() -> void:
 	_update_status_panel()
 	_prev_balance_state = _balance_state()
 	Notify.notify("推进券值：运石工去棕色石料场取石，再走到金/蓝券台旁 +1；或李春用「墨绳校券」远程 +1（CD 2）", Notify.Position.TOP_CENTER, Notify.Style.INFO, 5.0)
+	Notify.notify("两侧凑满 10 后，李春走到桥中央紫色拱冠点（消耗 35 AP）完成「收缝合龙」", Notify.Position.TOP_CENTER, Notify.Style.INFO, 6.0)
 
 
 func _on_unit_moved() -> void:
@@ -334,7 +338,8 @@ func _setup_anchor_cells() -> void:
 	print("  STONE_YARD_CELL_B=", STONE_YARD_CELL_B, " → snap=", _stone_yard_cells[1])
 	_setup_platform_markers()
 	_setup_stone_yard_markers()
-	print("[Level1-3] markers spawned: left=", _left_platform_marker, " right=", _right_platform_marker, " stone_yard_markers=", _stone_yard_markers.size())
+	_setup_crown_marker()
+	print("[Level1-3] markers spawned: left=", _left_platform_marker, " right=", _right_platform_marker, " stone_yard_markers=", _stone_yard_markers.size(), " crown=", _crown_marker)
 
 
 ## 左/右券台视觉：2×2 彩色地块 + 预置的脉动光晕（见 level1-3.tscn 的 Markers 节点）。
@@ -361,6 +366,16 @@ func _setup_stone_yard_markers() -> void:
 			tile.name = "StoneYardTile_%d_%d_%d" % [i, c.x, c.y]
 			register_special_tile(tile, c)
 		_stone_yard_markers.append(get_node("Markers/StoneYardMarker_%d" % i))
+
+
+## 拱冠合龙点视觉：单格紫色染色 + 预置的脉动光晕。两侧凑满 10 后，李春走到这里
+## 自动消耗 35 AP 完成「收缝合龙」。地块用紫色和券台 / 石料场区分。
+func _setup_crown_marker() -> void:
+	var tile := _make_platform_tile(COLOR_CROWN_PLATFORM)
+	tile.name = "CrownTile_%d_%d" % [_crown_point.x, _crown_point.y]
+	register_special_tile(tile, _crown_point)
+	if has_node("Markers/CrownMarker"):
+		_crown_marker = get_node("Markers/CrownMarker")
 
 
 func _make_platform_tile(color: Color) -> SpecialTile:
