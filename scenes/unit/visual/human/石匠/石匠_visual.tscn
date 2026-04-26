@@ -1,0 +1,58 @@
+[gd_scene format=3 uid="uid://cbbltju52gq8r"]
+
+[ext_resource type="PackedScene" uid="uid://cbjso0lvbcag1" path="res://scenes/unit/visual/visual.tscn" id="1_6rach"]
+[ext_resource type="Shader" uid="uid://w8w41kw1kylj" path="res://scenes/unit/shader/unit_edge_light.gdshader" id="2_te8d3"]
+[ext_resource type="Texture2D" uid="uid://bwdbxq8vo8hd8" path="res://assets/character/石匠/石匠.png" id="3_te8d3"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_gcrqt"]
+resource_local_to_scene = true
+shader = ExtResource("2_te8d3")
+shader_parameter/outline_color = Color(1, 1, 0, 0.3)
+shader_parameter/outline_width = 7.0
+shader_parameter/frame_uv_rect = Vector4(0, 0, 1, 1)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_gcrqt"]
+atlas = ExtResource("3_te8d3")
+region = Rect2(0, 0, 256, 256)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_gqys6"]
+atlas = ExtResource("3_te8d3")
+region = Rect2(256, 0, 256, 256)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_tfhlx"]
+atlas = ExtResource("3_te8d3")
+region = Rect2(0, 256, 256, 256)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_jqok1"]
+atlas = ExtResource("3_te8d3")
+region = Rect2(256, 256, 256, 256)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_syv0b"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_gcrqt")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_gqys6")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_tfhlx")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_jqok1")
+}],
+"loop": true,
+"name": &"default",
+"speed": 5.0
+}]
+
+[node name="Visual" unique_id=1878430534 instance=ExtResource("1_6rach")]
+material = SubResource("ShaderMaterial_gcrqt")
+sprite_frames = SubResource("SpriteFrames_syv0b")
+move_is_idle = true
+flip_h_for_turning = true
+default_facing_left = true
+
+[node name="FootMarker" parent="." index="0"]
+position = Vector2(0, 106.666664)
