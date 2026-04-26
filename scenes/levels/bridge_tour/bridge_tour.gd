@@ -19,6 +19,7 @@ const _VISUAL_SURVEYOR := preload("res://scenes/unit/visual/human/测量工/测�
 
 const _RoamingAIScript := preload("res://scripts/npc/roaming_ai.gd")
 const _NpcPersonasScript := preload("res://scripts/llm/npc_personas.gd")
+const _PersonaFallbackScript := preload("res://scripts/llm/persona_fallback.gd")
 const _ChatterPromptsScript := preload("res://scripts/llm/chatter_prompts.gd")
 const _LLMClientScript := preload("res://scripts/llm/llm_client.gd")
 const _ChatterVoiceScript := preload("res://scripts/tts/chatter_voice_adapter.gd")
@@ -431,7 +432,7 @@ func _generate_persuade_answer(npc: Unit, topic: String) -> Dictionary:
 			if not parsed.has("tone"): parsed["tone"] = ""
 			return parsed
 	return {
-		"reply": "（%s 沉吟不语）" % persona.get("name", npc.unit_data.unit_name),
+		"reply": _PersonaFallbackScript.pick(persona, "persuade"),
 		"stance_delta": 0,
 		"tone": "沉默",
 		"is_fallback": true,
@@ -548,7 +549,7 @@ func _generate_qa_eval(npc: Unit, question: String, answer: String) -> Dictionar
 			return parsed
 	return {
 		"is_correct": false,
-		"feedback": "（%s 摇头不语）" % persona.get("name", npc.unit_data.unit_name),
+		"feedback": _PersonaFallbackScript.pick(persona, "qa"),
 		"knowledge_used": [],
 		"is_fallback": true,
 	}
@@ -620,7 +621,7 @@ func _generate_mentor_lesson(npc: Unit, query: String) -> Dictionary:
 		if not parsed.is_empty() and parsed.has("reply"):
 			return parsed
 	return {
-		"reply": "（%s 摸了摸下巴，没说出口）" % persona.get("name", npc.unit_data.unit_name),
+		"reply": _PersonaFallbackScript.pick(persona, "mentor"),
 		"topic_key": "",
 		"is_fallback": true,
 	}
@@ -691,7 +692,8 @@ func _generate_neighbor_line(neighbor: Unit, speaker: Unit, heard: String) -> St
 		{"role": "user", "content": user},
 	], {"max_tokens": 100, "temperature": 0.85})
 	if not resp.get("ok", false):
-		return ""
+		# LLM 失败 → 用 PersonaFallback 抽 neighbor 变体；空字符串则维持跳过插话
+		return _PersonaFallbackScript.pick(persona, "neighbor").strip_edges()
 	return _strip_quotes(String(resp.get("text", ""))).strip_edges()
 
 
@@ -710,12 +712,18 @@ func _strip_quotes(s: String) -> String:
 func _play_npc_line(npc: Unit, text: String, with_voice: bool = true) -> bool:
 	if text.is_empty():
 		return false
+	# is_fallback=true 时（with_voice=false）跳过火山 TTS，但优先注入 pre-baked
+	# AudioStreamMP3 让 dialogue_box 自己播——这样 fallback 文本仍能听到 NPC 自己音色。
+	var pre_baked: AudioStream = null
+	if not with_voice:
+		pre_baked = TtsFallbackIndex.get_fallback_audio(npc.unit_data.unit_id, text)
 	var line := DialogueLine.create(
 		npc.unit_data.unit_name,
 		text,
 		_PortraitResolverScript.get_portrait(npc),
 		_PortraitResolverScript.side_for_unit(npc),
 		_PortraitResolverScript.get_portrait_bg(npc),
+		pre_baked,
 	)
 	var result: Dictionary
 	if with_voice:
