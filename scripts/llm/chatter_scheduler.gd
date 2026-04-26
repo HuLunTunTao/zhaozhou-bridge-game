@@ -479,7 +479,7 @@ func _build_line(unit: Node, trigger_kind: String, extra: Dictionary) -> Dialogu
 	})
 
 	return DialogueLine.create(
-		persona.get("name", u.unit_data.unit_name),
+		u.combat_stats.unit_name if u.combat_stats != null else u.unit_data.unit_name,
 		text,
 		_get_portrait(u),
 		_side_for_unit(u),
@@ -504,7 +504,7 @@ func _build_fallback_line(u: Unit, persona: Dictionary, trigger_kind: String, ex
 		"is_fallback": true,
 	})
 	return DialogueLine.create(
-		persona.get("name", u.unit_data.unit_name),
+		u.combat_stats.unit_name if u.combat_stats != null else u.unit_data.unit_name,
 		text,
 		_get_portrait(u),
 		_side_for_unit(u),
@@ -614,7 +614,7 @@ func _unit_display_name(unit: Node) -> String:
 	if u.unit_data == null:
 		return "某人"
 	var persona := NpcPersonasScript.get_persona(u.unit_data.unit_id, u.unit_data.camp)
-	return persona.get("name", u.unit_data.unit_name)
+	return u.combat_stats.unit_name if u.combat_stats != null else persona.get("name", u.unit_data.unit_name)
 
 
 # 把 portrait / side 的查询委托到 PortraitResolver（通过 preload，避免 class_name 冷启动问题）。
