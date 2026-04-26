@@ -576,3 +576,9 @@ z_index = 2
 position = Vector2(144, 240)
 halo_color = Color(0.70, 0.50, 0.30, 0.30)
 label_text = "石料场"
+
+[node name="CrownMarker" parent="Markers" instance=ExtResource("11_marker")]
+z_index = 2
+position = Vector2(0, -16)
+halo_color = Color(0.85, 0.50, 1.0, 0.55)
+label_text = "拱冠合龙点"
