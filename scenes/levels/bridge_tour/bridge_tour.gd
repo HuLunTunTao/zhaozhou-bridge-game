@@ -218,6 +218,10 @@ func _on_level_ready() -> void:
 		var role: String = String(npc.get_meta("npc_role", "persuade"))
 		var done: bool = _npc_done(npc)
 		_mission_hud.add_npc(role, npc.unit_data.unit_name, done)
+		# persuade NPC 显示初始 stance；qa / mentor 静默忽略
+		if role == "persuade":
+			var stance0: int = int(npc.get_meta("npc_stance", 50))
+			_mission_hud.update_npc_stance(npc.unit_data.unit_name, stance0, STANCE_PERSUADED)
 
 	# 自由移动模式不走 _init_turn_system，但 _can_accept_command 仍要 _waiting_for_player_input=true
 	_waiting_for_player_input = true
@@ -247,7 +251,7 @@ func _spawn_npc(spec: Dictionary) -> Unit:
 	var role: String = String(spec.get("role", "persuade"))
 	unit.set_meta("npc_role", role)
 	unit.set_meta("npc_bridge_part", spec.get("bridge_part", ""))
-	unit.set_meta("npc_discussed_topics", [] as Array[String])
+	unit.set_meta("npc_dialogue_log", [] as Array[Dictionary])
 	if role == "persuade":
 		var stance: int = int(spec.get("stance", 50))
 		unit.set_meta("npc_stance", stance)
@@ -384,20 +388,26 @@ func _flow_persuade(npc: Unit) -> void:
 	var panel: Node = _ArgumentInputPanelScene.instantiate()
 	add_child(panel)
 	panel.show_for(npc.unit_data.unit_name, bridge_part)
+	panel.set_learned_topics(_player_learned_topics, _player_used_topics)
+	panel.set_history(npc.get_meta("npc_dialogue_log", [] as Array[Dictionary]))
 	var argument: String = await panel.argument_submitted
 	if argument.is_empty():
 		return
-	var discussed: Array = npc.get_meta("npc_discussed_topics", [] as Array[String])
-	discussed.append(argument)
-	npc.set_meta("npc_discussed_topics", discussed)
 	var thinking := _make_thinking_overlay()
 	add_child(thinking)
 	var ans: Dictionary = await _generate_persuade_answer(npc, argument)
 	thinking.queue_free()
 	_apply_persuade_result(npc, ans)
-	var with_voice: bool = not bool(ans.get("is_fallback", false))
-	await _play_npc_line(npc, String(ans.get("reply", "")), with_voice)
-	await _maybe_neighbor_interject(npc, String(ans.get("reply", "")))
+	var reply: String = String(ans.get("reply", ""))
+	var is_fallback: bool = bool(ans.get("is_fallback", false))
+	# 记入对话历史；fallback 文本仍记（让玩家看到"NPC 没接到话"），但 LLM 失败那条
+	# 后续不会被注入 prompt context（chatter_prompts.bridge_topic_answer 不读 dialogue_log）
+	if not is_fallback:
+		_append_dialogue_log(npc, argument, reply, String(ans.get("tone", "")))
+	else:
+		_append_dialogue_log(npc, argument, reply, "fallback")
+	await _play_npc_line(npc, reply, not is_fallback)
+	await _maybe_neighbor_interject(npc, reply)
 
 
 func _generate_persuade_answer(npc: Unit, topic: String) -> Dictionary:
@@ -449,6 +459,7 @@ func _apply_persuade_result(npc: Unit, ans: Dictionary) -> void:
 		Notify.notify("%s 摇头：「此说不通」" % npc.unit_data.unit_name, Notify.Position.TOP_RIGHT, Notify.Style.WARNING, 2.5)
 	if _mission_hud:
 		_mission_hud.update_npc("persuade", npc.unit_data.unit_name, now_persuaded)
+		_mission_hud.update_npc_stance(npc.unit_data.unit_name, new_stance, STANCE_PERSUADED)
 
 
 # ─────────────────────────────────────────────
@@ -460,13 +471,15 @@ func _flow_qa(npc: Unit) -> void:
 		Notify.notify("%s 的疑问已解" % npc.unit_data.unit_name, Notify.Position.TOP_RIGHT, Notify.Style.INFO, 1.5)
 		return
 	var bridge_part: String = String(npc.get_meta("npc_bridge_part", ""))
-	var question: String = String(npc.get_meta("npc_qa_question", ""))
+	var question: String = _pick_qa_question(npc)
 	# 先让 NPC 把问题抛给玩家——dialogue_box 显示 + TTS
 	await _play_npc_line(npc, question, true)
 	# 玩家输入答案；副标题用 NPC 名 + 桥部位
 	var panel: Node = _ArgumentInputPanelScene.instantiate()
 	add_child(panel)
 	panel.show_for(npc.unit_data.unit_name, "%s · 「%s」" % [bridge_part, question])
+	panel.set_learned_topics(_player_learned_topics, _player_used_topics)
+	panel.set_history(npc.get_meta("npc_dialogue_log", [] as Array[Dictionary]))
 	var answer: String = await panel.argument_submitted
 	if answer.is_empty():
 		return
@@ -475,9 +488,45 @@ func _flow_qa(npc: Unit) -> void:
 	var eval: Dictionary = await _generate_qa_eval(npc, question, answer)
 	thinking.queue_free()
 	_apply_qa_result(npc, eval)
-	var with_voice: bool = not bool(eval.get("is_fallback", false))
-	await _play_npc_line(npc, String(eval.get("feedback", "")), with_voice)
-	await _maybe_neighbor_interject(npc, String(eval.get("feedback", "")))
+	var feedback: String = String(eval.get("feedback", ""))
+	var is_fallback: bool = bool(eval.get("is_fallback", false))
+	# 记入对话历史。问题用本轮抛出的 question + 玩家答案 + NPC feedback 三段拼接：
+	# 历史每条记 player（玩家答案）/ npc（feedback），question 在显示时上下文已隐含。
+	_append_dialogue_log(npc, answer, feedback, "fallback" if is_fallback else "qa")
+	await _play_npc_line(npc, feedback, not is_fallback)
+	await _maybe_neighbor_interject(npc, feedback)
+
+
+## 把一轮交互写入 NPC 的 dialogue_log meta。供 set_history 显示给玩家看。
+## tone 字段可记 "fallback" / "qa" / LLM 给的 tone 标签，便于将来分类（当前未做特殊渲染）。
+func _append_dialogue_log(npc: Unit, player: String, npc_text: String, tone: String) -> void:
+	var log: Array = npc.get_meta("npc_dialogue_log", [] as Array[Dictionary])
+	log.append({
+		"player": player,
+		"npc": npc_text,
+		"npc_name": npc.unit_data.unit_name,
+		"tone": tone,
+	})
+	npc.set_meta("npc_dialogue_log", log)
+
+
+## 取一句 QA 问题。优先用 persona.qa_questions 数组按尝试次数轮换；空时 fallback 到旧
+## qa_question 单字段；再空 fallback 到 spawn 时存的 npc_qa_question meta；最终兜底固定句。
+## 选完后 npc_qa_attempt += 1 写回 meta，供下次轮换。
+func _pick_qa_question(npc: Unit) -> String:
+	var persona: Dictionary = _NpcPersonasScript.get_persona(npc.unit_data.unit_id, npc.unit_data.camp)
+	var attempt: int = int(npc.get_meta("npc_qa_attempt", 0))
+	var qs_raw: Variant = persona.get("qa_questions", [])
+	var qs: Array = qs_raw if qs_raw is Array else []
+	var picked: String = ""
+	if not qs.is_empty():
+		picked = String(qs[attempt % qs.size()])
+	else:
+		picked = String(persona.get("qa_question", ""))
+	if picked.is_empty():
+		picked = String(npc.get_meta("npc_qa_question", "我有一事相问，可解么？"))
+	npc.set_meta("npc_qa_attempt", attempt + 1)
+	return picked
 
 
 func _generate_qa_eval(npc: Unit, question: String, answer: String) -> Dictionary:
@@ -542,6 +591,7 @@ func _flow_mentor(npc: Unit) -> void:
 		var inp: Node = _ArgumentInputPanelScene.instantiate()
 		add_child(inp)
 		inp.show_for(npc.unit_data.unit_name, "向 %s 自由请教" % npc.unit_data.unit_name)
+		inp.set_learned_topics(_player_learned_topics, _player_used_topics)
 		query = await inp.argument_submitted
 		if query.is_empty():
 			return

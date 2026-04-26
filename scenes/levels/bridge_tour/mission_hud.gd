@@ -36,7 +36,7 @@ var _persuade_target: int = 3
 var _qa_target: int = 4
 var _persuade_done: int = 0
 var _qa_done: int = 0
-## name -> {role, label, done}
+## name -> {role, label, done, stance, threshold}
 var _entries: Dictionary = {}
 
 
@@ -64,7 +64,7 @@ func add_npc(role: String, npc_name: String, done: bool) -> void:
 	var parent: VBoxContainer = _list_for(role)
 	if parent:
 		parent.add_child(lbl)
-	_entries[npc_name] = {"role": role, "label": lbl, "done": false}
+	_entries[npc_name] = {"role": role, "label": lbl, "done": false, "stance": -1, "threshold": 0}
 	_render(npc_name, role, done)
 	if done:
 		_inc_count(role)
@@ -79,6 +79,19 @@ func update_npc(role: String, npc_name: String, done: bool) -> void:
 	_render(npc_name, role, done)
 	if done and not was_done:
 		_inc_count(role)
+
+
+## 更新 persuade NPC 的 stance 数值显示。仅 persuade 起效；qa / mentor 调用静默忽略。
+## 该 NPC 还未 add_npc 时自动注册（fallback）；threshold<=0 时 fallback 到 70。
+func update_npc_stance(npc_name: String, stance: int, threshold: int) -> void:
+	if not _entries.has(npc_name):
+		add_npc("persuade", npc_name, false)
+	var entry: Dictionary = _entries[npc_name]
+	if String(entry.get("role", "")) != "persuade":
+		return
+	entry["stance"] = stance
+	entry["threshold"] = threshold if threshold > 0 else 70
+	_render(npc_name, "persuade", bool(entry.get("done", false)))
 
 
 func _render(npc_name: String, role: String, done: bool) -> void:
@@ -98,7 +111,17 @@ func _render(npc_name: String, role: String, done: bool) -> void:
 			"persuade": color = PERSUADE_COLOR
 			"qa": color = QA_COLOR
 			_: color = TEXT_COLOR
-	lbl.text = "  %s %s" % [dot, npc_name]
+	# persuade 未说服时附加 stance 数字（已说服省略，避免和 ✓ 重复）
+	var suffix := ""
+	if role == "persuade":
+		if done:
+			suffix = "  ✓"
+		else:
+			var stance: int = int(entry.get("stance", -1))
+			var threshold: int = int(entry.get("threshold", 0))
+			if stance >= 0 and threshold > 0:
+				suffix = "  %d/%d" % [stance, threshold]
+	lbl.text = "  %s %s%s" % [dot, npc_name, suffix]
 	lbl.add_theme_color_override("font_color", color)
 	entry["done"] = done
 
