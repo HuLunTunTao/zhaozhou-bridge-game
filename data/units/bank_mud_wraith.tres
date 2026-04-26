@@ -1,6 +1,7 @@
-[gd_resource type="Resource" script_class="UnitData" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="UnitData" format=3 uid="uid://cmfpjiog7dxj3"]
 
-[ext_resource type="Script" path="res://scripts/data/unit_data.gd" id="1"]
+[ext_resource type="Script" uid="uid://c2077ybi0615r" path="res://scripts/data/unit_data.gd" id="1"]
+[ext_resource type="Script" uid="uid://cp0ew5p75uio0" path="res://scripts/data/skill_data.gd" id="2_d5i5r"]
 
 [resource]
 script = ExtResource("1")
@@ -9,11 +10,7 @@ unit_name = "坍岸泥流"
 camp = 1
 max_hp = 92
 base_atk = 15
-ap_max = 100
-move_cost_per_tile = 10
 innate_element = 5
 innate_element_amount = 2
 ai_type = "zone_breaker"
-is_escort_target = false
 is_humanoid = false
-skills = []

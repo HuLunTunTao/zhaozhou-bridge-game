@@ -57,6 +57,14 @@ func _get_npc_specs() -> Array[Dictionary]:
 			"bridge_part": "主拱", "cell": Vector2i(3, 0),
 			"color": Color(0.55, 0.4, 0.3), "visual": _VISUAL_CRAFTSMAN,
 			"stance": 10, "roam_mode": _RoamingAIScript.Mode.STATIONARY, "waypoints": [],
+			"persuasion_goal": {
+				"goal": "让老匠首承认单孔大跨不是弃祖法冒险，而是能替代旧制多孔桥的稳妥新法。",
+				"objection": "他认定一道大拱跨洨河太险，只有祖上传下来的多孔小拱才可靠。",
+				"success_claim": "说清扁拱如何缓坡成跨、二十八道并列券如何分力且便于修换，并指出旧制桥墩会堵水冲毁。",
+				"hint": "可用「扁拱」「二十八道并列拱券」「旧制多孔小拱」回应他的守旧疑虑。",
+				"required_topics": ["flat_arch", "parallel_rings", "old_method"],
+				"bad_arguments": ["只说新法好看", "贬低老师傅", "空喊年轻人有胆量"],
+			},
 		},
 		{
 			"unit_id": "bridge_river_chief", "unit_name": "河工总管", "role": "persuade",
@@ -64,6 +72,14 @@ func _get_npc_specs() -> Array[Dictionary]:
 			"color": Color(0.4, 0.55, 0.7), "visual": _VISUAL_CRAFTSMAN,
 			"stance": 40, "roam_mode": _RoamingAIScript.Mode.PATROL,
 			"waypoints": [Vector2i(-3, 1), Vector2i(-3, 3), Vector2i(-5, 3), Vector2i(-5, 1)] as Array[Vector2i],
+			"persuasion_goal": {
+				"goal": "让河工总管相信新桥能经受汛期怒水，不会因单孔大跨而冲台毁桥。",
+				"objection": "他担心洪水顶拱、堵水、淘空桥台，要求看到泄洪和基础的硬道理。",
+				"success_claim": "说清敞肩小拱可分泄洪势、减轻桥身，本地青砂石桥台能承受扁拱水平推力。",
+				"hint": "可用「敞肩拱」「桥台与基础」回应他的防汛疑虑。",
+				"required_topics": ["open_spandrel", "abutment"],
+				"bad_arguments": ["只保证不会出事", "回避汛期", "只谈桥面好走"],
+			},
 		},
 		{
 			"unit_id": "bridge_court_inspector", "unit_name": "朝廷视察官", "role": "persuade",
@@ -71,6 +87,14 @@ func _get_npc_specs() -> Array[Dictionary]:
 			"color": Color(0.7, 0.55, 0.3), "visual": _VISUAL_CRAFTSMAN,
 			"stance": 30, "roam_mode": _RoamingAIScript.Mode.PATROL,
 			"waypoints": [Vector2i(1, -2), Vector2i(2, -2), Vector2i(2, -1), Vector2i(1, -1)] as Array[Vector2i],
+			"persuasion_goal": {
+				"goal": "让朝廷视察官认可新桥不是炫技，而是省工、省料、通商、可成政绩的稳当工程。",
+				"objection": "他怕新法不可控，拖工期、耗钱粮，最后让官府背责。",
+				"success_claim": "说清敞肩拱可减重省石、单孔大跨少建桥墩且利通行，并结合隋代统一度量衡与赵郡交通要冲说明政绩。",
+				"hint": "可用「敞肩拱」「旧制多孔小拱」「时代背景」回应他的工期和政绩疑虑。",
+				"required_topics": ["open_spandrel", "old_method", "sui_era"],
+				"bad_arguments": ["只讲奇观名声", "不谈工期钱粮", "把风险推给朝廷"],
+			},
 		},
 		# ─── 解答类（4）───
 		{
@@ -257,6 +281,7 @@ func _spawn_npc(spec: Dictionary) -> Unit:
 		var stance: int = int(spec.get("stance", 50))
 		unit.set_meta("npc_stance", stance)
 		unit.set_meta("npc_persuaded", stance >= STANCE_PERSUADED)
+		unit.set_meta("npc_persuasion_goal", spec.get("persuasion_goal", {}))
 	elif role == "qa":
 		var persona: Dictionary = _NpcPersonasScript.get_persona(unit.unit_data.unit_id, unit.unit_data.camp)
 		unit.set_meta("npc_qa_question", String(persona.get("qa_question", "我有一事相问，可解么？")))
@@ -389,6 +414,9 @@ func _flow_persuade(npc: Unit) -> void:
 	var panel: Node = _ArgumentInputPanelScene.instantiate()
 	add_child(panel)
 	panel.show_for(npc.unit_data.unit_name, bridge_part)
+	var goal_raw: Variant = npc.get_meta("npc_persuasion_goal", {})
+	var persuasion_goal: Dictionary = goal_raw if goal_raw is Dictionary else {}
+	panel.set_persuasion_goal(persuasion_goal)
 	panel.set_learned_topics(_player_learned_topics, _player_used_topics)
 	panel.set_history(npc.get_meta("npc_dialogue_log", [] as Array[Dictionary]))
 	var argument: String = await panel.argument_submitted
@@ -415,11 +443,15 @@ func _generate_persuade_answer(npc: Unit, topic: String) -> Dictionary:
 	var persona: Dictionary = _NpcPersonasScript.get_persona(npc.unit_data.unit_id, npc.unit_data.camp)
 	var bridge_part: String = String(npc.get_meta("npc_bridge_part", ""))
 	var stance: int = int(npc.get_meta("npc_stance", 50))
+	var goal_raw: Variant = npc.get_meta("npc_persuasion_goal", {})
+	var persuasion_goal: Dictionary = goal_raw if goal_raw is Dictionary else {}
 	var sys: String = _ChatterPromptsScript.build_system_prompt(persona, "bridge_topic_answer", _learned_memo(), "{}")
 	var user: String = _ChatterPromptsScript.build_user_prompt(persona, "bridge_topic_answer", {
 		"topic": topic,
 		"bridge_part": bridge_part,
 		"stance": stance,
+		"persuasion_goal": persuasion_goal,
+		"learned_csv": _learned_csv(),
 	})
 	var resp: Dictionary = await _get_llm().chat_completion([
 		{"role": "system", "content": sys},
@@ -428,8 +460,14 @@ func _generate_persuade_answer(npc: Unit, topic: String) -> Dictionary:
 	if resp.get("ok", false):
 		var parsed := _parse_object_json(String(resp.get("text", "")))
 		if not parsed.is_empty() and parsed.has("reply"):
-			if not parsed.has("stance_delta"): parsed["stance_delta"] = 0
+			if not parsed.has("stance_delta"):
+				parsed["stance_delta"] = 0
+			else:
+				parsed["stance_delta"] = clampi(int(parsed["stance_delta"]), -10, 15)
 			if not parsed.has("tone"): parsed["tone"] = ""
+			if not parsed.has("knowledge_used"): parsed["knowledge_used"] = []
+			if not parsed.has("matched_points"): parsed["matched_points"] = []
+			if not parsed.has("missed_points"): parsed["missed_points"] = []
 			return parsed
 	return {
 		"reply": _PersonaFallbackScript.pick(persona, "persuade"),
@@ -440,7 +478,7 @@ func _generate_persuade_answer(npc: Unit, topic: String) -> Dictionary:
 
 
 func _apply_persuade_result(npc: Unit, ans: Dictionary) -> void:
-	var delta: int = int(ans.get("stance_delta", 0))
+	var delta: int = clampi(int(ans.get("stance_delta", 0)), -10, 15)
 	var old_stance: int = int(npc.get_meta("npc_stance", 50))
 	var new_stance: int = clampi(old_stance + delta, 0, 100)
 	npc.set_meta("npc_stance", new_stance)

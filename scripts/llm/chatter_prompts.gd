@@ -63,13 +63,36 @@ static func build_user_prompt(persona: Dictionary, trigger_kind: String, extra: 
 				str(extra.get("discussed_csv", "（无）")),
 			]
 		"bridge_topic_answer":
-			return """李春刚问你：「%s」。你此刻在「%s」处，对新桥态度 %d/100。
+			var raw_goal: Variant = extra.get("persuasion_goal", {})
+			var goal: Dictionary = raw_goal if raw_goal is Dictionary else {}
+			return """李春刚对你说：「%s」。你此刻在「%s」处，对新桥态度 %d/100。
+
+本轮说服目标：
+- 目标：%s
+- 你的疑虑：%s
+- 被说服条件：%s
+- 推荐知识 key：%s
+- 已学知识 key：%s
+- 明显无效或扣分说法：%s
+
 按下面 JSON **严格输出**（仅 JSON，不要其他文字）：
-{"reply":"<一句话回答，30字内>", "stance_delta": <整数 -10..15>, "tone":"<两到四字情绪标签，如 犹豫/动容/嗤之以鼻>"}
-stance_delta 规则：李春论点务实/精彩 → 正数（最多 +15）；冒犯 / 不为所动 → 负数 / 0。""" % [
+{"reply":"<一句话回答，30字内>", "stance_delta": <整数 -10..15>, "tone":"<两到四字情绪标签>", "knowledge_used":["<实际用到的知识 key>", ...], "matched_points":["<命中的说服点>", ...], "missed_points":["<仍缺的要点>", ...]}
+stance_delta 规则：
+  - 回应你的核心疑虑，且论据贴合目标 → +6 到 +8
+  - 明确用到推荐知识 key 或已学知识 → 每个 +2 到 +4，合计最多 +6
+  - 兼顾你的身份诉求（工艺/防汛/钱粮政绩）→ +1 到 +3
+  - 空泛表态、只讲情绪、没有回应疑虑 → 0
+  - 明显错误、冒犯、回避风险 → -5 到 -10
+knowledge_used 只列李春话中确实用到的 key；没用就给空数组。""" % [
 				extra.get("topic", "?"),
 				extra.get("bridge_part", "桥上"),
 				int(extra.get("stance", 50)),
+				goal.get("goal", "让你支持新桥"),
+				goal.get("objection", "你仍有疑虑"),
+				goal.get("success_claim", "李春需要讲清关键工程道理"),
+				_format_prompt_list(goal.get("required_topics", [])),
+				str(extra.get("learned_csv", "（无）")),
+				_format_prompt_list(goal.get("bad_arguments", [])),
 			]
 		"bridge_neighbor_interject":
 			return "你刚听到「%s」对李春说：「%s」。以你的口吻插一句嘴（一句话，30 字内）。" % [
@@ -113,6 +136,18 @@ knowledge_used 给出他的回答里**确实**用到的 key（没用就给空数
 			]
 		_:
 			return "随口说一句。"
+
+
+static func _format_prompt_list(value: Variant) -> String:
+	if value is Array:
+		var parts: Array[String] = []
+		for item in value:
+			var item_text := String(item).strip_edges()
+			if not item_text.is_empty():
+				parts.append(item_text)
+		return "、".join(parts) if not parts.is_empty() else "（无）"
+	var value_text := String(value).strip_edges()
+	return value_text if not value_text.is_empty() else "（无）"
 
 
 ## 从 BattleContext 抽出 chatter 用得上的精简摘要。完整 snapshot 太长容易超 token。

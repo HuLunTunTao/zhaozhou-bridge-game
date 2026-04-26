@@ -71,6 +71,7 @@ var _summon_cycle_index: int = 0
 var _pending_summon_bonus: int = 0
 var _platform_visit_cache: Dictionary = {}  # instance_id → true
 var _drafting_marker: Node2D = null
+var _task2_pulsing_marker: TilePulsingMarker = null
 var _mission_hint_label: Label = null
 var _params_status_label: Label = null
 
@@ -110,23 +111,23 @@ func get_objectives_text() -> Dictionary:
 			lines.append("- 在参数点 (-1, 2) 施放「测尺取参 / 参数确认」共 %d 次%s" % [PARAMETER_REQUIRED_USES, status])
 			lines.append("- 李春抵达中央绘样台")
 			lines.append("- 李春执行「执墨定拱」")
-			lines.append("- 累计击退 8 名受驱役敌人")
+			lines.append("- 累计击退 8 名受驱役敌人（李春「绳准锁弧」可直线清场）")
 		TaskState.TASK2_PLATFORM:
 			lines.append("- 在参数点完成 3 次取参 (3/3)")
 			lines.append("- 李春抵达中央绘样台 (0/1)")
 			lines.append("- 李春执行「执墨定拱」")
-			lines.append("- 累计击退 8 名受驱役敌人")
+			lines.append("- 累计击退 8 名受驱役敌人（李春「绳准锁弧」可直线清场）")
 		TaskState.TASK3_ARCH:
 			lines.append("- 在参数点完成 3 次取参 (3/3)")
 			lines.append("- 李春抵达中央绘样台 (1/1)")
 			var arch_status := " (0/1)" if not _finalized else " (1/1)"
 			lines.append("- 李春执行「执墨定拱」%s" % arch_status)
-			lines.append("- 累计击退 8 名受驱役敌人")
+			lines.append("- 累计击退 8 名受驱役敌人（李春「绳准锁弧」可直线清场）")
 		TaskState.TASK4_HUNT:
 			lines.append("- 在参数点完成 3 次取参 (3/3)")
 			lines.append("- 李春抵达中央绘样台 (1/1)")
 			lines.append("- 李春执行「执墨定拱」 (1/1)")
-			lines.append("- 累计击退 8 名受驱役敌人 (%d/%d)" % [_minion_kills, REQUIRED_DEFEATS])
+			lines.append("- 累计击退 8 名受驱役敌人（李春「绳准锁弧」可直线清场） (%d/%d)" % [_minion_kills, REQUIRED_DEFEATS])
 	return {
 		"victory": lines,
 		"defeat": [
@@ -164,7 +165,7 @@ func _on_level_ready() -> void:
 	team_turn_started.connect(_on_stage_team_turn_started)
 	unit_move_completed.connect(_on_stage_unit_move_completed)
 
-	Notify.notify("派测量工到 3 个参数点施放「测尺取参」。", Notify.Position.TOP_CENTER, Notify.Style.INFO, 3.5)
+	Notify.notify("派测量工到参数点 (-1, 2) 施放「测尺取参」3 次（每回合不限），或李春「参数确认」补刀（每回合 1 次）。", Notify.Position.TOP_CENTER, Notify.Style.INFO, 4.0)
 
 
 # ─────────────────────────────────────────────
@@ -389,14 +390,14 @@ func _update_mission_hint() -> void:
 		return
 	match _current_task:
 		TaskState.TASK1_PARAMETERS:
-			_mission_hint_label.text = "任务目标一，在参数点 (-1, 2) 施放取参技能【%d/%d】" % [_parameter_use_count, PARAMETER_REQUIRED_USES]
+			_mission_hint_label.text = "任务目标一，在参数点 (-1, 2) 施放「测尺取参 / 参数确认」【%d/%d】" % [_parameter_use_count, PARAMETER_REQUIRED_USES]
 		TaskState.TASK2_PLATFORM:
 			_mission_hint_label.text = "任务目标二，李春前往中央绘样台"
 		TaskState.TASK3_ARCH:
 			var done := " (1/1)" if _finalized else " (0/1)"
 			_mission_hint_label.text = "任务目标三，李春在绘样台执行「执墨定拱」%s" % done
 		TaskState.TASK4_HUNT:
-			_mission_hint_label.text = "任务目标四，累计击退 8 名受驱役敌人【%d/%d】" % [_minion_kills, REQUIRED_DEFEATS]
+			_mission_hint_label.text = "任务目标四，李春「绳准锁弧」已解锁，累计击退 8 名受驱役敌人【%d/%d】" % [_minion_kills, REQUIRED_DEFEATS]
 
 
 func _update_params_status_hint() -> void:
@@ -415,6 +416,27 @@ func _advance_to_task2() -> void:
 	Notify.notify("三处参数已成。请李春前往中央绘样台。", Notify.Position.TOP_CENTER, Notify.Style.SUCCESS, 3.5)
 	_update_mission_hint()
 	_show_objectives_if_not_open()
+	_spawn_task2_marker()
+
+
+## 在中央绘样台 4 格中心 spawn 一个 TilePulsingMarker，作为"现在去这里"的动态指引。
+## 进 TASK4 时由 _advance_to_task4 主动 queue_free 撤除。
+func _spawn_task2_marker() -> void:
+	if _task2_pulsing_marker != null and is_instance_valid(_task2_pulsing_marker):
+		return
+	var center_local := (tilemap.map_to_local(DRAFTING_CELLS[0])
+			+ tilemap.map_to_local(DRAFTING_CELLS[1])
+			+ tilemap.map_to_local(DRAFTING_CELLS[2])
+			+ tilemap.map_to_local(DRAFTING_CELLS[3])) / 4.0
+	var base_local := tilemap.map_to_local(DRAFTING_CELLS[0])
+	_task2_pulsing_marker = spawn_tile_pulsing_marker(
+		DRAFTING_CELLS[0],
+		Color(0.4, 0.85, 1.0, 0.55),
+		"中央绘样台",
+		center_local - base_local,
+		"Task2PulsingMarker",
+		2,
+	) as TilePulsingMarker
 
 
 func _advance_to_task3() -> void:
@@ -428,7 +450,10 @@ func _advance_to_task4() -> void:
 	_current_task = TaskState.TASK4_HUNT
 	if _drafting_marker != null and is_instance_valid(_drafting_marker):
 		_drafting_marker.modulate = Color(1, 1, 1, 0.4)
-	Notify.notify("执墨定拱完成！继续击退受驱役之敌，直至 %d 名。" % REQUIRED_DEFEATS, Notify.Position.TOP_CENTER, Notify.Style.SUCCESS, 3.5)
+	if _task2_pulsing_marker != null and is_instance_valid(_task2_pulsing_marker):
+		_task2_pulsing_marker.queue_free()
+	_task2_pulsing_marker = null
+	Notify.notify("执墨定拱完成！李春解锁「绳准锁弧」（直线穿透+拖拽），用它清退 %d 名受驱役之敌。" % REQUIRED_DEFEATS, Notify.Position.TOP_CENTER, Notify.Style.SUCCESS, 4.0)
 	_update_mission_hint()
 	_show_objectives_if_not_open()
 
