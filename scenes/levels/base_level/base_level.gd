@@ -1118,6 +1118,12 @@ func spawn_unit(unit_data: UnitData, cell: Vector2i, team_index: int, visual: Pa
 			visual_to_use = HUMAN_VISUALS[unit_data.unit_name]
 	if visual_to_use:
 		unit.visual_scene = visual_to_use
+	# 占位诊断：若目标格已有单位 → 输出 warning（不阻断；静态布局作者意图保留）
+	for existing in _get_all_units():
+		if is_instance_valid(existing) and existing is Unit and (existing as Unit).cell == cell:
+			var existing_name: String = (existing as Unit).unit_data.unit_name if (existing as Unit).unit_data else "<unknown>"
+			push_warning("spawn_unit: cell %s already occupied by %s; new unit will overlap" % [cell, existing_name])
+			break
 	obstacles_tilemap_layer.add_child(unit)
 	unit.movement_manager = movement_manager
 	unit.set_cell(cell, tilemap)
@@ -1962,6 +1968,37 @@ func _get_all_units() -> Array:
 		for unit: Node2D in team.units:
 			result.append(unit)
 	return result
+
+
+## 找一个"空且可走"的格。同心方环外扩搜索，max_radius 控制最大半径。
+## 找不到时返回 target 本身（不静默崩；调用方可以看到 spawn_unit 的 push_warning）。
+## 复用 movement_manager.get_movement_cost 判地形 + _get_all_units 判占位。
+func _find_empty_walkable_cell(target: Vector2i, max_radius: int = 4) -> Vector2i:
+	if _is_cell_walkable_and_empty(target):
+		return target
+	for radius in range(1, max_radius + 1):
+		# 只扫方环边界（内部已在前一轮试过）
+		for dx in range(-radius, radius + 1):
+			for dy in range(-radius, radius + 1):
+				if absi(dx) != radius and absi(dy) != radius:
+					continue
+				var candidate := target + Vector2i(dx, dy)
+				if _is_cell_walkable_and_empty(candidate):
+					return candidate
+	return target
+
+
+func _is_cell_walkable_and_empty(cell: Vector2i) -> bool:
+	if movement_manager == null:
+		return false
+	if movement_manager.get_movement_cost(cell) < 0:
+		return false
+	for unit in _get_all_units():
+		if not is_instance_valid(unit):
+			continue
+		if unit is Unit and (unit as Unit).cell == cell:
+			return false
+	return true
 
 
 ## 玩家在战斗中切换难度时，按比例重算所有存活单位的 max_hp / ap_max / base_atk。

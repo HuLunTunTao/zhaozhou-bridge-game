@@ -894,7 +894,7 @@ func _spawn_ally(data: UnitData, cell: Vector2i, skills: Array[SkillData]) -> Un
 
 
 func _spawn_enemy(data: UnitData, cell: Vector2i, skills: Array[SkillData], visual: PackedScene = null) -> Unit:
-	var unit := spawn_unit(data, _nearest_walkable(cell), ENEMY_TEAM, visual)
+	var unit := spawn_unit(data, _find_empty_walkable_cell(cell), ENEMY_TEAM, visual)
 	set_unit_skills(unit, skills)
 	setup_unit_stats(unit, data.unit_name, data.max_hp, data.base_atk, data.ap_max, data.move_cost_per_tile, data.innate_element, data.innate_element_amount)
 	return unit

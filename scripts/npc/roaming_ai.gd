@@ -79,9 +79,12 @@ func _should_pause() -> bool:
 	# 关卡有 overlay（设置面板 / dialogue_box / 输入面板等）→ 暂停一拍
 	if _level.has_method("has_overlay") and _level.has_overlay():
 		return true
-	# Hero 紧贴 → 避免擦身错位
+	# Hero 紧贴 → 避免擦身错位；Hero 在 tween 中 → 全员停（避免 NPC 步入 hero 终点格的竞态）
 	if _level.hero != null and is_instance_valid(_level.hero) and _level.hero is Unit:
-		var hero_cell: Vector2i = (_level.hero as Unit).cell
+		var hero_unit := _level.hero as Unit
+		if hero_unit.is_moving:
+			return true
+		var hero_cell: Vector2i = hero_unit.cell
 		var d: Vector2i = hero_cell - _unit.cell
 		if absi(d.x) + absi(d.y) <= 1:
 			return true

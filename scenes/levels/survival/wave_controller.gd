@@ -195,9 +195,7 @@ func _pick_spawn_cells(count: int) -> Array[Vector2i]:
 		picked.append(c)
 		if picked.size() >= count:
 			break
-	# 不够格子时用首格再放（极端情况，重叠不死人，set_cell 会覆盖）
-	while picked.size() < count and not pool.is_empty():
-		picked.append(pool[0])
+	# 不够格子就少出几只，不再重叠占首格——视觉上比"两只敌人共格"更可接受
 	return picked
 
 
