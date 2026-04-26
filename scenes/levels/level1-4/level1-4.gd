@@ -634,32 +634,7 @@ func _spawn_allies() -> void:
 	_apply_persistent_growth_effects()
 
 
-func _apply_persistent_growth_effects() -> void:
-	if Progress.has_growth_option("growth_training_mobilize"):
-		for unit in get_friendly_units():
-			apply_unit_growth_bonus(unit, 10, 0, 5)
-	if Progress.has_growth_option("growth_maps_measures"):
-		apply_unit_growth_bonus(get_hero_unit(), 0, 4, 0)
-		modify_unit_skill(get_hero_unit(), "lc_rule_strike", {"damage_ratio": 1.20})
-	if Progress.has_growth_option("growth_stone_reinforce"):
-		for craftsman in _craftsmen:
-			modify_unit_skill(craftsman, "cg_guard_the_works", {"duration_turns": 3})
-	if Progress.has_growth_option("growth_drawing_discipline"):
-		apply_unit_growth_bonus(get_hero_unit(), 0, 4, 0)
-		modify_unit_skill(get_hero_unit(), "lc_divider_mark_arc", {"damage_ratio": 1.15})
-	if Progress.has_growth_option("growth_center_hold"):
-		for craftsman in _craftsmen:
-			apply_unit_growth_bonus(craftsman, 10, 2, 0)
-	if Progress.has_growth_option("growth_balance_method"):
-		apply_unit_growth_bonus(get_hero_unit(), 0, 0, 5)
-		modify_unit_skill(get_hero_unit(), "lc_inkline_balance_arch", {"cooldown_turns": 1})
-	if Progress.has_growth_option("growth_joint_finish"):
-		apply_unit_growth_bonus(get_hero_unit(), 0, 4, 0)
-	if Progress.has_growth_option("growth_team_hold"):
-		for craftsman in _craftsmen:
-			apply_unit_growth_bonus(craftsman, 10, 0, 0)
-		for carrier in _stone_carriers:
-			apply_unit_growth_bonus(carrier, 0, 0, 5)
+# 持久成长选项的应用逻辑统一在 base_level._apply_persistent_growth_effects 中处理。
 
 
 func _spawn_enemies() -> void:

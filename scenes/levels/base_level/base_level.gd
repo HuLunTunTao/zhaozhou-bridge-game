@@ -2203,6 +2203,38 @@ func apply_unit_growth_bonus(unit: Unit, hp_delta: int = 0, atk_delta: int = 0, 
 		_update_status_bar_for_unit(unit, true)
 
 
+## 应用 Progress 中已选的成长选项加成。子关卡若有特殊单位类型可 override。
+##
+## 选项语义（与 progress.gd::LEVEL_GROWTH_OPTIONS 对应）：
+##   g1_X_atk: 李春基础攻击力 +4
+##   g1_X_ap:  全体我方行动力上限 +5
+##   g1_2_craft: 全体工匠 HP +10 / ATK +2
+##   g1_3_team:  全体我方 HP +10 / 运石工 AP 上限 +5
+## 解锁类（gX_X_river / push / pile / ring / lock / link / anchor）由 GROWTH_SKILL_UNLOCKS
+## + _normalize_progress 自动写入 unlocked_skill_ids，这里不重复处理。
+func _apply_persistent_growth_effects() -> void:
+	# 攻击力 +4（每关都有，可叠加 +12）
+	for atk_id in ["g1_1_atk", "g1_2_atk", "g1_3_atk"]:
+		if Progress.has_growth_option(atk_id):
+			apply_unit_growth_bonus(get_hero_unit(), 0, 4, 0)
+	# AP 上限 +5（每关都有，全体我方）
+	for ap_id in ["g1_1_ap", "g1_2_ap", "g1_3_ap"]:
+		if Progress.has_growth_option(ap_id):
+			for unit in get_friendly_units():
+				apply_unit_growth_bonus(unit, 0, 0, 5)
+	# 1-2 工匠强化
+	if Progress.has_growth_option("g1_2_craft"):
+		for unit in get_friendly_units():
+			if unit is Unit and unit.combat_stats and unit.combat_stats.unit_name == "工匠":
+				apply_unit_growth_bonus(unit, 10, 2, 0)
+	# 1-3 全体 HP + 运石工 AP
+	if Progress.has_growth_option("g1_3_team"):
+		for unit in get_friendly_units():
+			apply_unit_growth_bonus(unit, 10, 0, 0)
+			if unit is Unit and unit.combat_stats and unit.combat_stats.unit_name == "运石工":
+				apply_unit_growth_bonus(unit, 0, 0, 5)
+
+
 func modify_unit_skill(unit: Unit, skill_id: String, changes: Dictionary) -> bool:
 	if unit == null or unit.unit_data == null:
 		return false
