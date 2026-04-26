@@ -1,0 +1,58 @@
+[gd_scene format=3 uid="uid://b6w2s7jcnjreo"]
+
+[ext_resource type="PackedScene" uid="uid://cbjso0lvbcag1" path="res://scenes/unit/visual/visual.tscn" id="1_1460e"]
+[ext_resource type="Shader" uid="uid://w8w41kw1kylj" path="res://scenes/unit/shader/unit_edge_light.gdshader" id="2_k8cxd"]
+[ext_resource type="Texture2D" uid="uid://0iw3d81cxnj2" path="res://assets/character/渔夫/渔夫.png" id="3_k8cxd"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_k8cxd"]
+resource_local_to_scene = true
+shader = ExtResource("2_k8cxd")
+shader_parameter/outline_color = Color(1, 1, 0, 0.3)
+shader_parameter/outline_width = 7.0
+shader_parameter/frame_uv_rect = Vector4(0, 0, 1, 1)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_rj6f1"]
+atlas = ExtResource("3_k8cxd")
+region = Rect2(0, 0, 256, 256)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_4k2hq"]
+atlas = ExtResource("3_k8cxd")
+region = Rect2(256, 0, 256, 256)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_c0ye2"]
+atlas = ExtResource("3_k8cxd")
+region = Rect2(0, 256, 256, 256)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_gp2a1"]
+atlas = ExtResource("3_k8cxd")
+region = Rect2(256, 256, 256, 256)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_4rlbi"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_rj6f1")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_4k2hq")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_c0ye2")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_gp2a1")
+}],
+"loop": true,
+"name": &"default",
+"speed": 5.0
+}]
+
+[node name="Visual" unique_id=1878430534 instance=ExtResource("1_1460e")]
+material = SubResource("ShaderMaterial_k8cxd")
+sprite_frames = SubResource("SpriteFrames_4rlbi")
+move_is_idle = true
+flip_h_for_turning = true
+default_facing_left = true
+
+[node name="FootMarker" parent="." index="0"]
+position = Vector2(0, 93.33333)

@@ -1,4 +1,4 @@
-[gd_scene load_steps=3 format=3 uid="uid://dtjad2y0rii0v"]
+[gd_scene format=3 uid="uid://dtjad2y0rii0v"]
 
 [ext_resource type="Script" uid="uid://d0n8r8tt0aylo" path="res://scenes/ui/settings_panel.gd" id="1"]
 [ext_resource type="Theme" uid="uid://cvsxo3hmseyjr" path="res://scenes/ui/paper_ink_theme.tres" id="2_theme"]
@@ -24,40 +24,44 @@ anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -140.0
-offset_top = -140.0
-offset_right = 140.0
-offset_bottom = 140.0
+offset_left = -147.25
+offset_top = -233.0
+offset_right = 147.25
+offset_bottom = 233.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="Content" type="VBoxContainer" parent="Backdrop/Panel" unique_id=521538380]
+[node name="ScrollContainer" type="ScrollContainer" parent="Backdrop/Panel" unique_id=386750714]
 layout_mode = 2
+
+[node name="Content" type="VBoxContainer" parent="Backdrop/Panel/ScrollContainer" unique_id=521538380]
+layout_mode = 2
+size_flags_horizontal = 6
 theme_override_constants/separation = 8
 
-[node name="SettingsTitle" type="Label" parent="Backdrop/Panel/Content" unique_id=1536546068]
+[node name="SettingsTitle" type="Label" parent="Backdrop/Panel/ScrollContainer/Content" unique_id=1536546068]
 unique_name_in_owner = true
 layout_mode = 2
 mouse_filter = 1
 text = "设置"
 horizontal_alignment = 1
 
-[node name="Separator1" type="HSeparator" parent="Backdrop/Panel/Content" unique_id=822055930]
+[node name="Separator1" type="HSeparator" parent="Backdrop/Panel/ScrollContainer/Content" unique_id=822055930]
 layout_mode = 2
 
-[node name="GameplaySection" type="VBoxContainer" parent="Backdrop/Panel/Content" unique_id=2007327196]
+[node name="GameplaySection" type="VBoxContainer" parent="Backdrop/Panel/ScrollContainer/Content" unique_id=2007327196]
 layout_mode = 2
 theme_override_constants/separation = 4
 
-[node name="DifficultyRow" type="HBoxContainer" parent="Backdrop/Panel/Content/GameplaySection" unique_id=1564876428]
+[node name="DifficultyRow" type="HBoxContainer" parent="Backdrop/Panel/ScrollContainer/Content/GameplaySection" unique_id=1564876428]
 layout_mode = 2
 
-[node name="DifficultyLabel" type="Label" parent="Backdrop/Panel/Content/GameplaySection/DifficultyRow" unique_id=46960701]
+[node name="DifficultyLabel" type="Label" parent="Backdrop/Panel/ScrollContainer/Content/GameplaySection/DifficultyRow" unique_id=46960701]
 custom_minimum_size = Vector2(48, 0)
 layout_mode = 2
 text = "难度"
 
-[node name="DifficultyOption" type="OptionButton" parent="Backdrop/Panel/Content/GameplaySection/DifficultyRow" unique_id=666463432]
+[node name="DifficultyOption" type="OptionButton" parent="Backdrop/Panel/ScrollContainer/Content/GameplaySection/DifficultyRow" unique_id=666463432]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(160, 0)
 layout_mode = 2
@@ -66,96 +70,96 @@ tooltip_text = "战斗中切换会立即按比例重算所有单位的 HP/AP，�
 clip_text = true
 fit_to_longest_item = false
 
-[node name="AudioSection" type="VBoxContainer" parent="Backdrop/Panel/Content" unique_id=2007327194]
+[node name="AudioSection" type="VBoxContainer" parent="Backdrop/Panel/ScrollContainer/Content" unique_id=2007327194]
 layout_mode = 2
 theme_override_constants/separation = 4
 
-[node name="MusicRow" type="HBoxContainer" parent="Backdrop/Panel/Content/AudioSection" unique_id=1564876426]
+[node name="MusicRow" type="HBoxContainer" parent="Backdrop/Panel/ScrollContainer/Content/AudioSection" unique_id=1564876426]
 layout_mode = 2
 
-[node name="MusicLabel" type="Label" parent="Backdrop/Panel/Content/AudioSection/MusicRow" unique_id=46960699]
+[node name="MusicLabel" type="Label" parent="Backdrop/Panel/ScrollContainer/Content/AudioSection/MusicRow" unique_id=46960699]
 custom_minimum_size = Vector2(48, 0)
 layout_mode = 2
 text = "音乐"
 
-[node name="MusicSlider" type="HSlider" parent="Backdrop/Panel/Content/AudioSection/MusicRow" unique_id=666463430]
+[node name="MusicSlider" type="HSlider" parent="Backdrop/Panel/ScrollContainer/Content/AudioSection/MusicRow" unique_id=666463430]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 value = 80.0
 
-[node name="SfxRow" type="HBoxContainer" parent="Backdrop/Panel/Content/AudioSection" unique_id=872664665]
+[node name="SfxRow" type="HBoxContainer" parent="Backdrop/Panel/ScrollContainer/Content/AudioSection" unique_id=872664665]
 layout_mode = 2
 
-[node name="SfxLabel" type="Label" parent="Backdrop/Panel/Content/AudioSection/SfxRow" unique_id=692738262]
+[node name="SfxLabel" type="Label" parent="Backdrop/Panel/ScrollContainer/Content/AudioSection/SfxRow" unique_id=692738262]
 custom_minimum_size = Vector2(48, 0)
 layout_mode = 2
 text = "音效"
 
-[node name="SfxSlider" type="HSlider" parent="Backdrop/Panel/Content/AudioSection/SfxRow" unique_id=374684869]
+[node name="SfxSlider" type="HSlider" parent="Backdrop/Panel/ScrollContainer/Content/AudioSection/SfxRow" unique_id=374684869]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 value = 80.0
 
-[node name="UiRow" type="HBoxContainer" parent="Backdrop/Panel/Content/AudioSection" unique_id=374684870]
+[node name="UiRow" type="HBoxContainer" parent="Backdrop/Panel/ScrollContainer/Content/AudioSection" unique_id=374684870]
 layout_mode = 2
 
-[node name="UiLabel" type="Label" parent="Backdrop/Panel/Content/AudioSection/UiRow" unique_id=692738263]
+[node name="UiLabel" type="Label" parent="Backdrop/Panel/ScrollContainer/Content/AudioSection/UiRow" unique_id=692738263]
 custom_minimum_size = Vector2(48, 0)
 layout_mode = 2
 text = "UI"
 
-[node name="UiSlider" type="HSlider" parent="Backdrop/Panel/Content/AudioSection/UiRow" unique_id=374684871]
+[node name="UiSlider" type="HSlider" parent="Backdrop/Panel/ScrollContainer/Content/AudioSection/UiRow" unique_id=374684871]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 value = 80.0
 
-[node name="VoiceRow" type="HBoxContainer" parent="Backdrop/Panel/Content/AudioSection" unique_id=374684872]
+[node name="VoiceRow" type="HBoxContainer" parent="Backdrop/Panel/ScrollContainer/Content/AudioSection" unique_id=374684872]
 layout_mode = 2
 
-[node name="VoiceLabel" type="Label" parent="Backdrop/Panel/Content/AudioSection/VoiceRow" unique_id=692738264]
+[node name="VoiceLabel" type="Label" parent="Backdrop/Panel/ScrollContainer/Content/AudioSection/VoiceRow" unique_id=692738264]
 custom_minimum_size = Vector2(48, 0)
 layout_mode = 2
 text = "语音"
 
-[node name="VoiceSlider" type="HSlider" parent="Backdrop/Panel/Content/AudioSection/VoiceRow" unique_id=374684873]
+[node name="VoiceSlider" type="HSlider" parent="Backdrop/Panel/ScrollContainer/Content/AudioSection/VoiceRow" unique_id=374684873]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 value = 80.0
 
-[node name="AmbienceRow" type="HBoxContainer" parent="Backdrop/Panel/Content/AudioSection" unique_id=374684874]
+[node name="AmbienceRow" type="HBoxContainer" parent="Backdrop/Panel/ScrollContainer/Content/AudioSection" unique_id=374684874]
 layout_mode = 2
 
-[node name="AmbienceLabel" type="Label" parent="Backdrop/Panel/Content/AudioSection/AmbienceRow" unique_id=692738265]
+[node name="AmbienceLabel" type="Label" parent="Backdrop/Panel/ScrollContainer/Content/AudioSection/AmbienceRow" unique_id=692738265]
 custom_minimum_size = Vector2(48, 0)
 layout_mode = 2
 text = "环境"
 
-[node name="AmbienceSlider" type="HSlider" parent="Backdrop/Panel/Content/AudioSection/AmbienceRow" unique_id=374684875]
+[node name="AmbienceSlider" type="HSlider" parent="Backdrop/Panel/ScrollContainer/Content/AudioSection/AmbienceRow" unique_id=374684875]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 value = 80.0
 
-[node name="Separator1b" type="HSeparator" parent="Backdrop/Panel/Content" unique_id=1005685388]
+[node name="Separator1b" type="HSeparator" parent="Backdrop/Panel/ScrollContainer/Content" unique_id=1005685388]
 layout_mode = 2
 
-[node name="DisplaySection" type="VBoxContainer" parent="Backdrop/Panel/Content" unique_id=2007327195]
+[node name="DisplaySection" type="VBoxContainer" parent="Backdrop/Panel/ScrollContainer/Content" unique_id=2007327195]
 layout_mode = 2
 theme_override_constants/separation = 4
 
-[node name="ResolutionRow" type="HBoxContainer" parent="Backdrop/Panel/Content/DisplaySection" unique_id=1564876427]
+[node name="ResolutionRow" type="HBoxContainer" parent="Backdrop/Panel/ScrollContainer/Content/DisplaySection" unique_id=1564876427]
 layout_mode = 2
 
-[node name="ResolutionLabel" type="Label" parent="Backdrop/Panel/Content/DisplaySection/ResolutionRow" unique_id=46960700]
+[node name="ResolutionLabel" type="Label" parent="Backdrop/Panel/ScrollContainer/Content/DisplaySection/ResolutionRow" unique_id=46960700]
 custom_minimum_size = Vector2(48, 0)
 layout_mode = 2
 text = "分辨率"
 
-[node name="ResolutionOption" type="OptionButton" parent="Backdrop/Panel/Content/DisplaySection/ResolutionRow" unique_id=666463431]
+[node name="ResolutionOption" type="OptionButton" parent="Backdrop/Panel/ScrollContainer/Content/DisplaySection/ResolutionRow" unique_id=666463431]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(160, 0)
 layout_mode = 2
@@ -163,73 +167,73 @@ size_flags_horizontal = 3
 clip_text = true
 fit_to_longest_item = false
 
-[node name="ApplyDisplayButton" type="Button" parent="Backdrop/Panel/Content/DisplaySection" unique_id=366667681]
+[node name="ApplyDisplayButton" type="Button" parent="Backdrop/Panel/ScrollContainer/Content/DisplaySection" unique_id=366667681]
 unique_name_in_owner = true
 layout_mode = 2
 disabled = true
 text = "应用"
 
-[node name="Separator2" type="HSeparator" parent="Backdrop/Panel/Content" unique_id=1005685387]
+[node name="Separator2" type="HSeparator" parent="Backdrop/Panel/ScrollContainer/Content" unique_id=1005685387]
 layout_mode = 2
 
-[node name="SaveSettingsButton" type="Button" parent="Backdrop/Panel/Content" unique_id=366667680]
+[node name="SaveSettingsButton" type="Button" parent="Backdrop/Panel/ScrollContainer/Content" unique_id=366667680]
 layout_mode = 2
 text = "保存设置"
 
-[node name="Separator3" type="HSeparator" parent="Backdrop/Panel/Content" unique_id=1511002398]
+[node name="Separator3" type="HSeparator" parent="Backdrop/Panel/ScrollContainer/Content" unique_id=1511002398]
 layout_mode = 2
 
-[node name="SaveManagerButton" type="Button" parent="Backdrop/Panel/Content" unique_id=1841298912]
+[node name="SaveManagerButton" type="Button" parent="Backdrop/Panel/ScrollContainer/Content" unique_id=1841298912]
 layout_mode = 2
 text = "存档管理"
 
-[node name="Separator4" type="HSeparator" parent="Backdrop/Panel/Content" unique_id=1735054454]
+[node name="Separator4" type="HSeparator" parent="Backdrop/Panel/ScrollContainer/Content" unique_id=1735054454]
 layout_mode = 2
 
-[node name="QuickSaveButton" type="Button" parent="Backdrop/Panel/Content" unique_id=1955564325]
+[node name="QuickSaveButton" type="Button" parent="Backdrop/Panel/ScrollContainer/Content" unique_id=1955564325]
 unique_name_in_owner = true
 visible = false
 layout_mode = 2
 text = "快速存档"
 
-[node name="RestartButton" type="Button" parent="Backdrop/Panel/Content" unique_id=414502119]
+[node name="RestartButton" type="Button" parent="Backdrop/Panel/ScrollContainer/Content" unique_id=414502119]
 unique_name_in_owner = true
 visible = false
 layout_mode = 2
 text = "重新开始"
 
-[node name="BackToMenuButton" type="Button" parent="Backdrop/Panel/Content" unique_id=898585402]
+[node name="BackToMenuButton" type="Button" parent="Backdrop/Panel/ScrollContainer/Content" unique_id=898585402]
 unique_name_in_owner = true
 visible = false
 layout_mode = 2
 text = "返回主菜单"
 
-[node name="SeparatorDanger" type="HSeparator" parent="Backdrop/Panel/Content" unique_id=1735054455]
+[node name="SeparatorDanger" type="HSeparator" parent="Backdrop/Panel/ScrollContainer/Content" unique_id=1735054455]
 layout_mode = 2
 
-[node name="ClearDataButton" type="Button" parent="Backdrop/Panel/Content" unique_id=1735054456]
+[node name="ClearDataButton" type="Button" parent="Backdrop/Panel/ScrollContainer/Content" unique_id=1735054456]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.95, 0.35, 0.35, 1)
 theme_override_colors/font_hover_color = Color(1, 0.5, 0.5, 1)
 text = "清除所有本地数据"
 
-[node name="CloseButton" type="Button" parent="Backdrop/Panel/Content" unique_id=2068944122]
+[node name="CloseButton" type="Button" parent="Backdrop/Panel/ScrollContainer/Content" unique_id=2068944122]
 layout_mode = 2
 text = "关闭"
 
-[connection signal="value_changed" from="Backdrop/Panel/Content/AudioSection/MusicRow/MusicSlider" to="." method="_on_music_slider_value_changed"]
-[connection signal="value_changed" from="Backdrop/Panel/Content/AudioSection/SfxRow/SfxSlider" to="." method="_on_sfx_slider_value_changed"]
-[connection signal="value_changed" from="Backdrop/Panel/Content/AudioSection/UiRow/UiSlider" to="." method="_on_ui_slider_value_changed"]
-[connection signal="value_changed" from="Backdrop/Panel/Content/AudioSection/VoiceRow/VoiceSlider" to="." method="_on_voice_slider_value_changed"]
-[connection signal="value_changed" from="Backdrop/Panel/Content/AudioSection/AmbienceRow/AmbienceSlider" to="." method="_on_ambience_slider_value_changed"]
-[connection signal="item_selected" from="Backdrop/Panel/Content/DisplaySection/ResolutionRow/ResolutionOption" to="." method="_on_resolution_option_item_selected"]
-[connection signal="item_selected" from="Backdrop/Panel/Content/GameplaySection/DifficultyRow/DifficultyOption" to="." method="_on_difficulty_option_item_selected"]
-[connection signal="pressed" from="Backdrop/Panel/Content/DisplaySection/ApplyDisplayButton" to="." method="_on_apply_display_pressed"]
-[connection signal="gui_input" from="Backdrop/Panel/Content/SettingsTitle" to="." method="_on_settings_title_gui_input"]
-[connection signal="pressed" from="Backdrop/Panel/Content/SaveSettingsButton" to="." method="_on_save_settings_button_pressed"]
-[connection signal="pressed" from="Backdrop/Panel/Content/SaveManagerButton" to="." method="_on_save_manager_pressed"]
-[connection signal="pressed" from="Backdrop/Panel/Content/QuickSaveButton" to="." method="_on_quick_save_pressed"]
-[connection signal="pressed" from="Backdrop/Panel/Content/RestartButton" to="." method="_on_restart_pressed"]
-[connection signal="pressed" from="Backdrop/Panel/Content/BackToMenuButton" to="." method="_on_back_to_menu_pressed"]
-[connection signal="pressed" from="Backdrop/Panel/Content/ClearDataButton" to="." method="_on_clear_data_pressed"]
-[connection signal="pressed" from="Backdrop/Panel/Content/CloseButton" to="." method="_on_close_pressed"]
+[connection signal="gui_input" from="Backdrop/Panel/ScrollContainer/Content/SettingsTitle" to="." method="_on_settings_title_gui_input"]
+[connection signal="item_selected" from="Backdrop/Panel/ScrollContainer/Content/GameplaySection/DifficultyRow/DifficultyOption" to="." method="_on_difficulty_option_item_selected"]
+[connection signal="value_changed" from="Backdrop/Panel/ScrollContainer/Content/AudioSection/MusicRow/MusicSlider" to="." method="_on_music_slider_value_changed"]
+[connection signal="value_changed" from="Backdrop/Panel/ScrollContainer/Content/AudioSection/SfxRow/SfxSlider" to="." method="_on_sfx_slider_value_changed"]
+[connection signal="value_changed" from="Backdrop/Panel/ScrollContainer/Content/AudioSection/UiRow/UiSlider" to="." method="_on_ui_slider_value_changed"]
+[connection signal="value_changed" from="Backdrop/Panel/ScrollContainer/Content/AudioSection/VoiceRow/VoiceSlider" to="." method="_on_voice_slider_value_changed"]
+[connection signal="value_changed" from="Backdrop/Panel/ScrollContainer/Content/AudioSection/AmbienceRow/AmbienceSlider" to="." method="_on_ambience_slider_value_changed"]
+[connection signal="item_selected" from="Backdrop/Panel/ScrollContainer/Content/DisplaySection/ResolutionRow/ResolutionOption" to="." method="_on_resolution_option_item_selected"]
+[connection signal="pressed" from="Backdrop/Panel/ScrollContainer/Content/DisplaySection/ApplyDisplayButton" to="." method="_on_apply_display_pressed"]
+[connection signal="pressed" from="Backdrop/Panel/ScrollContainer/Content/SaveSettingsButton" to="." method="_on_save_settings_button_pressed"]
+[connection signal="pressed" from="Backdrop/Panel/ScrollContainer/Content/SaveManagerButton" to="." method="_on_save_manager_pressed"]
+[connection signal="pressed" from="Backdrop/Panel/ScrollContainer/Content/QuickSaveButton" to="." method="_on_quick_save_pressed"]
+[connection signal="pressed" from="Backdrop/Panel/ScrollContainer/Content/RestartButton" to="." method="_on_restart_pressed"]
+[connection signal="pressed" from="Backdrop/Panel/ScrollContainer/Content/BackToMenuButton" to="." method="_on_back_to_menu_pressed"]
+[connection signal="pressed" from="Backdrop/Panel/ScrollContainer/Content/ClearDataButton" to="." method="_on_clear_data_pressed"]
+[connection signal="pressed" from="Backdrop/Panel/ScrollContainer/Content/CloseButton" to="." method="_on_close_pressed"]

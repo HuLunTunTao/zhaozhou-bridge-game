@@ -479,7 +479,32 @@ func _build_line(unit: Node, trigger_kind: String, extra: Dictionary) -> Dialogu
 	})
 
 	return DialogueLine.create(
-		persona.get("name", u.unit_data.unit_name),
+		u.combat_stats.unit_name if u.combat_stats != null else u.unit_data.unit_name,
+		text,
+		_get_portrait(u),
+		_side_for_unit(u),
+		PortraitResolverScript.get_portrait_bg(u)
+	)
+
+
+## LLM 失败时的兜底文本路径：拿 PersonaFallback 多变体 + 用 _voice.speak() 一次性 TTS 播放
+## （走 chatter_voice_adapter 的 火山 → pre-baked MP3 → OS TTS 三级降级）。
+## 返回 null 表示"连兜底文本都没有，本轮静默跳过"（neighbor trigger 默认空）。
+func _build_fallback_line(u: Unit, persona: Dictionary, trigger_kind: String, extra: Dictionary) -> DialogueLine:
+	var text: String = PersonaFallbackScript.pick(persona, trigger_kind).strip_edges()
+	if text.is_empty():
+		return null
+	# 触发一次性 TTS（speak_streaming 已失败，转 speak() 走兜底链）
+	_voice.speak(u, text, trigger_kind)
+	# 记忆里也记一笔，避免下次 prompt 看不到这次发声
+	_append_memory(u, {
+		"round": extra.get("round", -1),
+		"trigger": trigger_kind,
+		"text": text,
+		"is_fallback": true,
+	})
+	return DialogueLine.create(
+		u.combat_stats.unit_name if u.combat_stats != null else u.unit_data.unit_name,
 		text,
 		_get_portrait(u),
 		_side_for_unit(u),
@@ -614,7 +639,7 @@ func _unit_display_name(unit: Node) -> String:
 	if u.unit_data == null:
 		return "某人"
 	var persona := NpcPersonasScript.get_persona(u.unit_data.unit_id, u.unit_data.camp)
-	return persona.get("name", u.unit_data.unit_name)
+	return u.combat_stats.unit_name if u.combat_stats != null else persona.get("name", u.unit_data.unit_name)
 
 
 # 把 portrait / side 的查询委托到 PortraitResolver（通过 preload，避免 class_name 冷启动问题）。

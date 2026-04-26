@@ -29,7 +29,6 @@ var _title_tap_reset_timer: SceneTreeTimer
 
 func _ready() -> void:
 	layer = 90
-	_wrap_content_in_scroll()
 	quick_save_button.visible = show_back_to_menu
 	restart_button.visible = show_back_to_menu
 	back_to_menu_button.visible = show_back_to_menu
@@ -46,25 +45,6 @@ func _ready() -> void:
 	UiSounds.play_popup()
 
 # AI辅助编程，Kimi Code，2026-04-20
-
-## 把 Content 重新塞进一个 ScrollContainer，并把面板高度卡在视口内（420px），
-## 内容超出时自动出现纵向滚动条。运行时包装而非 .tscn 改结构，避免重写一堆节点路径，
-## 也保留了 % unique_name 引用对脚本透明。
-func _wrap_content_in_scroll() -> void:
-	var panel: PanelContainer = $Backdrop/Panel as PanelContainer
-	var content := panel.get_node_or_null("Content") as VBoxContainer
-	if content == null or content.get_parent() is ScrollContainer:
-		return
-	var scroll := ScrollContainer.new()
-	scroll.name = "ContentScroll"
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	scroll.custom_minimum_size = Vector2(0, 420)
-	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	panel.remove_child(content)
-	scroll.add_child(content)
-	panel.add_child(scroll)
-	content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 
 
 ## 填充分辨率下拉框，并将当前选项指向 Settings 中的窗口大小 / 全屏状态。

@@ -14,3 +14,4 @@ ap_max = 90
 move_cost_per_tile = 8
 move_limit = 1
 skill_limit = 1
+is_humanoid = false

@@ -13,7 +13,9 @@ config_version=5
 config/name="game"
 run/main_scene="res://scenes/menu/main_menu.tscn"
 config/features=PackedStringArray("4.6", "Forward Plus")
-config/icon="res://icon.svg"
+boot_splash/bg_color=Color(0.08, 0.06, 0.04, 1)
+boot_splash/image="res://assets/background.png"
+config/icon="res://assets/logo.png"
 
 [audio]
 
