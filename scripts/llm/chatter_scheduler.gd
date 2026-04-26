@@ -18,13 +18,13 @@ const ChatterVoiceScript := preload("res://scripts/tts/chatter_voice_adapter.gd"
 const ChatterPromptsScript := preload("res://scripts/llm/chatter_prompts.gd")
 
 ## 三类触发的概率（0.0–1.0）。调试时可临时拉到 1.0 做强制触发测试。
-# const TRIGGER_PROB_ATTACKED := 0.45
-# const TRIGGER_PROB_ADJACENT := 0.35
-# const TRIGGER_PROB_HERO_OBS := 0.30
+const TRIGGER_PROB_ATTACKED := 0.45
+const TRIGGER_PROB_ADJACENT := 0.7
+const TRIGGER_PROB_HERO_OBS := 0.6
 
-const TRIGGER_PROB_ATTACKED := 1.0
-const TRIGGER_PROB_ADJACENT := 1.0
-const TRIGGER_PROB_HERO_OBS := 1.0
+# const TRIGGER_PROB_ATTACKED := 1.0
+# const TRIGGER_PROB_ADJACENT := 1.0
+# const TRIGGER_PROB_HERO_OBS := 1.0
 ## 邻接对话中，对方回一句的概率。
 const ADJACENT_REPLY_PROB := 0.3
 ## 邻接对话先后顺序：混杂阵营时友方先开口的概率；同阵营时随机交换的概率。
