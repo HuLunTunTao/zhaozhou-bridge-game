@@ -135,9 +135,9 @@ func _resolve_cell_hint(hint: String) -> Vector2i:
 		"watch_north_2":
 			return _watch_point + Vector2i(0, -2)
 		"arch_left_front_north_2":
-			return _side_arch_cells["left_front"] + Vector2i(0, -2)
+			return _side_arch_cells["left_front"] + Vector2i(0, -4)
 		"arch_right_front_north_2":
-			return _side_arch_cells["right_front"] + Vector2i(0, -2)
+			return _side_arch_cells["right_front"] + Vector2i(0, -4)
 	push_warning("wave_spawns: 未知 cell_hint '%s'，退回 watch_point" % hint)
 	return _watch_point
 
@@ -167,7 +167,7 @@ func get_objectives_text() -> Dictionary:
 
 
 func check_victory() -> bool:
-	return _boss != null and _boss.combat_stats != null and not _boss.combat_stats.is_alive()
+	return _boss != null and _boss.combat_ggstats != null and not _boss.combat_stats.is_alive()
 
 
 # 通关时额外写入章节旗标 + 结算记录（设计稿 §9）。
@@ -266,8 +266,18 @@ func _make_small_arch_tile() -> SmallArchTile:
 	var tile := SmallArchTileClass.new() as SmallArchTile
 	var visual := Polygon2D.new()
 	visual.name = "Visual"
-	visual.polygon = PackedVector2Array([0, -16, 16, -8, 0, 0, -16, -8])
+	visual.polygon = PackedVector2Array([0, -24, 24, -12, 0, 0, -24, -12])
 	tile.add_child(visual)
+	var label := Label.new()
+	label.name = "Label"
+	label.text = "肩"
+	label.add_theme_font_override("font", Fonts.PIXEL_10)
+	label.add_theme_font_size_override("font_size", 14)
+	label.add_theme_color_override("font_color", Color(1, 1, 1, 1))
+	label.add_theme_color_override("font_outline_color", Color(0.1, 0.05, 0.0, 1))
+	label.add_theme_constant_override("outline_size", 4)
+	label.position = Vector2(-7, -24)
+	tile.add_child(label)
 	return tile
 
 
@@ -618,8 +628,8 @@ func _spawn_allies() -> void:
 		_spawn_ally(_make_unit_data(_craftsman_data, "工匠", 120, 20, 95, 9), _nearest_walkable(_watch_point + Vector2i(0, 1)), [_mallet, _guard]),
 	]
 	_stone_carriers = [
-		_spawn_ally(_make_unit_data(_survey_data, "运石工", 92, 14, 95, 9), _nearest_walkable(_side_arch_cells["left_back"] + Vector2i(-1, 1)), [_staff]),
-		_spawn_ally(_make_unit_data(_survey_data, "运石工", 92, 14, 95, 9), _nearest_walkable(_side_arch_cells["right_back"] + Vector2i(1, 1)), [_staff]),
+		_spawn_ally(_make_unit_data(_survey_data, "运石工", 92, 14, 95, 9), _nearest_walkable(_side_arch_cells["left_back"] + Vector2i(0, 1)), [_staff]),
+		_spawn_ally(_make_unit_data(_survey_data, "运石工", 92, 14, 95, 9), _nearest_walkable(_side_arch_cells["right_back"] + Vector2i(0, 1)), [_staff]),
 	]
 	_apply_persistent_growth_effects()
 

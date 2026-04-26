@@ -92,4 +92,4 @@ script = ExtResource("5_7to65")
 move_is_idle = true
 
 [node name="FootMarker" parent="." index="0"]
-position = Vector2(0, 120)
+position = Vector2(0, 240)

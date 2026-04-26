@@ -4,7 +4,7 @@
 
 [resource]
 script = ExtResource("1")
-left_front_offset = Vector2i(-3, -1)
-left_back_offset = Vector2i(-2, 2)
-right_front_offset = Vector2i(3, -1)
-right_back_offset = Vector2i(2, 2)
+left_front_offset = Vector2i(-3, 1)
+left_back_offset = Vector2i(-3, -1)
+right_front_offset = Vector2i(3, 1)
+right_back_offset = Vector2i(3, -1)
