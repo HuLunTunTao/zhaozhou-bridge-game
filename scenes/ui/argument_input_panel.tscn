@@ -1,4 +1,4 @@
-[gd_scene load_steps=6 format=3 uid="uid://d340bbkd4qaqy"]
+[gd_scene format=3 uid="uid://d340bbkd4qaqy"]
 
 [ext_resource type="Script" path="res://scenes/ui/argument_input_panel.gd" id="1_script"]
 
