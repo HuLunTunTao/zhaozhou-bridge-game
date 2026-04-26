@@ -776,7 +776,7 @@ func _try_prompt_round_growth() -> bool:
 	var panel := GrowthChoicePanelScript.new()
 	panel.panel_title = "回合成长"
 	panel.options = options
-	panel.required_selection_count = 2
+	panel.required_selection_count = 3
 	panel.options_confirmed.connect(_on_round_growth_options_confirmed)
 	# panel 本身没有 closed 信号，我们自己在 options_confirmed 回调里关闭 overlay
 	_active_overlay = ActiveOverlay.GROWTH_CHOICE
@@ -1054,7 +1054,7 @@ func complete_level() -> void:
 		var panel := GrowthChoicePanelScript.new()
 		panel.panel_title = "结算成长"
 		panel.options = growth_options
-		panel.required_selection_count = 2
+		panel.required_selection_count = 3
 		panel.options_confirmed.connect(func(option_ids: Array[String]):
 			_close_overlay(ActiveOverlay.GROWTH_CHOICE)
 			Progress.complete_level(level, option_ids)
