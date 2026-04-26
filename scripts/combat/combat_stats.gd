@@ -43,6 +43,14 @@ var moves_used: int = 0
 var skills_used: int = 0
 
 
+# ── 受击伤害修正 ──
+
+## 入站伤害乘子。1.0 = 不变；0.5 = 受到 50% 伤害（免伤 50%）；1.25 = 受到 125% 伤害（易伤 25%）。
+## 在 CombatResolver.resolve_hit 中作为最终乘子叠在 multiplier 之后、phase bonus 之前。
+## 关卡脚本可针对特定单位（如 boss）按机制改写；默认值不影响其它关卡。
+var incoming_damage_factor: float = 1.0
+
+
 # ── 状态列表 ──
 
 ## 运行时状态实例。

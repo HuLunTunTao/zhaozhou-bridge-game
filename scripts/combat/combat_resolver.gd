@@ -119,6 +119,14 @@ static func resolve_hit(attacker: CombatStats, target: CombatStats, skill: Skill
 		final_damage += bonus
 	result.phase_bonus_damage = bonus
 
+	# 8. 入站伤害乘子（关卡机制：免伤 / 易伤）。叠在所有计算之后，对总伤生效。
+	if not is_equal_approx(target.incoming_damage_factor, 1.0):
+		var before_factor := final_damage
+		final_damage = roundi(final_damage * target.incoming_damage_factor)
+		CombatLog.msg("    入站伤害乘子: ×%.2f (%s 伤害 %d → %d)" % [
+			target.incoming_damage_factor, target.unit_name, before_factor, final_damage,
+		])
+
 	result.damage = maxi(final_damage, 0)
 	result.is_kill = target.current_hp - result.damage <= 0
 
