@@ -16,3 +16,4 @@ move_limit = 1
 skill_limit = 1
 innate_element = 5
 innate_element_amount = 2
+is_humanoid = false

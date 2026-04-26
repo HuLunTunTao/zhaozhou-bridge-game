@@ -16,4 +16,5 @@ innate_element_amount = 2
 ai_type = "fixed_global_boss"
 water_only = false
 is_escort_target = false
+is_humanoid = false
 skills = []

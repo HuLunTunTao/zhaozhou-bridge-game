@@ -15,4 +15,5 @@ innate_element = 5
 innate_element_amount = 2
 ai_type = "zone_breaker"
 is_escort_target = false
+is_humanoid = false
 skills = []

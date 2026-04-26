@@ -361,6 +361,7 @@ func _setup_mission_hint() -> void:
 	_mission_hint_label.add_theme_color_override("font_color", Color(1.0, 0.95, 0.8))
 	_mission_hint_label.add_theme_color_override("font_outline_color", Color(0.1, 0.1, 0.1))
 	_mission_hint_label.add_theme_constant_override("outline_size", 4)
+	_mission_hint_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	gui.add_child(_mission_hint_label)
 	_update_mission_hint()
 
@@ -378,6 +379,7 @@ func _setup_params_status_hint() -> void:
 	_params_status_label.add_theme_color_override("font_color", Color(0.96, 0.94, 0.88))
 	_params_status_label.add_theme_color_override("font_outline_color", Color(0.08, 0.08, 0.08))
 	_params_status_label.add_theme_constant_override("outline_size", 3)
+	_params_status_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	gui.add_child(_params_status_label)
 	_update_params_status_hint()
 

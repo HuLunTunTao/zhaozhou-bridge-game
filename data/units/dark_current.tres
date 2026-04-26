@@ -16,4 +16,5 @@ innate_element_amount = 2
 ai_type = "flank_melee"
 water_only = true
 is_escort_target = false
+is_humanoid = false
 skills = []
