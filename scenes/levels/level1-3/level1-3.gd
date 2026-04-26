@@ -436,12 +436,12 @@ func _try_pick_or_deliver_stone(unit: Unit) -> void:
 		return
 	# 交石：载石时进入 2×2 券台区域 → 自动卸石 + 对应侧 +1（不再扣 AP）
 	if _is_in_zone(unit.cell, _left_platform):
-		_adjust_arch_value(true, 1, "%s 运石入左券" % unit.combat_stats.unit_name)
+		_adjust_arch_value(true, 2, "%s 运石入左券" % unit.combat_stats.unit_name)
 		_carrying_stone[key] = false
 		_set_carrier_loaded(unit, false)
 		unit.refresh_overhead_bars()
 	elif _is_in_zone(unit.cell, _right_platform):
-		_adjust_arch_value(false, 1, "%s 运石入右券" % unit.combat_stats.unit_name)
+		_adjust_arch_value(false, 2, "%s 运石入右券" % unit.combat_stats.unit_name)
 		_carrying_stone[key] = false
 		_set_carrier_loaded(unit, false)
 		unit.refresh_overhead_bars()
