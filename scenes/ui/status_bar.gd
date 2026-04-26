@@ -168,8 +168,6 @@ func show_unit(unit: Node2D, is_active: bool = false) -> void:
 		# 行动次数显示：不需要时隐藏以节省空间。
 		if not stats.is_hero and stats.camp == Enums.Camp.ALLY:
 			var parts: Array[String] = []
-			if stats.move_limit >= 0:
-				parts.append("移动:%d/%d" % [maxi(stats.move_limit - stats.moves_used, 0), stats.move_limit])
 			if stats.skill_limit >= 0:
 				parts.append("技能:%d/%d" % [maxi(stats.skill_limit - stats.skills_used, 0), stats.skill_limit])
 			_actions_label.text = " ".join(parts) if not parts.is_empty() else ""
