@@ -5,6 +5,7 @@ extends Node
 const SETTINGS_PATH := "user://settings.json"
 
 signal settings_changed
+signal difficulty_changed(new_id: String)
 
 var music_volume := 0.8    ## 音乐音量，范围 0.0 ~ 1.0
 var sfx_volume := 0.8      ## 音效音量，范围 0.0 ~ 1.0
@@ -16,6 +17,7 @@ var muted := false         ## 全局静音开关（不覆盖各通道记忆值�
 var window_width := 1920   ## 窗口宽度（像素）。仅在非全屏模式下使用。
 var window_height := 1080  ## 窗口高度（像素）。仅在非全屏模式下使用。
 var fullscreen := false    ## 是否使用独占全屏（fullscreen 模式）。
+var difficulty := "normal" ## 难度档位 ID，配置见 GameState.DIFFICULTY_CONFIG。
 
 # AI辅助编程，Kimi Code，2026-04-20
 
@@ -45,6 +47,7 @@ func save_settings() -> void:
 		"window_width": window_width,
 		"window_height": window_height,
 		"fullscreen": fullscreen,
+		"difficulty": difficulty,
 	}
 	var json := JSON.stringify(data)
 	var file := FileAccess.open(SETTINGS_PATH, FileAccess.WRITE)
@@ -80,6 +83,7 @@ func load_settings() -> void:
 		window_width = int(parsed.get("window_width", window_width))
 		window_height = int(parsed.get("window_height", window_height))
 		fullscreen = parsed.get("fullscreen", fullscreen) as bool
+		difficulty = parsed.get("difficulty", difficulty) as String
 	else:
 		push_error("Settings: 设置文件格式错误")
 
@@ -173,6 +177,18 @@ func set_debug_mode(enabled: bool) -> void:
 	settings_changed.emit()
 
 
+## 切换难度档位。立即落盘并广播 difficulty_changed，关卡监听后会重算所有单位。
+func set_difficulty(id: String) -> void:
+	if difficulty == id:
+		return
+	if not GameState.DIFFICULTY_CONFIG.has(id):
+		push_warning("Settings: 未知难度 ID '%s'，已忽略" % id)
+		return
+	difficulty = id
+	save_settings()
+	difficulty_changed.emit(id)
+
+
 ## 重置为默认值（仅更新内存状态，不落盘）
 func reset_to_defaults() -> void:
 	music_volume = 0.8
@@ -185,4 +201,5 @@ func reset_to_defaults() -> void:
 	window_width = 1920
 	window_height = 1080
 	fullscreen = false
+	difficulty = "normal"
 	apply_settings()

@@ -19,6 +19,7 @@ var was_skipped: bool = false
 const CHAR_DELAY := 0.03  # 每个字符的打字机间隔（秒）
 const AUTO_DISMISS_DELAY_DEFAULT := 2.0  # auto_dismiss 模式下的"对话框最少展示秒数"（自开启起）
 const VOICE_AFTERMATH_DELAY := 0.5  # auto_dismiss 模式下，语音结束后再停留多久才关闭
+const VOICE_MAX_WAIT_SEC := 15.0  # auto_dismiss Phase 1 等 voice 播完的最大秒数；超时强制走 dismiss（极端 race 兜底）
 
 @onready var backdrop: ColorRect = %Backdrop
 @onready var bottom_bar: HBoxContainer = %BottomBar
@@ -202,11 +203,15 @@ func _schedule_auto_dismiss() -> void:
 
 	# Phase 1: 等外部 TTS 语音播完（轮询避免 signal-race；is_streaming 同步可靠）
 	var voice_was_streaming := false
+	var voice_wait_start := Time.get_ticks_msec() / 1000.0
 	while _voice_handle != null and is_instance_valid(_voice_handle) \
 			and _voice_handle.has_method("is_streaming") and _voice_handle.is_streaming():
 		voice_was_streaming = true
 		if not is_inside_tree():
 			return
+		if Time.get_ticks_msec() / 1000.0 - voice_wait_start > VOICE_MAX_WAIT_SEC:
+			push_warning("dialogue_box: voice wait exceeded %.1fs, forcing dismiss" % VOICE_MAX_WAIT_SEC)
+			break
 		await get_tree().process_frame
 		if _finished or token != _dismiss_token:
 			return

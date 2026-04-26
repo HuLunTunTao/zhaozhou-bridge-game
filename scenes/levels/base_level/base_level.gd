@@ -114,9 +114,14 @@ var _ai_busy := false
 ## 单位闲聊调度器（LLM 驱动）。BRIEFING 之后的战斗中监听 team_turn_ended / round_ended 触发对话。
 var _chatter_scheduler: Node = null
 
-## 输入状态机。
-enum InputState { IDLE, UNIT_SELECTED, TARGETING_MOVE, TARGETING_SKILL, ANIMATING }
+## 输入状态机。LOCKED 表示被外部流程显式锁定（例如自由移动关卡的对话流），与 ANIMATING（基类演出）正交。
+enum InputState { IDLE, UNIT_SELECTED, TARGETING_MOVE, TARGETING_SKILL, ANIMATING, LOCKED }
 var _input_state: InputState = InputState.IDLE
+
+## _begin_input_lock / _end_input_lock 嵌套计数。0 表示未锁。
+var _input_lock_count: int = 0
+## 进入锁前 camera.input_enabled 的快照，解锁时恢复（不假设原值为 true）。
+var _saved_camera_input_enabled: bool = true
 
 # ─────────────────────────────────────────────
 # 关卡状态机（双轴：LevelPhase × ActiveOverlay）
@@ -252,6 +257,7 @@ var _pending_special_enter: Dictionary = {}
 
 func _ready() -> void:
 	Settings.settings_changed.connect(_refresh_debug_ui, CONNECT_REFERENCE_COUNTED)
+	Settings.difficulty_changed.connect(_on_difficulty_changed)
 	_refresh_debug_ui()
 	_play_level_bgm()
 	tilemap = _find_walkable_tilemap()
@@ -1243,6 +1249,8 @@ func set_unit_skills(unit: Unit, skills: Array) -> void:
 
 
 ## 在运行时覆写单位的战斗数值。修改后自动刷新头顶 UI。
+## 注：hp / atk / ap 是"设计师视角的基线值"，会在 CombatStats.set_base_stats() 里
+## 按当前难度系数烤进实际属性。这样难度切换对脚本生成的单位也生效。
 func setup_unit_stats(unit: Unit, uname: String, hp: int, atk: int,
 		ap: int, move_cost: int, elem: Enums.Element = Enums.Element.NONE,
 		elem_amt: int = 0, is_hero_flag: bool = false) -> void:
@@ -1250,11 +1258,7 @@ func setup_unit_stats(unit: Unit, uname: String, hp: int, atk: int,
 		return
 	var s := unit.combat_stats
 	s.unit_name = uname
-	s.max_hp = hp
-	s.current_hp = hp
-	s.base_atk = atk
-	s.ap_max = ap
-	s.ap_current = ap
+	s.set_base_stats(hp, atk, ap)
 	s.move_cost_per_tile = move_cost
 	s.innate_element = elem
 	s.innate_element_amount = elem_amt
@@ -1398,9 +1402,30 @@ func _can_accept_command() -> bool:
 		return false
 	if not _waiting_for_player_input:
 		return false
-	if _input_state == InputState.ANIMATING:
+	if _input_state == InputState.ANIMATING or _input_state == InputState.LOCKED:
 		return false
 	return true
+
+
+## 进入"流程锁"。配对调用 _end_input_lock。支持嵌套（计数器）。
+## 用于自由移动关卡的对话/输入面板等需要暂时屏蔽世界输入的场景。
+func _begin_input_lock() -> void:
+	if _input_lock_count == 0:
+		if camera != null and "input_enabled" in camera:
+			_saved_camera_input_enabled = camera.input_enabled
+			camera.input_enabled = false
+		if _input_state != InputState.ANIMATING:
+			_input_state = InputState.LOCKED
+	_input_lock_count += 1
+
+
+func _end_input_lock() -> void:
+	_input_lock_count = maxi(0, _input_lock_count - 1)
+	if _input_lock_count == 0:
+		if camera != null and "input_enabled" in camera:
+			camera.input_enabled = _saved_camera_input_enabled
+		if _input_state == InputState.LOCKED:
+			_input_state = InputState.IDLE
 
 
 func preview_cell(cell: Vector2i) -> void:
@@ -1939,6 +1964,22 @@ func _get_all_units() -> Array:
 	return result
 
 
+## 玩家在战斗中切换难度时，按比例重算所有存活单位的 max_hp / ap_max / base_atk。
+## 自由移动关卡（验桥日）跳过——hero 的 HERO_INFINITE_AP 不能被系数缩水。
+func _on_difficulty_changed(_id: String) -> void:
+	if is_free_roam_level():
+		return
+	for unit in _get_all_units():
+		if unit == null or not is_instance_valid(unit):
+			continue
+		var stats: CombatStats = unit.combat_stats
+		if stats == null:
+			continue
+		stats.apply_difficulty_multipliers()
+		if unit.has_method("refresh_overhead_bars"):
+			unit.refresh_overhead_bars()
+
+
 # ─────────────────────────────────────────────
 # 统一接口（UI 和 MCP 共用）
 # ─────────────────────────────────────────────
@@ -2051,11 +2092,7 @@ func get_hero_unit() -> Unit:
 func apply_unit_growth_bonus(unit: Unit, hp_delta: int = 0, atk_delta: int = 0, ap_delta: int = 0) -> void:
 	if unit == null or unit.combat_stats == null:
 		return
-	unit.combat_stats.max_hp += hp_delta
-	unit.combat_stats.current_hp += hp_delta
-	unit.combat_stats.base_atk += atk_delta
-	unit.combat_stats.ap_max += ap_delta
-	unit.combat_stats.ap_current += ap_delta
+	unit.combat_stats.grow_base_stats(hp_delta, atk_delta, ap_delta)
 	unit.refresh_overhead_bars()
 	if selected_unit == unit:
 		_update_status_bar_for_unit(unit, true)

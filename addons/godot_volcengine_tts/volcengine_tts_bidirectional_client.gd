@@ -61,7 +61,7 @@ signal audio_chunk_received(chunk: PackedByteArray)
 ## session 正常结束。session_id 可被调用方保存做 section_id 链。
 signal session_finished(session_id: String)
 ## session 任意失败原因（鉴权、超时、SessionFailed、WS 断）。
-signal session_failed(reason: String)
+signal session_failed(session_id: String, reason: String)
 
 # ─── 内部状态 ───────────────────────────────────────────────
 var _ws: WebSocketPeer = null
@@ -239,7 +239,7 @@ func _run_audio_recv_loop(token: int) -> void:
 
 func _emit_failed(reason: String) -> void:
 	push_warning("[TTS-Bidi] " + reason)
-	session_failed.emit(reason)
+	session_failed.emit(_session_id, reason)
 
 
 # ─── 内部：连接管理 ─────────────────────────────────────────

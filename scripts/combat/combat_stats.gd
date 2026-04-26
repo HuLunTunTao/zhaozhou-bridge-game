@@ -12,6 +12,11 @@ var ap_max: int
 var ap_current: int
 var move_cost_per_tile: int
 
+# ── 难度基线（未乘系数的原始值，供 apply_difficulty_multipliers 重算用）──
+var _base_max_hp: int
+var _base_ap_max: int
+var _base_atk: int
+
 ## 每回合次数上限（-1 = 无限制）。
 var move_limit: int
 var skill_limit: int
@@ -58,11 +63,8 @@ var unit_name: String
 
 func init_from(data: UnitData) -> void:
 	unit_name = data.unit_name
-	max_hp = data.max_hp
-	current_hp = data.max_hp
-	base_atk = data.base_atk
-	ap_max = data.ap_max
-	ap_current = data.ap_max
+	camp = data.camp
+	set_base_stats(data.max_hp, data.base_atk, data.ap_max)
 	move_cost_per_tile = data.move_cost_per_tile
 	move_limit = data.move_limit
 	skill_limit = data.skill_limit
@@ -70,13 +72,55 @@ func init_from(data: UnitData) -> void:
 	innate_element_amount = data.innate_element_amount
 	current_element = data.innate_element
 	current_element_amount = data.innate_element_amount
-	camp = data.camp
 	ai_type = data.ai_type
 	is_escort_target = data.is_escort_target
 	water_only = data.water_only
 	statuses = []
 	moves_used = 0
 	skills_used = 0
+
+
+## 重置基线为给定值，按当前难度系数烤进 max_hp / ap_max / base_atk，并把 current 充满。
+## 由 init_from() 和 BaseLevel.setup_unit_stats() 共用——任何"全量覆写战斗数值"的入口都应走这里。
+## 调用者必须先把 camp 设好。
+func set_base_stats(hp: int, atk: int, ap: int) -> void:
+	_base_max_hp = hp
+	_base_atk = atk
+	_base_ap_max = ap
+	max_hp = maxi(roundi(_base_max_hp * GameState.get_difficulty_multiplier(camp, "hp")), 1)
+	current_hp = max_hp
+	base_atk = maxi(roundi(_base_atk * GameState.get_difficulty_multiplier(camp, "dmg")), 0)
+	ap_max = maxi(roundi(_base_ap_max * GameState.get_difficulty_multiplier(camp, "ap")), 0)
+	ap_current = ap_max
+
+
+## 增量调整基线（生长系统），并把同等乘后增量同步到 max_hp / current_hp / ap_max / ap_current / base_atk。
+## 由 BaseLevel.apply_unit_growth_bonus() 调用。
+func grow_base_stats(hp_delta: int, atk_delta: int, ap_delta: int) -> void:
+	_base_max_hp += hp_delta
+	_base_atk += atk_delta
+	_base_ap_max += ap_delta
+	var dh: int = roundi(hp_delta * GameState.get_difficulty_multiplier(camp, "hp"))
+	var da: int = roundi(ap_delta * GameState.get_difficulty_multiplier(camp, "ap"))
+	var dx: int = roundi(atk_delta * GameState.get_difficulty_multiplier(camp, "dmg"))
+	max_hp = maxi(max_hp + dh, 1)
+	current_hp = maxi(current_hp + dh, 0)
+	base_atk = maxi(base_atk + dx, 0)
+	ap_max = maxi(ap_max + da, 0)
+	ap_current = maxi(ap_current + da, 0)
+
+
+## 应用当前难度系数：用 _base_* 原始值重算 max_hp / ap_max / base_atk，
+## 按比例保留 current_hp / ap_current（避免战斗中切难度让单位瞬秒或瞬补血）。
+## 由 BaseLevel 在 Settings.difficulty_changed 时统一调用。
+func apply_difficulty_multipliers() -> void:
+	var hp_ratio: float = (float(current_hp) / float(max_hp)) if max_hp > 0 else 1.0
+	var ap_ratio: float = (float(ap_current) / float(ap_max)) if ap_max > 0 else 1.0
+	max_hp = maxi(roundi(_base_max_hp * GameState.get_difficulty_multiplier(camp, "hp")), 1)
+	ap_max = maxi(roundi(_base_ap_max * GameState.get_difficulty_multiplier(camp, "ap")), 0)
+	base_atk = maxi(roundi(_base_atk * GameState.get_difficulty_multiplier(camp, "dmg")), 0)
+	current_hp = clampi(roundi(max_hp * hp_ratio), 0, max_hp)
+	ap_current = clampi(roundi(ap_max * ap_ratio), 0, ap_max)
 
 
 ## 回合开始时重置计数器并恢复 AP。
