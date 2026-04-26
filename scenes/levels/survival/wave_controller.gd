@@ -76,6 +76,27 @@ const _SUPPORT_SKILLS: Dictionary = {
 	"survey_worker": [_SK_STAFF, _SK_SURVEY],
 }
 
+# ── 敌方技能（unit_id → 技能列表）──
+const _SK_TIMBER := preload("res://data/skills/dlp_drifting_timber_crash.tres")
+const _SK_TORRENT := preload("res://data/skills/fs_torrent_ram.tres")
+const _SK_BANK_CRUSH := preload("res://data/skills/bmw_crumbling_bank_crush.tres")
+const _SK_MIRE := preload("res://data/skills/sm_mire_steps.tres")
+const _SK_GNAW := preload("res://data/skills/pg_gnaw_pier.tres")
+const _SK_CURRENT := preload("res://data/skills/dc_hidden_current_lunge.tres")
+const _SK_SPIRAL := preload("res://data/skills/wp_spiral_pull.tres")
+const _SK_OVERTURN := preload("res://data/skills/wf_overturn_bridge.tres")
+const _ENEMY_SKILLS: Dictionary = {
+	"drift_log_pack": [_SK_TIMBER],
+	"flood_driftwood_pack": [_SK_TIMBER],
+	"flood_spear": [_SK_TORRENT],
+	"wrathful_flood": [_SK_OVERTURN],
+	"bank_mud_wraith": [_SK_BANK_CRUSH],
+	"siltmare": [_SK_MIRE],
+	"pier_gnawer": [_SK_GNAW],
+	"dark_current": [_SK_CURRENT],
+	"whirl_pool": [_SK_SPIRAL],
+}
+
 # ── 怪物刷出位置（北/南两个方向，level1-1 验证过的可走格） ──
 const _SPAWN_CELLS_NORTH: Array[Vector2i] = [
 	Vector2i(13, -24), Vector2i(10, -19), Vector2i(15, -24),
@@ -227,6 +248,9 @@ func _spawn_one(unit_data: UnitData, cell: Vector2i, color: Color, wave: int, is
 		unit.combat_stats.max_hp = int(unit.combat_stats.max_hp * 1.3)
 		unit.combat_stats.current_hp = unit.combat_stats.max_hp
 		unit.refresh_overhead_bars()
+	var enemy_skills: Array = _ENEMY_SKILLS.get(unit_data.unit_id, [])
+	if not enemy_skills.is_empty():
+		_level.set_unit_skills(unit, enemy_skills)
 	return unit
 
 
