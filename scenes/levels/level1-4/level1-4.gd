@@ -19,12 +19,17 @@ var _left_pier: Vector2i
 var _right_pier: Vector2i
 var _watch_point: Vector2i
 var _side_arch_cells: Dictionary = {}
-var _side_arch_states := {
-	"left_front": "closed",
-	"left_back": "closed",
-	"right_front": "closed",
-	"right_back": "closed",
-}
+
+# ── 怒水三阶段免伤系统（设计稿见 docs/level-design 与 plan：mighty-conjuring-sky）──
+# 西起东编号：1=left_back, 2=left_front, 3=right_front, 4=right_back
+const PHASE_HP_THRESHOLDS: Array = [0.75, 0.50]                # 进 phase 2 / phase 3 阈值
+const PHASE2_AVAILABLE: Array = ["left_back", "right_back"]    # 1 & 4
+const PHASE3_INNER: Array = ["left_front", "right_front"]      # 2 & 3
+const PHASE3_OUTER: Array = ["left_back", "right_back"]        # 1 & 4 (= PHASE2_AVAILABLE)
+
+var _boss_phase: int = 1
+var _phase_arch_skill_used: Dictionary = {}   # arch_key → bool；_enter_phase 重置
+var _arch_blocked_overlay: Dictionary = {}    # arch_key → bool；transient (敌人占位)
 
 var _hero_data: UnitData = preload("res://data/units/hero_li_chun.tres")
 var _hero_visual: PackedScene = preload("res://scenes/unit/visual/human/li_chun/li_chun_visual.tscn")
@@ -167,7 +172,7 @@ func get_objectives_text() -> Dictionary:
 
 
 func check_victory() -> bool:
-	return _boss != null and _boss.combat_ggstats != null and not _boss.combat_stats.is_alive()
+	return _boss != null and _boss.combat_stats != null and not _boss.combat_stats.is_alive()
 
 
 # 通关时额外写入章节旗标 + 结算记录（设计稿 §9）。
@@ -267,6 +272,7 @@ func _setup_arch_tiles() -> void:
 		) as TilePulsingMarker
 		marker.show_label = true
 		_arch_tiles[arch_key] = marker
+	_refresh_arch_visuals()
 
 
 # 返回一座小拱占据的 2×2 cells（start + 左 + 上 + 左上）
@@ -298,22 +304,47 @@ func _make_rapid_edge_tile() -> RapidEdgeTile:
 	return tile
 
 
-# 小拱状态同步：每次改 _side_arch_states 都走这里，更新 marker 视觉。
-func _set_arch_state(arch_key: String, new_state: String) -> void:
-	_side_arch_states[arch_key] = new_state
-	var marker: TilePulsingMarker = _arch_tiles.get(arch_key)
-	if marker == null:
-		return
-	match new_state:
-		"open":
-			marker.halo_color = SmallArchTile.COLOR_OPEN
-			marker.label_text = "通"
-		"blocked":
+# 怒水免伤系统视觉刷新：根据 _boss_phase + _phase_arch_skill_used + _arch_blocked_overlay
+# 一并重算每个 arch 的 marker 颜色/标签。
+# 视觉优先级：blocked > interacted > available > locked
+func _refresh_arch_visuals() -> void:
+	for arch_key in _side_arch_cells.keys():
+		var marker: TilePulsingMarker = _arch_tiles.get(arch_key)
+		if marker == null:
+			continue
+		if _arch_blocked_overlay.get(arch_key, false):
 			marker.halo_color = SmallArchTile.COLOR_BLOCKED
 			marker.label_text = "塞"
-		_:
+		elif _phase_arch_skill_used.get(arch_key, false):
+			marker.halo_color = SmallArchTile.COLOR_OPEN
+			marker.label_text = "通"
+		elif _is_arch_available(arch_key):
 			marker.halo_color = SmallArchTile.COLOR_CLOSED
 			marker.label_text = "肩"
+		else:
+			# 锁定态：halo 调暗 + 用次要符号"·"
+			marker.halo_color = SmallArchTile.COLOR_CLOSED * Color(0.4, 0.4, 0.4, 1.0)
+			marker.label_text = "·"
+
+
+# 当前阶段下某 arch 是否"可用"（玩家技能命中是否生效，且视觉是否亮起）。
+# Phase 1：全锁；Phase 2：仅 PHASE2_AVAILABLE；Phase 3：四肩全开。
+# 注意：Phase 3 的"先 2&3 后 1&4"是 DR 判定顺序（见 _compute_boss_dr），不是视觉门禁。
+func _is_arch_available(arch_key: String) -> bool:
+	match _boss_phase:
+		2:
+			return arch_key in PHASE2_AVAILABLE
+		3:
+			return arch_key in PHASE3_INNER or arch_key in PHASE3_OUTER
+	return false
+
+
+# 检查指定的 arch_keys 列表是否全部已被本阶段技能标记。
+func _all_done(arch_keys: Array) -> bool:
+	for k in arch_keys:
+		if not _phase_arch_skill_used.get(k, false):
+			return false
+	return true
 
 
 func _on_stage_round_started(_r: int) -> void:
@@ -341,7 +372,6 @@ func _on_unit_moved() -> void:
 	if selected_unit == null or not (selected_unit is Unit):
 		return
 	var unit := selected_unit as Unit
-	_try_open_side_arch(unit)
 	_try_repair_pier(unit)
 
 
@@ -349,7 +379,8 @@ func _on_skill_executed(caster: Unit, skill: SkillData, cast_cell: Vector2i, _ex
 	if caster == _li_chun and skill.skill_id == "lc_guide_flood_open_arch":
 		for arch_key in _side_arch_cells.keys():
 			if cast_cell in _arch_cells_for(arch_key):
-				_open_arch(arch_key, "导汛开肩")
+				_try_mark_arch_interacted(arch_key)
+				break
 		return
 
 	# 洪锋 / 漂木群·洪水版 的冲撞线命中桥台 → 对应桥台 -1（设计稿 §1.3）
@@ -442,6 +473,26 @@ func _unhandled_key_input(event: InputEvent) -> void:
 			_boss_slam_deck()
 		KEY_8:
 			_debug_force_boss_kill()
+		KEY_9:
+			_debug_force_phase(2)
+		KEY_0:
+			_debug_force_phase(3)
+
+
+func _debug_force_phase(phase: int) -> void:
+	if _boss == null or _boss.combat_stats == null:
+		return
+	var ratio: float = 0.74 if phase == 2 else 0.49
+	var old_hp: int = _boss.combat_stats.current_hp
+	var new_hp: int = roundi(_boss.combat_stats.max_hp * ratio)
+	if new_hp >= old_hp:
+		# 已经低于阈值就直接调阶段，不补血
+		_enter_phase(phase)
+	else:
+		_boss.combat_stats.current_hp = new_hp
+		_boss.refresh_overhead_bars()
+		unit_hp_changed.emit(_boss, old_hp, new_hp)
+	Notify.notify("[DEBUG] 强制进入第 %d 阶段" % phase, Notify.Position.TOP_CENTER, Notify.Style.INFO, 2.0)
 
 
 func _debug_force_boss_kill() -> void:
@@ -601,14 +652,65 @@ func _apply_silt_lingering_penalty(team_index: int) -> void:
 		CombatLog.msg("  淤行持续: %s 从淤泥中起步 -2AP (%d → %d)" % [u.combat_stats.unit_name, before, u.combat_stats.ap_current])
 
 
-func _on_stage_hp_changed(unit: Unit, old_hp: int, new_hp: int) -> void:
-	if unit != _boss or new_hp >= old_hp:
+func _on_stage_hp_changed(unit: Unit, _old_hp: int, _new_hp: int) -> void:
+	if unit != _boss:
 		return
-	var damage := old_hp - new_hp
-	var cap := _boss_damage_cap()
-	if damage > cap:
-		unit.combat_stats.current_hp = old_hp - cap
-		unit.refresh_overhead_bars()
+	# 阶段切换由 HP 阈值驱动；DR 已在 CombatResolver 通过 incoming_damage_factor 生效。
+	_check_phase_transition()
+
+
+# 怒水当前阶段的免伤值（>0 = 减伤；<0 = 易伤；=0 = 无修正）。
+# Phase 1: 0 / Phase 2: 0.5（PHASE2_AVAILABLE 全 done 后 0）
+# Phase 3: 0.75 → 0.25（内对全 done）→ -0.25（再外对全 done）
+func _compute_boss_dr() -> float:
+	match _boss_phase:
+		2:
+			return 0.0 if _all_done(PHASE2_AVAILABLE) else 0.5
+		3:
+			var inner_done := _all_done(PHASE3_INNER)
+			var outer_done := _all_done(PHASE3_OUTER)
+			if inner_done and outer_done:
+				return -0.25
+			if inner_done:
+				return 0.25
+			return 0.75
+	return 0.0
+
+
+# 把 _compute_boss_dr 写入 boss.combat_stats.incoming_damage_factor。
+# CombatResolver.resolve_hit 会在 step 8 自动乘上它。
+func _refresh_boss_dr() -> void:
+	if _boss == null or _boss.combat_stats == null:
+		return
+	_boss.combat_stats.incoming_damage_factor = 1.0 - _compute_boss_dr()
+
+
+# Boss HP 跨阈值时自动进入下一阶段。单向（只升不降）。
+func _check_phase_transition() -> void:
+	if _boss == null or _boss.combat_stats == null or not _boss.combat_stats.is_alive():
+		return
+	var ratio: float = float(_boss.combat_stats.current_hp) / float(_boss.combat_stats.max_hp)
+	var target_phase: int = 1
+	if ratio <= PHASE_HP_THRESHOLDS[1]:
+		target_phase = 3
+	elif ratio <= PHASE_HP_THRESHOLDS[0]:
+		target_phase = 2
+	if target_phase > _boss_phase:
+		_enter_phase(target_phase)
+
+
+# 阶段进入：清空所有 4 个肩的 interacted 标记，刷新 marker 与 DR。
+func _enter_phase(phase: int) -> void:
+	_boss_phase = phase
+	_phase_arch_skill_used.clear()
+	_refresh_arch_visuals()
+	_refresh_boss_dr()
+	var dr_pct: int = int(round(_compute_boss_dr() * 100))
+	Notify.notify(
+		"怒水进入第 %d 阶段（免伤 %d%%）" % [phase, dr_pct],
+		Notify.Position.CENTER, Notify.Style.WARNING, 3.0,
+	)
+	CombatLog.msg("怒水进入第 %d 阶段，免伤 %d%%" % [phase, dr_pct])
 
 
 func _setup_anchor_cells() -> void:
@@ -667,19 +769,36 @@ func _spawn_enemies() -> void:
 	_spawn_enemy(_make_unit_data(_siltmare_data, "泥沙魇", 84, 18, 90, 10, Enums.Element.EARTH, 2), _side_arch_cells["left_front"] + Vector2i(-1, 0), [_mire_steps], preload("res://scenes/unit/visual/monster/泥沙魇/泥沙魇_visual.tscn"))
 
 
-func _try_open_side_arch(unit: Unit) -> void:
-	if unit != _li_chun and unit not in _stone_carriers:
+func _try_mark_arch_interacted(arch_key: String) -> void:
+	if not _is_arch_available(arch_key):
+		var hint: String
+		if _boss_phase < 2:
+			hint = "此交互点尚未开放"
+		else:
+			hint = "二阶段仅外侧两肩可拆"
+		Notify.notify(hint, Notify.Position.TOP_RIGHT, Notify.Style.WARNING, 2.0)
 		return
-	for arch_key in _side_arch_cells.keys():
-		if not _is_adjacent_to_arch(unit.cell, arch_key):
-			continue
-		var cost := 30 if unit == _li_chun else 35
-		if unit.combat_stats.ap_current < cost:
-			return
-		unit.combat_stats.ap_current -= cost
-		unit.refresh_overhead_bars()
-		_open_arch(arch_key, "%s 启肩泄洪" % unit.combat_stats.unit_name)
+	if _phase_arch_skill_used.get(arch_key, false):
+		Notify.notify("此交互点本阶段已生效", Notify.Position.TOP_RIGHT, Notify.Style.INFO, 1.5)
 		return
+	var dr_before: float = _compute_boss_dr()
+	_phase_arch_skill_used[arch_key] = true
+	_refresh_arch_visuals()
+	_refresh_boss_dr()
+	var dr_after: float = _compute_boss_dr()
+	var label: String = ("易伤 %d%%" % int(round(-dr_after * 100))) if dr_after < 0.0 else ("免伤 %d%%" % int(round(dr_after * 100)))
+	if is_equal_approx(dr_before, dr_after):
+		# Phase 3 先打 1/4 时会到这里：标记登记成功，但 DR 还要等 2&3 都 done 才落地
+		Notify.notify(
+			"导汛开肩 → 已登记（怒水 %s，待中间两肩拆完后联动）" % label,
+			Notify.Position.TOP_RIGHT, Notify.Style.INFO, 2.5,
+		)
+	else:
+		Notify.notify(
+			"导汛开肩 → 怒水当前 %s" % label,
+			Notify.Position.TOP_RIGHT, Notify.Style.SUCCESS, 2.5,
+		)
+	CombatLog.msg("拆肩: %s 已交互；当前 %s" % [arch_key, label])
 
 
 func _try_repair_pier(unit: Unit) -> void:
@@ -697,34 +816,33 @@ func _try_repair_pier(unit: Unit) -> void:
 		Notify.notify("右桥台抢修完成，稳定值 %d" % _right_pier_stability, Notify.Position.TOP_RIGHT, Notify.Style.SUCCESS, 2.0)
 
 
-func _open_arch(arch_key: String, reason: String) -> void:
-	_set_arch_state(arch_key, "open")
-	Notify.notify("%s  已开启小拱 %d / 4" % [reason, _open_arch_count()], Notify.Position.TOP_RIGHT, Notify.Style.INFO, 2.0)
-
-
+# 旧的"全开 boss -15% 伤"机制已并入阶段 DR；保留函数仅做兜底（base_atk 始终为 _boss_base_atk）。
+# 调用点暂未删除，避免触碰回合机制；下一轮重构时可以移除。
 func _sync_boss_pressure() -> void:
 	if _boss == null or _boss.combat_stats == null or not _boss.combat_stats.is_alive():
 		return
-	_boss.combat_stats.base_atk = roundi(_boss_base_atk * 0.85) if _open_arch_count() >= 4 else _boss_base_atk
+	_boss.combat_stats.base_atk = _boss_base_atk
 
 
 func _resolve_enemy_pressure() -> void:
-	for arch_key in _side_arch_cells.keys():
-		if _side_arch_states[arch_key] == "blocked":
-			_set_arch_state(arch_key, "closed")
+	# 重算 blocked overlay：开始时清空，再按当前敌人占位重新刷一遍。
+	# blocked 仅是视觉提示（红 "塞"），不影响 _phase_arch_skill_used 与 boss DR。
+	_arch_blocked_overlay.clear()
 	for enemy in teams[ENEMY_TEAM].units:
 		if not (enemy is Unit) or enemy.combat_stats == null or not enemy.combat_stats.is_alive():
 			continue
-		# 漂木群「塞肩」+ 泥沙魇「淤行」：行动结束停在小拱上 → 该小拱 blocked
+		# 漂木群「塞肩」+ 泥沙魇「淤行」：行动结束停在小拱上 → 该小拱 blocked overlay
 		var u_name: String = enemy.combat_stats.unit_name
 		if u_name == "漂木群·洪水版" or u_name == "泥沙魇":
 			for arch_key in _side_arch_cells.keys():
 				if enemy.cell in _arch_cells_for(arch_key):
-					_set_arch_state(arch_key, "blocked")
+					_arch_blocked_overlay[arch_key] = true
 		# 泥沙魇「淤行」第二部分：若行动结束不在小拱上，自身格生成淤泥 2 回合
 		if u_name == "泥沙魇" and not _cell_is_small_arch(enemy.cell):
 			_spawn_silt_at(enemy.cell)
+	_refresh_arch_visuals()
 
+	# 整桥/桥台稳定值压力：基于本阶段已交互肩数（_open_arch_count() 现读 _phase_arch_skill_used）。
 	var open_count := _open_arch_count()
 	if open_count == 0:
 		_overall_stability -= 2
@@ -748,7 +866,7 @@ func _resolve_enemy_pressure() -> void:
 		if enemy.combat_stats.unit_name == "泥沙魇" and _is_adjacent_or_same(enemy.cell, _watch_point):
 			_overall_stability -= 1
 
-	Notify.notify("整桥:%d 左桥台:%d 右桥台:%d 小拱:%d/4" % [_overall_stability, _left_pier_stability, _right_pier_stability, open_count], Notify.Position.TOP_RIGHT, Notify.Style.WARNING, 2.5)
+	Notify.notify("整桥:%d 左桥台:%d 右桥台:%d 已拆肩:%d/4" % [_overall_stability, _left_pier_stability, _right_pier_stability, open_count], Notify.Position.TOP_RIGHT, Notify.Style.WARNING, 2.5)
 	_check_win_lose()
 
 
@@ -795,10 +913,10 @@ func _build_priority_targets() -> Dictionary:
 	# 同距离下把运石工压后（让它先去蹭桥台，再考虑敲运石工）
 	priorities["桥台噬者"] = gnawer_list
 
-	# 泥沙魇：运石工优先；按到最近关闭小拱距离排序
+	# 泥沙魇：运石工优先；按到最近"未交互肩"距离排序（替代原 closed 状态查询）
 	var closed_arches: Array = []
 	for arch_key in _side_arch_cells.keys():
-		if _side_arch_states[arch_key] == "closed":
+		if not _phase_arch_skill_used.get(arch_key, false):
 			closed_arches.append(_side_arch_cells[arch_key])
 	var silt_list: Array = []
 	for c in _stone_carriers:
@@ -829,13 +947,6 @@ func _is_adjacent_or_same(a: Vector2i, b: Vector2i) -> bool:
 func _cell_is_small_arch(cell: Vector2i) -> bool:
 	for arch_key in _side_arch_cells.keys():
 		if cell in _arch_cells_for(arch_key):
-			return true
-	return false
-
-
-func _is_adjacent_to_arch(cell: Vector2i, arch_key: String) -> bool:
-	for arch_cell in _arch_cells_for(arch_key):
-		if _is_adjacent_or_same(cell, arch_cell):
 			return true
 	return false
 
@@ -881,24 +992,13 @@ func _spawn_rapid_edge_at(cell: Vector2i) -> void:
 	_rapid_edge_tiles[cell] = tile
 
 
+# 本阶段已交互（"通"）的肩数。供稳定值压力计算与结算 summary 使用。
 func _open_arch_count() -> int:
 	var count := 0
-	for arch_key in _side_arch_states.keys():
-		if _side_arch_states[arch_key] == "open":
+	for arch_key in _side_arch_cells.keys():
+		if _phase_arch_skill_used.get(arch_key, false):
 			count += 1
 	return count
-
-
-func _boss_damage_cap() -> int:
-	match _open_arch_count():
-		0:
-			return 1
-		1:
-			return 6
-		2:
-			return 12
-		_:
-			return 9999
 
 
 func _spawn_ally(data: UnitData, cell: Vector2i, skills: Array[SkillData]) -> Unit:
