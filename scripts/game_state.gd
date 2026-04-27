@@ -75,12 +75,12 @@ const TEST_LEVEL_SCENES: Dictionary = {
 ## 系数语义：在 CombatStats.init_from() / apply_difficulty_multipliers() 时
 ## 与 UnitData 的原始 max_hp / ap_max / base_atk 相乘。
 const DIFFICULTY_CONFIG: Dictionary = {
-	"easy":   { "ally_hp": 1.5, "ally_ap": 1.2, "ally_dmg": 1.3,
-				"enemy_hp": 0.7, "enemy_ap": 0.9, "enemy_dmg": 0.7 },
+	"easy":   { "ally_hp": 1.0, "ally_ap": 1.0, "ally_dmg": 1.3,
+				"enemy_hp": 1.0, "enemy_ap": 1.0, "enemy_dmg": 0.7 },
 	"normal": { "ally_hp": 1.0, "ally_ap": 1.0, "ally_dmg": 1.0,
 				"enemy_hp": 1.0, "enemy_ap": 1.0, "enemy_dmg": 1.0 },
 	"hard":   { "ally_hp": 1.0, "ally_ap": 1.0, "ally_dmg": 1.0,
-				"enemy_hp": 1.4, "enemy_ap": 1.1, "enemy_dmg": 1.3 },
+				"enemy_hp": 1.0, "enemy_ap": 1.0, "enemy_dmg": 1.3 },
 }
 
 ## 难度档位的展示顺序（决定设置面板下拉框中的顺序）。

@@ -193,6 +193,10 @@ func show_unit(unit: Node2D, is_active: bool = false) -> void:
 	_update_slots(unit, is_active, stats)
 
 
+func get_current_unit() -> Node2D:
+	return _current_unit if _current_unit != null and is_instance_valid(_current_unit) else null
+
+
 func clear_unit() -> void:
 	_current_unit = null
 	if _tooltip != null:

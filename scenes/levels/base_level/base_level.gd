@@ -1509,6 +1509,7 @@ func _notification(what: int) -> void:
 		hover_overlay.set_visible_state(false)
 		_update_hovered_unit(Vector2i(-9999, -9999))
 
+
 ## MCP 兼容：接受两个 int 参数。
 func preview_cell_xy(x: int, y: int) -> void:
 	preview_cell(Vector2i(x, y))
@@ -1558,6 +1559,10 @@ func select_skill(skill: SkillData) -> void:
 	if unit.combat_stats == null or not unit.combat_stats.can_use_skill(skill):
 		return
 	_clear_end_turn_pending()
+	_show_skill_targeting_for(unit, skill)
+
+
+func _show_skill_targeting_for(unit: Unit, skill: SkillData) -> void:
 	_current_skill = skill
 	move_overlay.clear_range()
 	if _skill_targeting:
@@ -2069,7 +2074,7 @@ func _is_cell_walkable_and_empty(cell: Vector2i) -> bool:
 	return true
 
 
-## 玩家在战斗中切换难度时，按比例重算所有存活单位的 max_hp / ap_max / base_atk。
+## 难度变化时，按比例重算所有存活单位的 max_hp / ap_max / base_atk。
 ## 自由移动关卡（验桥日）跳过——hero 的 HERO_INFINITE_AP 不能被系数缩水。
 func _on_difficulty_changed(_id: String) -> void:
 	if is_free_roam_level():
@@ -2083,6 +2088,52 @@ func _on_difficulty_changed(_id: String) -> void:
 		stats.apply_difficulty_multipliers()
 		if unit.has_method("refresh_overhead_bars"):
 			unit.refresh_overhead_bars()
+	_refresh_difficulty_dependent_ui()
+
+
+func _refresh_difficulty_dependent_ui() -> void:
+	var display_unit: Node2D = null
+	if selected_unit != null and is_instance_valid(selected_unit):
+		display_unit = selected_unit
+	elif status_bar and status_bar.has_method("get_current_unit"):
+		display_unit = status_bar.get_current_unit()
+
+	var selected_is_active := false
+	if selected_unit != null and is_instance_valid(selected_unit) and selected_unit is Unit:
+		var selected_stats: CombatStats = (selected_unit as Unit).combat_stats
+		selected_is_active = selected_stats != null and selected_stats.is_alive() and _input_state != InputState.IDLE
+
+	if display_unit != null and is_instance_valid(display_unit):
+		_update_status_bar_for_unit(display_unit, display_unit == selected_unit and selected_is_active)
+	else:
+		_reset_status_bar()
+
+	if selected_unit == null or not is_instance_valid(selected_unit) or not (selected_unit is Unit):
+		move_overlay.clear_range()
+		_clear_skill_targeting()
+		return
+
+	var unit := selected_unit as Unit
+	var stats: CombatStats = unit.combat_stats
+	if stats == null or not stats.is_alive():
+		move_overlay.clear_range()
+		_clear_skill_targeting()
+		return
+
+	match _input_state:
+		InputState.TARGETING_MOVE:
+			if stats.can_move():
+				_enter_targeting_move()
+			else:
+				move_overlay.clear_range()
+				_input_state = InputState.UNIT_SELECTED
+		InputState.TARGETING_SKILL:
+			var skill := _current_skill
+			_clear_skill_targeting()
+			if skill != null and stats.can_use_skill(skill):
+				_show_skill_targeting_for(unit, skill)
+			else:
+				_input_state = InputState.UNIT_SELECTED
 
 
 # ─────────────────────────────────────────────

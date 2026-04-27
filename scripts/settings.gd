@@ -3,6 +3,7 @@ extends Node
 ## 数据持久化到 Godot 用户数据目录（user://settings.json）。
 
 const SETTINGS_PATH := "user://settings.json"
+const DEFAULT_DIFFICULTY := "normal"
 
 signal settings_changed
 signal difficulty_changed(new_id: String)
@@ -17,7 +18,7 @@ var muted := false         ## 全局静音开关（不覆盖各通道记忆值�
 var window_width := 1920   ## 窗口宽度（像素）。仅在非全屏模式下使用。
 var window_height := 1080  ## 窗口高度（像素）。仅在非全屏模式下使用。
 var fullscreen := false    ## 是否使用独占全屏（fullscreen 模式）。
-var difficulty := "normal" ## 难度档位 ID，配置见 GameState.DIFFICULTY_CONFIG。
+var difficulty := DEFAULT_DIFFICULTY ## 难度档位 ID，配置见 GameState.DIFFICULTY_CONFIG。
 
 # AI辅助编程，Kimi Code，2026-04-20
 
@@ -84,6 +85,8 @@ func load_settings() -> void:
 		window_height = int(parsed.get("window_height", window_height))
 		fullscreen = parsed.get("fullscreen", fullscreen) as bool
 		difficulty = parsed.get("difficulty", difficulty) as String
+		if not GameState.DIFFICULTY_CONFIG.has(difficulty):
+			difficulty = DEFAULT_DIFFICULTY
 	else:
 		push_error("Settings: 设置文件格式错误")
 
@@ -201,5 +204,5 @@ func reset_to_defaults() -> void:
 	window_width = 1920
 	window_height = 1080
 	fullscreen = false
-	difficulty = "normal"
+	difficulty = DEFAULT_DIFFICULTY
 	apply_settings()
