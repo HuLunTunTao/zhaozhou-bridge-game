@@ -96,6 +96,12 @@ var _stability_config: BridgeStabilityConfig = preload("res://data/stages/chapte
 var _side_arch_config: SideArchConfig = preload("res://data/stages/chapter1_stage4/side_arch_config.tres")
 var _wave_spawns: WaveSpawns = preload("res://data/stages/chapter1_stage4/wave_spawns.tres")
 
+# 教程引导（L1-1 同款 dialogue 流程，分三段挂在 boss 阶段切换上）。
+var _li_chun_portrait: Texture2D = preload("res://assets/face/li_chun.png")
+const TUTORIAL_ID_P1 := "level1-4_p1"
+const TUTORIAL_ID_P2 := "level1-4_p2"
+const TUTORIAL_ID_P3 := "level1-4_p3"
+
 # 特殊地格容器（运行时 register_special_tile）
 const SmallArchTileClass := preload("res://scenes/levels/level1-4/small_arch_tile.gd")
 const SiltTileClass := preload("res://scenes/levels/level1-4/silt_tile.gd")
@@ -366,40 +372,72 @@ func _on_level_ready() -> void:
 	Notify.notify("李春与运石工可开启小拱；整桥稳定值 100 归零即败", Notify.Position.TOP_CENTER, Notify.Style.INFO, 3.0)
 
 
-# 轻教学：进入 PLAYING 阶段后在开局几回合分段 Notify 提示关键机制。
-# 不做 level1-1 那种完整对话教程，仅给关键词提醒。
+# 轻教学：进入 PLAYING 阶段后用 dialogue 流程做 P1 开局引导（仿 L1-1 风格）。
+# 复玩时通过 Progress.has_seen_tutorial 跳过；P2/P3 引导在 _enter_phase 触发。
 func _on_phase_changed_for_onboarding(new_phase: int) -> void:
 	if new_phase != LevelPhase.PLAYING:
 		return
-	_onboarding_hints()
+	_run_p1_tutorial()
 
 
-func _onboarding_hints() -> void:
-	# 开场即提示；每条间隔 0.8 秒避免重叠。
-	await get_tree().create_timer(0.6).timeout
+func _run_p1_tutorial() -> void:
+	if Progress.has_seen_tutorial(TUTORIAL_ID_P1):
+		# 复玩仅给一条简短 Notify 提示玩法重点
+		Notify.notify("整桥稳定 100 归零即败；多打怒水/小怪可回血；工匠「捍作护行」豁免拍面", Notify.Position.TOP_CENTER, Notify.Style.INFO, 5.0)
+		return
+	await get_tree().create_timer(0.4).timeout
 	if is_phase_ended():
 		return
-	Notify.notify("怒水登场：每回合压桥 + 桥面边缘生成激流带", Notify.Position.TOP_CENTER, Notify.Style.WARNING, 4.0)
-	await get_tree().create_timer(0.8).timeout
+	await play_dialogue([
+		_lc_line("洨河汛情正盛，桥要立得住才算赢。屏顶『整桥稳定值 100』归零即败——这一仗不是拼血，是拼桥。"),
+		_lc_line("怒水有 600 血、三阶段（HP 75% / 50% 是拐点）。我每打它一下整桥回 1 点，每杀一只小怪回 2 点——所以多动手。"),
+		_lc_line("桥两侧有四座『小拱』要开。运石工和我自己都能开，开得越多，每回合扣的稳定值越少。boss 阶段越后，能开的肩也越多。"),
+		_lc_line("工匠手里的『捍作护行』给邻接友军 2 回合『护持』——这玩意是抗 boss 大招的关键，记得每回合留一份给前排。"),
+		_lc_line("一阶段没什么花活，先熟悉布阵和开肩节奏。等怒水血量见底再说后面的。"),
+	])
 	if is_phase_ended():
 		return
-	Notify.notify("怒涛拍面（CD 2）：横扫桥心，敌我两伤 — 0.5×水(附水1) 击退 2 格；护持豁免", Notify.Position.TOP_CENTER, Notify.Style.WARNING, 5.0)
-	await get_tree().create_timer(0.8).timeout
+	Progress.mark_tutorial_seen(TUTORIAL_ID_P1)
+
+
+func _run_p2_tutorial() -> void:
+	if Progress.has_seen_tutorial(TUTORIAL_ID_P2):
+		return
+	# 等阶段提示框关闭后再插入对话，避免抢焦点
+	await get_tree().create_timer(0.3).timeout
 	if is_phase_ended():
 		return
-	Notify.notify("翻岸压塌（CD 3，撞期优先）：最近 2 名我方受 0.7×土属性伤害+附土 2，击退 3 格", Notify.Position.TOP_CENTER, Notify.Style.WARNING, 5.0)
-	await get_tree().create_timer(0.8).timeout
+	await play_dialogue([
+		_lc_line("怒水开始动真格了——【怒涛拍面】每两回合一次，水属性 0.5 倍率 + 附水，敌我两伤击退 2 格。"),
+		_lc_line("注意『敌我两伤』：boss 自己召的小怪也会被它一并打飞，你正好趁势补刀回稳定值。"),
+		_lc_line("被『护持』覆盖的友军完全免疫这招——下回合预告会显示在右上角，提前给前排上护持。"),
+		_lc_line("P2 解锁了外侧两座小拱（1、4 号）。它们都没开 → 每回合额外 -1；都开了 → 这条压力清零。"),
+	])
 	if is_phase_ended():
 		return
-	Notify.notify("反制：工匠「捍作护行」上护持可豁免拍面；对压塌只半减（-16 伤 + 击退压到 1 格）", Notify.Position.TOP_CENTER, Notify.Style.SUCCESS, 5.5)
-	await get_tree().create_timer(0.8).timeout
+	Progress.mark_tutorial_seen(TUTORIAL_ID_P2)
+
+
+func _run_p3_tutorial() -> void:
+	if Progress.has_seen_tutorial(TUTORIAL_ID_P3):
+		return
+	await get_tree().create_timer(0.3).timeout
 	if is_phase_ended():
 		return
-	Notify.notify("李春开肩 30AP / 运石工开肩 35AP；P2 拆 1&4 解压，P3 再拆 2&3 / 1&4 阶梯减压", Notify.Position.TOP_CENTER, Notify.Style.INFO, 4.5)
-	await get_tree().create_timer(0.8).timeout
+	await play_dialogue([
+		_lc_line("最后关头。怒水又掏出一招【翻岸压塌】每三回合一次——打离它最近的 2 个人，土属性 0.7 倍率 + 附土，击退 3 格。"),
+		_lc_line("这招护持只能『半减』：伤害 -16、击退被压到 1 格，但不豁免；让最厚的人靠前顶一下就能扛住。"),
+		_lc_line("撞期同回合时本技优先释放，拍面让位至下回合——预告还是看右上角。"),
+		_lc_line("P3 四肩都解锁了。都没开 -2；先开 2&3 → -1；再开 1&4 → 压力清零。这时候 boss 也进了易伤窗口（-25%），抓紧打死它。"),
+	])
 	if is_phase_ended():
 		return
-	Notify.notify("开肩还能削怒水免伤：P2 拆 1&4 肩、P3 拆 2&3 后再拆 1&4 → 易伤 25%", Notify.Position.TOP_CENTER, Notify.Style.INFO, 5.0)
+	Progress.mark_tutorial_seen(TUTORIAL_ID_P3)
+
+
+# 李春对话单行构造的小帮手：自动带头像，放左侧。仿 L1-1 同名函数。
+func _lc_line(text: String) -> DialogueLine:
+	return DialogueLine.create("李春", text, _li_chun_portrait, "left")
 
 
 # 在 4 座小拱「2×2 区域」中心生成 TilePulsingMarker 用作状态指示。
@@ -671,7 +709,7 @@ func _cast_overturn_bridge() -> void:
 	# 桥稳压制现在统一在 _resolve_enemy_pressure（基于已开肩数）结算，本技保留：
 	# 桥面上下边缘生成激流桥缘 1 回合（位移陷阱）+ 视觉/语义上的 boss 大招感
 	_spawn_rapid_edges_for_overturn()
-	Notify.notify("怒水释放【翻潮压桥】（桥缘激流持续 1 回合）", Notify.Position.CENTER, Notify.Style.WARNING, 2.5)
+	Notify.notify("怒水释放【翻潮压桥】（桥缘激流持续 1 回合）", Notify.Position.TOP_RIGHT, Notify.Style.WARNING, 2.5)
 	_check_win_lose()
 
 
@@ -700,7 +738,7 @@ func _boss_slam_deck() -> void:
 	if targets.is_empty():
 		Notify.notify("怒涛拍面：全员护持/无目标", Notify.Position.TOP_RIGHT, Notify.Style.SUCCESS, 2.0)
 		return
-	Notify.notify("怒水释放【怒涛拍面】（横扫桥心，敌我两伤）", Notify.Position.CENTER, Notify.Style.WARNING, 2.5)
+	Notify.notify("怒水释放【怒涛拍面】（横扫桥心，敌我两伤）", Notify.Position.TOP_RIGHT, Notify.Style.WARNING, 2.5)
 	CombatLog.msg("怒涛拍面: 命中 %d 名（含敌方小怪）" % targets.size())
 	for target in targets:
 		var hit: CombatResolver.HitResult = CombatResolver.resolve_hit(_boss.combat_stats, target.combat_stats, _slam_deck, 0.5)
@@ -734,7 +772,7 @@ func _boss_topple_bank() -> void:
 		return _manhattan(a.cell, boss_cell) < _manhattan(b.cell, boss_cell)
 	)
 	var targets: Array = alive.slice(0, mini(2, alive.size()))
-	Notify.notify("怒水释放【翻岸压塌】", Notify.Position.CENTER, Notify.Style.WARNING, 2.5)
+	Notify.notify("怒水释放【翻岸压塌】", Notify.Position.TOP_RIGHT, Notify.Style.WARNING, 2.5)
 	CombatLog.msg("翻岸压塌: 命中 %d 名最近单位" % targets.size())
 	for target in targets:
 		var hit: CombatResolver.HitResult = CombatResolver.resolve_hit(_boss.combat_stats, target.combat_stats, _topple_bank, 0.7)
@@ -994,10 +1032,16 @@ func _enter_phase(phase: int) -> void:
 	var dr_pct: int = int(round(_compute_boss_dr() * 100))
 	Notify.notify(
 		"怒水进入第 %d 阶段（免伤 %d%%）" % [phase, dr_pct],
-		Notify.Position.CENTER, Notify.Style.WARNING, 3.0,
+		Notify.Position.TOP_CENTER, Notify.Style.WARNING, 3.0,
 	)
 	CombatLog.msg("怒水进入第 %d 阶段，免伤 %d%%" % [phase, dr_pct])
 	_spawn_phase_reinforcements(phase)
+	# 阶段教程：仅首次进入时弹 dialogue；复玩走 has_seen_tutorial 自动跳过
+	match phase:
+		2:
+			_run_p2_tutorial()
+		3:
+			_run_p3_tutorial()
 
 
 # 阶段进入时怒水召唤援军（第四关原生小怪为主，强调"boss 唤援"叙事）。
