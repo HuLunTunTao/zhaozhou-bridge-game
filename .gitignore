@@ -31,3 +31,6 @@ addons/rider-plugin
 .mcp.json
 docs/test-report/
 addons/godot_test_bridge
+
+.venv
+docs/final
