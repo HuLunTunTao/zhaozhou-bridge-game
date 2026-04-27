@@ -79,7 +79,7 @@ const DIFFICULTY_CONFIG: Dictionary = {
 				"enemy_hp": 0.7, "enemy_ap": 0.9, "enemy_dmg": 0.7 },
 	"normal": { "ally_hp": 1.0, "ally_ap": 1.0, "ally_dmg": 1.0,
 				"enemy_hp": 1.0, "enemy_ap": 1.0, "enemy_dmg": 1.0 },
-	"hard":   { "ally_hp": 0.8, "ally_ap": 1.0, "ally_dmg": 0.9,
+	"hard":   { "ally_hp": 1.0, "ally_ap": 1.0, "ally_dmg": 1.0,
 				"enemy_hp": 1.4, "enemy_ap": 1.1, "enemy_dmg": 1.3 },
 }
 
