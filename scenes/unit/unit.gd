@@ -211,11 +211,19 @@ func set_hover_highlight(active: bool) -> void:
 		var bright_outline: Color
 		var dim_width: float
 		var bright_width: float
+		var is_large_target := not extra_target_cells.is_empty()
 		if _is_humanoid():
 			dim_outline = Color(1.0, 1.0, 1.0, 0.7)
 			bright_outline = Color(1.0, 1.0, 1.0, 1.0)
 			dim_width = 8.0
 			bright_width = 18.0
+		elif is_large_target:
+			dim_outline = Color(1.0, 1.0, 1.0, 0.75)
+			bright_outline = Color(1.0, 1.0, 1.0, 1.0)
+			dim_width = 7.0
+			bright_width = 20.0
+			bright_modulate = _saved_hover_modulate * 1.6
+			bright_modulate.a = _saved_hover_modulate.a
 		else:
 			dim_outline = Color(1.0, 1.0, 1.0, 0.4)
 			bright_outline = Color(1.0, 1.0, 1.0, 0.65)

@@ -1515,7 +1515,9 @@ func _update_hover_visual(cell: Vector2i) -> void:
 	var should_show := _should_show_hover(cell)
 	hover_overlay.set_hover(cell, tilemap)
 	hover_overlay.set_visible_state(should_show)
-	_update_hovered_unit(cell if should_show else Vector2i(-9999, -9999))
+	# 单位本体高亮复用 extra_target_cells 命中逻辑；不要被"当前格是否可画 hover 框"限制，
+	# 否则 1-4 Boss 这类受击范围落在非行走层时不会触发本体白色闪烁。
+	_update_hovered_unit(cell if _should_update_hovered_unit() else Vector2i(-9999, -9999))
 
 
 func _should_show_hover(cell: Vector2i) -> bool:
@@ -1528,6 +1530,18 @@ func _should_show_hover(cell: Vector2i) -> bool:
 	if _input_state == InputState.ANIMATING or _input_state == InputState.LOCKED:
 		return false
 	if tilemap.get_cell_source_id(cell) == -1:
+		return false
+	return true
+
+
+func _should_update_hovered_unit() -> bool:
+	if _level_phase != LevelPhase.PLAYING:
+		return false
+	if _active_overlay != ActiveOverlay.NONE:
+		return false
+	if tilemap == null:
+		return false
+	if _input_state == InputState.ANIMATING or _input_state == InputState.LOCKED:
 		return false
 	return true
 
