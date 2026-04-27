@@ -179,7 +179,7 @@ var resp := await _get_llm().chat_completion([
 ```json
 {
   "reply": "<一句话回答，30字内>",
-  "accum_score": 1,
+  "accum_score": 10,
   "round_score": 0,
   "tone": "<两到四字情绪标签>",
   "knowledge_used": [],
@@ -191,7 +191,7 @@ var resp := await _get_llm().chat_completion([
 字段含义：
 
 - `reply`：NPC 本轮实际说给玩家的话；LLM 完整返回后，由 TTS 流式播放。
-- `accum_score`：累积分，范围 `1..5`。
+- `accum_score`：累积分，范围 `6..15`。
 - `round_score`：本轮评分，范围 `-10..15`。
 - `tone`：情绪标签。
 - `knowledge_used`：李春本轮论述中实际用到的知识 key。
@@ -204,8 +204,8 @@ var resp := await _get_llm().chat_completion([
 
 - 如果有 `accum_score`：使用它。
 - 如果没有但有旧字段 `cumulative_score`：兼容读取。
-- 否则 `accum_score = 1`。
-- `accum_score` clamp 到 `1..5`。
+- 否则 `accum_score = 6`。
+- `accum_score` clamp 到 `6..15`。
 - 如果有 `round_score`：使用它。
 - 如果没有但有旧字段 `stance_delta`：兼容读取。
 - 否则 `round_score = 0`。
@@ -456,9 +456,9 @@ func _matched_cheat_word(text: String) -> String:
 4. 如果 LLM 成功返回合法 JSON 且有 `reply`：
    - 保留 LLM 生成的 `reply`。
    - 强制写入：
-     - `accum_score = 5`
+     - `accum_score = 15`
      - `round_score = 15`
-     - `final_score = 20`
+     - `final_score = 30`
      - `force_success = true`
      - `is_cheat = true`
 5. 如果 LLM 失败，才使用 `_make_cheat_persuade_answer()` 本地兜底。
@@ -510,9 +510,9 @@ QA 流程：
 ```gdscript
 {
 	"reply": "鲁班既示梦，我便信你。",
-	"accum_score": 5,
+	"accum_score": 15,
 	"round_score": 15,
-	"final_score": 20,
+	"final_score": 30,
 	"tone": "信服",
 	"knowledge_used": [],
 	"matched_points": ["工匠暗语"],
@@ -555,11 +555,12 @@ QA：
 - `_player_used_topics` 记录实际用过的知识 key。
 - 输入面板会高亮已用过的知识。
 
-说服评分 prompt 中明确：
+说服评分 prompt 现在偏宽松：
 
-- 只有李春话里确实用到知识时才加分。
-- 推荐知识 key 或已学知识命中可提高 `round_score`。
-- 空泛表态、未回应 NPC 核心疑虑，不应高分。
+- 只要玩家态度认真、回应了 NPC 的问题，`accum_score` 通常给 `10..12`。
+- 说到任一工程要点、承接历史或用上请教学到的知识，`accum_score` 倾向 `13..15`。
+- 本轮评分也偏正向：方向正确但不完整可给 `+5..+9`，切中核心疑虑可给 `+10..+15`。
+- 请教 prompt 会要求导师把知识讲成后续可直接拿去说服/答疑的话术。
 
 ## 12. 失败与兜底
 
