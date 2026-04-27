@@ -1103,10 +1103,6 @@ unit_data = SubResource("Resource_craftsman_b")
 visual_scene = ExtResource("12_bsudu")
 unit_color = Color(0.4, 0.8, 0.9, 1)
 
-[node name="MovementManager" parent="." index="6" unique_id=1144669128 node_paths=PackedStringArray("movement_tilemaps", "obstacle_tilemaps")]
-movement_tilemaps = [NodePath("../TileMaps/surface z=0")]
-obstacle_tilemaps = [NodePath("../TileMaps/obstacle z=2")]
-
 [node name="Markers" type="Node2D" parent="." index="7" unique_id=1700000001]
 
 [node name="SurveyMarker_A" parent="Markers" index="0" unique_id=1063862617 instance=ExtResource("13_marker")]
@@ -1115,17 +1111,44 @@ position = Vector2(-352, 16)
 halo_color = Color(0.95, 0.78, 0.2, 0.5)
 label_text = "勘测点"
 
+[node name="Halo" parent="Markers/SurveyMarker_A" index="0" unique_id=406635027]
+visible = false
+
+[node name="Core" parent="Markers/SurveyMarker_A" index="1" unique_id=1278931026]
+visible = false
+
+[node name="Arrow" parent="Markers/SurveyMarker_A/Floater" parent_id_path=PackedInt32Array(1063862617, 574366574) index="1" unique_id=255356239]
+visible = false
+
 [node name="SurveyMarker_B" parent="Markers" index="1" unique_id=451782669 instance=ExtResource("13_marker")]
 unique_name_in_owner = true
 position = Vector2(-32, 16)
 halo_color = Color(0.95, 0.78, 0.2, 0.5)
 label_text = "勘测点"
 
+[node name="Halo" parent="Markers/SurveyMarker_B" index="0" unique_id=406635027]
+visible = false
+
+[node name="Core" parent="Markers/SurveyMarker_B" index="1" unique_id=1278931026]
+visible = false
+
+[node name="Arrow" parent="Markers/SurveyMarker_B/Floater" parent_id_path=PackedInt32Array(451782669, 574366574) index="1" unique_id=255356239]
+visible = false
+
 [node name="SurveyMarker_C" parent="Markers" index="2" unique_id=1336025314 instance=ExtResource("13_marker")]
 unique_name_in_owner = true
 position = Vector2(336, 8)
 halo_color = Color(0.95, 0.78, 0.2, 0.5)
 label_text = "勘测点"
+
+[node name="Halo" parent="Markers/SurveyMarker_C" index="0" unique_id=406635027]
+visible = false
+
+[node name="Core" parent="Markers/SurveyMarker_C" index="1" unique_id=1278931026]
+visible = false
+
+[node name="Arrow" parent="Markers/SurveyMarker_C/Floater" parent_id_path=PackedInt32Array(1336025314, 574366574) index="1" unique_id=255356239]
+visible = false
 
 [node name="EvacMarker" parent="Markers" index="3" unique_id=1432308993 instance=ExtResource("13_marker")]
 unique_name_in_owner = true
@@ -1135,8 +1158,39 @@ label_text = "撤离区"
 show_tile = false
 show_pole = false
 
+[node name="Halo" parent="Markers/EvacMarker" index="0" unique_id=406635027]
+visible = false
+
+[node name="Core" parent="Markers/EvacMarker" index="1" unique_id=1278931026]
+visible = false
+
+[node name="Pole" parent="Markers/EvacMarker/Floater" parent_id_path=PackedInt32Array(1432308993, 574366574) index="0" unique_id=1351879941]
+visible = false
+
+[node name="Arrow" parent="Markers/EvacMarker/Floater" parent_id_path=PackedInt32Array(1432308993, 574366574) index="1" unique_id=255356239]
+visible = false
+
 [node name="BridgeMarker" parent="Markers" index="4" unique_id=88102639 instance=ExtResource("13_marker")]
 unique_name_in_owner = true
 visible = false
 position = Vector2(-32, 16)
 label_text = "桥位"
+
+[node name="Halo" parent="Markers/BridgeMarker" index="0" unique_id=406635027]
+visible = false
+
+[node name="Core" parent="Markers/BridgeMarker" index="1" unique_id=1278931026]
+visible = false
+
+[node name="Arrow" parent="Markers/BridgeMarker/Floater" parent_id_path=PackedInt32Array(88102639, 574366574) index="1" unique_id=255356239]
+visible = false
+
+[node name="MovementManager" parent="." index="8" unique_id=1144669128 node_paths=PackedStringArray("movement_tilemaps", "obstacle_tilemaps")]
+movement_tilemaps = [NodePath("../TileMaps/surface z=0")]
+obstacle_tilemaps = [NodePath("../TileMaps/obstacle z=2")]
+
+[editable path="Markers/SurveyMarker_A"]
+[editable path="Markers/SurveyMarker_B"]
+[editable path="Markers/SurveyMarker_C"]
+[editable path="Markers/EvacMarker"]
+[editable path="Markers/BridgeMarker"]
