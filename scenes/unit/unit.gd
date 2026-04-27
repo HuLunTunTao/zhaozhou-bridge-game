@@ -66,6 +66,9 @@ var _facing: UnitVisual.Facing = UnitVisual.Facing.RIGHT_FRONT
 var _visual: UnitVisual = null
 ## 头顶血条。
 var _hp_bar: UnitHpBar = null
+var _overhead_name_label_enabled: bool = false
+var _overhead_name_label_text: String = ""
+var _overhead_name_label_color: Color = Color.WHITE
 
 ## 局内对话记忆（由 ChatterScheduler 写入）。
 ## 每项结构：{ "round": int, "trigger": String, "text": String }。
@@ -320,13 +323,32 @@ func refresh_overhead_bars() -> void:
 	refresh_ap_bar()
 	if _hp_bar and combat_stats:
 		_hp_bar.update_element(combat_stats.current_element, combat_stats.current_element_amount)
+	if _hp_bar and _overhead_name_label_enabled and _hp_bar.has_method("set_name_label"):
+		_hp_bar.set_name_label(_overhead_name_label_text, _overhead_name_label_color)
 
 
 ## 把头顶 ElemLabel 当作通用状态文字位用——主要给非战斗场景（验桥日 NPC 头顶问号 / 感叹号）。
 ## 传 "" 清空。注意：之后任何 refresh_overhead_bars 都会用元素 tag 覆盖；调用方需在状态变化后再调一次本方法。
 func set_overhead_status_label(text: String, color: Color) -> void:
+	_overhead_name_label_enabled = false
 	if _hp_bar and _hp_bar.has_method("set_custom_label"):
 		_hp_bar.set_custom_label(text, color)
+
+
+## 非战斗场景姓名牌：隐藏 HP/AP 条，用头顶文字显示单位名。
+func set_overhead_name_label(text: String, color: Color) -> void:
+	_overhead_name_label_enabled = true
+	_overhead_name_label_text = text
+	_overhead_name_label_color = color
+	if _hp_bar and _hp_bar.has_method("set_name_label"):
+		_hp_bar.set_name_label(text, color)
+
+
+func set_overhead_bars_visible(visible_flag: bool) -> void:
+	if visible_flag:
+		_overhead_name_label_enabled = false
+	if _hp_bar and _hp_bar.has_method("set_bars_visible"):
+		_hp_bar.set_bars_visible(visible_flag)
 
 
 ## 根据等距坐标步进方向确定朝向。

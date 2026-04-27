@@ -1,20 +1,17 @@
-[gd_resource type="Resource" script_class="SkillData" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="SkillData" format=3 uid="uid://dggmh8d04grg7"]
 
-[ext_resource type="Script" path="res://scripts/data/skill_data.gd" id="1"]
+[ext_resource type="Script" uid="uid://cp0ew5p75uio0" path="res://scripts/data/skill_data.gd" id="1"]
 
 [resource]
 script = ExtResource("1")
 skill_id = "lc_divider_mark_arc"
 skill_name = "分规定弧"
-skill_type = 0
 ap_cost = 32
-damage_ratio = 1.10
+damage_ratio = 1.1
 surround_ratio = 0.85
 damage_element = 1
 attach_amount = 2
 extra_effect_id = "cond_has_attached_aoe"
-duration_turns = 0
-cooldown_turns = 0
 description = "划弧扫击中央及十字四邻共 5 名敌人；中央 1.10 倍 / 周围 0.85 倍；已附属性目标再受 20% 伤害"
 cast_offsets = Array[Vector2i]([Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1), Vector2i(2, 0), Vector2i(-2, 0), Vector2i(0, 2), Vector2i(0, -2), Vector2i(1, 1), Vector2i(1, -1), Vector2i(-1, 1), Vector2i(-1, -1), Vector2i(3, 0), Vector2i(-3, 0), Vector2i(0, 3), Vector2i(0, -3), Vector2i(2, 1), Vector2i(2, -1), Vector2i(-2, 1), Vector2i(-2, -1), Vector2i(1, 2), Vector2i(1, -2), Vector2i(-1, 2), Vector2i(-1, -2)])
 effect_offsets = Array[Vector2i]([Vector2i(0, 0), Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)])

@@ -1,19 +1,13 @@
-[gd_resource type="Resource" script_class="SkillData" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="SkillData" format=3 uid="uid://dr0lqq0xnhy7m"]
 
-[ext_resource type="Script" path="res://scripts/data/skill_data.gd" id="1"]
+[ext_resource type="Script" uid="uid://cp0ew5p75uio0" path="res://scripts/data/skill_data.gd" id="1"]
 
 [resource]
 script = ExtResource("1")
 skill_id = "wf_overturn_bridge"
 skill_name = "翻潮压桥"
-skill_type = 0
-ap_cost = 0
-damage_ratio = 0.0
 damage_element = 3
-attach_amount = 0
 extra_effect_id = "stage_special_overturn"
 duration_turns = 1
-cooldown_turns = 0
 description = "Boss 全局技：稳定较低的桥台 −1；若开启的小拱不超过 1 个，整桥稳定再 −1；并在桥面边缘生成激流压区 1 回合。"
 cast_offsets = Array[Vector2i]([Vector2i(0, 0)])
-effect_offsets = Array[Vector2i]([Vector2i(0, 0)])
