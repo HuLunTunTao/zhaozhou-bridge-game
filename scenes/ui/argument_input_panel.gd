@@ -63,6 +63,15 @@ func _ready() -> void:
 		_render_history(_pending_history)
 
 
+## 设置该 NPC 当前已累积的"基础参与分"，显示在 GoalHint 末尾。
+## 仅 persuade 流程调用；其它流程不调即可（默认隐藏）。
+func set_persuade_base_total(total: int) -> void:
+	_pending_base_total = total
+	_has_pending_base_total = true
+	if is_inside_tree() and _goal_hint != null and _has_pending_goal:
+		_render_goal(_pending_goal)
+
+
 func _on_input_gui_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_ENTER:
 		if event.shift_pressed:

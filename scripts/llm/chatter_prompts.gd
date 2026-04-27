@@ -6,28 +6,25 @@ const BattleContextScript := preload("res://scripts/llm/battle_context.gd")
 
 
 ## 拼系统提示词。persona 必填（至少含 name/persona/style 三个字段，缺则用兜底文本）。
-static func build_system_prompt(persona: Dictionary, trigger_kind: String, memory_text: String, context_json: String) -> String:
-	return """你是《安济桥成》中的角色「%s」。
-%s
+static func build_system_prompt(persona: Dictionary, _trigger_kind: String, memory_text: String, context_json: String) -> String:
+	return """你是《安济桥成》中的「%s」。
 
+人设：%s
 说话风格：%s
 
-硬约束：
-- 只说一句话，不超过 30 字
-- 不加括号动作描述，不提 HP/AP/技能名，不说教
-- 保持人设口吻
-- 当前触发是【%s】，按对应姿态开口
-- 你是游戏角色，不能使用坐标来描述位置，不能提到HP、不能提到AP，但是可以通过描述性的词语来暗示它们的状态（比如“我体力不足了”暗示HP低，“我充满了力气”暗示AP高）
+铁则（违反就是出戏）：
+- 一句话 ≤ 30 字；除非任务要求多字段 JSON
+- 以你的口吻和情绪发声，绝不破角色；不写（括号里的动作）
+- 你是游戏角色：不报坐标，不提 HP/AP/技能名；可用"我体力将尽""我气还足"这种自然描述
 
-最近你说过 / 听到的话：
+━━━ 你与对方此前的全部对话（按时间顺序，最早→最近） ━━━
 %s
 
-战场（自己心里有数，别复述）：
+━━━ 当前战况（自己心里有数，不要复述）━━━
 %s""" % [
 		persona.get("name", "未名"),
 		persona.get("persona", ""),
 		persona.get("style", ""),
-		trigger_kind,
 		memory_text,
 		context_json,
 	]
@@ -108,6 +105,7 @@ round_score 参考：
 knowledge_used 只列李春话中确实用到的 key；没用就给空数组。""" % [
 				extra.get("topic", "?"),
 				extra.get("bridge_part", "桥上"),
+				extra.get("topic", "?"),
 				int(extra.get("stance", 50)),
 				extra.get("mission_context", "（无）"),
 				extra.get("dialogue_history", "（无）"),
@@ -117,9 +115,9 @@ knowledge_used 只列李春话中确实用到的 key；没用就给空数组。"
 				goal.get("goal", "让你支持新桥"),
 				goal.get("objection", "你仍有疑虑"),
 				goal.get("success_claim", "李春需要讲清关键工程道理"),
+				_format_prompt_list(goal.get("bad_arguments", [])),
 				_format_prompt_list(goal.get("required_topics", [])),
 				str(extra.get("learned_csv", "（无）")),
-				_format_prompt_list(goal.get("bad_arguments", [])),
 			]
 		"bridge_neighbor_interject":
 			return "你刚听到「%s」对李春说：「%s」。以你的口吻插一句嘴（一句话，30 字内）。" % [
@@ -164,19 +162,26 @@ knowledge_used 给出他的回答里**确实**用到的 key（没用就给空数
 				extra.get("learned_details", "（无）"),
 				extra.get("cheat_context", "（无）"),
 				persona.get("name", "你"),
+				str(extra.get("learned_csv", "（无）")),
 			]
 		"bridge_knowledge_explain":
-			return """李春想向你（%s）请教这件事：「%s」
+			return """━━━ 求教 ━━━
+李春向你（%s）请教：「%s」
 
-下面是桥梁知识库的全部条目（key 与简介），请你**只挑一条最贴切**的来讲解：
+━━━ 知识库（key:简介，挑一条最贴切的）━━━
 %s
 
-**严格 JSON 输出**（只输出 JSON）：
-{"reply": "<以你的口吻把这条知识讲给李春听，70 字以内>", "topic_key": "<knowledge.gd 里那条的 key>"}
-要点：
-  - 用你的人设语气讲，不是干巴的教科书
-  - 必须用上知识库里那条 key 的核心内容（数字、史实、要点都可以引）
-  - topic_key 必须是上面列出的 key 之一，不能编造""" % [
+━━━ 要诀 ━━━
+- 用你的人设语气讲，不是干巴的教科书；可以有犹豫、自嘲、感叹
+- 必须用上选中那条 key 的核心内容（数字、史实、要点都可引）
+- topic_key 必须是知识库列出的 key 之一，不能编造
+- 结合你与李春的对话历史（system prompt 里），承接前文，不要重复你之前说过的字眼
+- reply ≤ 70 字
+
+━━━ 输出格式（先纯文本讲解，再 ###META### 分隔，再 JSON 元数据）━━━
+<你以人设口吻把这条讲给李春，70 字内，纯文本不带引号>
+###META###
+{"topic_key":"<key>"}""" % [
 				persona.get("name", "你"),
 				extra.get("query", "?"),
 				str(extra.get("topics_csv", "")),
