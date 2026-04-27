@@ -105,7 +105,6 @@ round_score 参考：
 knowledge_used 只列李春话中确实用到的 key；没用就给空数组。""" % [
 				extra.get("topic", "?"),
 				extra.get("bridge_part", "桥上"),
-				extra.get("topic", "?"),
 				int(extra.get("stance", 50)),
 				extra.get("mission_context", "（无）"),
 				extra.get("dialogue_history", "（无）"),
@@ -115,9 +114,9 @@ knowledge_used 只列李春话中确实用到的 key；没用就给空数组。"
 				goal.get("goal", "让你支持新桥"),
 				goal.get("objection", "你仍有疑虑"),
 				goal.get("success_claim", "李春需要讲清关键工程道理"),
-				_format_prompt_list(goal.get("bad_arguments", [])),
 				_format_prompt_list(goal.get("required_topics", [])),
 				str(extra.get("learned_csv", "（无）")),
+				_format_prompt_list(goal.get("bad_arguments", [])),
 			]
 		"bridge_neighbor_interject":
 			return "你刚听到「%s」对李春说：「%s」。以你的口吻插一句嘴（一句话，30 字内）。" % [
@@ -162,7 +161,6 @@ knowledge_used 给出他的回答里**确实**用到的 key（没用就给空数
 				extra.get("learned_details", "（无）"),
 				extra.get("cheat_context", "（无）"),
 				persona.get("name", "你"),
-				str(extra.get("learned_csv", "（无）")),
 			]
 		"bridge_knowledge_explain":
 			return """━━━ 求教 ━━━

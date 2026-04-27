@@ -53,13 +53,13 @@ const HERO_INFINITE_AP := 99999
 const HERO_MOVE_PREVIEW_AP_BUDGET := 120 # 验桥日移动范围预览上限，避免无限 AP 把整张图 overlay 算出来
 const NPC_ROAM_INTERVAL_MIN := 6.0 # NPC 闲逛时间间隔下限
 const NPC_ROAM_INTERVAL_MAX := 10.0 # NPC 闲逛时间间隔上限
-const CHEAT_WORDS := ["鲁班托梦", "墨线自明", "石龙点头"]
-
-## 演示用作弊暗语：玩家输入只要包含其中任一短语，立即说服成功。
+## 演示用作弊暗语：玩家输入只要包含其中任一短语，目标 NPC 任务立即通过。
 ## LLM 仍会被告知玩家"言中要害"，给出贴角色口吻的惊叹回应——所以观众察觉不到这是作弊。
 ## 这些都是 4 字短语，不会自然出现在玩家正常论点里。
-const _PERSUADE_CHEAT_PHRASES: Array[String] = [
+const CHEAT_WORDS: Array[String] = [
 	"鲁班托梦",   # 神匠显梦指点
+	"墨线自明",   # 工匠墨线自行显准
+	"石龙点头",   # 桥石似有灵应
 	"洨水有灵",   # 本关河流神灵
 	"天工开物",   # 引经据典（明代典籍名）
 ]
@@ -531,16 +531,13 @@ func _flow_persuade(npc: Unit) -> void:
 	var goal_raw: Variant = npc.get_meta("npc_persuasion_goal", {})
 	var persuasion_goal: Dictionary = goal_raw if goal_raw is Dictionary else {}
 	panel.set_persuasion_goal(persuasion_goal)
-	panel.set_persuade_base_total(int(npc.get_meta("npc_stance", 0)))
+	panel.set_persuade_base_total(int(npc.get_meta("npc_accum_score_total", 0)))
 	panel.set_learned_topics(_player_learned_topics, _player_used_topics)
 	panel.set_history(npc.get_meta("npc_dialogue_log", [] as Array[Dictionary]))
 	var argument: String = await panel.argument_submitted
 	if argument.is_empty():
 		return
-	var is_cheat: bool = _argument_has_cheat(argument)
-	# 流式：LLM 一边吐 token、TTS bidi 一边播——首字音延迟 ≈ 0.5s。
-	# 比之前的 thinking overlay + 等全文 + 一次性 TTS 体验快 1-2 秒。
-	var ans: Dictionary = await _generate_persuade_answer(npc, argument, is_cheat)
+	var ans: Dictionary = await _generate_persuade_answer(npc, argument)
 	_apply_persuade_result(npc, ans)
 	var reply: String = String(ans.get("reply", ""))
 	var is_fallback: bool = bool(ans.get("is_fallback", false))
@@ -559,10 +556,7 @@ func _flow_persuade(npc: Unit) -> void:
 
 ## 检测玩家输入是否包含演示用作弊暗语。命中即整轮强制通过。
 func _argument_has_cheat(argument: String) -> bool:
-	for phrase in _PERSUADE_CHEAT_PHRASES:
-		if phrase in argument:
-			return true
-	return false
+	return _is_cheat_text(argument)
 
 
 ## LLM+TTS 一体化流式：LLM SSE token 一边到一边按 ###META### 分流——前半（reply 纯文本）
@@ -696,7 +690,7 @@ func _generate_persuade_answer(npc: Unit, topic: String) -> Dictionary:
 		"cheat_context": _cheat_context_text(is_cheat, cheat_word),
 		"accum_total": int(npc.get_meta("npc_accum_score_total", 0)),
 	})
-	var resp: Dictionary = await _stream_llm_with_meta_split(npc, [
+	var resp: Dictionary = await _get_llm().chat_completion([
 		{"role": "system", "content": sys},
 		{"role": "user", "content": user},
 	], {"max_tokens": 220, "temperature": 0.85})
@@ -809,12 +803,10 @@ func _flow_qa(npc: Unit) -> void:
 	var answer: String = await panel.argument_submitted
 	if answer.is_empty():
 		return
-	# 流式：LLM + TTS 一起推进
 	var eval: Dictionary = await _generate_qa_eval(npc, question, answer)
 	_apply_qa_result(npc, eval)
 	var feedback: String = String(eval.get("feedback", ""))
 	var is_fallback: bool = bool(eval.get("is_fallback", false))
-	var is_streaming: bool = bool(eval.get("is_streaming", false))
 	# 记入对话历史。问题用本轮抛出的 question + 玩家答案 + NPC feedback 三段拼接：
 	# 历史每条同时保存 question，避免下次打开面板时丢掉 NPC 上轮问句。
 	_append_dialogue_log(npc, answer, feedback, "fallback" if is_fallback else "qa", question)
@@ -892,7 +884,7 @@ func _generate_qa_eval(npc: Unit, question: String, answer: String) -> Dictionar
 		"mission_context": _mission_context_text(npc),
 		"cheat_context": _cheat_context_text(is_cheat, cheat_word),
 	})
-	var resp: Dictionary = await _stream_llm_with_meta_split(npc, [
+	var resp: Dictionary = await _get_llm().chat_completion([
 		{"role": "system", "content": sys},
 		{"role": "user", "content": user},
 	], {"max_tokens": 220, "temperature": 0.7})
