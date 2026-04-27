@@ -102,6 +102,10 @@ const TUTORIAL_ID_P1 := "level1-4_p1"
 const TUTORIAL_ID_P2 := "level1-4_p2"
 const TUTORIAL_ID_P3 := "level1-4_p3"
 
+# P1 教程"李春攻击 boss 一次"的同步态。skill_executed 信号到达后由
+# _on_p1_tutorial_skill_executed 翻成 true，主协程 await 它跳出循环。
+var _p1_tutorial_hit_boss: bool = false
+
 # 特殊地格容器（运行时 register_special_tile）
 const SmallArchTileClass := preload("res://scenes/levels/level1-4/small_arch_tile.gd")
 const SiltTileClass := preload("res://scenes/levels/level1-4/silt_tile.gd")
@@ -393,11 +397,58 @@ func _run_p1_tutorial() -> void:
 		_lc_line("怒水有 600 血、三阶段（HP 75% / 50% 是拐点）。我每打它一下整桥回 1 点，每杀一只小怪回 2 点——所以多动手。"),
 		_lc_line("桥两侧有四座『小拱』要开。运石工和我自己都能开，开得越多，每回合扣的稳定值越少。boss 阶段越后，能开的肩也越多。"),
 		_lc_line("工匠手里的『捍作护行』给邻接友军 2 回合『护持』——这玩意是抗 boss 大招的关键，记得每回合留一份给前排。"),
-		_lc_line("一阶段没什么花活，先熟悉布阵和开肩节奏。等怒水血量见底再说后面的。"),
+	])
+	if is_phase_ended():
+		return
+	# ── 实战引导：让玩家亲自打 boss 一下，直观感受 boss 的"巨型受击范围"──
+	await play_dialogue([
+		_lc_line("最后一件事：怒水个头巨大，可见的本体小框是骗人的——它的受击区铺到桥心北边好几行水域里。"),
+		_lc_line("选中我，挑一招技能朝桥心以北的水域来一下试试，会自动算到怒水头上。命中后整桥还会 +1。"),
+	])
+	if is_phase_ended():
+		return
+	Notify.notify(
+		"选中李春 → 选技能 → 点桥心以北的水域（怒水的判定区覆盖到北侧 7 行内）",
+		Notify.Position.TOP_CENTER, Notify.Style.INFO, 14.0,
+	)
+	_p1_tutorial_hit_boss = false
+	skill_executed.connect(_on_p1_tutorial_skill_executed)
+	while not _p1_tutorial_hit_boss:
+		await skill_executed
+		if is_phase_ended():
+			if skill_executed.is_connected(_on_p1_tutorial_skill_executed):
+				skill_executed.disconnect(_on_p1_tutorial_skill_executed)
+			return
+	if skill_executed.is_connected(_on_p1_tutorial_skill_executed):
+		skill_executed.disconnect(_on_p1_tutorial_skill_executed)
+	await play_dialogue([
+		_lc_line("命中——你看屏右上的回血提示，整桥稳定 +1。攻击 boss 是回血主流，记着。"),
+		_lc_line("一阶段没别的花活，先熟悉布阵和开肩节奏。等怒水血量见底我再补课。"),
 	])
 	if is_phase_ended():
 		return
 	Progress.mark_tutorial_seen(TUTORIAL_ID_P1)
+
+
+# 判定指定 cast_cell 是否落在 boss 的本体或 extra_target_cells（巨型受击范围）内。
+# 复用 base_level / skill_executor 同一套"加大 hitbox"逻辑。
+func _skill_hit_boss(cast_cell: Vector2i) -> bool:
+	if _boss == null or not is_instance_valid(_boss):
+		return false
+	if cast_cell == _boss.cell:
+		return true
+	for offset in _boss.extra_target_cells:
+		if cast_cell == _boss.cell + offset:
+			return true
+	return false
+
+
+# P1 教程专用 skill_executed 监听：仅当李春命中 boss 时翻起 _p1_tutorial_hit_boss
+# 标志，主协程 _run_p1_tutorial 的 while 循环据此跳出。其他施法（友军间、空地试招）
+# 一律忽略，不打断教程。
+func _on_p1_tutorial_skill_executed(caster: Unit, _skill: SkillData, cast_cell: Vector2i) -> void:
+	if caster == _li_chun and _skill_hit_boss(cast_cell):
+		_p1_tutorial_hit_boss = true
 
 
 func _run_p2_tutorial() -> void:
