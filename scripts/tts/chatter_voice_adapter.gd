@@ -126,6 +126,7 @@ func speak(unit: Node, text: String, trigger_kind: String = "") -> void:
 	if my_token != _speak_token:
 		return
 	if not ok:
+		push_warning("[TTS] 火山合成失败 unit=%s voice=%s text=%s" % [unit_id, voice, clean_text.left(40)])
 		await _fallback_voice(unit_id, clean_text)
 	# _player 的 speak_finished 已经把 streaming_done emit 了
 
@@ -342,6 +343,7 @@ func _fallback_voice(unit_id: String, text: String) -> void:
 	if unit_id != "":
 		var pre: AudioStream = TtsFallbackIndex.get_fallback_audio(unit_id, text)
 		if pre != null:
+			print("[TTS fallback] pre-baked mp3 unit=%s text=%s" % [unit_id, text.left(40)])
 			if _fallback_player == null:
 				_fallback_player = AudioStreamPlayer.new()
 				_fallback_player.bus = &"Voice"
@@ -350,6 +352,7 @@ func _fallback_voice(unit_id: String, text: String) -> void:
 			_fallback_player.play()
 			await _fallback_player.finished
 			return
+	push_warning("[TTS fallback] 降级 OS TTS unit=%s text=%s" % [unit_id, text.left(40)])
 	_maybe_speak_via_system_tts(text)
 
 

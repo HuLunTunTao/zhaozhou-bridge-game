@@ -39,6 +39,8 @@ var _pending_goal: Dictionary = {}
 var _has_pending_goal: bool = false
 var _pending_history: Array = []
 var _has_pending_history: bool = false
+var _pending_base_total: int = 0
+var _has_pending_base_total: bool = false
 
 
 func _ready() -> void:
@@ -94,6 +96,14 @@ func set_persuasion_goal(goal: Dictionary) -> void:
 	_render_goal(goal)
 
 
+## 显示该 NPC 当前累计说服推进值。仅 persuade 流程调用。
+func set_persuade_base_total(total: int) -> void:
+	_pending_base_total = total
+	_has_pending_base_total = true
+	if is_inside_tree() and _goal_hint != null and _has_pending_goal:
+		_render_goal(_pending_goal)
+
+
 ## 显示玩家已学的桥梁知识。learned 是 key 数组，used 是已在 persuade/qa 中引用过的 key 数组。
 ## learned 为空时显示提示文字"先去找 ★ NPC 求教"。
 func set_learned_topics(learned: Array, used: Array) -> void:
@@ -121,6 +131,18 @@ func _render_goal(goal: Dictionary) -> void:
 		lines.append("[color=#9ec3ff]对方疑虑：[/color][color=#cfd2c2]%s[/color]" % objection)
 	if not hint.is_empty():
 		lines.append("[color=#8fd18f]提示：[/color][color=#cfd2c2]%s[/color]" % hint)
+	var required_raw: Variant = goal.get("required_topics", [])
+	if required_raw is Array and not (required_raw as Array).is_empty():
+		var keyword_titles: Array[String] = []
+		for k in required_raw:
+			var key := String(k)
+			var topic: Dictionary = _BridgeKnowledgeScript.get_topic(key)
+			var title_str: String = String(topic.get("title", key)) if not topic.is_empty() else key
+			keyword_titles.append("[color=#ffe0a0]%s[/color]" % title_str)
+		if not keyword_titles.is_empty():
+			lines.append("[color=#d8a45c]提到这些更易加分：[/color]" + " · ".join(keyword_titles))
+	if _has_pending_base_total and _pending_base_total > 0:
+		lines.append("[color=#9ec3ff]累计推进：[/color][color=#ffd6a0]%d[/color][color=#7a8062]（每轮再加累积分+本轮评分）[/color]" % _pending_base_total)
 	_goal_hint.text = "\n".join(lines)
 	_goal_hint.visible = not lines.is_empty()
 

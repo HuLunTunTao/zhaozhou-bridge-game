@@ -17,6 +17,10 @@ const _SK_INTERACT := preload("res://data/skills/bridge_tour_interact.tres")
 const _VISUAL_LI_CHUN := preload("res://scenes/unit/visual/human/li_chun/li_chun_visual.tscn")
 const _VISUAL_CRAFTSMAN := preload("res://scenes/unit/visual/human/工匠/工匠_visual.tscn")
 const _VISUAL_SURVEYOR := preload("res://scenes/unit/visual/human/测量工/测量工_visual.tscn")
+const _VISUAL_OLD_OVERSEER := preload("res://scenes/unit/visual/human/老监工/老监工_visual.tscn")
+const _VISUAL_SCHOLAR := preload("res://scenes/unit/visual/human/游学书生/游学书生_visual.tscn")
+const _VISUAL_STONEMASON := preload("res://scenes/unit/visual/human/石匠/石匠_visual.tscn")
+const _VISUAL_FISHERMAN := preload("res://scenes/unit/visual/human/渔夫/渔夫_visual.tscn")
 
 const _RoamingAIScript := preload("res://scripts/npc/roaming_ai.gd")
 const _NpcPersonasScript := preload("res://scripts/llm/npc_personas.gd")
@@ -127,14 +131,14 @@ func _get_npc_specs() -> Array[Dictionary]:
 			"unit_id": "bridge_scholar", "unit_name": "游学书生", "role": "qa",
 			"node_name": "NpcScholar",
 			"bridge_part": "望柱栏板", "cell": Vector2i(-8, -3),
-			"color": Color(0.85, 0.85, 0.95), "visual": _VISUAL_SURVEYOR,
+			"color": Color(0.85, 0.85, 0.95), "visual": _VISUAL_SCHOLAR,
 			"roam_mode": _RoamingAIScript.Mode.RANDOM_WALK, "waypoints": [],
 		},
 		{
 			"unit_id": "bridge_fisherman", "unit_name": "渔夫", "role": "qa",
 			"node_name": "NpcFisherman",
 			"bridge_part": "桥下河滩", "cell": Vector2i(1, 7),
-			"color": Color(0.55, 0.7, 0.85), "visual": _VISUAL_SURVEYOR,
+			"color": Color(0.55, 0.7, 0.85), "visual": _VISUAL_FISHERMAN,
 			"roam_mode": _RoamingAIScript.Mode.PATROL,
 			"waypoint_offsets": [Vector2i(0, 0), Vector2i(1, 0), Vector2i(1, -1), Vector2i(0, -1)] as Array[Vector2i],
 		},
@@ -143,7 +147,7 @@ func _get_npc_specs() -> Array[Dictionary]:
 			"unit_id": "bridge_old_overseer", "unit_name": "老监工", "role": "mentor",
 			"node_name": "NpcOldOverseer",
 			"bridge_part": "桥头远处", "cell": Vector2i(7, -5),
-			"color": Color(0.65, 0.55, 0.5), "visual": _VISUAL_CRAFTSMAN,
+			"color": Color(0.65, 0.55, 0.5), "visual": _VISUAL_OLD_OVERSEER,
 			"roam_mode": _RoamingAIScript.Mode.STATIONARY, "waypoints": [],
 			# 老监工偏全局：拱形 / 时代 / 旧制
 			"mentor_topics": ["扁拱与半圆拱有何不同？", "为何在隋代建此奇桥？", "和旧制多孔小拱比，胜在哪？"],
@@ -152,7 +156,7 @@ func _get_npc_specs() -> Array[Dictionary]:
 			"unit_id": "bridge_old_stonemason", "unit_name": "老石匠", "role": "mentor",
 			"node_name": "NpcOldStonemason",
 			"bridge_part": "石作工棚", "cell": Vector2i(-6, -5),
-			"color": Color(0.7, 0.65, 0.55), "visual": _VISUAL_CRAFTSMAN,
+			"color": Color(0.7, 0.65, 0.55), "visual": _VISUAL_STONEMASON,
 			"roam_mode": _RoamingAIScript.Mode.STATIONARY, "waypoints": [],
 			# 老石匠偏材料 / 桥券 / 桥台 / 装饰
 			"mentor_topics": ["二十八道券怎么锁住不散？", "本地青石比别处好在哪？", "桥台只埋一丈余怎么扛得住？", "栏板蛟龙也是结构？"],
@@ -496,6 +500,7 @@ func _flow_persuade(npc: Unit) -> void:
 	var goal_raw: Variant = npc.get_meta("npc_persuasion_goal", {})
 	var persuasion_goal: Dictionary = goal_raw if goal_raw is Dictionary else {}
 	panel.set_persuasion_goal(persuasion_goal)
+	panel.set_persuade_base_total(int(npc.get_meta("npc_stance", 0)))
 	panel.set_learned_topics(_player_learned_topics, _player_used_topics)
 	panel.set_history(npc.get_meta("npc_dialogue_log", [] as Array[Dictionary]))
 	var argument: String = await panel.argument_submitted
