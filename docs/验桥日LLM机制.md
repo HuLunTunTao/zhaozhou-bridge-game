@@ -154,7 +154,7 @@ var resp := await _get_llm().chat_completion([
 5. `_apply_persuade_result(npc, ans)` 结算分数。
 6. `_append_dialogue_log()` 写入历史。
 7. `_play_npc_line()` 播放 NPC 回复。
-8. `_maybe_neighbor_interject()` 概率触发邻近 NPC 插话。
+8. `_start_neighbor_interject()` / `_play_pending_neighbor()` 概率触发邻近 NPC 插话。
 
 ### 5.2 传给 prompt 的 extra 字段
 
@@ -239,20 +239,19 @@ npc_accum_score_total += accum_score
 `MissionHud.update_npc_stance()` 会显示说服进度与上轮计分：
 
 ```text
-老匠首  24/70  +12(累3+本+9)
+老匠首  12+8/70
 ```
 
 含义：
 
-- `24/70`：当前说服进度。
-- `+12`：本轮最终得分。
-- `累3`：本轮累积分。
-- `本+9`：本轮评分。
+- `12`：该 NPC 已累计的基础分合计。
+- `+8`：本次玩家回答的本轮评分；负分会显示为 `-3` 这类形式。
+- `70`：说服通过所需总进度阈值。
 
 HUD 底部提示：
 
 ```text
-说服进度 += 累积分(1-5)+本轮评分
+说服显示：累计基础分+本次评分/总进度
 ```
 
 ## 6. 答疑机制：`bridge_qa_eval`
@@ -407,10 +406,16 @@ QA 的当前问题会通过 `_history_with_npc_prompt()` 临时拼进输入面�
 当前演示暗语定义在 `bridge_tour.gd`：
 
 ```gdscript
-const CHEAT_WORDS := ["鲁班托梦", "墨线自明", "石龙点头"]
+const CHEAT_WORDS: Array[String] = [
+	"鲁班托梦",
+	"墨线自明",
+	"石龙点头",
+	"洨水有灵",
+	"天工开物",
+]
 ```
 
-这三个短语用于演示时保证任务可控通过，同时尽量不让观众察觉是调试入口。
+这些短语用于演示时保证任务可控通过，同时尽量不让观众察觉是调试入口。
 
 ### 10.1 命中检测
 
