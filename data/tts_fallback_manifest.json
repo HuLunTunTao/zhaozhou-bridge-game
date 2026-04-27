@@ -1475,6 +1475,30 @@
 			"voice": "zh_male_qingcang_uranus_bigtts"
 		},
 		{
+			"kind": "persuade_opening",
+			"output": "assets/audio/tts_fallback/bridge_old_master/persuade_opening_01.mp3",
+			"slug": "persuade_opening_01",
+			"text": "按祖宗规矩，洨河上就该多孔分水。你这单孔大跨，凭什么说比老法稳？",
+			"unit_id": "bridge_old_master",
+			"voice": "zh_male_tangseng_uranus_bigtts"
+		},
+		{
+			"kind": "persuade_opening",
+			"output": "assets/audio/tts_fallback/bridge_old_master/persuade_opening_02.mp3",
+			"slug": "persuade_opening_02",
+			"text": "我学手艺那年，没人敢一拱跨河。李春，你先把这主拱的道理讲明白",
+			"unit_id": "bridge_old_master",
+			"voice": "zh_male_tangseng_uranus_bigtts"
+		},
+		{
+			"kind": "persuade_opening",
+			"output": "assets/audio/tts_fallback/bridge_old_master/persuade_opening_03.mp3",
+			"slug": "persuade_opening_03",
+			"text": "老朽不怕新，只怕新得没根。二十八道券真能托住这一跨么？",
+			"unit_id": "bridge_old_master",
+			"voice": "zh_male_tangseng_uranus_bigtts"
+		},
+		{
 			"kind": "persuade",
 			"output": "assets/audio/tts_fallback/bridge_old_master/persuade_01.mp3",
 			"slug": "persuade_01",
@@ -1579,6 +1603,30 @@
 			"voice": "zh_male_tangseng_uranus_bigtts"
 		},
 		{
+			"kind": "persuade_opening",
+			"output": "assets/audio/tts_fallback/bridge_river_chief/persuade_opening_01.mp3",
+			"slug": "persuade_opening_01",
+			"text": "汛期一来，水不听人的话。你这单孔新桥，怎么保证不顶拱、不冲台？",
+			"unit_id": "bridge_river_chief",
+			"voice": "zh_male_dayi_uranus_bigtts"
+		},
+		{
+			"kind": "persuade_opening",
+			"output": "assets/audio/tts_fallback/bridge_river_chief/persuade_opening_02.mp3",
+			"slug": "persuade_opening_02",
+			"text": "洪线在此，桥台在此。李春，你若说服我，就把泄洪和基础讲清楚",
+			"unit_id": "bridge_river_chief",
+			"voice": "zh_male_dayi_uranus_bigtts"
+		},
+		{
+			"kind": "persuade_opening",
+			"output": "assets/audio/tts_fallback/bridge_river_chief/persuade_opening_03.mp3",
+			"slug": "persuade_opening_03",
+			"text": "桥面好看不是本事，扛得住洨水才算数。敞肩小拱到底能分多少水势？",
+			"unit_id": "bridge_river_chief",
+			"voice": "zh_male_dayi_uranus_bigtts"
+		},
+		{
 			"kind": "persuade",
 			"output": "assets/audio/tts_fallback/bridge_river_chief/persuade_01.mp3",
 			"slug": "persuade_01",
@@ -1681,6 +1729,30 @@
 			"text": "得看汛",
 			"unit_id": "bridge_river_chief",
 			"voice": "zh_male_dayi_uranus_bigtts"
+		},
+		{
+			"kind": "persuade_opening",
+			"output": "assets/audio/tts_fallback/bridge_court_inspector/persuade_opening_01.mp3",
+			"slug": "persuade_opening_01",
+			"text": "本官奉命验桥，不听空话。新法若误工耗料，朝廷要问责谁？",
+			"unit_id": "bridge_court_inspector",
+			"voice": "zh_male_yizhipiannan_uranus_bigtts"
+		},
+		{
+			"kind": "persuade_opening",
+			"output": "assets/audio/tts_fallback/bridge_court_inspector/persuade_opening_02.mp3",
+			"slug": "persuade_opening_02",
+			"text": "朝廷要的是稳妥政绩，不是一时奇巧。李春，你先说这桥为何值得冒险",
+			"unit_id": "bridge_court_inspector",
+			"voice": "zh_male_yizhipiannan_uranus_bigtts"
+		},
+		{
+			"kind": "persuade_opening",
+			"output": "assets/audio/tts_fallback/bridge_court_inspector/persuade_opening_03.mp3",
+			"slug": "persuade_opening_03",
+			"text": "工期、钱粮、通商，样样都要有交代。此桥新在何处，又稳在何处？",
+			"unit_id": "bridge_court_inspector",
+			"voice": "zh_male_yizhipiannan_uranus_bigtts"
 		},
 		{
 			"kind": "persuade",
@@ -1891,6 +1963,30 @@
 			"voice": "zh_male_sunwukong_uranus_bigtts"
 		},
 		{
+			"kind": "qa_question",
+			"output": "assets/audio/tts_fallback/bridge_apprentice/qa_question_01.mp3",
+			"slug": "qa_question_01",
+			"text": "师父，二十八道拱券并列摆在一起，万一其中一道出毛病，整座桥不是要塌？这法子凭啥说稳？",
+			"unit_id": "bridge_apprentice",
+			"voice": "zh_male_sunwukong_uranus_bigtts"
+		},
+		{
+			"kind": "qa_question",
+			"output": "assets/audio/tts_fallback/bridge_apprentice/qa_question_02.mp3",
+			"slug": "qa_question_02",
+			"text": "我有点想不通——这二十八道券各自分开砌，要是中间哪一道先裂了，会不会牵一发动整桥？",
+			"unit_id": "bridge_apprentice",
+			"voice": "zh_male_sunwukong_uranus_bigtts"
+		},
+		{
+			"kind": "qa_question",
+			"output": "assets/audio/tts_fallback/bridge_apprentice/qa_question_03.mp3",
+			"slug": "qa_question_03",
+			"text": "师父您说，这分券砌法新是新，可哪天有一道券风化坏了，会不会拖累旁边几道一起垮？",
+			"unit_id": "bridge_apprentice",
+			"voice": "zh_male_sunwukong_uranus_bigtts"
+		},
+		{
 			"kind": "qa",
 			"output": "assets/audio/tts_fallback/bridge_merchant/qa_01.mp3",
 			"slug": "qa_01",
@@ -1995,6 +2091,30 @@
 			"voice": "zh_male_cixingjieshuonan_uranus_bigtts"
 		},
 		{
+			"kind": "qa_question",
+			"output": "assets/audio/tts_fallback/bridge_merchant/qa_question_01.mp3",
+			"slug": "qa_question_01",
+			"text": "我赶车走桥最怕啥？陡。你这桥拱怎么是扁的？半圆拱不是更好走？给我说道说道。",
+			"unit_id": "bridge_merchant",
+			"voice": "zh_male_cixingjieshuonan_uranus_bigtts"
+		},
+		{
+			"kind": "qa_question",
+			"output": "assets/audio/tts_fallback/bridge_merchant/qa_question_02.mp3",
+			"slug": "qa_question_02",
+			"text": "老规矩半圆拱我们走惯了，您这扁拱看着新鲜——压车的时候撑得住么？",
+			"unit_id": "bridge_merchant",
+			"voice": "zh_male_cixingjieshuonan_uranus_bigtts"
+		},
+		{
+			"kind": "qa_question",
+			"output": "assets/audio/tts_fallback/bridge_merchant/qa_question_03.mp3",
+			"slug": "qa_question_03",
+			"text": "这桥拱压得这么扁，看着像要被自己压塌——为啥不老老实实造个半圆，让我们走着踏实？",
+			"unit_id": "bridge_merchant",
+			"voice": "zh_male_cixingjieshuonan_uranus_bigtts"
+		},
+		{
 			"kind": "qa",
 			"output": "assets/audio/tts_fallback/bridge_scholar/qa_01.mp3",
 			"slug": "qa_01",
@@ -2095,6 +2215,30 @@
 			"output": "assets/audio/tts_fallback/bridge_scholar/adjacent_reply_03.mp3",
 			"slug": "adjacent_reply_03",
 			"text": "妙哉",
+			"unit_id": "bridge_scholar",
+			"voice": "zh_male_dongfanghaoran_uranus_bigtts"
+		},
+		{
+			"kind": "qa_question",
+			"output": "assets/audio/tts_fallback/bridge_scholar/qa_question_01.mp3",
+			"slug": "qa_question_01",
+			"text": "在下窃以为，此桥肩处开洞、断了拱脊连贯之美，岂非画蛇添足？匠师可解此说？",
+			"unit_id": "bridge_scholar",
+			"voice": "zh_male_dongfanghaoran_uranus_bigtts"
+		},
+		{
+			"kind": "qa_question",
+			"output": "assets/audio/tts_fallback/bridge_scholar/qa_question_02.mp3",
+			"slug": "qa_question_02",
+			"text": "拱脊本应一气呵成，先生却于其肩另凿四孔，《考工记》中可有此例？此何以为美？",
+			"unit_id": "bridge_scholar",
+			"voice": "zh_male_dongfanghaoran_uranus_bigtts"
+		},
+		{
+			"kind": "qa_question",
+			"output": "assets/audio/tts_fallback/bridge_scholar/qa_question_03.mp3",
+			"slug": "qa_question_03",
+			"text": "既云「形美势全」，何故又破其连贯之线？此四小拱所为何来，敢请赐教？",
 			"unit_id": "bridge_scholar",
 			"voice": "zh_male_dongfanghaoran_uranus_bigtts"
 		},
@@ -2307,6 +2451,30 @@
 			"voice": "zh_male_gaolengchenwen_uranus_bigtts"
 		},
 		{
+			"kind": "qa_question",
+			"output": "assets/audio/tts_fallback/bridge_old_stonemason/qa_question_01.mp3",
+			"slug": "qa_question_01",
+			"text": "新法挑这青石，怎么知道哪一块能砌成券、哪一块得退回？老夫只凭手感——你凭什么？",
+			"unit_id": "bridge_old_stonemason",
+			"voice": "zh_male_gaolengchenwen_uranus_bigtts"
+		},
+		{
+			"kind": "qa_question",
+			"output": "assets/audio/tts_fallback/bridge_old_stonemason/qa_question_02.mp3",
+			"slug": "qa_question_02",
+			"text": "嗯——这石头你拍过没？没拍过怎么知道砌哪一道？凿了一辈子石头，靠的是手感",
+			"unit_id": "bridge_old_stonemason",
+			"voice": "zh_male_gaolengchenwen_uranus_bigtts"
+		},
+		{
+			"kind": "qa_question",
+			"output": "assets/audio/tts_fallback/bridge_old_stonemason/qa_question_03.mp3",
+			"slug": "qa_question_03",
+			"text": "按手感看，这本地青石不全都能用。你这分券法怎么挑石？说说看",
+			"unit_id": "bridge_old_stonemason",
+			"voice": "zh_male_gaolengchenwen_uranus_bigtts"
+		},
+		{
 			"kind": "qa",
 			"output": "assets/audio/tts_fallback/bridge_fisherman/qa_01.mp3",
 			"slug": "qa_01",
@@ -2407,6 +2575,30 @@
 			"output": "assets/audio/tts_fallback/bridge_fisherman/adjacent_reply_03.mp3",
 			"slug": "adjacent_reply_03",
 			"text": "汛大着呢",
+			"unit_id": "bridge_fisherman",
+			"voice": "zh_male_guanggaojieshuo_uranus_bigtts"
+		},
+		{
+			"kind": "qa_question",
+			"output": "assets/audio/tts_fallback/bridge_fisherman/qa_question_01.mp3",
+			"slug": "qa_question_01",
+			"text": "我蹲这桥下打了几十年鱼。汛季水大时，这扁扁的桥拱底下水位涨高，水会不会顶坏拱身？你这开肩的小拱，到底有啥用？",
+			"unit_id": "bridge_fisherman",
+			"voice": "zh_male_guanggaojieshuo_uranus_bigtts"
+		},
+		{
+			"kind": "qa_question",
+			"output": "assets/audio/tts_fallback/bridge_fisherman/qa_question_02.mp3",
+			"slug": "qa_question_02",
+			"text": "这桥拱压得低，汛水一上来就贴着拱顶走——你不怕被冲垮？那肩上四个小窟窿是干啥用的？",
+			"unit_id": "bridge_fisherman",
+			"voice": "zh_male_guanggaojieshuo_uranus_bigtts"
+		},
+		{
+			"kind": "qa_question",
+			"output": "assets/audio/tts_fallback/bridge_fisherman/qa_question_03.mp3",
+			"slug": "qa_question_03",
+			"text": "我看你这桥台没扎多深，水冲个十年八年还撑得住？拱身又这么扁，水位一抬不就糟了？",
 			"unit_id": "bridge_fisherman",
 			"voice": "zh_male_guanggaojieshuo_uranus_bigtts"
 		}

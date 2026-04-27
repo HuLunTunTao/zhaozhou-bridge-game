@@ -46,6 +46,10 @@ var model: String = ApiConfigScript.LLM_MODEL
 ## 单次请求超时秒数。0 表示不超时。
 var timeout_sec: float = ApiConfigScript.LLM_TIMEOUT_SEC
 
+## 思考模式开关。默认 disabled，避免 reasoning 模型把 max_tokens 全耗在 reasoning_content。
+## 设为 "enabled" 可显式打开；设为空字符串则不发送 thinking 参数。
+var thinking_type: String = "disabled"
+
 var _http: HTTPRequest
 var _busy: bool = false
 
@@ -68,6 +72,22 @@ var _stream_sse_residual: PackedByteArray = PackedByteArray()
 func _ready() -> void:
 	_http = HTTPRequest.new()
 	add_child(_http)
+
+
+func _exit_tree() -> void:
+	var was_streaming := _stream_busy
+	var partial := _stream_buffer
+	_stream_token += 1
+	if _stream_http != null:
+		_stream_http.close()
+	_stream_http = null
+	_stream_busy = false
+	_stream_buffer = ""
+	_stream_sse_residual = PackedByteArray()
+	if _http != null:
+		_http.cancel_request()
+	if was_streaming:
+		stream_finished.emit(partial, false, "LLMClient 节点退出")
 
 
 ## 发送一次 chat completion 请求并 await 响应。
@@ -107,6 +127,9 @@ func chat_completion(messages: Array, options: Dictionary = {}) -> Dictionary:
 		var extra: Dictionary = options["extra_body"]
 		for key in extra:
 			body_dict[key] = extra[key]
+	_apply_thinking_option(body_dict)
+	# chat_completion 必须保持非流式；避免 extra_body 意外覆盖为 stream=true。
+	body_dict["stream"] = false
 
 	var body := JSON.stringify(body_dict)
 
@@ -144,10 +167,13 @@ func chat_completion(messages: Array, options: Dictionary = {}) -> Dictionary:
 	var message: Variant = (first as Dictionary)["message"]
 	if not (message is Dictionary) or not (message as Dictionary).has("content"):
 		return _err(-4, "响应缺少 choices[0].message.content")
+	var content := _extract_message_content(message as Dictionary)
+	if content.strip_edges().is_empty():
+		return _err(-4, _empty_content_error(data, first as Dictionary, message as Dictionary))
 
 	return {
 		"ok": true,
-		"text": str((message as Dictionary)["content"]),
+		"text": content,
 		"raw": data,
 	}
 
@@ -167,6 +193,51 @@ func _extract_error_message(parsed: Variant, fallback_body: String) -> String:
 	if fallback_body.length() > 200:
 		return fallback_body.substr(0, 200) + "..."
 	return fallback_body
+
+
+func _apply_thinking_option(body_dict: Dictionary) -> void:
+	if body_dict.has("thinking"):
+		return
+	var normalized := thinking_type.strip_edges().to_lower()
+	if normalized.is_empty():
+		return
+	if normalized != "enabled" and normalized != "disabled":
+		push_warning("[LLM] thinking_type 只支持 enabled/disabled/空字符串，当前值=%s；已按 disabled 处理" % thinking_type)
+		normalized = "disabled"
+	body_dict["thinking"] = {"type": normalized}
+
+
+func _extract_message_content(message: Dictionary) -> String:
+	var content_v: Variant = message.get("content", "")
+	if content_v is Array:
+		var parts: Array[String] = []
+		for part in content_v:
+			if part is Dictionary:
+				var part_dict := part as Dictionary
+				if part_dict.get("type", "") == "text" and part_dict.has("text"):
+					parts.append(str(part_dict["text"]))
+			elif part is String:
+				parts.append(part)
+		return "".join(parts)
+	return str(content_v)
+
+
+func _empty_content_error(data: Dictionary, first: Dictionary, message: Dictionary) -> String:
+	var keys: Array[String] = []
+	for key in message.keys():
+		keys.append(str(key))
+	keys.sort()
+	var raw_preview := JSON.stringify({
+		"choices": data.get("choices", []),
+		"usage": data.get("usage", {}),
+	})
+	raw_preview = raw_preview.replace("\n", " ").left(800)
+	return "响应 content 为空 finish_reason=%s message_keys=%s usage=%s raw=%s" % [
+		str(first.get("finish_reason", "")),
+		",".join(keys),
+		str(data.get("usage", {})),
+		raw_preview,
+	]
 
 
 # ─────────────────────────────────────────────
@@ -227,6 +298,16 @@ func is_streaming() -> bool:
 	return _stream_busy
 
 
+func _wait_stream_frame(my_token: int) -> bool:
+	if my_token != _stream_token or not is_inside_tree():
+		return false
+	var tree := get_tree()
+	if tree == null:
+		return false
+	await tree.process_frame
+	return my_token == _stream_token and is_inside_tree()
+
+
 ## SSE 主循环。token 比对随时让旧协程退出，避免 abort 后还残留 emit。
 func _run_stream_loop(my_token: int, hp: Dictionary, messages: Array, options: Dictionary) -> void:
 	# 1) 等连接
@@ -236,7 +317,9 @@ func _run_stream_loop(my_token: int, hp: Dictionary, messages: Array, options: D
 		if my_token != _stream_token:
 			return
 		_stream_http.poll()
-		await get_tree().process_frame
+		var wait_connected: bool = await _wait_stream_frame(my_token)
+		if not wait_connected:
+			return
 	if my_token != _stream_token:
 		return
 	if _stream_http == null or _stream_http.get_status() != HTTPClient.STATUS_CONNECTED:
@@ -259,6 +342,7 @@ func _run_stream_loop(my_token: int, hp: Dictionary, messages: Array, options: D
 		var extra: Dictionary = options["extra_body"]
 		for key in extra:
 			body_dict[key] = extra[key]
+	_apply_thinking_option(body_dict)
 	var body := JSON.stringify(body_dict)
 	var headers := PackedStringArray([
 		"Content-Type: application/json",
@@ -276,7 +360,9 @@ func _run_stream_loop(my_token: int, hp: Dictionary, messages: Array, options: D
 		if my_token != _stream_token:
 			return
 		_stream_http.poll()
-		await get_tree().process_frame
+		var wait_response: bool = await _wait_stream_frame(my_token)
+		if not wait_response:
+			return
 	if my_token != _stream_token:
 		return
 	if _stream_http == null:
@@ -294,7 +380,9 @@ func _run_stream_loop(my_token: int, hp: Dictionary, messages: Array, options: D
 				return
 			_stream_http.poll()
 			err_bytes.append_array(_stream_http.read_response_body_chunk())
-			await get_tree().process_frame
+			var wait_error_body: bool = await _wait_stream_frame(my_token)
+			if not wait_error_body:
+				return
 		var err_text := err_bytes.get_string_from_utf8()
 		var parsed: Variant = JSON.parse_string(err_text) if not err_text.is_empty() else null
 		_emit_stream_finished(false, "HTTP %d: %s" % [rcode, _extract_error_message(parsed, err_text)])
@@ -312,7 +400,9 @@ func _run_stream_loop(my_token: int, hp: Dictionary, messages: Array, options: D
 			if not _stream_busy or my_token != _stream_token:
 				return
 		else:
-			await get_tree().process_frame
+			var wait_body: bool = await _wait_stream_frame(my_token)
+			if not wait_body:
+				return
 
 	# 6) 服务端没发 [DONE] 就把连接关了——也算自然结束
 	if my_token == _stream_token and _stream_busy:

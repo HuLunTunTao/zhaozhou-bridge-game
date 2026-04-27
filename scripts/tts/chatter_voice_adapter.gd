@@ -43,7 +43,7 @@ var _stream_token: int = 0
 func _build_bracket_re() -> RegEx:
 	if _bracket_re == null:
 		_bracket_re = RegEx.new()
-		_bracket_re.compile("[（(][^（）()]*[)）]")
+		_bracket_re.compile("[（(<＜][^（）()<>＜＞]*[)）>＞]")
 	return _bracket_re
 
 
@@ -88,35 +88,46 @@ func _configure_client(client: Node) -> void:
 
 ## 串行播一句。trigger_kind 决定 emotion / speech_rate 等"上下文适配"。
 ## 调用方先不 await，开对话框时再 await streaming_done 等收尾。
-func speak(unit: Node, text: String, trigger_kind: String = "") -> void:
+## context.llm_ok=false 表示这是 LLM 失败后的文本兜底，用于把 LLM/TTS 组合故障打到日志里。
+func speak(unit: Node, text: String, trigger_kind: String = "", context: Dictionary = {}) -> void:
 	_speak_token += 1
 	var my_token := _speak_token
-	# 先剥离动作描写括号；如果全是括号动作（剥完为空）→ 跳过 TTS，让显示路径自己计时收尾。
-	var clean_text := _sanitize_for_tts(text)
-	if clean_text.is_empty():
-		streaming_done.emit()
-		return
+	var llm_ok: bool = bool(context.get("llm_ok", true))
+	var source: String = String(context.get("source", "llm"))
+	var llm_code: String = String(context.get("llm_code", ""))
+	var llm_error: String = String(context.get("llm_error", ""))
 	# 解析 unit_id（用于 fallback 查表）
 	var unit_id: String = ""
 	if unit is Unit and (unit as Unit).unit_data != null:
 		unit_id = String((unit as Unit).unit_data.unit_id)
+	# 先剥离动作描写括号；如果全是括号动作（剥完为空）→ 跳过 TTS，让显示路径自己计时收尾。
+	var clean_text := _sanitize_for_tts(text)
+	if clean_text.is_empty():
+		_log_chatter_audio_fallback(unit, unit_id, trigger_kind, clean_text, llm_ok, source, "tts_text_empty", "silent", llm_code, llm_error)
+		streaming_done.emit()
+		return
+	var fallback_kind: String = ""
 	if _player == null:
-		await _fallback_voice(unit_id, clean_text)
+		fallback_kind = await _fallback_voice(unit_id, clean_text)
+		_log_chatter_audio_fallback(unit, unit_id, trigger_kind, clean_text, llm_ok, source, "tts_player_missing", fallback_kind, llm_code, llm_error)
 		streaming_done.emit()
 		return
 	if unit_id.is_empty():
-		await _fallback_voice(unit_id, clean_text)
+		fallback_kind = await _fallback_voice(unit_id, clean_text)
+		_log_chatter_audio_fallback(unit, unit_id, trigger_kind, clean_text, llm_ok, source, "unit_id_missing", fallback_kind, llm_code, llm_error)
 		streaming_done.emit()
 		return
 	var u := unit as Unit
 	var voice_cfg: Dictionary = VoiceMappingScript.get_voice(u.unit_data.unit_id, u.unit_data.camp)
 	var voice: String = voice_cfg.get("voice", "")
 	if voice.is_empty():
-		await _fallback_voice(unit_id, clean_text)
+		fallback_kind = await _fallback_voice(unit_id, clean_text)
+		_log_chatter_audio_fallback(unit, unit_id, trigger_kind, clean_text, llm_ok, source, "voice_missing", fallback_kind, llm_code, llm_error)
 		streaming_done.emit()
 		return
 	if ApiConfig.TTS_API_KEY.is_empty():
-		await _fallback_voice(unit_id, clean_text)
+		fallback_kind = await _fallback_voice(unit_id, clean_text)
+		_log_chatter_audio_fallback(unit, unit_id, trigger_kind, clean_text, llm_ok, source, "tts_api_key_missing", fallback_kind, llm_code, llm_error)
 		streaming_done.emit()
 		return
 
@@ -127,7 +138,13 @@ func speak(unit: Node, text: String, trigger_kind: String = "") -> void:
 		return
 	if not ok:
 		push_warning("[TTS] 火山合成失败 unit=%s voice=%s text=%s" % [unit_id, voice, clean_text.left(40)])
-		await _fallback_voice(unit_id, clean_text)
+		fallback_kind = await _fallback_voice(unit_id, clean_text)
+		_log_chatter_audio_fallback(unit, unit_id, trigger_kind, clean_text, llm_ok, source, "volcengine_failed", fallback_kind, llm_code, llm_error)
+		streaming_done.emit()
+	elif not llm_ok:
+		print("[ChatterFallback][LLM_ONLY] unit=%s trigger=%s source=%s llm_code=%s llm_error=%s fallback=persona_text+volc_tts text=%s" % [
+			unit_id, trigger_kind, source, llm_code, llm_error.left(120), clean_text.left(60),
+		])
 	# _player 的 speak_finished 已经把 streaming_done emit 了
 
 
@@ -146,7 +163,7 @@ func cancel() -> void:
 
 
 func is_streaming() -> bool:
-	return _player != null and _player.is_speaking()
+	return (_player != null and _player.is_speaking()) or (_fallback_player != null and _fallback_player.playing)
 
 
 # ─────────────────────────────────────────────
@@ -339,7 +356,7 @@ func _hp_percent(unit: Node) -> int:
 ## 失败兜底链入口：火山失败 / api_key 空 / voice 空 / unit 无 unit_data 等情况都进这里。
 ## 优先级：pre-baked MP3 (TtsFallbackIndex) → OS TTS (DisplayServer.tts_speak) → 静默
 ## 文本 text 应已经过 _sanitize_for_tts；unit_id 为空时跳过查表直接走 OS TTS。
-func _fallback_voice(unit_id: String, text: String) -> void:
+func _fallback_voice(unit_id: String, text: String) -> String:
 	if unit_id != "":
 		var pre: AudioStream = TtsFallbackIndex.get_fallback_audio(unit_id, text)
 		if pre != null:
@@ -351,19 +368,54 @@ func _fallback_voice(unit_id: String, text: String) -> void:
 			_fallback_player.stream = pre
 			_fallback_player.play()
 			await _fallback_player.finished
-			return
-	push_warning("[TTS fallback] 降级 OS TTS unit=%s text=%s" % [unit_id, text.left(40)])
-	_maybe_speak_via_system_tts(text)
+			return "pre_baked_mp3"
+	if _maybe_speak_via_system_tts(text):
+		push_warning("[TTS fallback] 降级 OS TTS unit=%s text=%s" % [unit_id, text.left(40)])
+		return "os_tts"
+	push_warning("[TTS fallback] 无可用语音兜底 unit=%s text=%s" % [unit_id, text.left(40)])
+	return "silent"
 
 
 ## 系统 TTS 兜底：火山合成失败时由 OS 把文本读出来。
-func _maybe_speak_via_system_tts(text: String) -> void:
+func _maybe_speak_via_system_tts(text: String) -> bool:
 	if not use_system_tts_fallback or text.is_empty():
-		return
+		return false
 	if not DisplayServer.has_feature(DisplayServer.FEATURE_TEXT_TO_SPEECH):
-		return
+		return false
 	var voices: Array = DisplayServer.tts_get_voices_for_language("zh")
 	if voices.is_empty():
-		return
+		return false
 	var voice_id: String = voices[0]
 	DisplayServer.tts_speak(text, voice_id, 50, 1.0, 1.0, 0, true)
+	return true
+
+
+func _log_chatter_audio_fallback(
+		unit: Node,
+		unit_id: String,
+		trigger_kind: String,
+		text: String,
+		llm_ok: bool,
+		source: String,
+		tts_error: String,
+		fallback_kind: String,
+		llm_code: String = "",
+		llm_error: String = "",
+	) -> void:
+	var unit_name := unit_id
+	if unit is Unit and (unit as Unit).combat_stats != null:
+		unit_name = (unit as Unit).combat_stats.unit_name
+	var tag := "TTS_ONLY" if llm_ok else "LLM_AND_TTS"
+	var fallback_desc := "llm_text+%s" % fallback_kind if llm_ok else "persona_text+%s" % fallback_kind
+	push_warning("[ChatterFallback][%s] unit=%s unit_id=%s trigger=%s source=%s llm_code=%s llm_error=%s tts_error=%s fallback=%s text=%s" % [
+		tag,
+		unit_name,
+		unit_id,
+		trigger_kind,
+		source,
+		llm_code,
+		llm_error.left(120),
+		tts_error,
+		fallback_desc,
+		text.left(60),
+	])
