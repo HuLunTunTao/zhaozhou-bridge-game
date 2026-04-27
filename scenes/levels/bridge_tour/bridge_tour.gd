@@ -40,6 +40,8 @@ const QA_TARGET := 4
 const NEIGHBOR_INTERJECT_PROB := 0.4
 const NEIGHBOR_INTERJECT_RANGE := 5
 const HERO_INFINITE_AP := 99999
+const NPC_ROAM_INTERVAL_MIN := 6.0 # NPC 闲逛时间间隔下限
+const NPC_ROAM_INTERVAL_MAX := 10.0 # NPC 闲逛时间间隔上限
 
 # ── 头顶图标颜色 ──
 const _ICON_PERSUADE := Color(0.45, 0.7, 1.0)         # 蓝
@@ -295,8 +297,10 @@ func _spawn_npc(spec: Dictionary) -> Unit:
 	# RoamingAI
 	var ai := _RoamingAIScript.new()
 	ai.name = "RoamingAI"
-	unit.add_child(ai)
+	ai.move_interval_min = float(spec.get("roam_interval_min", NPC_ROAM_INTERVAL_MIN))
+	ai.move_interval_max = float(spec.get("roam_interval_max", NPC_ROAM_INTERVAL_MAX))
 	ai.setup(unit, self, spec["roam_mode"], spec.get("waypoints", []))
+	unit.add_child(ai)
 	_npcs.append(unit)
 	# 头顶图标
 	_refresh_npc_icon(unit)
