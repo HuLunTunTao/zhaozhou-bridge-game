@@ -172,7 +172,7 @@ func _build_elements() -> String:
 	s += "1. 乘上本次触发化势的倍率（见下）。\n"
 	s += "2. 施术者带" + DescriptionFormatter.format("攻衰") + "再乘 0.8。\n"
 	s += "3. 目标带" + DescriptionFormatter.format("脆裂") + "再乘 1.2，脆裂在本次命中后消耗。\n"
-	s += "4. 目标带" + DescriptionFormatter.format("护持") + "扣除固定 12 点伤害，护持在本次命中后消耗。\n"
+	s += "4. 目标带" + DescriptionFormatter.format("护持") + "扣除固定 16 点伤害，护持在本次命中后消耗。\n"
 	s += "5. 部分化势追加一段额外伤害（如" + DescriptionFormatter.format("遏流") + "追加目标最大 HP 的 15%，上限为攻击力的 2 倍）。\n\n"
 
 	s += _hdr("五行属性") + "\n"
@@ -263,7 +263,7 @@ func _build_tips() -> String:
 	s += DescriptionFormatter.format("• 脆裂") + " — 下次受伤 ×1.20，命中一次后消耗\n"
 	s += DescriptionFormatter.format("• 剖隙") + " — 被击退 / 冲撞时多承受攻击力 ×0.50 伤害\n\n"
 	s += _sub("增益 / 步态") + "\n"
-	s += DescriptionFormatter.format("• 护持") + " — 下次受伤 -12，抗位移（最多被推 1 格），一次后消耗\n"
+	s += DescriptionFormatter.format("• 护持") + " — 下次受伤 -16，抗位移（最多被推 1 格），一次后消耗\n"
 	s += DescriptionFormatter.format("• 稳步") + " — 进浅水额外 -4 AP，首次被击退距离 -1\n"
 	s += DescriptionFormatter.format("• 迟步 / 迟滞") + " — 每走 1 格额外 +2 AP"
 	return s

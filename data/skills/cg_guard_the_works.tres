@@ -10,4 +10,6 @@ skill_type = 1
 ap_cost = 30
 extra_effect_id = "guarded_cover"
 duration_turns = 2
-description = "为相邻友军赋予护持 2 回合，下次受击减伤。"
+description = "为邻接 4 格的所有友军赋予护持 2 回合，下次受击减伤。"
+cast_offsets = Array[Vector2i]([Vector2i(0, 0)])
+effect_offsets = Array[Vector2i]([Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)])

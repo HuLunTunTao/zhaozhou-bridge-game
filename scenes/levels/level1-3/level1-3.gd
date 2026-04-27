@@ -252,8 +252,17 @@ func _on_skill_executed(caster: Unit, skill: SkillData, cast_cell: Vector2i, exe
 	# 李春墨绳校券：命中左/右券台 2×2 → 命中侧 +1，同时对侧 -1（左右调拨）。
 	# 总和不变，但能瞬间矫正失衡，让玩家有手段把扰券侧的扣减"挪"到富余侧。
 	if caster == _li_chun and skill.skill_id == "lc_inkline_balance_arch":
-		# 命中拱冠点 → 收缝合龙（替代旧的"走到拱冠点自动触发"逻辑）
-		if cast_cell == _crown_point:
+		# DEBUG: 把关键值都打出来，方便排查"对合龙点没反应"问题
+		print("[Level1-3] 墨绳校券触发: caster.cell=%s cast_cell=%s _crown_point=%s left=%s right=%s" % [
+			caster.cell, cast_cell, _crown_point, _left_platform, _right_platform,
+		])
+		Notify.notify(
+			"DEBUG 墨绳校券: 站位%s 目标%s 拱冠%s" % [caster.cell, cast_cell, _crown_point],
+			Notify.Position.TOP_CENTER, Notify.Style.INFO, 4.0,
+		)
+		# 命中拱冠点 / 站在拱冠点上自施 → 收缝合龙
+		# 同时支持两种交互习惯：李春站到中央紫格上自施 OR 站在附近瞄准紫格
+		if caster.cell == _crown_point or cast_cell == _crown_point:
 			if _close_arch_conditions_met():
 				_close_arch_via_skill()
 			else:

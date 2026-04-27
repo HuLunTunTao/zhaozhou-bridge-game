@@ -22,7 +22,7 @@ const BOSS_CELL := Vector2i(-12, -12)
 const ENEMY_SPAWN_ANCHORS: Array[Vector2i] = [Vector2i(13, -24), Vector2i(10, -19)]
 
 const SUMMON_CYCLE: Array[StringName] = [
-	&"循旧匠首", &"高拱幻影", &"循旧匠首", &"循旧匠首", &"重墩石像",
+	&"循旧匠首", &"高拱幻影", &"循旧匠首", &"重墩石像",
 ]
 
 # ── 敌方颜色（沿用 1-1 的视觉惯例） ──
@@ -587,11 +587,11 @@ func _on_stage_hp_changed(unit: Unit, old_hp: int, new_hp: int) -> void:
 func _spawn_minion(kind: StringName, cell: Vector2i) -> Unit:
 	match kind:
 		&"循旧匠首":
-			return _spawn_enemy(_rule_guard_data, "循旧匠首", 84, 20, 90, 9, cell, [_mallet], null)
+			return _spawn_enemy(_rule_guard_data, "循旧匠首", 84, 17, 90, 9, cell, [_mallet], null)
 		&"高拱幻影":
-			return _spawn_enemy(_high_arch_data, "高拱幻影", 76, 18, 90, 8, cell, [_pull], _high_arch_visual)
+			return _spawn_enemy(_high_arch_data, "高拱幻影", 76, 15, 90, 8, cell, [_pull], _high_arch_visual)
 		&"重墩石像":
-			return _spawn_enemy(_heavy_pier_data, "重墩石像", 120, 16, 85, 14, cell, [_crush], null, Enums.Element.EARTH, 2)
+			return _spawn_enemy(_heavy_pier_data, "重墩石像", 120, 13, 85, 14, cell, [_crush], null, Enums.Element.EARTH, 2)
 		_:
 			return null
 

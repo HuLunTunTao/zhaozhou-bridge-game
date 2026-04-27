@@ -108,9 +108,9 @@ static func resolve_hit(attacker: CombatStats, target: CombatStats, skill: Skill
 	for s in target.statuses:
 		if s.status_id == "guarded_cover" and not s.triggered:
 			var before := final_damage
-			final_damage = maxi(final_damage - 12, 0)
+			final_damage = maxi(final_damage - 16, 0)
 			s.triggered = true
-			CombatLog.msg("    状态【护持】: 减伤12 (%s 伤害 %d → %d)" % [target.unit_name, before, final_damage])
+			CombatLog.msg("    状态【护持】: 减伤16 (%s 伤害 %d → %d)" % [target.unit_name, before, final_damage])
 
 	# 7. 化势附加伤害
 	var bonus := 0
