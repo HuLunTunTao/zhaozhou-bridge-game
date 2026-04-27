@@ -125,14 +125,14 @@ func _render_goal(goal: Dictionary) -> void:
 	_goal_hint.visible = not lines.is_empty()
 
 
-## 显示本次 NPC 会话的历史。log 数组每条 {player: String, npc: String, ...}；
+## 显示本次 NPC 会话的历史。log 数组每条 {question?: String, player: String, npc: String, ...}；
 ## 超过 HISTORY_MAX 条只显示最近 N 条；空数组则隐藏整个 history 区。
-func set_history(log: Array) -> void:
+func set_history(history_log: Array) -> void:
 	if not is_inside_tree() or _history_list == null:
-		_pending_history = log.duplicate()
+		_pending_history = history_log.duplicate()
 		_has_pending_history = true
 		return
-	_render_history(log)
+	_render_history(history_log)
 
 
 func _render_learned(learned: Array, used: Array) -> void:
@@ -159,7 +159,7 @@ func _render_learned(learned: Array, used: Array) -> void:
 	_learned_hint.text = "[color=#7a8062]已学：[/color] " + " · ".join(parts)
 
 
-func _render_history(log: Array) -> void:
+func _render_history(history_log: Array) -> void:
 	if _history_list == null or _history_scroll == null:
 		return
 	# 清掉之前 duplicate 出来的子（保留 2 个 template）
@@ -167,29 +167,36 @@ func _render_history(log: Array) -> void:
 		if child == _player_template or child == _npc_template:
 			continue
 		child.queue_free()
-	if log.is_empty():
+	if history_log.is_empty():
 		_history_scroll.visible = false
 		return
 	_history_scroll.visible = true
 	# 截最近 HISTORY_MAX 条
-	var start: int = maxi(0, log.size() - HISTORY_MAX)
-	for i in range(start, log.size()):
-		var entry: Dictionary = log[i] if log[i] is Dictionary else {}
+	var start: int = maxi(0, history_log.size() - HISTORY_MAX)
+	for i in range(start, history_log.size()):
+		var entry: Dictionary = history_log[i] if history_log[i] is Dictionary else {}
+		var question_text := String(entry.get("question", "")).strip_edges()
 		var player_text := String(entry.get("player", "")).strip_edges()
 		var npc_text := String(entry.get("npc", "")).strip_edges()
 		var npc_speaker := String(entry.get("npc_name", "TA"))
+		if not question_text.is_empty():
+			_add_npc_history_line(npc_speaker, question_text)
 		if not player_text.is_empty():
 			var p_lbl: RichTextLabel = _player_template.duplicate() as RichTextLabel
 			p_lbl.visible = true
 			p_lbl.text = "[color=#9ec3ff]我：[/color][color=#dcd6c4]%s[/color]" % player_text
 			_history_list.add_child(p_lbl)
 		if not npc_text.is_empty():
-			var n_lbl: RichTextLabel = _npc_template.duplicate() as RichTextLabel
-			n_lbl.visible = true
-			n_lbl.text = "[color=#ffd97a]%s：[/color][color=#cfd2c2]%s[/color]" % [npc_speaker, npc_text]
-			_history_list.add_child(n_lbl)
+			_add_npc_history_line(npc_speaker, npc_text)
 	# 滚到底部（下一帧再做，等子节点 layout 完成）
 	_scroll_history_to_bottom.call_deferred()
+
+
+func _add_npc_history_line(npc_speaker: String, npc_text: String) -> void:
+	var n_lbl: RichTextLabel = _npc_template.duplicate() as RichTextLabel
+	n_lbl.visible = true
+	n_lbl.text = "[color=#ffd97a]%s：[/color][color=#cfd2c2]%s[/color]" % [npc_speaker, npc_text]
+	_history_list.add_child(n_lbl)
 
 
 func _scroll_history_to_bottom() -> void:

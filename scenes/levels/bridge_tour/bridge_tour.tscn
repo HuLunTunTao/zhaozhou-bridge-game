@@ -2,9 +2,79 @@
 
 [ext_resource type="PackedScene" uid="uid://cthjtlx4i152j" path="res://scenes/levels/level1-4/level1-4.tscn" id="1_level1_4"]
 [ext_resource type="Script" uid="uid://duprdtgj6kcdq" path="res://scenes/levels/bridge_tour/bridge_tour.gd" id="2_bridge_tour"]
+[ext_resource type="PackedScene" uid="uid://d150ubnb1eitk" path="res://scenes/unit/unit.tscn" id="3_unit"]
+[ext_resource type="Resource" path="res://data/units/hero_li_chun.tres" id="4_hero_data"]
+[ext_resource type="Resource" path="res://data/units/craftsman_guard.tres" id="5_npc_data"]
+[ext_resource type="PackedScene" uid="uid://qkwxdp8ayb57" path="res://scenes/unit/visual/human/li_chun/li_chun_visual.tscn" id="6_li_chun_visual"]
+[ext_resource type="PackedScene" uid="uid://byxh2ycfe88e3" path="res://scenes/unit/visual/human/工匠/工匠_visual.tscn" id="7_craftsman_visual"]
+[ext_resource type="PackedScene" uid="uid://0vf68k1e0k18" path="res://scenes/unit/visual/human/测量工/测量工_visual.tscn" id="8_surveyor_visual"]
+[ext_resource type="PackedScene" uid="uid://7puc72kt0m1q" path="res://scenes/unit/visual/human/游学书生/游学书生_visual.tscn" id="9_5lvqh"]
+[ext_resource type="PackedScene" uid="uid://b6w2s7jcnjreo" path="res://scenes/unit/visual/human/渔夫/渔夫_visual.tscn" id="9_10ok5"]
+[ext_resource type="PackedScene" uid="uid://cbbltju52gq8r" path="res://scenes/unit/visual/human/石匠/石匠_visual.tscn" id="11_d1rhf"]
+[ext_resource type="PackedScene" uid="uid://06cpxiftg72" path="res://scenes/unit/visual/human/老监工/老监工_visual.tscn" id="11_fy34j"]
 
 [node name="BridgeTour" unique_id=869913448 instance=ExtResource("1_level1_4")]
 script = ExtResource("2_bridge_tour")
+
+[node name="Player" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="0" unique_id=1786106265]
+position = Vector2(16, 8)
+unit_data = ExtResource("4_hero_data")
+visual_scene = ExtResource("6_li_chun_visual")
+unit_color = Color(1, 0.85, 0, 1)
+
+[node name="NpcOldMaster" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="1" unique_id=1691863375 instance=ExtResource("3_unit")]
+position = Vector2(145, 25)
+unit_data = ExtResource("5_npc_data")
+visual_scene = ExtResource("7_craftsman_visual")
+unit_color = Color(0.55, 0.4, 0.3, 1)
+
+[node name="NpcRiverChief" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="2" unique_id=859859134 instance=ExtResource("3_unit")]
+position = Vector2(-96, -16)
+unit_data = ExtResource("5_npc_data")
+visual_scene = ExtResource("7_craftsman_visual")
+unit_color = Color(0.4, 0.55, 0.7, 1)
+
+[node name="NpcCourtInspector" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="3" unique_id=1068818236 instance=ExtResource("3_unit")]
+position = Vector2(160, 0)
+unit_data = ExtResource("5_npc_data")
+visual_scene = ExtResource("7_craftsman_visual")
+unit_color = Color(0.7, 0.55, 0.3, 1)
+
+[node name="NpcApprentice" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="4" unique_id=1355934735 instance=ExtResource("3_unit")]
+position = Vector2(-80, 24)
+unit_data = ExtResource("5_npc_data")
+visual_scene = ExtResource("8_surveyor_visual")
+unit_color = Color(0.5, 0.85, 0.6, 1)
+
+[node name="NpcMerchant" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="5" unique_id=751985343 instance=ExtResource("3_unit")]
+position = Vector2(96, 80)
+unit_data = ExtResource("5_npc_data")
+visual_scene = ExtResource("8_surveyor_visual")
+unit_color = Color(0.85, 0.7, 0.4, 1)
+
+[node name="NpcScholar" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="6" unique_id=1352709658 instance=ExtResource("3_unit")]
+position = Vector2(-146, 111)
+unit_data = ExtResource("5_npc_data")
+visual_scene = ExtResource("9_5lvqh")
+unit_color = Color(0.85, 0.85, 0.95, 1)
+
+[node name="NpcFisherman" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="7" unique_id=79479765 instance=ExtResource("3_unit")]
+position = Vector2(-80, 72)
+unit_data = ExtResource("5_npc_data")
+visual_scene = ExtResource("9_10ok5")
+unit_color = Color(0.55, 0.7, 0.85, 1)
+
+[node name="NpcOldOverseer" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="8" unique_id=1392289621 instance=ExtResource("3_unit")]
+position = Vector2(208, 24)
+unit_data = ExtResource("5_npc_data")
+visual_scene = ExtResource("11_fy34j")
+unit_color = Color(0.65, 0.55, 0.5, 1)
+
+[node name="NpcOldStonemason" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="9" unique_id=134183969 instance=ExtResource("3_unit")]
+position = Vector2(0, 111)
+unit_data = ExtResource("5_npc_data")
+visual_scene = ExtResource("11_d1rhf")
+unit_color = Color(0.7, 0.65, 0.55, 1)
 
 [node name="knowledge_button" type="Button" parent="GUI" parent_id_path=PackedInt32Array(256892229) index="10" unique_id=626511278]
 offset_left = 532.0

@@ -18,6 +18,7 @@ extends CanvasLayer
 @onready var _qa_count: Label = %QaCount
 @onready var _qa_list: VBoxContainer = %QaList
 @onready var _mentor_list: VBoxContainer = %MentorList
+@onready var _tip: Label = %Tip
 
 const TEXT_COLOR := Color(0.96, 0.94, 0.88)
 const DIM_COLOR := Color(0.65, 0.6, 0.5)
@@ -36,7 +37,7 @@ var _persuade_target: int = 3
 var _qa_target: int = 4
 var _persuade_done: int = 0
 var _qa_done: int = 0
-## name -> {role, label, done, stance, threshold}
+## name -> {role, label, done, stance, threshold, accum_total, accum_score, round_score, final_score}
 var _entries: Dictionary = {}
 
 
@@ -44,6 +45,7 @@ func _ready() -> void:
 	layer = 70
 	_refresh_title()
 	_refresh_counts()
+	_refresh_tip()
 
 
 func set_targets(persuade_target: int, qa_target: int) -> void:
@@ -64,7 +66,17 @@ func add_npc(role: String, npc_name: String, done: bool) -> void:
 	var parent: VBoxContainer = _list_for(role)
 	if parent:
 		parent.add_child(lbl)
-	_entries[npc_name] = {"role": role, "label": lbl, "done": false, "stance": -1, "threshold": 0}
+	_entries[npc_name] = {
+		"role": role,
+		"label": lbl,
+		"done": false,
+		"stance": -1,
+		"threshold": 0,
+		"accum_total": 0,
+		"accum_score": 0,
+		"round_score": 0,
+		"final_score": 0,
+	}
 	_render(npc_name, role, done)
 	if done:
 		_inc_count(role)
@@ -81,9 +93,17 @@ func update_npc(role: String, npc_name: String, done: bool) -> void:
 		_inc_count(role)
 
 
-## 更新 persuade NPC 的 stance 数值显示。仅 persuade 起效；qa / mentor 调用静默忽略。
+## 更新 persuade NPC 的说服进度与上轮计分。仅 persuade 起效；qa / mentor 调用静默忽略。
 ## 该 NPC 还未 add_npc 时自动注册（fallback）；threshold<=0 时 fallback 到 70。
-func update_npc_stance(npc_name: String, stance: int, threshold: int) -> void:
+func update_npc_stance(
+	npc_name: String,
+	stance: int,
+	threshold: int,
+	accum_total: int = 0,
+	accum_score: int = 0,
+	round_score: int = 0,
+	final_score: int = 0
+) -> void:
 	if not _entries.has(npc_name):
 		add_npc("persuade", npc_name, false)
 	var entry: Dictionary = _entries[npc_name]
@@ -91,6 +111,10 @@ func update_npc_stance(npc_name: String, stance: int, threshold: int) -> void:
 		return
 	entry["stance"] = stance
 	entry["threshold"] = threshold if threshold > 0 else 70
+	entry["accum_total"] = accum_total
+	entry["accum_score"] = accum_score
+	entry["round_score"] = round_score
+	entry["final_score"] = final_score
 	_render(npc_name, "persuade", bool(entry.get("done", false)))
 
 
@@ -111,7 +135,7 @@ func _render(npc_name: String, role: String, done: bool) -> void:
 			"persuade": color = PERSUADE_COLOR
 			"qa": color = QA_COLOR
 			_: color = TEXT_COLOR
-	# persuade 未说服时附加 stance 数字（已说服省略，避免和 ✓ 重复）
+	# persuade 附加进度与上轮得分：最终=累积分+本轮评分。
 	var suffix := ""
 	if role == "persuade":
 		if done:
@@ -121,6 +145,11 @@ func _render(npc_name: String, role: String, done: bool) -> void:
 			var threshold: int = int(entry.get("threshold", 0))
 			if stance >= 0 and threshold > 0:
 				suffix = "  %d/%d" % [stance, threshold]
+			var final_score: int = int(entry.get("final_score", 0))
+			var accum_score: int = int(entry.get("accum_score", 0))
+			var round_score: int = int(entry.get("round_score", 0))
+			if accum_score != 0 or round_score != 0 or final_score != 0:
+				suffix += "  %+d(累%d+本%+d)" % [final_score, accum_score, round_score]
 	lbl.text = "  %s %s%s" % [dot, npc_name, suffix]
 	lbl.add_theme_color_override("font_color", color)
 	entry["done"] = done
@@ -160,3 +189,8 @@ func _refresh_title() -> void:
 		var total_done: int = _persuade_done + _qa_done
 		var total_target: int = _persuade_target + _qa_target
 		_title.text = "桥成在望  %d / %d" % [total_done, total_target]
+
+
+func _refresh_tip() -> void:
+	if _tip:
+		_tip.text = "说服进度 += 累积分(1-5)+本轮评分"

@@ -65,7 +65,21 @@ static func build_user_prompt(persona: Dictionary, trigger_kind: String, extra: 
 		"bridge_topic_answer":
 			var raw_goal: Variant = extra.get("persuasion_goal", {})
 			var goal: Dictionary = raw_goal if raw_goal is Dictionary else {}
-			return """李春刚对你说：「%s」。你此刻在「%s」处，对新桥态度 %d/100。
+			return """李春刚对你说：「%s」。你此刻在「%s」处，对新桥说服进度 %d/70。
+
+本轮上下文（必须参考，别当背景噪音）：
+%s
+
+你和李春此前的近几轮问答：
+%s
+
+李春已学到的桥梁知识细节（只有他话里确实用上时才加分）：
+%s
+
+特殊判定：
+%s
+
+此前累积分合计：%d
 
 本轮说服目标：
 - 目标：%s
@@ -76,17 +90,30 @@ static func build_user_prompt(persona: Dictionary, trigger_kind: String, extra: 
 - 明显无效或扣分说法：%s
 
 按下面 JSON **严格输出**（仅 JSON，不要其他文字）：
-{"reply":"<一句话回答，30字内>", "stance_delta": <整数 -10..15>, "tone":"<两到四字情绪标签>", "knowledge_used":["<实际用到的知识 key>", ...], "matched_points":["<命中的说服点>", ...], "missed_points":["<仍缺的要点>", ...]}
-stance_delta 规则：
+{"reply":"<一句话回答，30字内>", "accum_score": <整数 1..5>, "round_score": <整数 -10..15>, "tone":"<两到四字情绪标签>", "knowledge_used":["<实际用到的知识 key>", ...], "matched_points":["<命中的说服点>", ...], "missed_points":["<仍缺的要点>", ...]}
+计分规则：
+  - accum_score 是累积分（1..5），表示本轮对关系、信任、上下文延续的长期推进；每轮都会累加进 NPC 的说服进度
+  - round_score 是本轮评分（-10..15），表示李春这句话当场是否切中疑虑
+  - 游戏会计算本轮最终得分 = accum_score + round_score，并加到 NPC 说服进度
+round_score 参考：
   - 回应你的核心疑虑，且论据贴合目标 → +6 到 +8
   - 明确用到推荐知识 key 或已学知识 → 每个 +2 到 +4，合计最多 +6
   - 兼顾你的身份诉求（工艺/防汛/钱粮政绩）→ +1 到 +3
   - 空泛表态、只讲情绪、没有回应疑虑 → 0
   - 明显错误、冒犯、回避风险 → -5 到 -10
+额外要求：
+  - reply 必须像是在接住李春这句话，而不是泛泛评价
+  - 如果历史里你已经指出过缺口，本轮应延续那个缺口或承认他补上了
+  - 若“特殊判定”不是“无”，reply 必须呼应该吉兆意象，并明确表达愿意支持新桥
 knowledge_used 只列李春话中确实用到的 key；没用就给空数组。""" % [
 				extra.get("topic", "?"),
 				extra.get("bridge_part", "桥上"),
 				int(extra.get("stance", 50)),
+				extra.get("mission_context", "（无）"),
+				extra.get("dialogue_history", "（无）"),
+				extra.get("learned_details", "（无）"),
+				extra.get("cheat_context", "（无）"),
+				int(extra.get("accum_total", 0)),
 				goal.get("goal", "让你支持新桥"),
 				goal.get("objection", "你仍有疑虑"),
 				goal.get("success_claim", "李春需要讲清关键工程道理"),
@@ -105,6 +132,18 @@ knowledge_used 只列李春话中确实用到的 key；没用就给空数组。"
 
 李春此关已学到的桥梁知识（key 列表，可作判分参考）：%s
 
+本轮上下文（必须参考）：
+%s
+
+你和李春此前的近几轮问答：
+%s
+
+已学知识细节（用于判断他是否真正说到点上）：
+%s
+
+特殊判定：
+%s
+
 请以你（%s）的视角判断他的回答是否切中你关心的要点。
 **严格 JSON 输出**（只输出 JSON）：
 {"is_correct": true/false, "feedback": "<一句口吻 reaction，<= 30 字>", "knowledge_used": ["<引用到的 key>", ...]}
@@ -112,10 +151,18 @@ knowledge_used 只列李春话中确实用到的 key；没用就给空数组。"
   - 切中要害（即便用词不一样）→ true，feedback 用你的口吻表示信服
   - 答非所问 / 完全不懂 → false，feedback 用你的口吻表达困惑或不满
   - 模棱两可、勉强能扯上 → 倾向 false，feedback 给个台阶让他再说
+额外要求：
+  - feedback 要针对他的答案或历史里反复卡住的点，不要套模板
+  - 如果他补上了你上轮指出的缺口，可判 true
+  - 若“特殊判定”不是“无”，feedback 必须呼应该吉兆意象，并明确表达疑问已解
 knowledge_used 给出他的回答里**确实**用到的 key（没用就给空数组），用于面板高亮。""" % [
 				extra.get("question", "?"),
 				extra.get("answer", "?"),
 				str(extra.get("learned_csv", "（无）")),
+				extra.get("mission_context", "（无）"),
+				extra.get("dialogue_history", "（无）"),
+				extra.get("learned_details", "（无）"),
+				extra.get("cheat_context", "（无）"),
 				persona.get("name", "你"),
 			]
 		"bridge_knowledge_explain":

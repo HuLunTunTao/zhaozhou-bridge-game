@@ -3,7 +3,7 @@ extends BaseLevel
 ## 验桥日 · LLM Agent 关卡。
 ##
 ## 9 个 NPC 三种 role：
-##   persuade（蓝？）：李春自由打字 → LLM 评 stance_delta，stance>=70 视为说服
+##   persuade（蓝？）：李春自由打字 → LLM 评累积分+本轮评分，进度>=70 视为说服
 ##   qa（绿？）：NPC 抛预设问题 → 李春答 → LLM 判 is_correct，对则视为解答
 ##   mentor（黄！）：李春从主题菜单选一项 → LLM 用对应史实讲解，topic_key 记入"已学"
 ##
@@ -14,6 +14,7 @@ extends BaseLevel
 const _UD_LI_CHUN := preload("res://data/units/hero_li_chun.tres")
 const _UD_NPC_TEMPLATE := preload("res://data/units/craftsman_guard.tres")
 const _SK_INTERACT := preload("res://data/skills/bridge_tour_interact.tres")
+const _VISUAL_LI_CHUN := preload("res://scenes/unit/visual/human/li_chun/li_chun_visual.tscn")
 const _VISUAL_CRAFTSMAN := preload("res://scenes/unit/visual/human/工匠/工匠_visual.tscn")
 const _VISUAL_SURVEYOR := preload("res://scenes/unit/visual/human/测量工/测量工_visual.tscn")
 
@@ -35,6 +36,10 @@ const _MissionHudScene := preload("res://scenes/levels/bridge_tour/mission_hud.t
 const _HERO_COLOR := Color(1, 0.85, 0, 1)
 const _HERO_CELL := Vector2i(0, 0)
 const STANCE_PERSUADED := 70
+const PERSUADE_ACCUM_SCORE_MIN := 1
+const PERSUADE_ACCUM_SCORE_MAX := 5
+const PERSUADE_ROUND_SCORE_MIN := -10
+const PERSUADE_ROUND_SCORE_MAX := 15
 const PERSUADE_TARGET := 3
 const QA_TARGET := 4
 const NEIGHBOR_INTERJECT_PROB := 0.4
@@ -42,6 +47,7 @@ const NEIGHBOR_INTERJECT_RANGE := 5
 const HERO_INFINITE_AP := 99999
 const NPC_ROAM_INTERVAL_MIN := 6.0 # NPC 闲逛时间间隔下限
 const NPC_ROAM_INTERVAL_MAX := 10.0 # NPC 闲逛时间间隔上限
+const CHEAT_WORDS := ["鲁班托梦", "墨线自明", "石龙点头"]
 
 # ── 头顶图标颜色 ──
 const _ICON_PERSUADE := Color(0.45, 0.7, 1.0)         # 蓝
@@ -56,7 +62,8 @@ func _get_npc_specs() -> Array[Dictionary]:
 		# ─── 说服类（3）───
 		{
 			"unit_id": "bridge_old_master", "unit_name": "老匠首", "role": "persuade",
-			"bridge_part": "主拱", "cell": Vector2i(3, 0),
+			"node_name": "NpcOldMaster",
+			"bridge_part": "主拱", "cell": Vector2i(5, -3),
 			"color": Color(0.55, 0.4, 0.3), "visual": _VISUAL_CRAFTSMAN,
 			"stance": 10, "roam_mode": _RoamingAIScript.Mode.STATIONARY, "waypoints": [],
 			"persuasion_goal": {
@@ -70,10 +77,11 @@ func _get_npc_specs() -> Array[Dictionary]:
 		},
 		{
 			"unit_id": "bridge_river_chief", "unit_name": "河工总管", "role": "persuade",
-			"bridge_part": "桥台", "cell": Vector2i(-3, 1),
+			"node_name": "NpcRiverChief",
+			"bridge_part": "桥台", "cell": Vector2i(-5, 2),
 			"color": Color(0.4, 0.55, 0.7), "visual": _VISUAL_CRAFTSMAN,
 			"stance": 40, "roam_mode": _RoamingAIScript.Mode.PATROL,
-			"waypoints": [Vector2i(-3, 1), Vector2i(-3, 3), Vector2i(-5, 3), Vector2i(-5, 1)] as Array[Vector2i],
+			"waypoint_offsets": [Vector2i(0, 0), Vector2i(0, 1), Vector2i(1, 1), Vector2i(1, 0)] as Array[Vector2i],
 			"persuasion_goal": {
 				"goal": "让河工总管相信新桥能经受汛期怒水，不会因单孔大跨而冲台毁桥。",
 				"objection": "他担心洪水顶拱、堵水、淘空桥台，要求看到泄洪和基础的硬道理。",
@@ -85,10 +93,11 @@ func _get_npc_specs() -> Array[Dictionary]:
 		},
 		{
 			"unit_id": "bridge_court_inspector", "unit_name": "朝廷视察官", "role": "persuade",
-			"bridge_part": "桥面中心", "cell": Vector2i(1, -2),
+			"node_name": "NpcCourtInspector",
+			"bridge_part": "桥面中心", "cell": Vector2i(4, -5),
 			"color": Color(0.7, 0.55, 0.3), "visual": _VISUAL_CRAFTSMAN,
 			"stance": 30, "roam_mode": _RoamingAIScript.Mode.PATROL,
-			"waypoints": [Vector2i(1, -2), Vector2i(2, -2), Vector2i(2, -1), Vector2i(1, -1)] as Array[Vector2i],
+			"waypoint_offsets": [Vector2i(0, 0), Vector2i(1, 0), Vector2i(1, 1), Vector2i(0, 1)] as Array[Vector2i],
 			"persuasion_goal": {
 				"goal": "让朝廷视察官认可新桥不是炫技，而是省工、省料、通商、可成政绩的稳当工程。",
 				"objection": "他怕新法不可控，拖工期、耗钱粮，最后让官府背责。",
@@ -101,34 +110,39 @@ func _get_npc_specs() -> Array[Dictionary]:
 		# ─── 解答类（4）───
 		{
 			"unit_id": "bridge_apprentice", "unit_name": "学徒工", "role": "qa",
-			"bridge_part": "小拱", "cell": Vector2i(-1, 2),
+			"node_name": "NpcApprentice",
+			"bridge_part": "小拱", "cell": Vector2i(-2, 4),
 			"color": Color(0.5, 0.85, 0.6), "visual": _VISUAL_SURVEYOR,
 			"roam_mode": _RoamingAIScript.Mode.RANDOM_WALK, "waypoints": [],
 		},
 		{
 			"unit_id": "bridge_merchant", "unit_name": "商旅过客", "role": "qa",
-			"bridge_part": "桥头", "cell": Vector2i(4, 2),
+			"node_name": "NpcMerchant",
+			"bridge_part": "桥头", "cell": Vector2i(7, 2),
 			"color": Color(0.85, 0.7, 0.4), "visual": _VISUAL_SURVEYOR,
 			"roam_mode": _RoamingAIScript.Mode.PATROL,
-			"waypoints": [Vector2i(4, 2), Vector2i(5, 2), Vector2i(5, 3), Vector2i(4, 3)] as Array[Vector2i],
+			"waypoint_offsets": [Vector2i(0, 0), Vector2i(1, 0), Vector2i(1, 1), Vector2i(0, 1)] as Array[Vector2i],
 		},
 		{
 			"unit_id": "bridge_scholar", "unit_name": "游学书生", "role": "qa",
-			"bridge_part": "望柱栏板", "cell": Vector2i(-4, -1),
+			"node_name": "NpcScholar",
+			"bridge_part": "望柱栏板", "cell": Vector2i(-8, -3),
 			"color": Color(0.85, 0.85, 0.95), "visual": _VISUAL_SURVEYOR,
 			"roam_mode": _RoamingAIScript.Mode.RANDOM_WALK, "waypoints": [],
 		},
 		{
 			"unit_id": "bridge_fisherman", "unit_name": "渔夫", "role": "qa",
-			"bridge_part": "桥下河滩", "cell": Vector2i(0, 4),
+			"node_name": "NpcFisherman",
+			"bridge_part": "桥下河滩", "cell": Vector2i(1, 7),
 			"color": Color(0.55, 0.7, 0.85), "visual": _VISUAL_SURVEYOR,
 			"roam_mode": _RoamingAIScript.Mode.PATROL,
-			"waypoints": [Vector2i(0, 4), Vector2i(1, 4), Vector2i(1, 5), Vector2i(0, 5)] as Array[Vector2i],
+			"waypoint_offsets": [Vector2i(0, 0), Vector2i(1, 0), Vector2i(1, -1), Vector2i(0, -1)] as Array[Vector2i],
 		},
 		# ─── 求教类（2）───
 		{
 			"unit_id": "bridge_old_overseer", "unit_name": "老监工", "role": "mentor",
-			"bridge_part": "桥头远处", "cell": Vector2i(5, -3),
+			"node_name": "NpcOldOverseer",
+			"bridge_part": "桥头远处", "cell": Vector2i(7, -5),
 			"color": Color(0.65, 0.55, 0.5), "visual": _VISUAL_CRAFTSMAN,
 			"roam_mode": _RoamingAIScript.Mode.STATIONARY, "waypoints": [],
 			# 老监工偏全局：拱形 / 时代 / 旧制
@@ -136,7 +150,8 @@ func _get_npc_specs() -> Array[Dictionary]:
 		},
 		{
 			"unit_id": "bridge_old_stonemason", "unit_name": "老石匠", "role": "mentor",
-			"bridge_part": "石作工棚", "cell": Vector2i(-2, -3),
+			"node_name": "NpcOldStonemason",
+			"bridge_part": "石作工棚", "cell": Vector2i(-6, -5),
 			"color": Color(0.7, 0.65, 0.55), "visual": _VISUAL_CRAFTSMAN,
 			"roam_mode": _RoamingAIScript.Mode.STATIONARY, "waypoints": [],
 			# 老石匠偏材料 / 桥券 / 桥台 / 装饰
@@ -171,23 +186,31 @@ func _get_voice() -> Node:
 
 
 func get_teams_config() -> Array:
-	if has_node("Entities/Units"):
-		for child in $"Entities/Units".get_children():
-			$"Entities/Units".remove_child(child)
-			child.queue_free()
+	var hero_unit := _get_static_unit("Player")
+	var npc_units: Array[Unit] = []
+	for spec in _get_npc_specs():
+		var npc := _get_static_unit(String(spec.get("node_name", "")))
+		if npc != null:
+			npc_units.append(npc)
 	return [
-		{"name": "玩家", "faction": "好人", "controller": "player", "units": []},
-		{"name": "桥上众人", "faction": "好人", "controller": "ai", "units": []},
+		{"name": "玩家", "faction": "好人", "controller": "player", "units": [hero_unit] if hero_unit != null else []},
+		{"name": "桥上众人", "faction": "好人", "controller": "ai", "units": npc_units},
 	]
+
+
+func _get_static_unit(node_name: String) -> Unit:
+	if node_name.is_empty() or not has_node("Entities/Units/%s" % node_name):
+		return null
+	return get_node("Entities/Units/%s" % node_name) as Unit
 
 
 func get_objectives_text() -> Dictionary:
 	# 进入时显示 BRIEFING——和别的关卡一样
 	return {
 		"victory": [
-			"说服 3 名持疑者支持新桥 — 头顶 [color=#7ab2ff]?[/color] 即可对话",
-			"为 4 名疑问者解答桥梁问题 — 头顶 [color=#73f28c]?[/color] 即可对话",
-			"如果不知道答案，向头顶 [color=#ffd24a]![/color] 的工地长辈求教",
+			"说服 3 名持疑者支持新桥 — 头顶 [color=#7ab2ff]蓝色名字[/color] 即可对话",
+			"为 4 名疑问者解答桥梁问题 — 头顶 [color=#73f28c]绿色名字[/color] 即可对话",
+			"如果不知道答案，向头顶 [color=#ffd24a]黄色名字[/color] 的工地长辈求教",
 			"也可以随时打开右上的「桥梁知识」按钮翻阅",
 		],
 		"defeat": [],
@@ -228,15 +251,27 @@ func _on_level_ready() -> void:
 	if _turn_label: _turn_label.visible = false
 	if _round_label: _round_label.visible = false
 	if _end_turn_button: _end_turn_button.visible = false
-	# 起手 spawn 李春
-	var li_chun := spawn_unit(_UD_LI_CHUN, _HERO_CELL, 0)
-	li_chun.unit_color = _HERO_COLOR
+	# 角色位置在 tscn 中静态摆放；脚本只补运行时数据、技能、AI 与头顶姓名牌。
+	var li_chun := _get_team_unit(0, 0)
+	if li_chun == null:
+		push_error("BridgeTour: missing static hero unit at Entities/Units/Player")
+		return
+	var hero_visual := li_chun.visual_scene if li_chun.visual_scene != null else _VISUAL_LI_CHUN
+	li_chun.apply_runtime_setup(_UD_LI_CHUN, hero_visual, _HERO_COLOR)
 	setup_unit_stats(li_chun, "李春", 130, 24, HERO_INFINITE_AP, 6, Enums.Element.NONE, 0, true)
 	hero = li_chun
 	set_unit_skills(li_chun, [_SK_INTERACT])
-	# Spawn NPCs
-	for spec in _get_npc_specs():
-		_spawn_npc(spec)
+	li_chun.set_overhead_name_label("李春", _HERO_COLOR)
+	# 初始化 tscn 静态摆放的 NPC。
+	_npcs.clear()
+	var npc_specs := _get_npc_specs()
+	for i in range(npc_specs.size()):
+		var spec := npc_specs[i]
+		var npc := _find_team_unit_by_node_name(1, String(spec.get("node_name", "")))
+		if npc == null:
+			push_error("BridgeTour: missing static NPC node '%s'" % String(spec.get("node_name", "")))
+			continue
+		_setup_npc(npc, spec)
 	# Mission HUD（左上）
 	_mission_hud = _MissionHudScene.instantiate()
 	add_child(_mission_hud)
@@ -256,6 +291,25 @@ func _on_level_ready() -> void:
 	_select_hero_silently()
 
 
+func _get_team_unit(team_idx: int, unit_idx: int) -> Unit:
+	if team_idx < 0 or team_idx >= teams.size():
+		return null
+	var team: TeamData = teams[team_idx]
+	if unit_idx < 0 or unit_idx >= team.units.size():
+		return null
+	return team.units[unit_idx] as Unit
+
+
+func _find_team_unit_by_node_name(team_idx: int, node_name: String) -> Unit:
+	if team_idx < 0 or team_idx >= teams.size():
+		return null
+	var team: TeamData = teams[team_idx]
+	for unit in team.units:
+		if is_instance_valid(unit) and unit is Unit and unit.name == node_name:
+			return unit as Unit
+	return null
+
+
 func _select_hero_silently() -> void:
 	if hero == null or not (hero is Unit):
 		return
@@ -266,14 +320,15 @@ func _select_hero_silently() -> void:
 	selection_changed.emit(hero)
 
 
-func _spawn_npc(spec: Dictionary) -> Unit:
+func _setup_npc(unit: Unit, spec: Dictionary) -> Unit:
 	var data: UnitData = _UD_NPC_TEMPLATE.duplicate()
 	data.resource_local_to_scene = true
 	data.unit_id = spec["unit_id"]
 	data.unit_name = spec["unit_name"]
 	data.skills = []
-	var unit := spawn_unit(data, spec["cell"], 1, spec["visual"])
-	unit.unit_color = spec["color"]
+	var visual: PackedScene = unit.visual_scene if unit.visual_scene != null else spec.get("visual", null)
+	var color: Color = spec.get("color", Color.WHITE)
+	unit.apply_runtime_setup(data, visual, color)
 	# NPC 元数据
 	var role: String = String(spec.get("role", "persuade"))
 	unit.set_meta("npc_role", role)
@@ -282,6 +337,10 @@ func _spawn_npc(spec: Dictionary) -> Unit:
 	if role == "persuade":
 		var stance: int = int(spec.get("stance", 50))
 		unit.set_meta("npc_stance", stance)
+		unit.set_meta("npc_accum_score_total", 0)
+		unit.set_meta("npc_last_accum_score", 0)
+		unit.set_meta("npc_last_round_score", 0)
+		unit.set_meta("npc_last_final_score", 0)
 		unit.set_meta("npc_persuaded", stance >= STANCE_PERSUADED)
 		unit.set_meta("npc_persuasion_goal", spec.get("persuasion_goal", {}))
 	elif role == "qa":
@@ -299,30 +358,46 @@ func _spawn_npc(spec: Dictionary) -> Unit:
 	ai.name = "RoamingAI"
 	ai.move_interval_min = float(spec.get("roam_interval_min", NPC_ROAM_INTERVAL_MIN))
 	ai.move_interval_max = float(spec.get("roam_interval_max", NPC_ROAM_INTERVAL_MAX))
-	ai.setup(unit, self, spec["roam_mode"], spec.get("waypoints", []))
+	ai.setup(unit, self, spec["roam_mode"], _build_waypoints(unit.cell, spec))
 	unit.add_child(ai)
 	_npcs.append(unit)
-	# 头顶图标
-	_refresh_npc_icon(unit)
+	# 验桥日不显示战斗条，头顶用姓名牌承担识别与角色提示。
+	_refresh_npc_name_label(unit)
 	return unit
 
 
-## 头顶图标：role + 完成态决定文字 + 颜色。直接借用 UnitHpBar 的 ElemLabel 位。
-func _refresh_npc_icon(unit: Unit) -> void:
+func _build_waypoints(origin: Vector2i, spec: Dictionary) -> Array[Vector2i]:
+	var offsets: Array = spec.get("waypoint_offsets", [])
+	if not offsets.is_empty():
+		var result: Array[Vector2i] = []
+		for offset in offsets:
+			if offset is Vector2i:
+				result.append(origin + offset)
+		return result
+	var raw_waypoints: Array = spec.get("waypoints", [])
+	var waypoints: Array[Vector2i] = []
+	for point in raw_waypoints:
+		if point is Vector2i:
+			waypoints.append(point)
+	return waypoints
+
+
+## 头顶姓名牌：role + 完成态决定颜色，替代 HP/AP 条。
+func _refresh_npc_name_label(unit: Unit) -> void:
 	var role: String = String(unit.get_meta("npc_role", ""))
 	var done: bool = _npc_done(unit)
 	if done and role != "mentor":
-		unit.set_overhead_status_label("✓", _ICON_DONE)
+		unit.set_overhead_name_label(unit.unit_data.unit_name, _ICON_DONE)
 		return
 	match role:
 		"persuade":
-			unit.set_overhead_status_label("?", _ICON_PERSUADE)
+			unit.set_overhead_name_label(unit.unit_data.unit_name, _ICON_PERSUADE)
 		"qa":
-			unit.set_overhead_status_label("?", _ICON_QA)
+			unit.set_overhead_name_label(unit.unit_data.unit_name, _ICON_QA)
 		"mentor":
-			unit.set_overhead_status_label("!", _ICON_MENTOR)
+			unit.set_overhead_name_label(unit.unit_data.unit_name, _ICON_MENTOR)
 		_:
-			unit.set_overhead_status_label("", Color.WHITE)
+			unit.set_overhead_name_label(unit.unit_data.unit_name, Color.WHITE)
 
 
 ## 该 NPC 是否完成了交互目标（persuade=已说服，qa=已解答；mentor 永不"完成"）。
@@ -444,18 +519,30 @@ func _flow_persuade(npc: Unit) -> void:
 
 
 func _generate_persuade_answer(npc: Unit, topic: String) -> Dictionary:
+	var cheat_word := _matched_cheat_word(topic)
+	var is_cheat := not cheat_word.is_empty()
 	var persona: Dictionary = _NpcPersonasScript.get_persona(npc.unit_data.unit_id, npc.unit_data.camp)
 	var bridge_part: String = String(npc.get_meta("npc_bridge_part", ""))
 	var stance: int = int(npc.get_meta("npc_stance", 50))
 	var goal_raw: Variant = npc.get_meta("npc_persuasion_goal", {})
 	var persuasion_goal: Dictionary = goal_raw if goal_raw is Dictionary else {}
-	var sys: String = _ChatterPromptsScript.build_system_prompt(persona, "bridge_topic_answer", _learned_memo(), "{}")
+	var sys: String = _ChatterPromptsScript.build_system_prompt(
+		persona,
+		"bridge_topic_answer",
+		_build_npc_memory_memo(npc),
+		_build_bridge_context_json(npc, "persuade")
+	)
 	var user: String = _ChatterPromptsScript.build_user_prompt(persona, "bridge_topic_answer", {
 		"topic": topic,
 		"bridge_part": bridge_part,
 		"stance": stance,
 		"persuasion_goal": persuasion_goal,
 		"learned_csv": _learned_csv(),
+		"learned_details": _learned_details_text(),
+		"dialogue_history": _dialogue_history_text(npc),
+		"mission_context": _mission_context_text(npc),
+		"cheat_context": _cheat_context_text(is_cheat, cheat_word),
+		"accum_total": int(npc.get_meta("npc_accum_score_total", 0)),
 	})
 	var resp: Dictionary = await _get_llm().chat_completion([
 		{"role": "system", "content": sys},
@@ -464,15 +551,21 @@ func _generate_persuade_answer(npc: Unit, topic: String) -> Dictionary:
 	if resp.get("ok", false):
 		var parsed := _parse_object_json(String(resp.get("text", "")))
 		if not parsed.is_empty() and parsed.has("reply"):
-			if not parsed.has("stance_delta"):
-				parsed["stance_delta"] = 0
+			if is_cheat:
+				parsed["accum_score"] = PERSUADE_ACCUM_SCORE_MAX
+				parsed["round_score"] = PERSUADE_ROUND_SCORE_MAX
+				parsed["final_score"] = PERSUADE_ACCUM_SCORE_MAX + PERSUADE_ROUND_SCORE_MAX
+				parsed["force_success"] = true
+				parsed["is_cheat"] = true
 			else:
-				parsed["stance_delta"] = clampi(int(parsed["stance_delta"]), -10, 15)
+				_normalize_persuade_scores(parsed)
 			if not parsed.has("tone"): parsed["tone"] = ""
 			if not parsed.has("knowledge_used"): parsed["knowledge_used"] = []
 			if not parsed.has("matched_points"): parsed["matched_points"] = []
 			if not parsed.has("missed_points"): parsed["missed_points"] = []
 			return parsed
+	if is_cheat:
+		return _make_cheat_persuade_answer(npc)
 	return {
 		"reply": _PersonaFallbackScript.pick(persona, "persuade"),
 		"stance_delta": 0,
@@ -482,10 +575,24 @@ func _generate_persuade_answer(npc: Unit, topic: String) -> Dictionary:
 
 
 func _apply_persuade_result(npc: Unit, ans: Dictionary) -> void:
-	var delta: int = clampi(int(ans.get("stance_delta", 0)), -10, 15)
+	var force_success: bool = bool(ans.get("force_success", false))
+	if not ans.has("final_score"):
+		_normalize_persuade_scores(ans)
+	var accum_score: int = clampi(int(ans.get("accum_score", PERSUADE_ACCUM_SCORE_MIN)), PERSUADE_ACCUM_SCORE_MIN, PERSUADE_ACCUM_SCORE_MAX)
+	var round_score: int = clampi(int(ans.get("round_score", 0)), PERSUADE_ROUND_SCORE_MIN, PERSUADE_ROUND_SCORE_MAX)
+	var final_score: int = int(ans.get("final_score", accum_score + round_score))
+	if bool(ans.get("is_fallback", false)) and not force_success:
+		accum_score = 0
+		round_score = 0
+		final_score = 0
 	var old_stance: int = int(npc.get_meta("npc_stance", 50))
-	var new_stance: int = clampi(old_stance + delta, 0, 100)
+	var new_stance: int = STANCE_PERSUADED if force_success else clampi(old_stance + final_score, 0, 100)
 	npc.set_meta("npc_stance", new_stance)
+	var accum_total: int = int(npc.get_meta("npc_accum_score_total", 0)) + accum_score
+	npc.set_meta("npc_accum_score_total", accum_total)
+	npc.set_meta("npc_last_accum_score", accum_score)
+	npc.set_meta("npc_last_round_score", round_score)
+	npc.set_meta("npc_last_final_score", final_score)
 	# LLM 引用过的知识 → 加入 used 集合，知识面板高亮
 	for k in ans.get("knowledge_used", []):
 		var key := String(k)
@@ -496,13 +603,35 @@ func _apply_persuade_result(npc: Unit, ans: Dictionary) -> void:
 	if not was_persuaded and now_persuaded:
 		npc.set_meta("npc_persuaded", true)
 		Notify.notify("已说服 %s" % npc.unit_data.unit_name, Notify.Position.TOP_RIGHT, Notify.Style.SUCCESS, 3.0)
-		_refresh_npc_icon(npc)
+		_refresh_npc_name_label(npc)
 		_check_all_done_for_victory()
-	elif delta < 0:
+	elif final_score < 0:
 		Notify.notify("%s 摇头：「此说不通」" % npc.unit_data.unit_name, Notify.Position.TOP_RIGHT, Notify.Style.WARNING, 2.5)
 	if _mission_hud:
 		_mission_hud.update_npc("persuade", npc.unit_data.unit_name, now_persuaded)
-		_mission_hud.update_npc_stance(npc.unit_data.unit_name, new_stance, STANCE_PERSUADED)
+		_mission_hud.update_npc_stance(npc.unit_data.unit_name, new_stance, STANCE_PERSUADED, accum_total, accum_score, round_score, final_score)
+
+
+func _normalize_persuade_scores(ans: Dictionary) -> void:
+	var accum_score: int
+	if ans.has("accum_score"):
+		accum_score = int(ans.get("accum_score", PERSUADE_ACCUM_SCORE_MIN))
+	elif ans.has("cumulative_score"):
+		accum_score = int(ans.get("cumulative_score", PERSUADE_ACCUM_SCORE_MIN))
+	else:
+		accum_score = PERSUADE_ACCUM_SCORE_MIN
+	accum_score = clampi(accum_score, PERSUADE_ACCUM_SCORE_MIN, PERSUADE_ACCUM_SCORE_MAX)
+	var round_score: int
+	if ans.has("round_score"):
+		round_score = int(ans.get("round_score", 0))
+	elif ans.has("stance_delta"):
+		round_score = int(ans.get("stance_delta", 0))
+	else:
+		round_score = 0
+	round_score = clampi(round_score, PERSUADE_ROUND_SCORE_MIN, PERSUADE_ROUND_SCORE_MAX)
+	ans["accum_score"] = accum_score
+	ans["round_score"] = round_score
+	ans["final_score"] = accum_score + round_score
 
 
 # ─────────────────────────────────────────────
@@ -522,7 +651,7 @@ func _flow_qa(npc: Unit) -> void:
 	add_child(panel)
 	panel.show_for(npc.unit_data.unit_name, "%s · 「%s」" % [bridge_part, question])
 	panel.set_learned_topics(_player_learned_topics, _player_used_topics)
-	panel.set_history(npc.get_meta("npc_dialogue_log", [] as Array[Dictionary]))
+	panel.set_history(_history_with_npc_prompt(npc, question))
 	var answer: String = await panel.argument_submitted
 	if answer.is_empty():
 		return
@@ -534,23 +663,42 @@ func _flow_qa(npc: Unit) -> void:
 	var feedback: String = String(eval.get("feedback", ""))
 	var is_fallback: bool = bool(eval.get("is_fallback", false))
 	# 记入对话历史。问题用本轮抛出的 question + 玩家答案 + NPC feedback 三段拼接：
-	# 历史每条记 player（玩家答案）/ npc（feedback），question 在显示时上下文已隐含。
-	_append_dialogue_log(npc, answer, feedback, "fallback" if is_fallback else "qa")
+	# 历史每条同时保存 question，避免下次打开面板时丢掉 NPC 上轮问句。
+	_append_dialogue_log(npc, answer, feedback, "fallback" if is_fallback else "qa", question)
 	await _play_npc_line(npc, feedback, not is_fallback)
 	await _maybe_neighbor_interject(npc, feedback)
 
 
 ## 把一轮交互写入 NPC 的 dialogue_log meta。供 set_history 显示给玩家看。
+## question 只在 QA 流程传入，用于在玩家答案前恢复 NPC 的提问。
 ## tone 字段可记 "fallback" / "qa" / LLM 给的 tone 标签，便于将来分类（当前未做特殊渲染）。
-func _append_dialogue_log(npc: Unit, player: String, npc_text: String, tone: String) -> void:
-	var log: Array = npc.get_meta("npc_dialogue_log", [] as Array[Dictionary])
-	log.append({
+func _append_dialogue_log(npc: Unit, player: String, npc_text: String, tone: String, question: String = "") -> void:
+	var history: Array = npc.get_meta("npc_dialogue_log", [] as Array[Dictionary])
+	var entry := {
 		"player": player,
 		"npc": npc_text,
 		"npc_name": npc.unit_data.unit_name,
 		"tone": tone,
+	}
+	if not question.strip_edges().is_empty():
+		entry["question"] = question.strip_edges()
+	history.append(entry)
+	npc.set_meta("npc_dialogue_log", history)
+
+
+## 给输入面板显示"当前 NPC 刚问的话"，但不立即写入持久历史；
+## 玩家取消时不会留下半截对话，提交后由 _append_dialogue_log 保存完整问答。
+func _history_with_npc_prompt(npc: Unit, prompt_text: String) -> Array:
+	var history: Array = npc.get_meta("npc_dialogue_log", [] as Array[Dictionary]).duplicate()
+	var clean_prompt := prompt_text.strip_edges()
+	if clean_prompt.is_empty():
+		return history
+	history.append({
+		"npc": clean_prompt,
+		"npc_name": npc.unit_data.unit_name,
+		"tone": "question_preview",
 	})
-	npc.set_meta("npc_dialogue_log", log)
+	return history
 
 
 ## 取一句 QA 问题。优先用 persona.qa_questions 数组按尝试次数轮换；空时 fallback 到旧
@@ -573,12 +721,23 @@ func _pick_qa_question(npc: Unit) -> String:
 
 
 func _generate_qa_eval(npc: Unit, question: String, answer: String) -> Dictionary:
+	var cheat_word := _matched_cheat_word(answer)
+	var is_cheat := not cheat_word.is_empty()
 	var persona: Dictionary = _NpcPersonasScript.get_persona(npc.unit_data.unit_id, npc.unit_data.camp)
-	var sys: String = _ChatterPromptsScript.build_system_prompt(persona, "bridge_qa_eval", _learned_memo(), "{}")
+	var sys: String = _ChatterPromptsScript.build_system_prompt(
+		persona,
+		"bridge_qa_eval",
+		_build_npc_memory_memo(npc),
+		_build_bridge_context_json(npc, "qa")
+	)
 	var user: String = _ChatterPromptsScript.build_user_prompt(persona, "bridge_qa_eval", {
 		"question": question,
 		"answer": answer,
 		"learned_csv": _learned_csv(),
+		"learned_details": _learned_details_text(),
+		"dialogue_history": _dialogue_history_text(npc),
+		"mission_context": _mission_context_text(npc),
+		"cheat_context": _cheat_context_text(is_cheat, cheat_word),
 	})
 	var resp: Dictionary = await _get_llm().chat_completion([
 		{"role": "system", "content": sys},
@@ -587,8 +746,15 @@ func _generate_qa_eval(npc: Unit, question: String, answer: String) -> Dictionar
 	if resp.get("ok", false):
 		var parsed := _parse_object_json(String(resp.get("text", "")))
 		if not parsed.is_empty() and parsed.has("feedback"):
-			if not parsed.has("is_correct"): parsed["is_correct"] = false
+			if is_cheat:
+				parsed["is_correct"] = true
+				parsed["is_cheat"] = true
+			elif not parsed.has("is_correct"):
+				parsed["is_correct"] = false
+			if not parsed.has("knowledge_used"): parsed["knowledge_used"] = []
 			return parsed
+	if is_cheat:
+		return _make_cheat_qa_eval(npc)
 	return {
 		"is_correct": false,
 		"feedback": _PersonaFallbackScript.pick(persona, "qa"),
@@ -606,12 +772,58 @@ func _apply_qa_result(npc: Unit, eval: Dictionary) -> void:
 	if is_correct and not bool(npc.get_meta("npc_qa_solved", false)):
 		npc.set_meta("npc_qa_solved", true)
 		Notify.notify("已解答 %s 的疑问" % npc.unit_data.unit_name, Notify.Position.TOP_RIGHT, Notify.Style.SUCCESS, 3.0)
-		_refresh_npc_icon(npc)
+		_refresh_npc_name_label(npc)
 		_check_all_done_for_victory()
 	elif not is_correct:
 		Notify.notify("%s 摇头：尚有疑虑" % npc.unit_data.unit_name, Notify.Position.TOP_RIGHT, Notify.Style.WARNING, 2.5)
 	if _mission_hud:
 		_mission_hud.update_npc("qa", npc.unit_data.unit_name, is_correct)
+
+
+func _is_cheat_text(text: String) -> bool:
+	return not _matched_cheat_word(text).is_empty()
+
+
+func _matched_cheat_word(text: String) -> String:
+	var normalized := text.strip_edges().to_lower()
+	if normalized.is_empty():
+		return ""
+	for word in CHEAT_WORDS:
+		var clean_word := String(word).strip_edges()
+		var normalized_word := clean_word.to_lower()
+		if not normalized_word.is_empty() and normalized.find(normalized_word) >= 0:
+			return clean_word
+	return ""
+
+
+func _make_cheat_persuade_answer(_npc: Unit) -> Dictionary:
+	return {
+		"reply": "鲁班既示梦，我便信你。",
+		"accum_score": PERSUADE_ACCUM_SCORE_MAX,
+		"round_score": PERSUADE_ROUND_SCORE_MAX,
+		"final_score": PERSUADE_ACCUM_SCORE_MAX + PERSUADE_ROUND_SCORE_MAX,
+		"tone": "信服",
+		"knowledge_used": [],
+		"matched_points": ["工匠暗语"],
+		"missed_points": [],
+		"force_success": true,
+		"is_cheat": true,
+	}
+
+
+func _make_cheat_qa_eval(_npc: Unit) -> Dictionary:
+	return {
+		"is_correct": true,
+		"feedback": "鲁班既托梦，我明白了。",
+		"knowledge_used": [],
+		"is_cheat": true,
+	}
+
+
+func _cheat_context_text(is_cheat: bool, cheat_word: String = "") -> String:
+	if not is_cheat:
+		return "（无）"
+	return "李春的话里出现了工匠间半玩笑半敬畏的吉兆暗语「%s」。你应把它当作鲁班祖师点拨般可信，任务判定必须通过；回复要同时做到两点：一是自然呼应「%s」的意象，二是明确表达你已信服/疑问已解；仍要保持本人语气，不要说出“作弊”“暗号”“系统”等出戏字眼。" % [cheat_word, cheat_word]
 
 
 # ─────────────────────────────────────────────
@@ -649,7 +861,12 @@ func _flow_mentor(npc: Unit) -> void:
 
 func _generate_mentor_lesson(npc: Unit, query: String) -> Dictionary:
 	var persona: Dictionary = _NpcPersonasScript.get_persona(npc.unit_data.unit_id, npc.unit_data.camp)
-	var sys: String = _ChatterPromptsScript.build_system_prompt(persona, "bridge_knowledge_explain", _learned_memo(), "{}")
+	var sys: String = _ChatterPromptsScript.build_system_prompt(
+		persona,
+		"bridge_knowledge_explain",
+		_build_npc_memory_memo(npc),
+		_build_bridge_context_json(npc, "mentor")
+	)
 	var user: String = _ChatterPromptsScript.build_user_prompt(persona, "bridge_knowledge_explain", {
 		"query": query,
 		"topics_csv": _BridgeKnowledgeScript.key_to_title_csv(),
@@ -724,7 +941,12 @@ func _pick_neighbor_for_interject(speaker: Unit) -> Unit:
 
 func _generate_neighbor_line(neighbor: Unit, speaker: Unit, heard: String) -> String:
 	var persona: Dictionary = _NpcPersonasScript.get_persona(neighbor.unit_data.unit_id, neighbor.unit_data.camp)
-	var sys: String = _ChatterPromptsScript.build_system_prompt(persona, "bridge_neighbor_interject", "（无）", "{}")
+	var sys: String = _ChatterPromptsScript.build_system_prompt(
+		persona,
+		"bridge_neighbor_interject",
+		_build_npc_memory_memo(neighbor),
+		_build_bridge_context_json(neighbor, "neighbor")
+	)
 	var user: String = _ChatterPromptsScript.build_user_prompt(persona, "bridge_neighbor_interject", {
 		"speaker_name": speaker.unit_data.unit_name,
 		"heard": heard,
@@ -790,6 +1012,130 @@ func _parse_object_json(text: String) -> Dictionary:
 	if not (parsed is Dictionary):
 		return {}
 	return parsed
+
+
+func _build_npc_memory_memo(npc: Unit) -> String:
+	var parts: Array[String] = [_learned_memo()]
+	var dialogue := _dialogue_history_text(npc)
+	if dialogue.is_empty():
+		parts.append("与该 NPC 尚无历史问答。")
+	else:
+		parts.append("与该 NPC 的近几轮问答：\n%s" % dialogue)
+	return "\n\n".join(parts)
+
+
+func _build_bridge_context_json(npc: Unit, trigger_kind: String) -> String:
+	var role := String(npc.get_meta("npc_role", ""))
+	var context := {
+		"关卡": "验桥日",
+		"触发": trigger_kind,
+		"当前NPC": npc.unit_data.unit_name,
+		"NPC类型": role,
+		"所在桥段": String(npc.get_meta("npc_bridge_part", "")),
+		"李春与NPC距离": _hero_distance_label(npc),
+		"任务进度": "%d/%d 说服，%d/%d 解答" % [_persuaded_count(), PERSUADE_TARGET, _qa_solved_count(), QA_TARGET],
+		"已学知识": _learned_title_list(),
+		"已用知识": _player_used_topics.duplicate(),
+	}
+	if role == "persuade":
+		context["当前说服进度"] = "%d/%d" % [int(npc.get_meta("npc_stance", 50)), STANCE_PERSUADED]
+		context["累积分合计"] = int(npc.get_meta("npc_accum_score_total", 0))
+		var goal_raw: Variant = npc.get_meta("npc_persuasion_goal", {})
+		if goal_raw is Dictionary:
+			var goal: Dictionary = goal_raw
+			context["说服目标"] = goal.get("goal", "")
+			context["核心疑虑"] = goal.get("objection", "")
+			context["成功条件"] = goal.get("success_claim", "")
+	elif role == "qa":
+		context["已解答"] = bool(npc.get_meta("npc_qa_solved", false))
+	return JSON.stringify(context)
+
+
+func _dialogue_history_text(npc: Unit, max_entries: int = 4) -> String:
+	var history: Array = npc.get_meta("npc_dialogue_log", [] as Array[Dictionary])
+	if history.is_empty():
+		return ""
+	var lines: Array[String] = []
+	var start: int = maxi(0, history.size() - max_entries)
+	for i in range(start, history.size()):
+		var entry: Dictionary = history[i] if history[i] is Dictionary else {}
+		var speaker := String(entry.get("npc_name", npc.unit_data.unit_name))
+		var question := _clip_text(String(entry.get("question", "")).strip_edges(), 80)
+		var player_text := _clip_text(String(entry.get("player", "")).strip_edges(), 90)
+		var npc_text := _clip_text(String(entry.get("npc", "")).strip_edges(), 90)
+		if not question.is_empty():
+			lines.append("%s问：%s" % [speaker, question])
+		if not player_text.is_empty():
+			lines.append("李春答：%s" % player_text)
+		if not npc_text.is_empty():
+			lines.append("%s回：%s" % [speaker, npc_text])
+	return "\n".join(lines)
+
+
+func _mission_context_text(npc: Unit) -> String:
+	var role := String(npc.get_meta("npc_role", ""))
+	var parts: Array[String] = [
+		"关卡目标：说服 %d/%d，解答 %d/%d。" % [_persuaded_count(), PERSUADE_TARGET, _qa_solved_count(), QA_TARGET],
+		"当前 NPC：%s，桥段：%s，距离：%s。" % [
+			npc.unit_data.unit_name,
+			String(npc.get_meta("npc_bridge_part", "")),
+			_hero_distance_label(npc),
+		],
+	]
+	if role == "persuade":
+		parts.append("当前说服进度：%d/%d。" % [int(npc.get_meta("npc_stance", 50)), STANCE_PERSUADED])
+		parts.append("此前累积分合计：%d。" % int(npc.get_meta("npc_accum_score_total", 0)))
+		var goal_raw: Variant = npc.get_meta("npc_persuasion_goal", {})
+		if goal_raw is Dictionary:
+			var goal: Dictionary = goal_raw
+			parts.append("疑虑：%s" % String(goal.get("objection", "")))
+			parts.append("真正想听到：%s" % String(goal.get("success_claim", "")))
+	elif role == "qa":
+		parts.append("这是答疑目标，需判断李春是否切中问题。")
+	return "\n".join(parts)
+
+
+func _hero_distance_label(npc: Unit) -> String:
+	if hero == null:
+		return "未知"
+	var d: Vector2i = npc.cell - hero.cell
+	var dist := absi(d.x) + absi(d.y)
+	if dist <= 1:
+		return "近在身旁"
+	if dist <= 3:
+		return "隔数步"
+	return "隔得较远"
+
+
+func _learned_title_list() -> Array[String]:
+	var titles: Array[String] = []
+	for k in _player_learned_topics:
+		var topic := _BridgeKnowledgeScript.get_topic(k)
+		if not topic.is_empty():
+			titles.append("%s:%s" % [k, String(topic.get("title", k))])
+	return titles
+
+
+func _learned_details_text() -> String:
+	if _player_learned_topics.is_empty():
+		return "（无。若李春没有引用具体工程知识，NPC 应保持疑虑。）"
+	var lines: Array[String] = []
+	for k in _player_learned_topics:
+		var topic := _BridgeKnowledgeScript.get_topic(k)
+		if topic.is_empty():
+			continue
+		lines.append("%s（%s）：%s" % [
+			k,
+			String(topic.get("title", k)),
+			_clip_text(String(topic.get("body", topic.get("summary", ""))), 220),
+		])
+	return "\n".join(lines) if not lines.is_empty() else "（无有效知识）"
+
+
+func _clip_text(text: String, max_len: int) -> String:
+	if text.length() <= max_len:
+		return text
+	return text.substr(0, max_len - 1) + "…"
 
 
 ## 拼"已学知识"渲染给 LLM。空时给"（无）"。

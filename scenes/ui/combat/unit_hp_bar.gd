@@ -5,14 +5,19 @@ extends Node2D
 class_name UnitHpBar
 
 const BAR_WIDTH: float = 30.0
+const _LABEL_DEFAULT_RECT := Rect2(-53.0, 0.0, 35.0, 24.0)
+const _LABEL_NAME_RECT := Rect2(-48.0, -2.0, 96.0, 20.0)
 
+@onready var _hp_bg: ColorRect = $HpBg
 @onready var _hp_fill: ColorRect = $HpBg/HpFill
+@onready var _ap_bg: ColorRect = $ApBg
 @onready var _ap_fill: ColorRect = $ApBg/ApFill
 @onready var _elem_label: Label = $ElemLabel
 
 
 ## 更新属性标签。
 func update_element(element: Enums.Element, amount: int) -> void:
+	_apply_label_rect(_LABEL_DEFAULT_RECT, HORIZONTAL_ALIGNMENT_RIGHT)
 	var tag := ElementDefs.element_tag(element, amount)
 	_elem_label.text = tag
 	if tag != "":
@@ -20,12 +25,35 @@ func update_element(element: Enums.Element, amount: int) -> void:
 
 
 ## 把头顶 ElemLabel 当通用文字位用：直接覆盖 text + 颜色。
-## 主要给非战斗场景（如验桥日的状态图标 🔵?/🟢?/🟡!）。
+## 主要给非战斗场景（如验桥日的状态图标）。
 ## 传 "" 清空标签。
 func set_custom_label(text: String, color: Color) -> void:
+	_apply_label_rect(_LABEL_DEFAULT_RECT, HORIZONTAL_ALIGNMENT_RIGHT)
 	_elem_label.text = text
 	if text != "":
 		_elem_label.add_theme_color_override("font_color", color)
+
+
+## 非战斗场景的姓名牌模式：隐藏 HP/AP 条，用居中的名字取代。
+func set_name_label(text: String, color: Color) -> void:
+	set_bars_visible(false)
+	_apply_label_rect(_LABEL_NAME_RECT, HORIZONTAL_ALIGNMENT_CENTER)
+	_elem_label.text = text
+	if text != "":
+		_elem_label.add_theme_color_override("font_color", color)
+
+
+func set_bars_visible(visible_flag: bool) -> void:
+	_hp_bg.visible = visible_flag
+	_ap_bg.visible = visible_flag
+
+
+func _apply_label_rect(rect: Rect2, align: HorizontalAlignment) -> void:
+	_elem_label.offset_left = rect.position.x
+	_elem_label.offset_top = rect.position.y
+	_elem_label.offset_right = rect.position.x + rect.size.x
+	_elem_label.offset_bottom = rect.position.y + rect.size.y
+	_elem_label.horizontal_alignment = align
 
 
 ## 更新血条。ratio = current_hp / max_hp (0.0 ~ 1.0)。
