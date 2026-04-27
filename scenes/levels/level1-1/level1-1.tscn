@@ -1110,6 +1110,7 @@ unique_name_in_owner = true
 position = Vector2(-352, 16)
 halo_color = Color(0.95, 0.78, 0.2, 0.5)
 label_text = "勘测点"
+show_tile = false
 
 [node name="Halo" parent="Markers/SurveyMarker_A" index="0" unique_id=406635027]
 visible = false
@@ -1125,6 +1126,7 @@ unique_name_in_owner = true
 position = Vector2(-32, 16)
 halo_color = Color(0.95, 0.78, 0.2, 0.5)
 label_text = "勘测点"
+show_tile = false
 
 [node name="Halo" parent="Markers/SurveyMarker_B" index="0" unique_id=406635027]
 visible = false
@@ -1140,6 +1142,7 @@ unique_name_in_owner = true
 position = Vector2(336, 8)
 halo_color = Color(0.95, 0.78, 0.2, 0.5)
 label_text = "勘测点"
+show_tile = false
 
 [node name="Halo" parent="Markers/SurveyMarker_C" index="0" unique_id=406635027]
 visible = false
@@ -1175,6 +1178,7 @@ unique_name_in_owner = true
 visible = false
 position = Vector2(-32, 16)
 label_text = "桥位"
+show_tile = false
 
 [node name="Halo" parent="Markers/BridgeMarker" index="0" unique_id=406635027]
 visible = false
