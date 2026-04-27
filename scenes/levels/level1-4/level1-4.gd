@@ -50,6 +50,13 @@ var _pier_gnawer_data: UnitData = preload("res://data/units/pier_gnawer.tres")
 var _driftwood_data: UnitData = preload("res://data/units/flood_driftwood_pack.tres")
 var _wrathful_flood_data: UnitData = preload("res://data/units/wrathful_flood.tres")
 
+# 第一关自然系小怪（混入第四关刷怪池增加多样性）。
+# 注：浮木群 (drift_log_pack) 是 water_only，不能上岸，第四关弃用 → 用本关原生
+#     漂木群·洪水版 (flood_driftwood_pack) 替代，它有相同的 hazard_charge 直线移动。
+var _dark_current_data: UnitData = preload("res://data/units/dark_current.tres")
+var _whirl_pool_data: UnitData = preload("res://data/units/whirl_pool.tres")
+var _mud_wraith_data: UnitData = preload("res://data/units/bank_mud_wraith.tres")
+
 # 友军技能（复用）
 var _staff: SkillData = preload("res://data/skills/sw_staff_end_strike.tres")
 var _sw_open_arch: SkillData = preload("res://data/skills/sw_open_arch.tres")
@@ -64,6 +71,11 @@ var _torrent_ram: SkillData = preload("res://data/skills/fs_torrent_ram.tres")
 var _mire_steps: SkillData = preload("res://data/skills/sm_mire_steps.tres")
 var _gnaw_pier: SkillData = preload("res://data/skills/pg_gnaw_pier.tres")
 var _overturn_bridge: SkillData = preload("res://data/skills/wf_overturn_bridge.tres")
+
+# 第一关自然系小怪技能（沿用 level1-1.gd 的映射）
+var _dc_lunge: SkillData = preload("res://data/skills/dc_hidden_current_lunge.tres")
+var _wp_pull: SkillData = preload("res://data/skills/wp_spiral_pull.tres")
+var _bmw_crush: SkillData = preload("res://data/skills/bmw_crumbling_bank_crush.tres")
 var _slam_deck: SkillData = preload("res://data/skills/wf_slam_deck.tres")
 var _topple_bank: SkillData = preload("res://data/skills/wf_topple_bank.tres")
 
@@ -133,7 +145,7 @@ func get_wave_config() -> Dictionary:
 	return waves
 
 
-# 把 unit_kind 字符串 → (UnitData 副本, 技能列表)。遵循原 get_wave_config 中的映射。
+# 把 unit_kind 字符串 → (UnitData 副本, 技能列表)。第四关原生 + 第一关自然系混编。
 func _resolve_wave_unit(kind: String) -> Dictionary:
 	match kind:
 		"flood_spear":
@@ -144,10 +156,18 @@ func _resolve_wave_unit(kind: String) -> Dictionary:
 			return {"unit_data": _duplicate_unit_data(_pier_gnawer_data), "skills": [_gnaw_pier]}
 		"flood_driftwood_pack":
 			return {"unit_data": _duplicate_unit_data(_driftwood_data), "skills": [_timber]}
+		# 第一关自然系（沿用 level1-1.gd 的技能映射）
+		"dark_current":
+			return {"unit_data": _duplicate_unit_data(_dark_current_data), "skills": [_dc_lunge]}
+		"whirl_pool":
+			return {"unit_data": _duplicate_unit_data(_whirl_pool_data), "skills": [_wp_pull]}
+		"bank_mud_wraith":
+			return {"unit_data": _duplicate_unit_data(_mud_wraith_data), "skills": [_bmw_crush]}
 	return {}
 
 
 # cell_hint 字符串 → 绝对格。依赖 _watch_point / _left_pier / _right_pier / _side_arch_cells 已就位。
+# water_* 提示通过 _find_water_cell_near 在锚点附近找水格，让 water_only 自然系能站住。
 func _resolve_cell_hint(hint: String) -> Vector2i:
 	match hint:
 		"near_left_pier_west":
@@ -160,8 +180,35 @@ func _resolve_cell_hint(hint: String) -> Vector2i:
 			return _side_arch_cells["left_front"] + Vector2i(0, -4)
 		"arch_right_front_north_2":
 			return _side_arch_cells["right_front"] + Vector2i(0, -4)
+		"water_north":
+			return _find_water_cell_near(_watch_point + Vector2i(0, -5), 6)
+		"water_south":
+			return _find_water_cell_near(_watch_point + Vector2i(0, 5), 6)
+		"water_near_left":
+			return _find_water_cell_near(_left_pier + Vector2i(-3, 0), 6)
+		"water_near_right":
+			return _find_water_cell_near(_right_pier + Vector2i(3, 0), 6)
 	push_warning("wave_spawns: 未知 cell_hint '%s'，退回 watch_point" % hint)
 	return _watch_point
+
+
+# 在 target 附近螺旋扫描一个水格（is_water_cell == true）。找不到时退回 nearest_walkable。
+# water_only 单位生成必须落在水上，否则 ai_brain 会判它原地不动。
+func _find_water_cell_near(target: Vector2i, max_radius: int) -> Vector2i:
+	if movement_manager == null:
+		return target
+	if movement_manager.is_water_cell(target):
+		return target
+	for radius in range(1, max_radius + 1):
+		for dx in range(-radius, radius + 1):
+			for dy in range(-radius, radius + 1):
+				if absi(dx) != radius and absi(dy) != radius:
+					continue
+				var candidate: Vector2i = target + Vector2i(dx, dy)
+				if movement_manager.is_water_cell(candidate):
+					return candidate
+	push_warning("water cell hint near %s 找不到水格，退回 nearest_walkable" % target)
+	return _nearest_walkable(target)
 
 
 # 复制 UnitData 以避免多实例共享同一 Resource 副作用（原 _make_unit_data 的精简版，
@@ -183,7 +230,8 @@ func get_objectives_text() -> Dictionary:
 			"   • [b]P1[/b] (HP>75%)：无肩可开，无附加压力",
 			"   • [b]P2[/b] (50%~75%)：解锁外两肩 1&4；都未开 -1/回合，全开 0",
 			"   • [b]P3[/b] (<50%)：解锁四肩，对应 boss 减伤两阶段；都未开 -2；开 2&3 → -1；再开 1&4 → 0",
-			"- [color=#ff8c55][b]Boss 周期被动【怒涛拍面】[/b][/color]：CD 2，对全场未护持我方 0.5×水(附水1) 击退 2 格；护持完全豁免",
+			"- [color=#ff5555][b]怒水唤援[/b][/color]：进入 P2 召唤洪锋+桥台噬者；进入 P3 召唤漂木群+桥台噬者+泥沙魇",
+			"- [color=#ff8c55][b]Boss 周期被动【怒涛拍面】[/b][/color]：CD 2，[b]横扫桥心，敌我两伤[/b] — 对全场未护持单位（含 boss 召唤的小怪，boss 自身除外）0.5×水(附水1) 击退 2 格；护持完全豁免",
 			"- [color=#ff8c55][b]Boss 周期被动【翻岸压塌】[/b][/color]：CD 3，对最近 2 名我方 0.7×土(附土2) 击退 3 格；护持半减(-16伤/击退压到 1 格)；与拍面撞期本技优先",
 			"- [color=#7adfff][b]反制[/b][/color]：工匠「捍作护行」赋护持 2 回合 — 每回合预告下回合 boss 释放的技能，请提前调度",
 		],
@@ -266,7 +314,7 @@ func _onboarding_hints() -> void:
 	await get_tree().create_timer(0.8).timeout
 	if is_phase_ended():
 		return
-	Notify.notify("怒涛拍面（CD 2）：全场未护持我方受 0.5×水属性伤害+附水 1，击退 2 格", Notify.Position.TOP_CENTER, Notify.Style.WARNING, 5.0)
+	Notify.notify("怒涛拍面（CD 2）：横扫桥心，敌我两伤 — 0.5×水(附水1) 击退 2 格；护持豁免", Notify.Position.TOP_CENTER, Notify.Style.WARNING, 5.0)
 	await get_tree().create_timer(0.8).timeout
 	if is_phase_ended():
 		return
@@ -559,6 +607,9 @@ func _cast_overturn_bridge() -> void:
 func _boss_slam_deck() -> void:
 	if _boss == null or _boss.combat_stats == null or not _boss.combat_stats.is_alive():
 		return
+	# 怒涛拍面横扫桥心，无差别打击：
+	#   • 友方未护持单位（玩家可用工匠「捍作护行」豁免）
+	#   • 敌方所有小怪（boss 自己除外）— 友军伤害平衡设计：boss 召唤越多怪自己被打越多
 	var targets: Array = []
 	for ally in get_friendly_units():
 		if ally == null or ally.combat_stats == null or not ally.combat_stats.is_alive():
@@ -566,11 +617,20 @@ func _boss_slam_deck() -> void:
 		if _has_guarding_status(ally):
 			continue
 		targets.append(ally)
+	if teams.size() > ENEMY_TEAM:
+		for enemy in teams[ENEMY_TEAM].units:
+			if not (enemy is Unit) or enemy.combat_stats == null or not enemy.combat_stats.is_alive():
+				continue
+			if enemy == _boss:
+				continue
+			if _has_guarding_status(enemy):
+				continue
+			targets.append(enemy)
 	if targets.is_empty():
-		Notify.notify("怒涛拍面：全员护持，无效", Notify.Position.TOP_RIGHT, Notify.Style.SUCCESS, 2.0)
+		Notify.notify("怒涛拍面：全员护持/无目标", Notify.Position.TOP_RIGHT, Notify.Style.SUCCESS, 2.0)
 		return
-	Notify.notify("怒水释放【怒涛拍面】", Notify.Position.CENTER, Notify.Style.WARNING, 2.5)
-	CombatLog.msg("怒涛拍面: 命中 %d 名未护持单位" % targets.size())
+	Notify.notify("怒水释放【怒涛拍面】（横扫桥心，敌我两伤）", Notify.Position.CENTER, Notify.Style.WARNING, 2.5)
+	CombatLog.msg("怒涛拍面: 命中 %d 名（含敌方小怪）" % targets.size())
 	for target in targets:
 		var hit: CombatResolver.HitResult = CombatResolver.resolve_hit(_boss.combat_stats, target.combat_stats, _slam_deck, 0.5)
 		var old_hp: int = target.combat_stats.current_hp
@@ -727,7 +787,7 @@ func _show_next_round_preview() -> void:
 	if sim_topple == 0:
 		label = "【翻岸压塌】（土，最近 2 名 0.7×+附土 2，击退 3 格）— 护持只能半减(-16伤/击退压到1格)，无法豁免"
 	elif sim_slam == 0:
-		label = "【怒涛拍面】（水，全场未护持 0.5×+附水 1，击退 2 格）— 用工匠「捍作护行」覆盖关键单位可豁免"
+		label = "【怒涛拍面】（水，横扫桥心敌我两伤 0.5×+附水 1，击退 2 格）— 工匠「捍作护行」可豁免；boss 也会打死自家小怪"
 	else:
 		label = "蓄力中（无周期被动；可推进开肩）"
 	Notify.notify("下回合怒水：%s" % label, Notify.Position.TOP_RIGHT, Notify.Style.INFO, 4.0)
@@ -866,6 +926,42 @@ func _enter_phase(phase: int) -> void:
 		Notify.Position.CENTER, Notify.Style.WARNING, 3.0,
 	)
 	CombatLog.msg("怒水进入第 %d 阶段，免伤 %d%%" % [phase, dr_pct])
+	_spawn_phase_reinforcements(phase)
+
+
+# 阶段进入时怒水召唤援军（第四关原生小怪为主，强调"boss 唤援"叙事）。
+# P2: 2 个 L4（洪锋 + 桥台噬者）— 中段双线压力
+# P3: 3 个 L4（漂木群·洪水版 + 桥台噬者 + 泥沙魇）— 高强度收尾威胁
+# 用 _resolve_wave_unit + _resolve_cell_hint 复用 wave 系统的解析层。
+func _spawn_phase_reinforcements(phase: int) -> void:
+	var bundles: Array[String] = []
+	var hints: Array[String] = []
+	match phase:
+		2:
+			bundles = ["flood_spear", "pier_gnawer"]
+			hints = ["watch_north_2", "near_left_pier_west"]
+			Notify.notify(
+				"怒水唤援：洪锋 + 桥台噬者 入场",
+				Notify.Position.TOP_CENTER, Notify.Style.WARNING, 3.5,
+			)
+		3:
+			bundles = ["flood_driftwood_pack", "pier_gnawer", "siltmare"]
+			hints = ["arch_right_front_north_2", "near_right_pier_east", "watch_north_2"]
+			Notify.notify(
+				"怒水洪魁灌涌：漂木群 + 桥台噬者 + 泥沙魇 入场",
+				Notify.Position.TOP_CENTER, Notify.Style.WARNING, 4.0,
+			)
+		_:
+			return
+	for i in bundles.size():
+		var bundle: Dictionary = _resolve_wave_unit(bundles[i])
+		if bundle.is_empty():
+			continue
+		var skills: Array[SkillData] = []
+		skills.assign(bundle["skills"])
+		var cell: Vector2i = _resolve_cell_hint(hints[i])
+		_spawn_enemy(bundle["unit_data"], cell, skills)
+		CombatLog.msg("阶段 %d 召唤: %s @ %s" % [phase, bundles[i], cell])
 
 
 func _setup_anchor_cells() -> void:
