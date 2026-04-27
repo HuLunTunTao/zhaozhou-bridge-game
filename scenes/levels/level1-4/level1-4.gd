@@ -13,7 +13,6 @@ var _overall_stability := 12
 var _left_pier_stability := 6
 var _right_pier_stability := 6
 var _pending_enemy_resolution := false
-var _boss_base_atk := 24
 
 var _left_pier: Vector2i
 var _right_pier: Vector2i
@@ -539,7 +538,7 @@ func _debug_force_defeat(kind: String) -> void:
 
 # ─────────────────────────────────────────────
 # Boss 怒水：翻潮压桥（敌方回合开始）+ 怒涛拍面（敌方回合结束）
-# 设计稿 §5.5。翻潮压桥效果 3「激流压区」延后到 TODO 第 5 步地格做。
+# 设计稿 §5.5。
 # ─────────────────────────────────────────────
 func _cast_overturn_bridge() -> void:
 	if _boss == null or _boss.combat_stats == null or not _boss.combat_stats.is_alive():
@@ -611,7 +610,6 @@ func _manhattan(a: Vector2i, b: Vector2i) -> int:
 func _on_stage_team_turn_started(team_index: int) -> void:
 	if team_index == ENEMY_TEAM:
 		_pending_enemy_resolution = true
-		_sync_boss_pressure()
 		_cast_overturn_bridge()
 		# 洪锋「涌锋」被动：首次移动 +1 格。AP 重置在 emit 之后才跑，所以 defer 到重置后再给。
 		_apply_flood_spear_surge.call_deferred()
@@ -621,7 +619,6 @@ func _on_stage_team_turn_started(team_index: int) -> void:
 		_pending_enemy_resolution = false
 		_resolve_enemy_pressure()
 		_boss_slam_deck()
-		_sync_boss_pressure()
 		_apply_silt_lingering_penalty.call_deferred(PLAYER_TEAM)
 
 
@@ -826,14 +823,6 @@ func _try_repair_pier(unit: Unit) -> void:
 		unit.refresh_overhead_bars()
 		_right_pier_stability = mini(_right_pier_stability + 1, _stability_config.pier_max)
 		Notify.notify("右桥台抢修完成，稳定值 %d" % _right_pier_stability, Notify.Position.TOP_RIGHT, Notify.Style.SUCCESS, 2.0)
-
-
-# 旧的"全开 boss -15% 伤"机制已并入阶段 DR；保留函数仅做兜底（base_atk 始终为 _boss_base_atk）。
-# 调用点暂未删除，避免触碰回合机制；下一轮重构时可以移除。
-func _sync_boss_pressure() -> void:
-	if _boss == null or _boss.combat_stats == null or not _boss.combat_stats.is_alive():
-		return
-	_boss.combat_stats.base_atk = _boss_base_atk
 
 
 func _resolve_enemy_pressure() -> void:
