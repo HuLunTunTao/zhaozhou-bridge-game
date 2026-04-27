@@ -32,5 +32,6 @@ addons/rider-plugin
 docs/test-report/
 addons/godot_test_bridge
 
+docs/release
 .venv
 docs/final
