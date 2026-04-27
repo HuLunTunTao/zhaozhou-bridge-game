@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="SkillData" format=3 uid="uid://b4xtwf2tplbnk"]
+
+[ext_resource type="Script" uid="uid://cp0ew5p75uio0" path="res://scripts/data/skill_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+skill_id = "wf_topple_bank"
+skill_name = "翻岸压塌"
+damage_ratio = 0.7
+damage_element = 5
+attach_amount = 2
+extra_effect_id = "stage_special_topple_bank"
+description = "Boss 周期被动：释放后冷却 3 回合。对距 Boss 最近的 2 名我方造成 0.7 倍率土属性伤害（附土 2），并朝远离 Boss 方向击退 3 格。同回合内若与【怒涛拍面】撞期，本技优先释放；让位的拍面 CD 维持 0，下回合即可发动。被工匠「捍作护行」赋予的护持只能半减（伤害 -16，击退被压到 1 格），无法完全豁免。"
+cast_offsets = Array[Vector2i]([Vector2i(0, 0)])

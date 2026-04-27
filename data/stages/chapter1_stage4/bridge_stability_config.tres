@@ -4,7 +4,4 @@
 
 [resource]
 script = ExtResource("1")
-initial_overall = 12
-initial_left_pier = 6
-initial_right_pier = 6
-pier_max = 6
+initial_overall = 100
