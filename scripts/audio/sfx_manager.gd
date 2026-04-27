@@ -77,11 +77,13 @@ func play_skill_cast(skill: SkillData) -> void:
 	if skill == null:
 		return
 	var stream := _pick_skill_stream(skill)
-	var pitch_random := 0.03 if skill.skill_type == Enums.SkillType.ATTACK else 0.02
+	var pitch_random := 0.0 if skill.cast_sfx != null else (0.03 if skill.skill_type == Enums.SkillType.ATTACK else 0.02)
 	play_sfx(stream, "SFX", pitch_random)
 
 
 func _pick_skill_stream(skill: SkillData) -> AudioStream:
+	if skill.cast_sfx != null:
+		return skill.cast_sfx
 	if skill.skill_type == Enums.SkillType.ATTACK:
 		if skill.cast_offsets.size() > 4 and not _skill_ranged_streams.is_empty():
 			return _skill_ranged_streams[randi() % _skill_ranged_streams.size()]

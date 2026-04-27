@@ -21,6 +21,7 @@ extends Resource
 @export var is_line_piercing: bool = false
 @export var duration_turns: int = 0
 @export var cooldown_turns: int = 0
+@export var cast_sfx: AudioStream = null
 @export_multiline var description: String = ""
 
 ## 释放点范围：以施放者所在格为原点的偏移列表。
