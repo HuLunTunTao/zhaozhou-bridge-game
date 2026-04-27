@@ -898,7 +898,7 @@ func _spawn_allies() -> void:
 
 
 func _spawn_enemies() -> void:
-	_boss = _spawn_enemy(_make_unit_data(_wrathful_flood_data, "怒水", 360, 18, 1, 99, Enums.Element.WATER, 2), _watch_point + Vector2i(0, -9), [_overturn_bridge], preload("res://scenes/unit/visual/monster/怒水/怒水_visual.tscn"))
+	_boss = _spawn_enemy(_make_unit_data(_wrathful_flood_data, "怒水", 600, 18, 1, 99, Enums.Element.WATER, 2), _watch_point + Vector2i(0, -9), [_overturn_bridge], preload("res://scenes/unit/visual/monster/怒水/怒水_visual.tscn"))
 	_boss.extra_target_cells = [
 		Vector2i(-1, 0), Vector2i(1, 0),                    # 同行两侧
 		Vector2i(-1, 1), Vector2i(0, 1), Vector2i(1, 1),    # 南 1 行
