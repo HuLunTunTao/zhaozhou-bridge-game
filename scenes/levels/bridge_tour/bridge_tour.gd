@@ -179,6 +179,18 @@ func _get_npc_specs() -> Array[Dictionary]:
 			"bridge_part": "小拱", "cell": Vector2i(-2, 4),
 			"color": Color(0.5, 0.85, 0.6), "visual": _VISUAL_SURVEYOR,
 			"roam_mode": _RoamingAIScript.Mode.RANDOM_WALK, "waypoints": [],
+			"qa_key_points": [
+				{
+					"label": "二十八道并列拱券可分散受力",
+					"groups": [["二十八", "28"], ["并列", "分券", "各自"], ["拱券", "券"], ["分力", "受力", "分散", "分担"]],
+					"knowledge_keys": ["parallel_rings"],
+				},
+				{
+					"label": "单道券损坏可单独修换，不拖垮整桥",
+					"groups": [["单独", "独立", "一道", "某一道"], ["修换", "更换", "替换", "不必动整桥", "不拖累"]],
+					"knowledge_keys": ["parallel_rings"],
+				},
+			],
 		},
 		{
 			"unit_id": "bridge_merchant", "unit_name": "商旅过客", "role": "qa",
@@ -187,6 +199,18 @@ func _get_npc_specs() -> Array[Dictionary]:
 			"color": Color(0.85, 0.7, 0.4), "visual": _VISUAL_SURVEYOR,
 			"roam_mode": _RoamingAIScript.Mode.PATROL,
 			"waypoint_offsets": [Vector2i(0, 0), Vector2i(1, 0), Vector2i(1, 1), Vector2i(0, 1)] as Array[Vector2i],
+			"qa_key_points": [
+				{
+					"label": "扁拱能让桥面坡度更缓，车马上下省力",
+					"groups": [["扁拱", "弧形拱"], ["坡", "坡度", "缓", "不陡"], ["车", "马", "行人", "通行"]],
+					"knowledge_keys": ["flat_arch"],
+				},
+				{
+					"label": "半圆拱为保跨度会更高更陡，扁拱更适合通行",
+					"groups": [["半圆"], ["高", "陡"], ["扁拱", "低", "缓"]],
+					"knowledge_keys": ["flat_arch"],
+				},
+			],
 		},
 		{
 			"unit_id": "bridge_scholar", "unit_name": "游学书生", "role": "qa",
@@ -194,6 +218,18 @@ func _get_npc_specs() -> Array[Dictionary]:
 			"bridge_part": "望柱栏板", "cell": Vector2i(-8, -3),
 			"color": Color(0.85, 0.85, 0.95), "visual": _VISUAL_SCHOLAR,
 			"roam_mode": _RoamingAIScript.Mode.RANDOM_WALK, "waypoints": [],
+			"qa_key_points": [
+				{
+					"label": "敞肩小拱可减轻桥身重量",
+					"groups": [["敞肩", "开肩", "小拱", "四孔"], ["减重", "减轻", "省石", "轻"]],
+					"knowledge_keys": ["open_spandrel"],
+				},
+				{
+					"label": "敞肩小拱可泄洪分水，结构与美感并用",
+					"groups": [["敞肩", "开肩", "小拱", "四孔"], ["泄洪", "分水", "过水", "水势"], ["美", "势", "好看", "不破"]],
+					"knowledge_keys": ["open_spandrel"],
+				},
+			],
 		},
 		{
 			"unit_id": "bridge_fisherman", "unit_name": "渔夫", "role": "qa",
@@ -202,6 +238,18 @@ func _get_npc_specs() -> Array[Dictionary]:
 			"color": Color(0.55, 0.7, 0.85), "visual": _VISUAL_FISHERMAN,
 			"roam_mode": _RoamingAIScript.Mode.PATROL,
 			"waypoint_offsets": [Vector2i(0, 0), Vector2i(1, 0), Vector2i(1, -1), Vector2i(0, -1)] as Array[Vector2i],
+			"qa_key_points": [
+				{
+					"label": "敞肩小拱能在汛期分泄水势，减轻主拱受压",
+					"groups": [["敞肩", "开肩", "小拱", "四孔"], ["泄洪", "分水", "过水", "水势"], ["减轻", "水压", "冲力", "顶拱"]],
+					"knowledge_keys": ["open_spandrel"],
+				},
+				{
+					"label": "单孔少桥墩不堵水，桥台基础承受扁拱推力",
+					"groups": [["单孔", "少桥墩", "无桥墩", "桥墩少"], ["不堵", "畅水", "积淤", "冲"], ["桥台", "基础", "青砂石"]],
+					"knowledge_keys": ["old_method", "abutment"],
+				},
+			],
 		},
 		# ─── 求教类（2）───
 		{
@@ -431,6 +479,7 @@ func _setup_npc(unit: Unit, spec: Dictionary) -> Unit:
 	elif role == "qa":
 		var persona: Dictionary = _NpcPersonasScript.get_persona(unit.unit_data.unit_id, unit.unit_data.camp)
 		unit.set_meta("npc_qa_question", String(persona.get("qa_question", "我有一事相问，可解么？")))
+		unit.set_meta("npc_qa_key_points", spec.get("qa_key_points", []))
 		unit.set_meta("npc_qa_solved", false)
 	elif role == "mentor":
 		var topics_raw: Array = spec.get("mentor_topics", [])
@@ -850,7 +899,7 @@ func _generate_qa_eval(npc: Unit, question: String, answer: String) -> Dictionar
 		"dialogue_history": _dialogue_history_text(npc),
 		"mission_context": _mission_context_text(npc),
 		"cheat_context": _cheat_context_text(is_cheat, cheat_word),
-		"qa_key_points": _qa_key_points_text(persona),
+		"qa_key_points": _qa_key_points_text(npc),
 	})
 	var resp: Dictionary = await _get_llm().chat_completion([
 		{"role": "system", "content": sys},
@@ -982,7 +1031,7 @@ func _make_cheat_qa_eval(_npc: Unit) -> Dictionary:
 
 
 func _make_rule_qa_eval(npc: Unit, answer: String, persona: Dictionary) -> Dictionary:
-	var key_points: Array = _get_persona_array(persona, "qa_key_points")
+	var key_points: Array = _get_npc_meta_array(npc, "npc_qa_key_points")
 	var matched: Array[String] = []
 	var missed: Array[String] = []
 	var knowledge_used: Array[String] = []
@@ -1053,8 +1102,8 @@ func _normalize_match_text(text: String) -> String:
 	return out
 
 
-func _qa_key_points_text(persona: Dictionary) -> String:
-	var key_points: Array = _get_persona_array(persona, "qa_key_points")
+func _qa_key_points_text(npc: Unit) -> String:
+	var key_points: Array = _get_npc_meta_array(npc, "npc_qa_key_points")
 	if key_points.is_empty():
 		return "（未配置；按问题语义宽松判断）"
 	var lines: Array[String] = []
@@ -1102,13 +1151,15 @@ func _fallback_lines_for(persona: Dictionary, kind: String) -> Array:
 	return []
 
 
-func _get_persona_array(persona: Dictionary, key: String) -> Array:
-	var raw: Variant = persona.get(key, [])
+func _get_dict_array(dict: Dictionary, key: String) -> Array:
+	var raw: Variant = dict.get(key, [])
 	return raw if raw is Array else []
 
 
-func _get_dict_array(dict: Dictionary, key: String) -> Array:
-	var raw: Variant = dict.get(key, [])
+func _get_npc_meta_array(npc: Unit, key: String) -> Array:
+	if npc == null or not npc.has_meta(key):
+		return []
+	var raw: Variant = npc.get_meta(key)
 	return raw if raw is Array else []
 
 
