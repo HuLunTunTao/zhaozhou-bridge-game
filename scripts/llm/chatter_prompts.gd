@@ -86,6 +86,9 @@ static func build_user_prompt(persona: Dictionary, trigger_kind: String, extra: 
 - 已学知识 key：%s
 - 明显无效或扣分说法：%s
 
+本轮预置说服关键点（代码内配置，优先参考；同义表达也算命中）：
+%s
+
 按下面 JSON **严格输出**（仅 JSON，不要其他文字）：
 {"reply":"<一句话回答，30字内>", "accum_score": <整数 6..15>, "round_score": <整数 -10..15>, "tone":"<两到四字情绪标签>", "knowledge_used":["<实际用到的知识 key>", ...], "matched_points":["<命中的说服点>", ...], "missed_points":["<仍缺的要点>", ...]}
 计分规则：
@@ -94,10 +97,11 @@ static func build_user_prompt(persona: Dictionary, trigger_kind: String, extra: 
   - round_score 是本轮评分（-10..15），表示李春这句话当场是否切中疑虑
   - 游戏会计算本轮最终得分 = accum_score + round_score，并加到 NPC 说服进度
 round_score 参考：
-  - 回应你的核心疑虑，且论据贴合目标 → +15 到 +25
+  - 命中任一预置说服关键点，或用同义说法讲到同一工程道理 → 至少 +8
+  - 回应你的核心疑虑，且论据贴合目标 → +10 到 +15
   - 回应部分疑虑或方向正确但不完整 → +5 到 +11
-  - 明确用到推荐知识 key 或已学知识 → 每个 +5 到 +9，合计最多 +15
-  - 兼顾你的身份诉求（工艺/防汛/钱粮政绩）→ +10 到 +20
+  - 明确用到推荐知识 key 或已学知识 → 每个 +3 到 +5，合计最多 +8
+  - 兼顾你的身份诉求（工艺/防汛/钱粮政绩）→ +1 到 +3
   - 空泛表态、只讲情绪、没有回应疑虑 → 0 到 +3
   - 明显错误、冒犯、回避风险 → -5 到 -10；不要因为措辞不专业就扣分
 额外要求：
@@ -119,6 +123,7 @@ knowledge_used 只列李春话中确实用到的 key；没用就给空数组。"
 				_format_prompt_list(goal.get("required_topics", [])),
 				str(extra.get("learned_csv", "（无）")),
 				_format_prompt_list(goal.get("bad_arguments", [])),
+				extra.get("persuade_key_points", "（无）"),
 			]
 		"bridge_neighbor_interject":
 			return "你刚听到「%s」对李春说：「%s」。以你的口吻插一句嘴（一句话，30 字内）。" % [
@@ -140,27 +145,34 @@ knowledge_used 只列李春话中确实用到的 key；没用就给空数组。"
 已学知识细节（用于判断他是否真正说到点上）：
 %s
 
+本题预置关键点（代码内配置，优先参考；同义表达也算命中）：
+%s
+
 特殊判定：
 %s
 
 请以你（%s）的视角判断他的回答是否切中你关心的要点。
 **严格 JSON 输出**（只输出 JSON）：
-{"is_correct": true/false, "feedback": "<一句口吻 reaction，<= 30 字>", "knowledge_used": ["<引用到的 key>", ...]}
+{"is_correct": true/false, "feedback": "<一句口吻 reaction，<= 30 字>", "knowledge_used": ["<引用到的 key>", ...], "matched_points": ["<命中的关键点>", ...], "missed_points": ["<仍缺的关键点>", ...]}
 判分标准：
+  - 命中任一预置关键点，或用同义说法讲到同一工程道理 → 倾向 true
   - 切中要害（即便用词不一样）→ true，feedback 用你的口吻表示信服
+  - 方向正确但不完整，且能回应你问题的一部分 → 倾向 true，feedback 承认他答到点上
   - 答非所问 / 完全不懂 → false，feedback 用你的口吻表达困惑或不满
-  - 模棱两可、勉强能扯上 → 倾向 false，feedback 给个台阶让他再说
+  - 只有完全空泛、明显错误、或与问题无关时才判 false
 额外要求：
   - feedback 要针对他的答案或历史里反复卡住的点，不要套模板
   - 如果他补上了你上轮指出的缺口，可判 true
   - 若“特殊判定”不是“无”，feedback 必须呼应该吉兆意象，并明确表达疑问已解
-knowledge_used 给出他的回答里**确实**用到的 key（没用就给空数组），用于面板高亮。""" % [
+knowledge_used 给出他的回答里**确实**用到的 key（没用就给空数组），用于面板高亮。
+matched_points / missed_points 使用上面的预置关键点标签；没有就给空数组。""" % [
 				extra.get("question", "?"),
 				extra.get("answer", "?"),
 				str(extra.get("learned_csv", "（无）")),
 				extra.get("mission_context", "（无）"),
 				extra.get("dialogue_history", "（无）"),
 				extra.get("learned_details", "（无）"),
+				extra.get("qa_key_points", "（无）"),
 				extra.get("cheat_context", "（无）"),
 				persona.get("name", "你"),
 			]

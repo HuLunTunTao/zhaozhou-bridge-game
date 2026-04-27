@@ -171,8 +171,19 @@ var resp := await _get_llm().chat_completion([
 - `mission_context`：当前任务与 NPC 关键信息。
 - `cheat_context`：隐藏暗语命中时的特殊判定说明；未命中时为“（无）”。
 - `accum_total`：此前累积分合计。
+- `persuade_key_points`：代码中为该说服 NPC 预置的关键点标签与关联知识 key。
 
-### 5.3 LLM 输出格式
+### 5.3 预置关键点
+
+说服 NPC 的 `persuasion_goal` 中可配置 `key_points`。每个关键点包含：
+
+- `label`：给 LLM 和本地规则 fallback 使用的说服点说明。
+- `groups`：本地规则 fallback 的关键词组；每组命中一个同义词即算该组通过。为降低难度，通常命中“大部分组”（至少 2 组，或总组数 - 1）就算命中该关键点。
+- `knowledge_keys`：命中该关键点时可认为玩家用到的知识 key。
+
+当前已为老匠首、河工总管、朝廷视察官配置关键点。LLM prompt 会明确要求：命中任一预置说服关键点或同义工程道理时，至少给出正向推进。
+
+### 5.4 LLM 输出格式
 
 说服 prompt 要求 LLM 严格输出 JSON：
 
@@ -198,7 +209,7 @@ var resp := await _get_llm().chat_completion([
 - `matched_points`：命中的说服点。
 - `missed_points`：仍缺少的要点。
 
-### 5.4 分数归一化与结算
+### 5.5 分数归一化与结算
 
 `_normalize_persuade_scores(ans)` 负责容错：
 
@@ -227,15 +238,18 @@ npc_accum_score_total += accum_score
 - 刷新左上角任务 HUD。
 - 检查胜利条件。
 
-如果 LLM 失败并走普通 fallback：
+### 5.6 LLM 失败与本地规则 fallback
 
-- `accum_score = 0`
-- `round_score = 0`
-- `final_score = 0`
+如果 LLM 失败，说服不会直接退回“0 分普通台词”，而是先走 `_make_rule_persuade_answer()`：
 
-也就是说，普通 LLM 失败不会推进说服进度。
+- 优先用 `persuasion_goal.key_points.groups` 做本地关键词组匹配。
+- 若玩家命中任一 `key_points`，本地计算 `accum_score` / `round_score`，并设置 `allow_fallback_score = true`，允许推进说服进度。
+- 若没有命中关键点，才退回普通 fallback，`accum_score = 0`、`round_score = 0`、`final_score = 0`。
+- 命中关键点时，反馈优先从 `fallback_lines.persuade_success` 取；未命中时从 `fallback_lines.persuade` 取。
 
-### 5.5 HUD 显示
+也就是说：LLM 失败但玩家说到预置关键点时仍会推进；只有完全未命中关键点的普通 fallback 才不会推进。
+
+### 5.7 HUD 显示
 
 `MissionHud.update_npc_stance()` 会显示说服进度与上轮计分：
 
@@ -293,8 +307,19 @@ HUD 底部提示：
 - `dialogue_history`：该 NPC 历史问答。
 - `mission_context`：当前任务上下文。
 - `cheat_context`：隐藏暗语命中时的特殊判定说明。
+- `qa_key_points`：代码中为该 QA NPC 预置的关键点标签与关联知识 key。
 
-### 6.4 LLM 输出格式
+### 6.4 预置关键点
+
+QA NPC 在 `npc_personas.gd` 中可配置 `qa_key_points`。每个关键点包含：
+
+- `label`：给 LLM 和本地 fallback 使用的关键点说明。
+- `groups`：本地规则 fallback 的关键词组；每组命中一个同义词即算该组通过。为降低难度，通常命中“大部分组”（至少 2 组，或总组数 - 1）就算命中该关键点。
+- `knowledge_keys`：命中该关键点时可认为玩家用到的知识 key。
+
+当前已为学徒工、商旅过客、游学书生、老石匠、渔夫配置关键点。LLM prompt 会明确要求：命中任一预置关键点或同义工程道理时，倾向判为正确。
+
+### 6.5 LLM 输出格式
 
 QA prompt 要求 LLM 严格输出 JSON：
 
@@ -302,7 +327,9 @@ QA prompt 要求 LLM 严格输出 JSON：
 {
   "is_correct": true,
   "feedback": "<一句口吻 reaction，<= 30 字>",
-  "knowledge_used": []
+  "knowledge_used": [],
+  "matched_points": [],
+  "missed_points": []
 }
 ```
 
@@ -311,6 +338,8 @@ QA prompt 要求 LLM 严格输出 JSON：
 - `is_correct`：是否答对。
 - `feedback`：NPC 反馈；LLM 完整返回后，由 TTS 流式播放。
 - `knowledge_used`：李春答案中实际用到的知识 key。
+- `matched_points`：命中的预置关键点标签。
+- `missed_points`：仍缺的预置关键点标签。
 
 如果 `is_correct == true`：
 
@@ -573,8 +602,8 @@ LLM 失败包括：
 
 各流程兜底：
 
-- 说服：`_PersonaFallbackScript.pick(persona, "persuade")`，且普通失败不推进说服进度。
-- QA：`_PersonaFallbackScript.pick(persona, "qa")`，且默认 `is_correct = false`。
+- 说服：优先走 `_make_rule_persuade_answer()` 本地规则 fallback。它会用 `persuasion_goal.key_points.groups` 做关键词组匹配；命中任一关键点时计算本地分数，反馈从 `fallback_lines.persuade_success` 中取，否则反馈从 `fallback_lines.persuade` 中取且不推进。
+- QA：优先走 `_make_rule_qa_eval()` 本地规则 fallback。它会用 `qa_key_points.groups` 做关键词组匹配；命中任一关键点时判 `is_correct = true`，反馈从 `fallback_lines.qa_success` 中取，否则反馈从 `fallback_lines.qa` 中取并判 false。
 - Mentor：`_PersonaFallbackScript.pick(persona, "mentor")`，`topic_key = ""`，不会学到知识。
 - Neighbor：`_PersonaFallbackScript.pick(persona, "neighbor")`，为空则跳过插话。
 - 暗语命中：使用专门的 `_make_cheat_persuade_answer()` / `_make_cheat_qa_eval()`，确保演示可通过。
