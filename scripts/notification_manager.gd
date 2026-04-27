@@ -219,7 +219,7 @@ func _position_popup(popup: Control, pos: Position) -> void:
 		Position.BOTTOM_CENTER:
 			popup.position = Vector2((_vp_size.x - popup_size.x) / 2.0, _vp_size.y - popup_size.y - MARGIN - stack_offset)
 		Position.CENTER:
-			popup.position = Vector2((_vp_size.x - popup_size.x) / 2.0, (_vp_size.y - popup_size.y) / 2.0 + stack_offset)
+			popup.position = Vector2((_vp_size.x - popup_size.x) / 2.0, (_vp_size.y - popup_size.y) * 0.3 + stack_offset)
 
 
 func _get_stack_offset(pos: Position, current_popup: Control) -> float:
