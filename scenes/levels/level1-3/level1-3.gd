@@ -16,7 +16,6 @@ var _arch_closed := false
 var _pending_enemy_resolution := false
 var _carrying_stone: Dictionary = {}
 var _carrier_base_move_cost: Dictionary = {}
-var _close_arch_ap_cost := 35
 # ── UI 常驻状态面板（左上角）──
 var _status_panel: RichTextLabel = null
 # 上一次结算时的平衡状态（"均衡" / "偏衡" / "失衡"），用于检测状态切换
@@ -199,7 +198,7 @@ func get_objectives_text() -> Dictionary:
 			"- 右券值达到 10（当前 %d/10）" % _right_arch_value,
 			"- 左右差值保持 ≤1（当前 %d）" % gap,
 			"- 击败偏载傀（%s）" % ("已击败" if not boss_alive else "存活"),
-			"- 上述三项满足后，李春走到桥中央[color=#c060f0]紫色拱冠点[/color]执行「收缝合龙」（%s）" % ("已完成" if _arch_closed else "未完成"),
+			"- 上述三项满足后，李春用「墨绳校券」命中桥中央[color=#c060f0]紫色拱冠点[/color]完成合龙（%s）" % ("已完成" if _arch_closed else "未完成"),
 		],
 		"defeat": [
 			"- 李春倒下",
@@ -239,7 +238,7 @@ func _on_level_ready() -> void:
 	_update_crown_visibility()
 	_prev_balance_state = _balance_state()
 	Notify.notify("推进券值：运石工去棕色石料场取石，再走到金/蓝券台旁 +1；或李春用「墨绳校券」远程 +1（CD 2）", Notify.Position.TOP_CENTER, Notify.Style.INFO, 5.0)
-	Notify.notify("击败偏载傀 + 两侧凑满 10 后，桥中央紫色拱冠合龙点才会激活，李春走过去消耗 35 AP 合龙即胜利", Notify.Position.TOP_CENTER, Notify.Style.INFO, 6.0)
+	Notify.notify("击败偏载傀 + 两侧凑满 10 后，桥中央紫色拱冠合龙点激活，李春用「墨绳校券」命中拱冠点即胜利", Notify.Position.TOP_CENTER, Notify.Style.INFO, 6.0)
 
 
 func _on_unit_moved() -> void:
@@ -247,13 +246,28 @@ func _on_unit_moved() -> void:
 		return
 	var unit := selected_unit as Unit
 	_try_pick_or_deliver_stone(unit)
-	_try_close_arch(unit)
 
 
 func _on_skill_executed(caster: Unit, skill: SkillData, cast_cell: Vector2i, exec_result: SkillExecutor.ExecuteResult) -> void:
 	# 李春墨绳校券：命中左/右券台 2×2 → 命中侧 +1，同时对侧 -1（左右调拨）。
 	# 总和不变，但能瞬间矫正失衡，让玩家有手段把扰券侧的扣减"挪"到富余侧。
 	if caster == _li_chun and skill.skill_id == "lc_inkline_balance_arch":
+		# 命中拱冠点 → 收缝合龙（替代旧的"走到拱冠点自动触发"逻辑）
+		if cast_cell == _crown_point:
+			if _close_arch_conditions_met():
+				_close_arch_via_skill()
+			else:
+				# 条件不齐备：退还 AP，给提示
+				caster.combat_stats.ap_current = mini(
+					caster.combat_stats.ap_current + skill.ap_cost,
+					caster.combat_stats.ap_max,
+				)
+				caster.refresh_overhead_bars()
+				Notify.notify(
+					"合龙条件未满足：需先击败偏载傀，且左右券值各 ≥10、差值 ≤1",
+					Notify.Position.TOP_CENTER, Notify.Style.WARNING, 3.0,
+				)
+			return
 		if _is_in_zone(cast_cell, _left_platform):
 			_adjust_arch_value(true, 1, "墨绳校券（左 +1）")
 			_adjust_arch_value(false, -1, "墨绳校券（右 -1）")
@@ -405,7 +419,7 @@ func _update_crown_visibility() -> void:
 	if should_show and not _crown_activated:
 		_crown_activated = true
 		Notify.notify(
-			"拱冠合龙点已激活！李春走到桥中央紫色拱冠点完成「收缝合龙」即胜利",
+			"拱冠合龙点已激活！李春用「墨绳校券」命中桥中央紫色拱冠点即胜利",
 			Notify.Position.TOP_CENTER, Notify.Style.SUCCESS, 5.0,
 		)
 
@@ -495,22 +509,18 @@ func _try_pick_or_deliver_stone(unit: Unit) -> void:
 		unit.refresh_overhead_bars()
 
 
-func _try_close_arch(unit: Unit) -> void:
-	if unit != _li_chun or _arch_closed:
-		return
-	if unit.cell != _crown_point:
-		return
+func _close_arch_conditions_met() -> bool:
+	if _arch_closed:
+		return false
 	if _left_arch_value < 10 or _right_arch_value < 10 or _arch_gap() > 1:
-		return
-	# 新流程：合龙是最后一步，必须先击败 Boss
+		return false
 	if _boss == null or _boss.combat_stats == null or _boss.combat_stats.is_alive():
-		return
-	if unit.combat_stats.ap_current < _close_arch_ap_cost:
-		return
-	unit.combat_stats.ap_current -= _close_arch_ap_cost
-	unit.refresh_overhead_bars()
+		return false
+	return true
+
+
+func _close_arch_via_skill() -> void:
 	_arch_closed = true
-	# Boss 已死，无需再 _unlock_boss
 	if _crown_tile != null:
 		_crown_tile.visible = false
 	if _crown_marker != null:
