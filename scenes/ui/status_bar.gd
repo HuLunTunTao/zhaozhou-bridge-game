@@ -168,7 +168,9 @@ func show_unit(unit: Node2D, is_active: bool = false) -> void:
 		# 行动次数显示：不需要时隐藏以节省空间。
 		if not stats.is_hero and stats.camp == Enums.Camp.ALLY:
 			var parts: Array[String] = []
-			if stats.skill_limit >= 0:
+			if stats.has_infinite_actions():
+				parts.append("技能:∞")
+			elif stats.skill_limit >= 0:
 				parts.append("技能:%d/%d" % [maxi(stats.skill_limit - stats.skills_used, 0), stats.skill_limit])
 			_actions_label.text = " ".join(parts) if not parts.is_empty() else ""
 			_actions_label.visible = not parts.is_empty()
@@ -322,7 +324,7 @@ func _update_slots(unit: Node2D, is_active: bool, stats: CombatStats) -> void:
 	if not is_active or stats == null:
 		return
 
-	var move_disabled := not stats.can_move() or stats.ap_current <= 0
+	var move_disabled := not stats.can_move()
 	_set_slot(0, true, "移动", "消耗AP移动\n每格%dAP" % stats.move_cost_per_tile, move_disabled)
 
 	var data: UnitData = unit.unit_data if unit is Unit else null

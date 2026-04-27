@@ -7,6 +7,7 @@ const LEVEL_BGM_BY_LEVEL := {
 	"关卡1-3": "res://assets/audio/music/3：二十八券(The_Twenty_Eighth_Arch).mp3",
 	"关卡1-4": "res://assets/audio/music/4：敞肩试汛(Against_the_Angry_Tide).mp3",
 }
+const DEBUG_INFINITE_AP_BUDGET := 9999
 ## Base class for all battle levels.
 const _AIBrain := preload("res://scripts/combat/ai_brain.gd")
 ## Inherited scenes should add TileMapLayers under the TileMaps node,
@@ -90,6 +91,8 @@ signal skill_executed(caster: Unit, skill: SkillData, cast_cell: Vector2i)
 @onready var gui: CanvasLayer = $GUI
 @onready var status_bar: HBoxContainer = $StatusBarScene/PanelContainer/MarginContainer/StatusBar
 @onready var win_button: Button = $GUI/WinButton
+@onready var infinite_ap_button_label: Label = $GUI/InfiniteApButtonLabel
+@onready var infinite_ap_button_button: CheckButton = $GUI/InfiniteApButtonLabel/InfiniteApButtonButton
 
 const SettingsPanelScene := preload("res://scenes/ui/settings_panel.tscn")
 const ObjectivesPanelScene := preload("res://scenes/ui/objectives_panel.tscn")
@@ -114,6 +117,7 @@ var _llm_client: Node = null
 var _ai_busy := false
 ## 单位闲聊调度器（LLM 驱动）。BRIEFING 之后的战斗中监听 team_turn_ended / round_ended 触发对话。
 var _chatter_scheduler: Node = null
+var _infinite_ally_actions_enabled := false
 
 ## 输入状态机。LOCKED 表示被外部流程显式锁定（例如自由移动关卡的对话流），与 ANIMATING（基类演出）正交。
 enum InputState { IDLE, UNIT_SELECTED, TARGETING_MOVE, TARGETING_SKILL, ANIMATING, LOCKED }
@@ -261,6 +265,8 @@ var _pending_special_enter: Dictionary = {}
 func _ready() -> void:
 	Settings.settings_changed.connect(_refresh_debug_ui, CONNECT_REFERENCE_COUNTED)
 	Settings.difficulty_changed.connect(_on_difficulty_changed)
+	if infinite_ap_button_button and not infinite_ap_button_button.toggled.is_connected(_on_infinite_ap_button_toggled):
+		infinite_ap_button_button.toggled.connect(_on_infinite_ap_button_toggled)
 	_refresh_debug_ui()
 	_play_level_bgm()
 	tilemap = _find_walkable_tilemap()
@@ -353,6 +359,48 @@ func _play_level_bgm() -> void:
 func _refresh_debug_ui() -> void:
 	if win_button:
 		win_button.visible = Settings.debug_mode
+	if infinite_ap_button_label:
+		infinite_ap_button_label.visible = Settings.debug_mode
+	if infinite_ap_button_button:
+		infinite_ap_button_button.disabled = not Settings.debug_mode
+		if not Settings.debug_mode and _infinite_ally_actions_enabled:
+			infinite_ap_button_button.set_pressed_no_signal(false)
+			_set_infinite_ally_actions_enabled(false)
+
+
+func _on_infinite_ap_button_toggled(enabled: bool) -> void:
+	if not Settings.debug_mode:
+		if infinite_ap_button_button:
+			infinite_ap_button_button.set_pressed_no_signal(false)
+		return
+	_set_infinite_ally_actions_enabled(enabled)
+
+
+func _set_infinite_ally_actions_enabled(enabled: bool) -> void:
+	if _infinite_ally_actions_enabled == enabled:
+		return
+	_infinite_ally_actions_enabled = enabled
+	for unit in _get_all_units():
+		if unit is Unit:
+			_apply_infinite_ally_actions_to_unit(unit)
+	_refresh_difficulty_dependent_ui()
+	Notify.notify(
+		"友方无限AP已%s" % ("开启" if enabled else "关闭"),
+		Notify.Position.TOP_CENTER,
+		Notify.Style.SUCCESS if enabled else Notify.Style.INFO,
+		2.0,
+	)
+
+
+func _apply_infinite_ally_actions_to_unit(unit: Unit) -> void:
+	if unit == null or unit.combat_stats == null:
+		return
+	var stats: CombatStats = unit.combat_stats
+	stats.debug_infinite_actions = _infinite_ally_actions_enabled and stats.camp == Enums.Camp.ALLY
+	if stats.has_infinite_actions():
+		stats.ap_current = stats.ap_max
+	if unit.has_method("refresh_overhead_bars"):
+		unit.refresh_overhead_bars()
 
 
 func _process(_delta: float) -> void:
@@ -887,7 +935,8 @@ func _run_ai_turn(team: TeamData) -> void:
 			var from_cell := path[0]
 			u.move_along_path(path, tilemap)
 			await u.move_finished
-			u.combat_stats.ap_current -= action["move_cost"]
+			if not u.combat_stats.has_infinite_actions():
+				u.combat_stats.ap_current -= action["move_cost"]
 			u.combat_stats.moves_used += 1
 			u.refresh_overhead_bars()
 			CombatLog.msg("    移动: %s → %s (消耗%dAP)" % [from_cell, u.cell, action["move_cost"]])
@@ -1135,6 +1184,7 @@ func spawn_unit(unit_data: UnitData, cell: Vector2i, team_index: int, visual: Pa
 		unit.team_index = team_index
 		unit.faction = team.faction
 		team.units.append(unit)
+	_apply_infinite_ally_actions_to_unit(unit)
 	unit.apply_faction_outline()
 	return unit
 
@@ -1277,6 +1327,7 @@ func setup_unit_stats(unit: Unit, uname: String, hp: int, atk: int,
 	s.current_element = elem
 	s.current_element_amount = elem_amt
 	s.is_hero = is_hero_flag
+	_apply_infinite_ally_actions_to_unit(unit)
 	unit.refresh_overhead_bars()
 	if unit.has_method("apply_faction_outline"):
 		unit.apply_faction_outline()
@@ -1626,7 +1677,8 @@ func _enter_targeting_move() -> void:
 		var enemy: Array[Vector2i] = _get_enemy_cells_except(unit)
 		# 每格消耗 = 基础消耗 + 状态修正
 		var effective_cost := stats.move_cost_per_tile + stats.get_move_ap_modifier()
-		move_overlay.show_range_ap(tilemap, movement_manager, unit.cell, stats.ap_current, effective_cost, friendly, enemy)
+		var ap_budget := DEBUG_INFINITE_AP_BUDGET if stats.has_infinite_actions() else stats.ap_current
+		move_overlay.show_range_ap(tilemap, movement_manager, unit.cell, ap_budget, effective_cost, friendly, enemy)
 	else:
 		move_overlay.show_range(tilemap, movement_manager, unit.cell, unit.movement_points)
 
@@ -1651,7 +1703,8 @@ func _confirm_targeting_move(cell: Vector2i, local_mouse: Vector2, current_team:
 		# 扣除 AP
 		if moving_unit is Unit and moving_unit.combat_stats != null:
 			var from_cell := path[0]
-			moving_unit.combat_stats.ap_current -= ap_cost
+			if not moving_unit.combat_stats.has_infinite_actions():
+				moving_unit.combat_stats.ap_current -= ap_cost
 			moving_unit.combat_stats.moves_used += 1
 			CombatLog.log_unit_move(moving_unit.combat_stats.unit_name, from_cell, cell, ap_cost, moving_unit.combat_stats.ap_current)
 			moving_unit.refresh_overhead_bars()
@@ -1661,7 +1714,7 @@ func _confirm_targeting_move(cell: Vector2i, local_mouse: Vector2, current_team:
 		if moving_unit is Unit and moving_unit.combat_stats != null:
 			var stats: CombatStats = moving_unit.combat_stats
 			var ec := _get_enemy_cell_set(moving_unit.faction)
-			if stats.ap_current > 0 and (stats.can_move() or _has_usable_attack(moving_unit, ec)):
+			if _has_action_budget(stats) and (stats.can_move() or _has_usable_attack(moving_unit, ec)):
 				selected_unit = moving_unit
 				unit_selected = true
 				_input_state = InputState.UNIT_SELECTED
@@ -1734,9 +1787,13 @@ func _player_team_has_remaining_actions() -> bool:
 		if u.combat_stats == null or not u.combat_stats.is_alive():
 			continue
 		var stats: CombatStats = u.combat_stats
-		if stats.ap_current > 0 and (stats.can_move() or _has_usable_attack(u, enemy_cells)):
+		if _has_action_budget(stats) and (stats.can_move() or _has_usable_attack(u, enemy_cells)):
 			return true
 	return false
+
+
+func _has_action_budget(stats: CombatStats) -> bool:
+	return stats != null and (stats.has_infinite_actions() or stats.ap_current > 0)
 
 
 ## 检查单位是否有攻击技能能够打到敌人（AP/次数够 + 范围内有敌人）。
@@ -1888,7 +1945,7 @@ func _confirm_targeting_skill(cell: Vector2i) -> void:
 	if unit and unit.combat_stats:
 		var stats := unit.combat_stats
 		var ec := _get_enemy_cell_set(unit.faction)
-		if stats.ap_current > 0 and (stats.can_move() or _has_usable_attack(unit, ec)):
+		if _has_action_budget(stats) and (stats.can_move() or _has_usable_attack(unit, ec)):
 			_input_state = InputState.UNIT_SELECTED
 			if stats.can_move():
 				_enter_targeting_move()

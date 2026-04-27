@@ -19,7 +19,7 @@ script = ExtResource("1_base")
 [node name="MoveOverlay" type="Node2D" parent="." unique_id=1306819768]
 script = ExtResource("2_overlay")
 
-[node name="HoverOverlay" type="Node2D" parent="."]
+[node name="HoverOverlay" type="Node2D" parent="." unique_id=292767427]
 script = ExtResource("6_hover")
 
 [node name="Camera2D" type="Camera2D" parent="." unique_id=1804751050]
@@ -50,7 +50,7 @@ offset_bottom = 35.0
 theme_override_font_sizes/font_size = 14
 text = "本关目标"
 
-[node name="ProgressButton" type="Button" parent="GUI"]
+[node name="ProgressButton" type="Button" parent="GUI" unique_id=1434701122]
 offset_left = 234.0
 offset_top = 3.0
 offset_right = 298.0
@@ -93,10 +93,11 @@ offset_top = 39.0
 offset_right = -14.0
 offset_bottom = 71.0
 grow_horizontal = 0
+tooltip_text = "AI 支持"
 theme_override_font_sizes/font_size = 14
 text = "AI"
-tooltip_text = "AI 支持"
-[node name="TutorialButton" type="Button" parent="GUI"]
+
+[node name="TutorialButton" type="Button" parent="GUI" unique_id=286914546]
 anchors_preset = 1
 anchor_left = 1.0
 anchor_right = 1.0
@@ -105,17 +106,17 @@ offset_top = 3.0
 offset_right = -50.0
 offset_bottom = 35.0
 grow_horizontal = 0
+tooltip_text = "查看游戏规则说明"
 theme_override_font_sizes/font_size = 18
 text = "📖"
-tooltip_text = "查看游戏规则说明"
 
 [node name="WinButton" type="Button" parent="GUI" unique_id=279380324]
 anchors_preset = 1
 anchor_left = 1.0
 anchor_right = 1.0
-offset_left = -488.0
+offset_left = -511.0
 offset_top = 3.0
-offset_right = -452.0
+offset_right = -431.0
 offset_bottom = 35.0
 grow_horizontal = 0
 theme_override_font_sizes/font_size = 18
@@ -132,6 +133,26 @@ offset_bottom = 31.0
 grow_horizontal = 0
 theme_override_font_sizes/font_size = 18
 text = "玩家队伍 的回合"
+
+[node name="InfiniteApButtonLabel" type="Label" parent="GUI" unique_id=1869015634]
+visible = false
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -640.0
+offset_top = 9.0
+offset_right = -530.0
+offset_bottom = 32.0
+grow_horizontal = 0
+theme_override_font_sizes/font_size = 18
+text = "无限AP"
+
+[node name="InfiniteApButtonButton" type="CheckButton" parent="GUI/InfiniteApButtonLabel" unique_id=2117704623]
+layout_mode = 0
+offset_left = 50.0
+offset_top = -2.0
+offset_right = 94.0
+offset_bottom = 22.0
 
 [node name="StatusBarScene" parent="." unique_id=1549933772 instance=ExtResource("5_statusbar")]
 

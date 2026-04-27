@@ -24,7 +24,7 @@ static func execute(
 
 	var stats := unit.combat_stats
 
-	if stats.ap_current < skill.ap_cost:
+	if not stats.has_infinite_actions() and stats.ap_current < skill.ap_cost:
 		result.error = "AP 不足"
 		return result
 
@@ -38,9 +38,12 @@ static func execute(
 	result.targets = targets
 	CombatLog.log_targets(targets)
 
-	stats.ap_current -= skill.ap_cost
-	stats.skills_used += 1
-	CombatLog.msg("  消耗 %dAP → 剩余 %dAP" % [skill.ap_cost, stats.ap_current])
+	if stats.has_infinite_actions():
+		CombatLog.msg("  测试无限AP: 不消耗AP，不计入技能次数")
+	else:
+		stats.ap_current -= skill.ap_cost
+		stats.skills_used += 1
+		CombatLog.msg("  消耗 %dAP → 剩余 %dAP" % [skill.ap_cost, stats.ap_current])
 
 	# 命中前预扫描：统计有效目标数，决定全局倍率乘数（环形命中数缩放、连击门槛等）
 	var damage_targets: Array = []

@@ -811,15 +811,20 @@ func _try_mark_arch_interacted(arch_key: String) -> void:
 
 
 func _try_repair_pier(unit: Unit) -> void:
-	if unit not in _stone_carriers or unit.combat_stats.ap_current < 40:
+	var stats: CombatStats = unit.combat_stats if unit != null else null
+	if unit not in _stone_carriers or stats == null:
+		return
+	if not stats.has_infinite_actions() and stats.ap_current < 40:
 		return
 	if _is_adjacent_or_same(unit.cell, _left_pier) and _left_pier_stability < _stability_config.pier_max:
-		unit.combat_stats.ap_current -= 40
+		if not stats.has_infinite_actions():
+			stats.ap_current -= 40
 		unit.refresh_overhead_bars()
 		_left_pier_stability = mini(_left_pier_stability + 1, _stability_config.pier_max)
 		Notify.notify("左桥台抢修完成，稳定值 %d" % _left_pier_stability, Notify.Position.TOP_RIGHT, Notify.Style.SUCCESS, 2.0)
 	elif _is_adjacent_or_same(unit.cell, _right_pier) and _right_pier_stability < _stability_config.pier_max:
-		unit.combat_stats.ap_current -= 40
+		if not stats.has_infinite_actions():
+			stats.ap_current -= 40
 		unit.refresh_overhead_bars()
 		_right_pier_stability = mini(_right_pier_stability + 1, _stability_config.pier_max)
 		Notify.notify("右桥台抢修完成，稳定值 %d" % _right_pier_stability, Notify.Position.TOP_RIGHT, Notify.Style.SUCCESS, 2.0)

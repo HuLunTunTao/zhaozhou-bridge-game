@@ -49,6 +49,8 @@ var skills_used: int = 0
 ## 在 CombatResolver.resolve_hit 中作为最终乘子叠在 multiplier 之后、phase bonus 之前。
 ## 关卡脚本可针对特定单位（如 boss）按机制改写；默认值不影响其它关卡。
 var incoming_damage_factor: float = 1.0
+## 测试模式作弊：友方单位不消耗 AP，且忽略技能次数上限。
+var debug_infinite_actions: bool = false
 
 
 # ── 状态列表 ──
@@ -138,9 +140,13 @@ func reset_turn_counters() -> void:
 	ap_current = ap_max
 
 
+func has_infinite_actions() -> bool:
+	return debug_infinite_actions and camp == Enums.Camp.ALLY
+
+
 ## 检查是否还能移动（AP 足够走至少一格 + 次数未用完）。
 func can_move() -> bool:
-	if ap_current < move_cost_per_tile:
+	if not has_infinite_actions() and ap_current < move_cost_per_tile:
 		return false
 	if not is_hero and camp == Enums.Camp.ALLY:
 		return true
@@ -149,8 +155,10 @@ func can_move() -> bool:
 
 ## 检查是否还能使用技能（AP + 次数）。
 func can_use_skill(skill: SkillData) -> bool:
-	if ap_current < skill.ap_cost:
+	if not has_infinite_actions() and ap_current < skill.ap_cost:
 		return false
+	if has_infinite_actions():
+		return true
 	return skill_limit < 0 or skills_used < skill_limit
 
 
