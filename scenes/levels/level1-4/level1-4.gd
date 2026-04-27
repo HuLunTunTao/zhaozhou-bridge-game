@@ -398,12 +398,14 @@ func _expire_transient_tiles() -> void:
 		var tile: SiltTile = _silt_tiles[cell]
 		if tile == null or not is_instance_valid(tile) or tile.is_expired(round_now):
 			if is_instance_valid(tile):
+				unregister_special_tile(tile, cell)
 				tile.queue_free()
 			_silt_tiles.erase(cell)
 	for cell in _rapid_edge_tiles.keys().duplicate():
 		var tile: RapidEdgeTile = _rapid_edge_tiles[cell]
 		if tile == null or not is_instance_valid(tile) or tile.is_expired(round_now):
 			if is_instance_valid(tile):
+				unregister_special_tile(tile, cell)
 				tile.queue_free()
 			_rapid_edge_tiles.erase(cell)
 

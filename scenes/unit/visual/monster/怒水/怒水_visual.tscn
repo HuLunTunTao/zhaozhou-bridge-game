@@ -6,7 +6,7 @@
 [ext_resource type="Texture2D" uid="uid://o783k6rqxlkb" path="res://assets/character/monster/怒水/怒水_right.png" id="4_713nk"]
 [ext_resource type="Script" uid="uid://3tv1sx4qyggq" path="res://scenes/unit/visual/monster/怒水/怒水_visual.gd" id="5_7to65"]
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_713nk"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_7to65"]
 resource_local_to_scene = true
 shader = ExtResource("2_c5004")
 shader_parameter/outline_color = Color(1, 1, 0, 0.3)
@@ -83,8 +83,8 @@ animations = [{
 }]
 
 [node name="Visual" unique_id=1878430534 instance=ExtResource("1_xomok")]
+material = SubResource("ShaderMaterial_7to65")
 scale = Vector2(0.5, 0.5)
-material = SubResource("ShaderMaterial_713nk")
 sprite_frames = SubResource("SpriteFrames_ualjr")
 animation = &"left"
 frame_progress = 0.19751571
@@ -92,4 +92,4 @@ script = ExtResource("5_7to65")
 move_is_idle = true
 
 [node name="FootMarker" parent="." index="0"]
-position = Vector2(0, 240)
+position = Vector2(0, 116)
