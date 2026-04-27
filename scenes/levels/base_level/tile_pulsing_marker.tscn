@@ -37,6 +37,5 @@ color = Color(1, 0.95, 0.55, 0.95)
 polygon = PackedVector2Array(-1.5, -8, 1.5, -8, 1.5, -30, -1.5, -30)
 
 [node name="Arrow" type="Polygon2D" parent="Floater" unique_id=255356239]
-visible = false
 color = Color(1, 0.95, 0.55, 0.95)
 polygon = PackedVector2Array(0, 0, -6, -10, 6, -10)

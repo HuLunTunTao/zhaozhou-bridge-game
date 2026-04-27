@@ -45,6 +45,7 @@ var _wrathful_flood_data: UnitData = preload("res://data/units/wrathful_flood.tr
 
 # 友军技能（复用）
 var _staff: SkillData = preload("res://data/skills/sw_staff_end_strike.tres")
+var _sw_open_arch: SkillData = preload("res://data/skills/sw_open_arch.tres")
 var _mallet: SkillData = preload("res://data/skills/cg_mallet_strike.tres")
 var _guard: SkillData = preload("res://data/skills/cg_guard_the_works.tres")
 
@@ -376,7 +377,7 @@ func _on_unit_moved() -> void:
 
 
 func _on_skill_executed(caster: Unit, skill: SkillData, cast_cell: Vector2i, _exec_result: SkillExecutor.ExecuteResult) -> void:
-	if caster == _li_chun and skill.skill_id == "lc_guide_flood_open_arch":
+	if skill != null and skill.extra_effect_id == "stage_open_arch":
 		for arch_key in _side_arch_cells.keys():
 			if cast_cell in _arch_cells_for(arch_key):
 				_try_mark_arch_interacted(arch_key)
@@ -743,8 +744,8 @@ func _spawn_allies() -> void:
 		_spawn_ally(_make_unit_data(_craftsman_data, "工匠", 120, 20, 95, 9), _nearest_walkable(_watch_point + Vector2i(0, 2)), [_mallet, _guard]),
 	]
 	_stone_carriers = [
-		_spawn_ally(_make_unit_data(_survey_data, "运石工", 92, 14, 95, 9), _nearest_walkable(_side_arch_cells["left_back"] + Vector2i(0, 1)), [_staff]),
-		_spawn_ally(_make_unit_data(_survey_data, "运石工", 92, 14, 95, 9), _nearest_walkable(_side_arch_cells["right_back"] + Vector2i(0, 1)), [_staff]),
+		_spawn_ally(_make_unit_data(_survey_data, "运石工", 92, 14, 95, 9), _nearest_walkable(_side_arch_cells["left_back"] + Vector2i(0, 1)), [_staff, _sw_open_arch]),
+		_spawn_ally(_make_unit_data(_survey_data, "运石工", 92, 14, 95, 9), _nearest_walkable(_side_arch_cells["right_back"] + Vector2i(0, 1)), [_staff, _sw_open_arch]),
 	]
 	_apply_persistent_growth_effects()
 
