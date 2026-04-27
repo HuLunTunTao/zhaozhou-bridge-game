@@ -30,17 +30,12 @@ var _boss_phase: int = 1
 var _phase_arch_skill_used: Dictionary = {}   # arch_key → bool；_enter_phase 重置
 var _arch_blocked_overlay: Dictionary = {}    # arch_key → bool；transient (敌人占位)
 
-var _hero_data: UnitData = preload("res://data/units/hero_li_chun.tres")
-var _hero_visual: PackedScene = preload("res://scenes/unit/visual/human/li_chun/li_chun_visual.tscn")
-var _survey_data: UnitData = preload("res://data/units/survey_worker.tres")
-var _craftsman_data: UnitData = preload("res://data/units/craftsman_guard.tres")
-
-# 第四关敌方单位（独立 .tres）
+# 友方 + Boss + 开局敌方都在 .tscn 中通过 SubResource UnitData 预置（见 get_teams_config）；
+# 这里只保留波次刷怪 (_resolve_wave_unit) 用到的敌方独立 .tres。
 var _flood_spear_data: UnitData = preload("res://data/units/flood_spear.tres")
 var _siltmare_data: UnitData = preload("res://data/units/siltmare.tres")
 var _pier_gnawer_data: UnitData = preload("res://data/units/pier_gnawer.tres")
 var _driftwood_data: UnitData = preload("res://data/units/flood_driftwood_pack.tres")
-var _wrathful_flood_data: UnitData = preload("res://data/units/wrathful_flood.tres")
 
 # 友军技能（复用）
 var _staff: SkillData = preload("res://data/skills/sw_staff_end_strike.tres")
@@ -82,18 +77,37 @@ var _rapid_edge_tiles: Dictionary = {}    # cell → RapidEdgeTile
 
 func get_teams_config() -> Array:
 	_li_chun = $"Entities/Units/Player" as Unit
+	_craftsmen = [
+		$"Entities/Units/Craftsman1" as Unit,
+		$"Entities/Units/Craftsman2" as Unit,
+		$"Entities/Units/Craftsman3" as Unit,
+	]
+	_stone_carriers = [
+		$"Entities/Units/StoneCarrier1" as Unit,
+		$"Entities/Units/StoneCarrier2" as Unit,
+	]
+	_boss = $"Entities/Units/Boss" as Unit
+	var enemies: Array = [
+		_boss,
+		$"Entities/Units/FloodSpear1" as Unit,
+		$"Entities/Units/FloodSpear2" as Unit,
+		$"Entities/Units/Siltmare" as Unit,
+	]
+	var player_units: Array = [_li_chun]
+	player_units.append_array(_craftsmen)
+	player_units.append_array(_stone_carriers)
 	return [
 		{
 			"name": "守桥队",
 			"faction": "好人",
 			"controller": "player",
-			"units": [_li_chun],
+			"units": player_units,
 		},
 		{
 			"name": "洪灾",
 			"faction": "坏人",
 			"controller": "ai",
-			"units": [],
+			"units": enemies,
 		},
 	]
 
@@ -154,8 +168,8 @@ func _resolve_cell_hint(hint: String) -> Vector2i:
 	return _watch_point
 
 
-# 复制 UnitData 以避免多实例共享同一 Resource 副作用（原 _make_unit_data 的精简版，
-# 字段全部沿用 base .tres；ally 方向仍用 _make_unit_data 做字段覆盖）。
+# 复制 UnitData 以避免波次刷出的多个实例共享同一 Resource。字段全部沿用 base .tres，
+# spawn_unit + setup_unit_stats 在波次回调里再覆盖运行时数值。
 func _duplicate_unit_data(base: UnitData) -> UnitData:
 	var data := base.duplicate(true) as UnitData
 	data.resource_local_to_scene = true
@@ -231,8 +245,8 @@ func _on_level_ready() -> void:
 	_setup_anchor_cells()
 	_setup_arch_tiles()
 	_setup_li_chun()
-	_spawn_allies()
-	_spawn_enemies()
+	_setup_allies_from_scene()
+	_setup_enemies_from_scene()
 	team_turn_started.connect(_on_stage_team_turn_started)
 	unit_hp_changed.connect(_on_stage_hp_changed)
 	round_started.connect(_on_stage_round_started)
@@ -740,29 +754,30 @@ func _setup_anchor_cells() -> void:
 
 
 func _setup_li_chun() -> void:
-	_li_chun.apply_runtime_setup(_hero_data, _hero_visual, Color(1, 0.85, 0, 1))
 	set_unit_skills(_li_chun, Progress.get_battle_skill_resources(GameState.selected_level))
 	setup_unit_stats(_li_chun, "李春", 138, 26, 105, 8, Enums.Element.NONE, 0, true)
 
 
-func _spawn_allies() -> void:
-	_craftsmen = [
-		_spawn_ally(_make_unit_data(_craftsman_data, "工匠", 120, 20, 95, 9), _nearest_walkable(_left_pier + Vector2i(0, -1)), [_mallet, _guard]),
-		_spawn_ally(_make_unit_data(_craftsman_data, "工匠", 120, 20, 95, 9), _nearest_walkable(_right_pier + Vector2i(0, -1)), [_mallet, _guard]),
-		_spawn_ally(_make_unit_data(_craftsman_data, "工匠", 120, 20, 95, 9), _nearest_walkable(_watch_point + Vector2i(0, 2)), [_mallet, _guard]),
-	]
-	_stone_carriers = [
-		_spawn_ally(_make_unit_data(_survey_data, "运石工", 92, 14, 95, 9), _nearest_walkable(_side_arch_cells["left_back"] + Vector2i(0, 1)), [_staff, _sw_open_arch]),
-		_spawn_ally(_make_unit_data(_survey_data, "运石工", 92, 14, 95, 9), _nearest_walkable(_side_arch_cells["right_back"] + Vector2i(0, 1)), [_staff, _sw_open_arch]),
-	]
+# 友方 / 敌方均在 .tscn 里预置（unit_data + visual_scene + position 都已配齐）；
+# 这里只补技能 + 战斗数值。setup_unit_stats 会覆盖 combat_stats 的基线。
+func _setup_allies_from_scene() -> void:
+	for craftsman in _craftsmen:
+		set_unit_skills(craftsman, [_mallet, _guard])
+		setup_unit_stats(craftsman, "工匠", 120, 20, 95, 9)
+	for carrier in _stone_carriers:
+		set_unit_skills(carrier, [_staff, _sw_open_arch])
+		setup_unit_stats(carrier, "运石工", 92, 14, 95, 9)
 	_apply_persistent_growth_effects()
 
 
 # 持久成长选项的应用逻辑统一在 base_level._apply_persistent_growth_effects 中处理。
 
 
-func _spawn_enemies() -> void:
-	_boss = _spawn_enemy(_make_unit_data(_wrathful_flood_data, "怒水", 360, 24, 1, 99, Enums.Element.WATER, 2), _watch_point + Vector2i(0, -9), [_overturn_bridge], preload("res://scenes/unit/visual/monster/怒水/怒水_visual.tscn"))
+func _setup_enemies_from_scene() -> void:
+	# Boss 怒水：固定不动（move_cost_per_tile=99 / ap_max=1），通过 extra_target_cells
+	# 把"判定区"扩展到桥面南侧 7 行，让远程攻击也能蹭到。
+	setup_unit_stats(_boss, "怒水", 360, 24, 1, 99, Enums.Element.WATER, 2)
+	set_unit_skills(_boss, [_overturn_bridge])
 	_boss.extra_target_cells = [
 		Vector2i(-1, 0), Vector2i(1, 0),                    # 同行两侧
 		Vector2i(-1, 1), Vector2i(0, 1), Vector2i(1, 1),    # 南 1 行
@@ -773,9 +788,18 @@ func _spawn_enemies() -> void:
 		Vector2i(-1, 6), Vector2i(0, 6), Vector2i(1, 6),    # 南 6 行
 		Vector2i(-1, 7), Vector2i(0, 7), Vector2i(1, 7),    # 南 7 行 ← 桥北边缘 melee 关键行
 	]
-	_spawn_enemy(_make_unit_data(_flood_spear_data, "洪锋", 98, 24, 90, 10, Enums.Element.WATER, 2), _watch_point + Vector2i(0, -1), [_torrent_ram], preload("res://scenes/unit/visual/monster/洪峰/洪峰_visual.tscn"))
-	_spawn_enemy(_make_unit_data(_flood_spear_data, "洪锋", 98, 24, 90, 10, Enums.Element.WATER, 2), _right_pier + Vector2i(1, -1), [_torrent_ram], preload("res://scenes/unit/visual/monster/洪峰/洪峰_visual.tscn"))
-	_spawn_enemy(_make_unit_data(_siltmare_data, "泥沙魇", 84, 18, 90, 10, Enums.Element.EARTH, 2), _side_arch_cells["left_front"] + Vector2i(-1, 0), [_mire_steps], preload("res://scenes/unit/visual/monster/泥沙魇/泥沙魇_visual.tscn"))
+
+	var spear1 := $"Entities/Units/FloodSpear1" as Unit
+	setup_unit_stats(spear1, "洪锋", 98, 24, 90, 10, Enums.Element.WATER, 2)
+	set_unit_skills(spear1, [_torrent_ram])
+
+	var spear2 := $"Entities/Units/FloodSpear2" as Unit
+	setup_unit_stats(spear2, "洪锋", 98, 24, 90, 10, Enums.Element.WATER, 2)
+	set_unit_skills(spear2, [_torrent_ram])
+
+	var siltmare := $"Entities/Units/Siltmare" as Unit
+	setup_unit_stats(siltmare, "泥沙魇", 84, 18, 90, 10, Enums.Element.EARTH, 2)
+	set_unit_skills(siltmare, [_mire_steps])
 
 
 func _try_mark_arch_interacted(arch_key: String) -> void:
@@ -1005,33 +1029,6 @@ func _open_arch_count() -> int:
 		if _phase_arch_skill_used.get(arch_key, false):
 			count += 1
 	return count
-
-
-func _spawn_ally(data: UnitData, cell: Vector2i, skills: Array[SkillData]) -> Unit:
-	var unit := spawn_unit(data, cell, PLAYER_TEAM)
-	set_unit_skills(unit, skills)
-	setup_unit_stats(unit, data.unit_name, data.max_hp, data.base_atk, data.ap_max, data.move_cost_per_tile)
-	return unit
-
-
-func _spawn_enemy(data: UnitData, cell: Vector2i, skills: Array[SkillData], visual: PackedScene = null) -> Unit:
-	var unit := spawn_unit(data, _find_empty_walkable_cell(cell), ENEMY_TEAM, visual)
-	set_unit_skills(unit, skills)
-	setup_unit_stats(unit, data.unit_name, data.max_hp, data.base_atk, data.ap_max, data.move_cost_per_tile, data.innate_element, data.innate_element_amount)
-	return unit
-
-
-func _make_unit_data(base: UnitData, unit_name: String, max_hp: int, base_atk: int, ap_max: int, move_cost: int, element: Enums.Element = Enums.Element.NONE, element_amount: int = 0) -> UnitData:
-	var data := base.duplicate(true) as UnitData
-	data.resource_local_to_scene = true
-	data.unit_name = unit_name
-	data.max_hp = max_hp
-	data.base_atk = base_atk
-	data.ap_max = ap_max
-	data.move_cost_per_tile = move_cost
-	data.innate_element = element
-	data.innate_element_amount = element_amount
-	return data
 
 
 func _nearest_walkable(target: Vector2i) -> Vector2i:
