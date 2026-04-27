@@ -455,13 +455,32 @@ func _build_line(unit: Node, trigger_kind: String, extra: Dictionary) -> Dialogu
 	], {"max_tokens": LLM_MAX_TOKENS, "temperature": LLM_TEMPERATURE})
 
 	if not resp.get("ok", false):
-		push_warning("[Chatter] LLM 非流式失败 error=%s，走 fallback 文本" % resp.get("error", ""))
-		return _build_fallback_line(u, persona, trigger_kind, extra)
+		push_warning("[ChatterFallback][LLM_ONLY] unit=%s trigger=%s error=%s fallback=persona_text+tts" % [
+			_unit_display_name(u),
+			trigger_kind,
+			resp.get("error", ""),
+		])
+		return _build_fallback_line(u, persona, trigger_kind, extra, {
+			"code": resp.get("code", ""),
+			"error": resp.get("error", ""),
+		})
 	var text: String = String(resp.get("text", "")).strip_edges()
 	if text.is_empty():
-		return _build_fallback_line(u, persona, trigger_kind, extra)
+		push_warning("[ChatterFallback][LLM_ONLY] unit=%s trigger=%s error=empty_text fallback=persona_text+tts" % [
+			_unit_display_name(u),
+			trigger_kind,
+		])
+		return _build_fallback_line(u, persona, trigger_kind, extra, {
+			"code": "empty_text",
+			"error": "LLM returned empty text",
+		})
 
-	_voice.speak(u, text, trigger_kind)
+	print("[Chatter][LLM_OK] unit=%s trigger=%s text=%s" % [
+		_unit_display_name(u),
+		trigger_kind,
+		text.left(80),
+	])
+	_voice.speak(u, text, trigger_kind, {"llm_ok": true, "source": "llm"})
 
 	# 追加到说话者自己的记忆
 	_append_memory(u, {
@@ -482,12 +501,23 @@ func _build_line(unit: Node, trigger_kind: String, extra: Dictionary) -> Dialogu
 ## LLM 失败时的兜底文本路径：拿 PersonaFallback 多变体 + 用 _voice.speak() 流式 TTS 播放
 ## （走 chatter_voice_adapter 的 火山 → pre-baked MP3 → OS TTS 三级降级）。
 ## 返回 null 表示"连兜底文本都没有，本轮静默跳过"（neighbor trigger 默认空）。
-func _build_fallback_line(u: Unit, persona: Dictionary, trigger_kind: String, extra: Dictionary) -> DialogueLine:
+func _build_fallback_line(
+		u: Unit,
+		persona: Dictionary,
+		trigger_kind: String,
+		extra: Dictionary,
+		llm_error: Dictionary = {},
+	) -> DialogueLine:
 	var text: String = PersonaFallbackScript.pick(persona, trigger_kind).strip_edges()
 	if text.is_empty():
 		return null
 	# 触发流式 TTS（火山失败时转 speak() 内部兜底链）
-	_voice.speak(u, text, trigger_kind)
+	_voice.speak(u, text, trigger_kind, {
+		"llm_ok": false,
+		"source": "persona_fallback",
+		"llm_code": llm_error.get("code", ""),
+		"llm_error": llm_error.get("error", ""),
+	})
 	# 记忆里也记一笔，避免下次 prompt 看不到这次发声
 	_append_memory(u, {
 		"round": extra.get("round", -1),
