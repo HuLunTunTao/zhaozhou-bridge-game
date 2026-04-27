@@ -190,7 +190,7 @@ func get_wave_config() -> Dictionary:
 
 
 func get_objectives_text() -> Dictionary:
-	var boss_alive := _boss != null and _boss.combat_stats != null and _boss.combat_stats.is_alive()
+	var boss_alive := _is_boss_alive()
 	var gap := _arch_gap()
 	return {
 		"victory": [
@@ -209,7 +209,7 @@ func get_objectives_text() -> Dictionary:
 
 
 func check_victory() -> bool:
-	return _arch_closed and _boss != null and _boss.combat_stats != null and not _boss.combat_stats.is_alive()
+	return _arch_closed and not _is_boss_alive()
 
 
 func check_defeat() -> String:
@@ -252,29 +252,24 @@ func _on_skill_executed(caster: Unit, skill: SkillData, cast_cell: Vector2i, exe
 	# 李春墨绳校券：命中左/右券台 2×2 → 命中侧 +1，同时对侧 -1（左右调拨）。
 	# 总和不变，但能瞬间矫正失衡，让玩家有手段把扰券侧的扣减"挪"到富余侧。
 	if caster == _li_chun and skill.skill_id == "lc_inkline_balance_arch":
-		# DEBUG: 把关键值都打出来，方便排查"对合龙点没反应"问题
-		print("[Level1-3] 墨绳校券触发: caster.cell=%s cast_cell=%s _crown_point=%s left=%s right=%s" % [
-			caster.cell, cast_cell, _crown_point, _left_platform, _right_platform,
-		])
-		Notify.notify(
-			"DEBUG 墨绳校券: 站位%s 目标%s 拱冠%s" % [caster.cell, cast_cell, _crown_point],
-			Notify.Position.TOP_CENTER, Notify.Style.INFO, 4.0,
-		)
 		# 命中拱冠点 / 站在拱冠点上自施 → 收缝合龙
-		# 同时支持两种交互习惯：李春站到中央紫格上自施 OR 站在附近瞄准紫格
-		if caster.cell == _crown_point or cast_cell == _crown_point:
+		# 视觉光晕覆盖多格，命中点接受 _crown_point 切比雪夫半径 ≤1 范围（容差）
+		var hit_crown: bool = (
+			_is_adjacent_or_same(caster.cell, _crown_point)
+			or _is_adjacent_or_same(cast_cell, _crown_point)
+		)
+		if hit_crown:
 			if _close_arch_conditions_met():
 				_close_arch_via_skill()
 			else:
-				# 条件不齐备：退还 AP，给提示
 				caster.combat_stats.ap_current = mini(
 					caster.combat_stats.ap_current + skill.ap_cost,
 					caster.combat_stats.ap_max,
 				)
 				caster.refresh_overhead_bars()
 				Notify.notify(
-					"合龙条件未满足：需先击败偏载傀，且左右券值各 ≥10、差值 ≤1",
-					Notify.Position.TOP_CENTER, Notify.Style.WARNING, 3.0,
+					"合龙条件未满足：%s" % _close_arch_failure_reason(),
+					Notify.Position.TOP_CENTER, Notify.Style.WARNING, 3.5,
 				)
 			return
 		if _is_in_zone(cast_cell, _left_platform):
@@ -418,7 +413,7 @@ func _setup_crown_marker() -> void:
 func _update_crown_visibility() -> void:
 	if _arch_closed:
 		return
-	var boss_dead: bool = _boss == null or _boss.combat_stats == null or not _boss.combat_stats.is_alive()
+	var boss_dead: bool = not _is_boss_alive()
 	var arches_full: bool = _left_arch_value >= 10 and _right_arch_value >= 10 and _arch_gap() <= 1
 	var should_show: bool = boss_dead and arches_full
 	if _crown_tile != null:
@@ -523,9 +518,32 @@ func _close_arch_conditions_met() -> bool:
 		return false
 	if _left_arch_value < 10 or _right_arch_value < 10 or _arch_gap() > 1:
 		return false
-	if _boss == null or _boss.combat_stats == null or _boss.combat_stats.is_alive():
+	if _is_boss_alive():
 		return false
 	return true
+
+
+## Boss 是否仍存活。queue_free 后 _boss == null 在 Godot 4 不可靠，必须用 is_instance_valid。
+func _is_boss_alive() -> bool:
+	if not is_instance_valid(_boss):
+		return false
+	if _boss.combat_stats == null:
+		return false
+	return _boss.combat_stats.is_alive()
+
+
+## 把"未满足"原因拼成一句简短文案，方便玩家定位差哪一项。
+func _close_arch_failure_reason() -> String:
+	var reasons: Array[String] = []
+	if _is_boss_alive():
+		reasons.append("偏载傀未击败（HP %d）" % _boss.combat_stats.current_hp)
+	if _left_arch_value < 10 or _right_arch_value < 10:
+		reasons.append("券值不足（左 %d/10，右 %d/10）" % [_left_arch_value, _right_arch_value])
+	if _arch_gap() > 1:
+		reasons.append("差值过大（差 %d，需 ≤1）" % _arch_gap())
+	if reasons.is_empty():
+		return "未知原因"
+	return "、".join(reasons)
 
 
 func _close_arch_via_skill() -> void:
@@ -539,7 +557,7 @@ func _close_arch_via_skill() -> void:
 
 
 func _shift_load() -> void:
-	if _boss == null or _boss.combat_stats == null or not _boss.combat_stats.is_alive():
+	if not _is_boss_alive():
 		return
 	# 每 2 个敌方回合才真正压一次，给玩家留出推进节奏
 	_shift_load_tick += 1
@@ -567,7 +585,7 @@ func _shift_load() -> void:
 func _maybe_boss_clutch_summon() -> void:
 	if _clutch_fired or _arch_closed:
 		return
-	if _boss == null or _boss.combat_stats == null or not _boss.combat_stats.is_alive():
+	if not _is_boss_alive():
 		return
 	if maxi(_left_arch_value, _right_arch_value) <= 8:
 		return
@@ -610,7 +628,7 @@ func _maybe_boss_clutch_summon() -> void:
 ## 让偏载傀进入"全程活跃"配置：放开移动、补土系近战。
 ## 在倾压之号触发时（_maybe_boss_clutch_summon 末尾）调用——这是 Boss 下桥还手的节点。
 func _unlock_boss() -> void:
-	if _boss == null or _boss.combat_stats == null or not _boss.combat_stats.is_alive():
+	if not _is_boss_alive():
 		return
 	_boss.combat_stats.move_cost_per_tile = 9
 	_boss.combat_stats.ap_max = 90
@@ -651,7 +669,7 @@ func _resolve_enemy_pressure() -> void:
 			Notify.notify("脱缝鬼侵蚀缝口，桥体稳定值 -1", Notify.Position.TOP_CENTER, Notify.Style.WARNING, 2.0)
 
 	# 4. 偏载傀「压台」——以 Boss 为中心 12×12 范围（切比雪夫半径 6）内，按距离最近选至多 2 个我方扣 base_atk × 0.5 无属伤
-	if _boss != null and _boss.combat_stats != null and _boss.combat_stats.is_alive():
+	if _is_boss_alive():
 		var press_damage := int(_boss.combat_stats.base_atk * 0.5)
 		var press_radius := 6                       # 12×12 = 中心 ±6 切比雪夫
 		var press_max_targets := 2
