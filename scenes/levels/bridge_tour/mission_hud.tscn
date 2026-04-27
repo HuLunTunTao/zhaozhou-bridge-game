@@ -117,4 +117,4 @@ theme_override_colors/font_color = Color(0.7, 0.65, 0.55, 1)
 theme_override_colors/font_outline_color = Color(0.07, 0.07, 0.08, 1)
 theme_override_constants/outline_size = 3
 theme_override_font_sizes/font_size = 11
-text = "说服进度 += 累积分(1-5)+本轮评分"
+text = "说服显示：累计基础分+本次评分/总进度"

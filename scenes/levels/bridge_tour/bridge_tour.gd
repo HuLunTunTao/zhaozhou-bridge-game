@@ -49,6 +49,7 @@ const QA_TARGET := 4
 const NEIGHBOR_INTERJECT_PROB := 0.4
 const NEIGHBOR_INTERJECT_RANGE := 5
 const HERO_INFINITE_AP := 99999
+const HERO_MOVE_PREVIEW_AP_BUDGET := 120 # 验桥日移动范围预览上限，避免无限 AP 把整张图 overlay 算出来
 const NPC_ROAM_INTERVAL_MIN := 6.0 # NPC 闲逛时间间隔下限
 const NPC_ROAM_INTERVAL_MAX := 10.0 # NPC 闲逛时间间隔上限
 const CHEAT_WORDS := ["鲁班托梦", "墨线自明", "石龙点头"]
@@ -322,6 +323,26 @@ func _select_hero_silently() -> void:
 	_input_state = InputState.IDLE
 	_update_status_bar_for_unit(hero, false)
 	selection_changed.emit(hero)
+
+
+func _enter_targeting_move() -> void:
+	if selected_unit == null:
+		return
+	_input_state = InputState.TARGETING_MOVE
+	var unit := selected_unit
+	if unit is Unit and unit.combat_stats != null:
+		var stats: CombatStats = unit.combat_stats
+		if not stats.can_move():
+			return
+		var friendly: Array[Vector2i] = _get_friendly_cells_except(unit)
+		var enemy: Array[Vector2i] = _get_enemy_cells_except(unit)
+		var effective_cost := stats.move_cost_per_tile + stats.get_move_ap_modifier()
+		var preview_budget := stats.ap_current
+		if unit == hero:
+			preview_budget = mini(preview_budget, HERO_MOVE_PREVIEW_AP_BUDGET)
+		move_overlay.show_range_ap(tilemap, movement_manager, unit.cell, preview_budget, effective_cost, friendly, enemy)
+	else:
+		move_overlay.show_range(tilemap, movement_manager, unit.cell, unit.movement_points)
 
 
 func _setup_npc(unit: Unit, spec: Dictionary) -> Unit:

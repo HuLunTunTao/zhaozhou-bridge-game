@@ -37,7 +37,8 @@ var _persuade_target: int = 3
 var _qa_target: int = 4
 var _persuade_done: int = 0
 var _qa_done: int = 0
-## name -> {role, label, done, stance, threshold, accum_total, accum_score, round_score, final_score}
+## name -> {role, label, done, stance, threshold, base_total, accum_score, round_score, final_score}
+## persuade 显示格式：x+y/总进度，其中 x=累计基础分，y=本次回答评分。
 var _entries: Dictionary = {}
 
 
@@ -72,7 +73,7 @@ func add_npc(role: String, npc_name: String, done: bool) -> void:
 		"done": false,
 		"stance": -1,
 		"threshold": 0,
-		"accum_total": 0,
+		"base_total": 0,
 		"accum_score": 0,
 		"round_score": 0,
 		"final_score": 0,
@@ -99,7 +100,7 @@ func update_npc_stance(
 	npc_name: String,
 	stance: int,
 	threshold: int,
-	accum_total: int = 0,
+	base_total: int = 0,
 	accum_score: int = 0,
 	round_score: int = 0,
 	final_score: int = 0
@@ -111,7 +112,7 @@ func update_npc_stance(
 		return
 	entry["stance"] = stance
 	entry["threshold"] = threshold if threshold > 0 else 70
-	entry["accum_total"] = accum_total
+	entry["base_total"] = base_total
 	entry["accum_score"] = accum_score
 	entry["round_score"] = round_score
 	entry["final_score"] = final_score
@@ -135,21 +136,17 @@ func _render(npc_name: String, role: String, done: bool) -> void:
 			"persuade": color = PERSUADE_COLOR
 			"qa": color = QA_COLOR
 			_: color = TEXT_COLOR
-	# persuade 附加进度与上轮得分：最终=累积分+本轮评分。
+	# persuade 显示 x+y/总进度：x=累计基础分，y=本次回答评分。
 	var suffix := ""
 	if role == "persuade":
 		if done:
 			suffix = "  ✓"
 		else:
-			var stance: int = int(entry.get("stance", -1))
 			var threshold: int = int(entry.get("threshold", 0))
-			if stance >= 0 and threshold > 0:
-				suffix = "  %d/%d" % [stance, threshold]
-			var final_score: int = int(entry.get("final_score", 0))
-			var accum_score: int = int(entry.get("accum_score", 0))
+			var base_total: int = int(entry.get("base_total", 0))
 			var round_score: int = int(entry.get("round_score", 0))
-			if accum_score != 0 or round_score != 0 or final_score != 0:
-				suffix += "  %+d(累%d+本%+d)" % [final_score, accum_score, round_score]
+			if threshold > 0:
+				suffix = "  %d%+d/%d" % [base_total, round_score, threshold]
 	lbl.text = "  %s %s%s" % [dot, npc_name, suffix]
 	lbl.add_theme_color_override("font_color", color)
 	entry["done"] = done
@@ -193,4 +190,4 @@ func _refresh_title() -> void:
 
 func _refresh_tip() -> void:
 	if _tip:
-		_tip.text = "说服进度 += 累积分(1-5)+本轮评分"
+		_tip.text = "说服显示：累计基础分+本次评分/总进度"
