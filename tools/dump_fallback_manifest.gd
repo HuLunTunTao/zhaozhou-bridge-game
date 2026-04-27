@@ -1,5 +1,5 @@
 extends SceneTree
-## 把 NpcPersonas.PERSONAS 的 fallback_lines + VoiceMapping.VOICES 倒出成 manifest JSON。
+## 把 NpcPersonas.PERSONAS 的 fallback_lines / qa_questions + VoiceMapping.VOICES 倒出成 manifest JSON。
 ## 用法：
 ##   godot --headless --path /path/to/Godot-game --script res://tools/dump_fallback_manifest.gd
 ##   ↑ 输出写到 data/tts_fallback_manifest.json
@@ -59,6 +59,31 @@ func _init() -> void:
 					"output":  "assets/audio/tts_fallback/%s/%s.mp3" % [unit_id, slug],
 				})
 				stats["lines_total"] = int(stats["lines_total"]) + 1
+
+		# bridge_tour 的 QA NPC 会先主动抛问题；这些固定问题也要有本地 fallback。
+		var qa_question_items: Array[String] = []
+		var qa_questions: Variant = persona.get("qa_questions", [])
+		if qa_questions is Array:
+			for q in qa_questions:
+				var q_text := String(q).strip_edges()
+				if not q_text.is_empty() and not qa_question_items.has(q_text):
+					qa_question_items.append(q_text)
+		var qa_question := String(persona.get("qa_question", "")).strip_edges()
+		if not qa_question.is_empty() and not qa_question_items.has(qa_question):
+			qa_question_items.append(qa_question)
+		var q_idx := 0
+		for text in qa_question_items:
+			q_idx += 1
+			var slug := "qa_question_%02d" % q_idx
+			items.append({
+				"unit_id": unit_id,
+				"voice":   voice_id,
+				"kind":    "qa_question",
+				"text":    text,
+				"slug":    slug,
+				"output":  "assets/audio/tts_fallback/%s/%s.mp3" % [unit_id, slug],
+			})
+			stats["lines_total"] = int(stats["lines_total"]) + 1
 
 	var doc: Dictionary = {
 		"version": 1,

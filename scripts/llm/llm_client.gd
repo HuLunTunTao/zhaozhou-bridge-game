@@ -70,6 +70,22 @@ func _ready() -> void:
 	add_child(_http)
 
 
+func _exit_tree() -> void:
+	var was_streaming := _stream_busy
+	var partial := _stream_buffer
+	_stream_token += 1
+	if _stream_http != null:
+		_stream_http.close()
+	_stream_http = null
+	_stream_busy = false
+	_stream_buffer = ""
+	_stream_sse_residual = PackedByteArray()
+	if _http != null:
+		_http.cancel_request()
+	if was_streaming:
+		stream_finished.emit(partial, false, "LLMClient 节点退出")
+
+
 ## 发送一次 chat completion 请求并 await 响应。
 ##
 ## messages: OpenAI 标准格式，例如
@@ -107,6 +123,8 @@ func chat_completion(messages: Array, options: Dictionary = {}) -> Dictionary:
 		var extra: Dictionary = options["extra_body"]
 		for key in extra:
 			body_dict[key] = extra[key]
+	# chat_completion 必须保持非流式；避免 extra_body 意外覆盖为 stream=true。
+	body_dict["stream"] = false
 
 	var body := JSON.stringify(body_dict)
 
@@ -227,6 +245,16 @@ func is_streaming() -> bool:
 	return _stream_busy
 
 
+func _wait_stream_frame(my_token: int) -> bool:
+	if my_token != _stream_token or not is_inside_tree():
+		return false
+	var tree := get_tree()
+	if tree == null:
+		return false
+	await tree.process_frame
+	return my_token == _stream_token and is_inside_tree()
+
+
 ## SSE 主循环。token 比对随时让旧协程退出，避免 abort 后还残留 emit。
 func _run_stream_loop(my_token: int, hp: Dictionary, messages: Array, options: Dictionary) -> void:
 	# 1) 等连接
@@ -236,7 +264,9 @@ func _run_stream_loop(my_token: int, hp: Dictionary, messages: Array, options: D
 		if my_token != _stream_token:
 			return
 		_stream_http.poll()
-		await get_tree().process_frame
+		var wait_connected: bool = await _wait_stream_frame(my_token)
+		if not wait_connected:
+			return
 	if my_token != _stream_token:
 		return
 	if _stream_http == null or _stream_http.get_status() != HTTPClient.STATUS_CONNECTED:
@@ -276,7 +306,9 @@ func _run_stream_loop(my_token: int, hp: Dictionary, messages: Array, options: D
 		if my_token != _stream_token:
 			return
 		_stream_http.poll()
-		await get_tree().process_frame
+		var wait_response: bool = await _wait_stream_frame(my_token)
+		if not wait_response:
+			return
 	if my_token != _stream_token:
 		return
 	if _stream_http == null:
@@ -294,7 +326,9 @@ func _run_stream_loop(my_token: int, hp: Dictionary, messages: Array, options: D
 				return
 			_stream_http.poll()
 			err_bytes.append_array(_stream_http.read_response_body_chunk())
-			await get_tree().process_frame
+			var wait_error_body: bool = await _wait_stream_frame(my_token)
+			if not wait_error_body:
+				return
 		var err_text := err_bytes.get_string_from_utf8()
 		var parsed: Variant = JSON.parse_string(err_text) if not err_text.is_empty() else null
 		_emit_stream_finished(false, "HTTP %d: %s" % [rcode, _extract_error_message(parsed, err_text)])
@@ -312,7 +346,9 @@ func _run_stream_loop(my_token: int, hp: Dictionary, messages: Array, options: D
 			if not _stream_busy or my_token != _stream_token:
 				return
 		else:
-			await get_tree().process_frame
+			var wait_body: bool = await _wait_stream_frame(my_token)
+			if not wait_body:
+				return
 
 	# 6) 服务端没发 [DONE] 就把连接关了——也算自然结束
 	if my_token == _stream_token and _stream_busy:

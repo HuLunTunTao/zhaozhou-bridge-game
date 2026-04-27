@@ -11,10 +11,9 @@ extends Node
 ## 并发策略：单实例 LLMClient 串行。整个 chatter 会话（LLM 请求 + 对话框 + 流式语音）
 ## 由顶层 trigger 入口持有 `_busy`；期间到来的新触发直接丢弃，避免与正在播放的语音抢资源。
 ##
-## LLM ↔ TTS 流式：_build_line 走 `voice_adapter.speak_streaming`（LLM SSE 一边出 token、
-## 一边按 MIXED 切分喂给火山 bidi WS），首字音延迟从"全文耗时"压缩到"首 token 延迟"。
-## _speak_line 不再独立 fire `_voice.speak`——TTS 已在 _build_line 中跑完 finish_streaming，
-## 进 dialogue_box 时 audio 还在异步播放，靠 voice_handle=_voice 让对话框等播完。
+## 普通关卡只让 TTS 流式：_build_line 先用非流式 LLM 拿完整台词，再 fire `_voice.speak`
+## 交给火山 bidi WS 流式播放全文。进 dialogue_box 时 audio 还在异步播放，
+## 靠 voice_handle=_voice 让对话框等播完。
 
 const NpcPersonasScript := preload("res://scripts/llm/npc_personas.gd")
 const PersonaFallbackScript := preload("res://scripts/llm/persona_fallback.gd")
@@ -22,7 +21,6 @@ const LLMClientScript := preload("res://scripts/llm/llm_client.gd")
 const PortraitResolverScript := preload("res://scripts/llm/portrait_resolver.gd")
 const ChatterVoiceScript := preload("res://scripts/tts/chatter_voice_adapter.gd")
 const ChatterPromptsScript := preload("res://scripts/llm/chatter_prompts.gd")
-const StreamChunkerScript := preload("res://scripts/llm/stream_chunker.gd")
 
 ## 三类触发的概率（0.0–1.0）。调试时可临时拉到 1.0 做强制触发测试。
 const TRIGGER_PROB_ATTACKED := 0.45
@@ -44,8 +42,7 @@ const DIALOGUE_DISMISS_DELAY := 3.0
 const DIALOGUE_CHARS_PER_SEC := 3.5
 const DIALOGUE_TEXT_BUFFER_SEC := 1.0
 
-## 单条 LLM 请求的超时秒数 —— 流式改造后不再生效（流式靠服务端推送，没有客户端超时拉短逻辑）。
-## 保留常量供未来需要时参考。
+## 单条非流式 LLM 请求的超时秒数。
 const LLM_TIMEOUT_SEC := 12.0
 ## 闲聊台词的 LLM 采样参数。
 const LLM_MAX_TOKENS := 80
@@ -84,6 +81,8 @@ func setup(level: Node, llm_client: Node = null) -> void:
 	else:
 		_llm = LLMClientScript.new()
 		add_child(_llm)
+	if "timeout_sec" in _llm:
+		_llm.timeout_sec = LLM_TIMEOUT_SEC
 	# 闲聊语音通道（火山流式 TTS + 系统 TTS 兜底，独立于 dialogue_box 的预设音频）
 	_voice = ChatterVoiceScript.new()
 	_voice.use_system_tts_fallback = use_system_tts_fallback
@@ -248,7 +247,7 @@ func _do_adjacent_chat(round_number: int) -> void:
 		a = b
 		b = tmp
 
-	# 第一行：A 先开口，单独对话 + 流式语音
+	# 第一行：A 先开口，单独对话 + 流式 TTS
 	var line_a: DialogueLine = await _build_line(a, "adjacent_chat", {
 		"other_name": _unit_display_name(b),
 		"round": round_number,
@@ -411,11 +410,11 @@ func _say(unit: Node, trigger_kind: String, extra: Dictionary) -> void:
 	await _wait_for_voice_end()
 
 
-## 流式语音 + 对话框并行播放一行。返回 was_skipped（玩家是否手动跳过对话框）。
+## 流式 TTS + 对话框并行播放一行。返回 was_skipped（玩家是否手动跳过对话框）。
 ## **不**在内部等语音收尾——caller 自己决定下一步是 _voice.cancel() 还是 _wait_for_voice_end()。
-## 注意：TTS 已在 _build_line 中通过 speak_streaming 启动；本函数只负责打开 dialogue_box，
+## 注意：TTS 已在 _build_line 中通过 speak() 启动；本函数只负责打开 dialogue_box，
 ## audio 由 voice_handle=_voice 让 dialogue_box 等播完。
-## trigger_kind 参数保留以兼容旧调用方（实际由 _build_line 传给 speak_streaming）。
+## trigger_kind 参数保留以兼容旧调用方（实际由 _build_line 传给 speak）。
 func _speak_line(unit: Node, line: DialogueLine, _trigger_kind: String = "") -> bool:
 	# 记录"本回合已发声"——避免随机触发与固定触发在同一单位上重复
 	if unit != null and not _spoke_this_round.has(unit):
@@ -434,8 +433,8 @@ func _wait_for_voice_end() -> void:
 		await _voice.streaming_done
 
 
-## 调 LLM 流式生成 + TTS 流式播放并行进行，组装 DialogueLine。
-## 返回时 LLM 已完成、TTS 已 finish_streaming（audio 还在异步播放，dialogue_box 会等播完）。
+## 调 LLM 非流式生成完整台词，然后启动 TTS 流式播放，组装 DialogueLine。
+## 返回时 LLM 已完成、TTS 已开始异步播放，dialogue_box 会等播完。
 ## LLM 失败 → 跳过本次 chatter（不用 fallback_lines，那是"老监工"语气，套到别的角色严重出戏）。
 ## 被 _say / _do_adjacent_chat 共用。**调用方负责 _busy 锁**（外层 trigger 入口已设）。
 func _build_line(unit: Node, trigger_kind: String, extra: Dictionary) -> DialogueLine:
@@ -450,26 +449,19 @@ func _build_line(unit: Node, trigger_kind: String, extra: Dictionary) -> Dialogu
 	var system_msg := ChatterPromptsScript.build_system_prompt(persona, trigger_kind, memory_text, context_json)
 	var user_msg := ChatterPromptsScript.build_user_prompt(persona, trigger_kind, extra)
 
-	# 流式：LLM SSE 一边返回 token、一边按 MIXED 策略 feed 给 TTS bidi。
-	# 首字音延迟 ≈ LLM 首 token 延迟（~0.5s），不再等全文（~3-5s）。
-	var resp: Dictionary = await _voice.speak_streaming(
-		unit,
-		_llm,
-		[
-			{"role": "system", "content": system_msg},
-			{"role": "user", "content": user_msg},
-		],
-		{"max_tokens": LLM_MAX_TOKENS, "temperature": LLM_TEMPERATURE},
-		StreamChunkerScript.Mode.MIXED,
-		trigger_kind,
-	)
+	var resp: Dictionary = await _llm.chat_completion([
+		{"role": "system", "content": system_msg},
+		{"role": "user", "content": user_msg},
+	], {"max_tokens": LLM_MAX_TOKENS, "temperature": LLM_TEMPERATURE})
 
 	if not resp.get("ok", false):
-		push_warning("[Chatter] LLM 流式失败 error=%s，走 fallback 文本" % resp.get("error", ""))
+		push_warning("[Chatter] LLM 非流式失败 error=%s，走 fallback 文本" % resp.get("error", ""))
 		return _build_fallback_line(u, persona, trigger_kind, extra)
-	var text: String = String(resp.get("full_text", "")).strip_edges()
+	var text: String = String(resp.get("text", "")).strip_edges()
 	if text.is_empty():
 		return _build_fallback_line(u, persona, trigger_kind, extra)
+
+	_voice.speak(u, text, trigger_kind)
 
 	# 追加到说话者自己的记忆
 	_append_memory(u, {
@@ -487,14 +479,14 @@ func _build_line(unit: Node, trigger_kind: String, extra: Dictionary) -> Dialogu
 	)
 
 
-## LLM 失败时的兜底文本路径：拿 PersonaFallback 多变体 + 用 _voice.speak() 一次性 TTS 播放
+## LLM 失败时的兜底文本路径：拿 PersonaFallback 多变体 + 用 _voice.speak() 流式 TTS 播放
 ## （走 chatter_voice_adapter 的 火山 → pre-baked MP3 → OS TTS 三级降级）。
 ## 返回 null 表示"连兜底文本都没有，本轮静默跳过"（neighbor trigger 默认空）。
 func _build_fallback_line(u: Unit, persona: Dictionary, trigger_kind: String, extra: Dictionary) -> DialogueLine:
 	var text: String = PersonaFallbackScript.pick(persona, trigger_kind).strip_edges()
 	if text.is_empty():
 		return null
-	# 触发一次性 TTS（speak_streaming 已失败，转 speak() 走兜底链）
+	# 触发流式 TTS（火山失败时转 speak() 内部兜底链）
 	_voice.speak(u, text, trigger_kind)
 	# 记忆里也记一笔，避免下次 prompt 看不到这次发声
 	_append_memory(u, {

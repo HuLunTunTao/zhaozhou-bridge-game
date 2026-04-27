@@ -141,20 +141,21 @@ var resp := await _get_llm().chat_completion([
 
 玩家与 `persuade` NPC 交互时：
 
-1. 打开 `ArgumentInputPanel`。
-2. 面板显示：
+1. NPC 先播放一段固定的说服开场质疑（来自 `npc_personas.fallback_lines.persuade_opening`），例如老匠首会先质疑单孔大跨是否稳妥。
+2. 打开 `ArgumentInputPanel`。
+3. 面板显示：
    - NPC 的说服目标。
    - NPC 的疑虑。
    - 推荐知识关键词。
    - 当前累计推进。
    - 已学知识。
    - 与该 NPC 的历史对话。
-3. 玩家输入论述。
-4. `_generate_persuade_answer(npc, argument)` 非流式请求 LLM，要求返回完整 JSON。
-5. `_apply_persuade_result(npc, ans)` 结算分数。
-6. `_append_dialogue_log()` 写入历史。
-7. `_play_npc_line()` 播放 NPC 回复。
-8. `_start_neighbor_interject()` / `_play_pending_neighbor()` 概率触发邻近 NPC 插话。
+4. 玩家输入论述。
+5. `_generate_persuade_answer(npc, argument)` 非流式请求 LLM，要求返回完整 JSON。
+6. `_apply_persuade_result(npc, ans)` 结算分数。
+7. `_append_dialogue_log()` 写入历史；本轮开场质疑会作为 `question` 一并记录，供后续 prompt 上下文使用。
+8. `_play_npc_line()` 播放 NPC 回复。
+9. `_start_neighbor_interject()` / `_play_pending_neighbor()` 概率触发邻近 NPC 插话。
 
 ### 5.2 传给 prompt 的 extra 字段
 

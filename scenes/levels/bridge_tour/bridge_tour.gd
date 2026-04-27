@@ -524,15 +524,21 @@ func _flow_persuade(npc: Unit) -> void:
 		Notify.notify("已说服 %s" % npc.unit_data.unit_name, Notify.Position.TOP_RIGHT, Notify.Style.INFO, 1.5)
 		return
 	var bridge_part: String = String(npc.get_meta("npc_bridge_part", ""))
+	var opening: String = _pick_persuade_opening(npc)
+	if not opening.is_empty():
+		await _play_npc_line(npc, opening, true, "bridge_persuade_opening")
 	var panel: Node = _ArgumentInputPanelScene.instantiate()
 	add_child(panel)
-	panel.show_for(npc.unit_data.unit_name, bridge_part)
+	var subtitle := bridge_part
+	if not opening.is_empty():
+		subtitle = "%s · 「%s」" % [bridge_part, opening]
+	panel.show_for(npc.unit_data.unit_name, subtitle)
 	var goal_raw: Variant = npc.get_meta("npc_persuasion_goal", {})
 	var persuasion_goal: Dictionary = goal_raw if goal_raw is Dictionary else {}
 	panel.set_persuasion_goal(persuasion_goal)
 	panel.set_persuade_base_total(int(npc.get_meta("npc_accum_score_total", 0)))
 	panel.set_learned_topics(_player_learned_topics, _player_used_topics)
-	panel.set_history(npc.get_meta("npc_dialogue_log", [] as Array[Dictionary]))
+	panel.set_history(_history_with_npc_prompt(npc, opening))
 	var argument: String = await panel.argument_submitted
 	if argument.is_empty():
 		return
@@ -545,13 +551,31 @@ func _flow_persuade(npc: Unit) -> void:
 	# 记入对话历史；fallback 文本仍记（让玩家看到"NPC 没接到话"），但 LLM 失败那条
 	# 后续不会被注入 prompt context（chatter_prompts.bridge_topic_answer 不读 dialogue_log）
 	if not is_fallback:
-		_append_dialogue_log(npc, argument, reply, String(ans.get("tone", "")))
+		_append_dialogue_log(npc, argument, reply, String(ans.get("tone", "")), opening)
 	else:
-		_append_dialogue_log(npc, argument, reply, "fallback")
+		_append_dialogue_log(npc, argument, reply, "fallback", opening)
 	# 邻居插话与第一句话 dialog 显示并发：先 fire LLM，再开 dialog（TTS 已流式或现在播），最后等邻居完成
 	var neighbor_spec := _start_neighbor_interject(npc, reply)
 	await _play_npc_line(npc, reply, not is_fallback)
 	await _play_pending_neighbor(neighbor_spec)
+
+
+func _pick_persuade_opening(npc: Unit) -> String:
+	var persona: Dictionary = _NpcPersonasScript.get_persona(npc.unit_data.unit_id, npc.unit_data.camp)
+	var fallback_lines: Variant = persona.get("fallback_lines", {})
+	var openings: Array = []
+	if fallback_lines is Dictionary:
+		var raw: Variant = (fallback_lines as Dictionary).get("persuade_opening", [])
+		if raw is Array:
+			openings = raw
+	if openings.is_empty():
+		var goal_raw: Variant = npc.get_meta("npc_persuasion_goal", {})
+		if goal_raw is Dictionary:
+			return String((goal_raw as Dictionary).get("objection", "")).strip_edges()
+		return ""
+	var attempt: int = int(npc.get_meta("npc_persuade_opening_attempt", 0))
+	npc.set_meta("npc_persuade_opening_attempt", attempt + 1)
+	return String(openings[attempt % openings.size()]).strip_edges()
 
 
 ## 检测玩家输入是否包含演示用作弊暗语。命中即整轮强制通过。
