@@ -767,39 +767,30 @@ texture = ExtResource("5_2en6l")
 position = Vector2(-257, -61)
 unit_data = SubResource("Resource_6l514")
 visual_scene = ExtResource("11_lwpox")
-chatter_round_prob = null
 
 [node name="SurveyWorker" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="1" unique_id=1734697745 instance=ExtResource("3_player")]
 position = Vector2(-351, -109)
 unit_data = SubResource("Resource_survey_a")
 visual_scene = ExtResource("12_survey")
 unit_color = Color(0.3, 0.9, 0.5, 1)
-chatter_round_prob = null
 
 [node name="CraftsmanA" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="2" unique_id=1153010617 instance=ExtResource("3_player")]
 position = Vector2(-322, -108)
 unit_data = SubResource("Resource_craftsman_a")
 visual_scene = ExtResource("13_craft")
 unit_color = Color(0.4, 0.8, 0.9, 1)
-chatter_round_prob = null
 
 [node name="CraftsmanB" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="3" unique_id=183664624 instance=ExtResource("3_player")]
 position = Vector2(-290, -75)
 unit_data = SubResource("Resource_craftsman_b")
 visual_scene = ExtResource("13_craft")
 unit_color = Color(0.4, 0.8, 0.9, 1)
-chatter_round_prob = null
 
 [node name="CraftsmanC" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="4" unique_id=890582710 instance=ExtResource("3_player")]
 position = Vector2(-275, -102)
 unit_data = SubResource("Resource_craftsman_c")
 visual_scene = ExtResource("13_craft")
 unit_color = Color(0.4, 0.8, 0.9, 1)
-chatter_round_prob = null
-
-[node name="MovementManager" parent="." index="6" unique_id=1144669128 node_paths=PackedStringArray("movement_tilemaps", "obstacle_tilemaps")]
-movement_tilemaps = [NodePath("../TileMaps/surface z=0")]
-obstacle_tilemaps = [NodePath("../TileMaps/obstacle z=2")]
 
 [node name="Markers" type="Node2D" parent="." index="7" unique_id=1700000002]
 
@@ -807,3 +798,20 @@ obstacle_tilemaps = [NodePath("../TileMaps/obstacle z=2")]
 position = Vector2(-32, 16)
 halo_color = Color(0.95, 0.72, 0.2, 0.42)
 label_text = "坡度"
+show_tile = false
+show_pole = false
+
+[node name="Halo" parent="Markers/ParameterMarker_坡度" index="0" unique_id=406635027]
+visible = false
+
+[node name="Core" parent="Markers/ParameterMarker_坡度" index="1" unique_id=1278931026]
+visible = false
+
+[node name="Arrow" parent="Markers/ParameterMarker_坡度/Floater" parent_id_path=PackedInt32Array(1486649248, 574366574) index="1" unique_id=255356239]
+visible = false
+
+[node name="MovementManager" parent="." index="8" unique_id=1144669128 node_paths=PackedStringArray("movement_tilemaps", "obstacle_tilemaps")]
+movement_tilemaps = [NodePath("../TileMaps/surface z=0")]
+obstacle_tilemaps = [NodePath("../TileMaps/obstacle z=2")]
+
+[editable path="Markers/ParameterMarker_坡度"]

@@ -2436,28 +2436,40 @@ func _setup_special_tiles() -> void:
 
 
 func _on_special_tile_entered(cell: Vector2i, entity: Node2D) -> void:
-	if cell in _special_tile_map:
+	if _get_special_tile_at(cell) != null:
 		_pending_special_enter[entity] = cell
 
 
 func _on_special_tile_exited(cell: Vector2i, entity: Node2D) -> void:
-	if cell not in _special_tile_map:
+	var tile := _get_special_tile_at(cell)
+	if tile == null:
 		return
 	if _pending_special_enter.get(entity) == cell:
 		# 进入后又离开 → 经过
-		_special_tile_map[cell]._on_unit_pass(entity)
+		tile._on_unit_pass(entity)
 		_pending_special_enter.erase(entity)
 	else:
 		# 没有对应的 pending enter → 从此格出发
-		_special_tile_map[cell]._on_unit_depart(entity)
+		tile._on_unit_depart(entity)
 
 
 func _on_unit_move_finished_special(entity: Node2D) -> void:
 	if entity in _pending_special_enter:
 		var cell: Vector2i = _pending_special_enter[entity]
-		if cell in _special_tile_map:
-			_special_tile_map[cell]._on_unit_arrive(entity)
+		var tile := _get_special_tile_at(cell)
+		if tile != null:
+			tile._on_unit_arrive(entity)
 		_pending_special_enter.erase(entity)
+
+
+func _get_special_tile_at(cell: Vector2i) -> SpecialTile:
+	var tile = _special_tile_map.get(cell)
+	if tile == null:
+		return null
+	if not is_instance_valid(tile) or not (tile is SpecialTile):
+		_special_tile_map.erase(cell)
+		return null
+	return tile as SpecialTile
 
 
 ## 在 _on_level_ready() 中程序化注册一个 SpecialTile（跳过 _setup_special_tiles 自动扫描）。
@@ -2468,6 +2480,12 @@ func register_special_tile(tile: SpecialTile, cell: Vector2i) -> void:
 	tile.reparent(obstacles_tilemap_layer)
 	tile.position = tilemap.map_to_local(cell)
 	_special_tile_map[cell] = tile
+
+
+## 从统一派发表解除一个运行时特殊地格，避免 queue_free 后字典保留失效实例。
+func unregister_special_tile(tile: SpecialTile, cell: Vector2i) -> void:
+	if _special_tile_map.get(cell) == tile:
+		_special_tile_map.erase(cell)
 
 
 ## 在指定地块上方挂一个统一的脉动强调标记（菱形光晕 + 下指箭头 + 可选文字）。

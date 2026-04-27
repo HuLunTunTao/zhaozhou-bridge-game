@@ -14,6 +14,14 @@
 [ext_resource type="Texture2D" uid="uid://dlvc5frx3jdvr" path="res://assets/thepixeltiles/bridge/railing down.png" id="11_wdsub"]
 [ext_resource type="Texture2D" uid="uid://douwjujehq1nr" path="res://assets/thepixeltiles/bridge/railing up.png" id="12_jg1f3"]
 [ext_resource type="TileSet" uid="uid://bdvi30tgeb2kv" path="res://assets/battle_tile_set.tres" id="13_bgus0"]
+[ext_resource type="Script" uid="uid://c2077ybi0615r" path="res://scripts/data/unit_data.gd" id="14_unit_data"]
+[ext_resource type="PackedScene" uid="uid://qkwxdp8ayb57" path="res://scenes/unit/visual/human/li_chun/li_chun_visual.tscn" id="15_li_chun_vis"]
+[ext_resource type="PackedScene" uid="uid://byxh2ycfe88e3" path="res://scenes/unit/visual/human/工匠/工匠_visual.tscn" id="16_craft_vis"]
+[ext_resource type="Script" uid="uid://cp0ew5p75uio0" path="res://scripts/data/skill_data.gd" id="16_jg1f3"]
+[ext_resource type="PackedScene" uid="uid://0vf68k1e0k18" path="res://scenes/unit/visual/human/测量工/测量工_visual.tscn" id="17_carrier_vis"]
+[ext_resource type="PackedScene" uid="uid://cxvc60u461omv" path="res://scenes/unit/visual/monster/怒水/怒水_visual.tscn" id="18_boss_vis"]
+[ext_resource type="PackedScene" uid="uid://b0i8x3dfbrqxw" path="res://scenes/unit/visual/monster/洪峰/洪峰_visual.tscn" id="19_spear_vis"]
+[ext_resource type="PackedScene" uid="uid://c461w0pnl2cre" path="res://scenes/unit/visual/monster/泥沙魇/泥沙魇_visual.tscn" id="20_silt_vis"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_i3du0"]
 texture = ExtResource("3_1gjpy")
@@ -731,8 +739,138 @@ sources/5 = SubResource("TileSetAtlasSource_qxmde")
 sources/6 = SubResource("TileSetAtlasSource_blv40")
 sources/7 = SubResource("TileSetAtlasSource_3p1i7")
 
-[node name="Level1-4" unique_id=1737123277 node_paths=PackedStringArray("obstacles_tilemap_layer") instance=ExtResource("1_base")]
+[sub_resource type="Resource" id="Resource_li_chun"]
+script = ExtResource("14_unit_data")
+unit_id = "hero_li_chun"
+unit_name = "李春"
+max_hp = 138
+base_atk = 26
+ap_max = 105
+move_cost_per_tile = 8
+metadata/_custom_type_script = "uid://c2077ybi0615r"
+
+[sub_resource type="Resource" id="Resource_craftsman_1"]
+script = ExtResource("14_unit_data")
+unit_id = "craftsman_guard"
+unit_name = "工匠"
+max_hp = 120
+base_atk = 20
+ap_max = 95
+move_cost_per_tile = 9
+move_limit = 1
+skill_limit = 1
+metadata/_custom_type_script = "uid://c2077ybi0615r"
+
+[sub_resource type="Resource" id="Resource_craftsman_2"]
+script = ExtResource("14_unit_data")
+unit_id = "craftsman_guard"
+unit_name = "工匠"
+max_hp = 120
+base_atk = 20
+ap_max = 95
+move_cost_per_tile = 9
+move_limit = 1
+skill_limit = 1
+metadata/_custom_type_script = "uid://c2077ybi0615r"
+
+[sub_resource type="Resource" id="Resource_craftsman_3"]
+script = ExtResource("14_unit_data")
+unit_id = "craftsman_guard"
+unit_name = "工匠"
+max_hp = 120
+base_atk = 20
+ap_max = 95
+move_cost_per_tile = 9
+move_limit = 1
+skill_limit = 1
+metadata/_custom_type_script = "uid://c2077ybi0615r"
+
+[sub_resource type="Resource" id="Resource_carrier_1"]
+script = ExtResource("14_unit_data")
+unit_id = "survey_worker"
+unit_name = "运石工"
+max_hp = 92
+base_atk = 14
+ap_max = 95
+move_cost_per_tile = 9
+move_limit = 1
+skill_limit = 1
+is_escort_target = true
+metadata/_custom_type_script = "uid://c2077ybi0615r"
+
+[sub_resource type="Resource" id="Resource_carrier_2"]
+script = ExtResource("14_unit_data")
+unit_id = "survey_worker"
+unit_name = "运石工"
+max_hp = 92
+base_atk = 14
+ap_max = 95
+move_cost_per_tile = 9
+move_limit = 1
+skill_limit = 1
+is_escort_target = true
+metadata/_custom_type_script = "uid://c2077ybi0615r"
+
+[sub_resource type="Resource" id="Resource_boss"]
+script = ExtResource("14_unit_data")
+unit_id = "wrathful_flood"
+unit_name = "怒水"
+camp = 1
+max_hp = 360
+base_atk = 24
+ap_max = 1
+move_cost_per_tile = 99
+innate_element = 3
+innate_element_amount = 2
+ai_type = "fixed_global_boss"
+is_humanoid = false
+metadata/_custom_type_script = "uid://c2077ybi0615r"
+
+[sub_resource type="Resource" id="Resource_flood_spear_1"]
+script = ExtResource("14_unit_data")
+unit_id = "flood_spear"
+unit_name = "洪锋"
+camp = 1
+max_hp = 98
+base_atk = 24
+ap_max = 90
+innate_element = 3
+innate_element_amount = 2
+ai_type = "frontal_charge"
+is_humanoid = false
+metadata/_custom_type_script = "uid://c2077ybi0615r"
+
+[sub_resource type="Resource" id="Resource_flood_spear_2"]
+script = ExtResource("14_unit_data")
+unit_id = "flood_spear"
+unit_name = "洪锋"
+camp = 1
+max_hp = 98
+base_atk = 24
+ap_max = 90
+innate_element = 3
+innate_element_amount = 2
+ai_type = "frontal_charge"
+is_humanoid = false
+metadata/_custom_type_script = "uid://c2077ybi0615r"
+
+[sub_resource type="Resource" id="Resource_siltmare"]
+script = ExtResource("14_unit_data")
+unit_id = "siltmare"
+unit_name = "泥沙魇"
+camp = 1
+max_hp = 84
+base_atk = 18
+ap_max = 90
+innate_element = 5
+innate_element_amount = 2
+ai_type = "terrain_polluter"
+is_humanoid = false
+metadata/_custom_type_script = "uid://c2077ybi0615r"
+
+[node name="Level1-4" unique_id=1737123277 node_paths=PackedStringArray("boss_hit_area_tilemap", "obstacles_tilemap_layer") instance=ExtResource("1_base")]
 script = ExtResource("2_script")
+boss_hit_area_tilemap = NodePath("boss_hit_area")
 obstacles_tilemap_layer = NodePath("TileMaps/railing z=7")
 
 [node name="init tile map" type="TileMapLayer" parent="TileMaps" parent_id_path=PackedInt32Array(1122336516) index="0" unique_id=1395884085]
@@ -829,9 +967,68 @@ position = Vector2(-1, 1)
 tile_map_data = PackedByteArray("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")
 tile_set = ExtResource("13_bgus0")
 
+[node name="boss_hit_area" type="TileMapLayer" parent="." index="1" unique_id=338797287]
+z_index = 11
+texture_filter = 1
+tile_map_data = PackedByteArray("AADz//P/AQAEAAAAAADz//T/AQAEAAAAAADz//X/AQAEAAAAAADz//b/AQAEAAAAAADz//f/AQAEAAAAAADz//j/AQAEAAAAAADz//n/AQAEAAAAAADz//r/AQAEAAAAAADz//v/AQAEAAAAAADz//z/AQAEAAAAAADz//3/AQAEAAAAAADz//7/AQAEAAAAAAD0//P/AQAEAAAAAAD0//T/AQAEAAAAAAD0//X/AQAEAAAAAAD0//b/AQAEAAAAAAD0//f/AQAEAAAAAAD0//j/AQAEAAAAAAD0//n/AQAEAAAAAAD0//r/AQAEAAAAAAD0//v/AQAEAAAAAAD0//z/AQAEAAAAAAD0//3/AQAEAAAAAAD0//7/AQAEAAAAAAD1//P/AQAEAAAAAAD1//T/AQAEAAAAAAD1//X/AQAEAAAAAAD1//b/AQAEAAAAAAD1//f/AQAEAAAAAAD1//j/AQAEAAAAAAD1//n/AQAEAAAAAAD1//r/AQAEAAAAAAD1//v/AQAEAAAAAAD1//z/AQAEAAAAAAD1//3/AQAEAAAAAAD1//7/AQAEAAAAAAD2//P/AQAEAAAAAAD2//T/AQAEAAAAAAD2//X/AQAEAAAAAAD2//b/AQAEAAAAAAD2//f/AQAEAAAAAAD2//j/AQAEAAAAAAD2//n/AQAEAAAAAAD2//r/AQAEAAAAAAD2//v/AQAEAAAAAAD2//z/AQAEAAAAAAD2//3/AQAEAAAAAAD2//7/AQAEAAAAAAD3//P/AQAEAAAAAAD3//T/AQAEAAAAAAD3//X/AQAEAAAAAAD3//b/AQAEAAAAAAD3//f/AQAEAAAAAAD3//j/AQAEAAAAAAD3//n/AQAEAAAAAAD3//r/AQAEAAAAAAD3//v/AQAEAAAAAAD3//z/AQAEAAAAAAD3//3/AQAEAAAAAAD3//7/AQAEAAAAAAD4//P/AQAEAAAAAAD4//T/AQAEAAAAAAD4//X/AQAEAAAAAAD4//b/AQAEAAAAAAD4//f/AQAEAAAAAAD4//j/AQAEAAAAAAD4//n/AQAEAAAAAAD4//r/AQAEAAAAAAD4//v/AQAEAAAAAAD4//z/AQAEAAAAAAD4//3/AQAEAAAAAAD4//7/AQAEAAAAAAD5//P/AQAEAAAAAAD5//T/AQAEAAAAAAD5//X/AQAEAAAAAAD5//b/AQAEAAAAAAD5//f/AQAEAAAAAAD5//j/AQAEAAAAAAD5//n/AQAEAAAAAAD5//r/AQAEAAAAAAD5//v/AQAEAAAAAAD5//z/AQAEAAAAAAD5//3/AQAEAAAAAAD5//7/AQAEAAAAAAD6//P/AQAEAAAAAAD6//T/AQAEAAAAAAD6//X/AQAEAAAAAAD6//b/AQAEAAAAAAD6//f/AQAEAAAAAAD6//j/AQAEAAAAAAD6//n/AQAEAAAAAAD6//r/AQAEAAAAAAD6//v/AQAEAAAAAAD6//z/AQAEAAAAAAD6//3/AQAEAAAAAAD6//7/AQAEAAAAAAD7//P/AQAEAAAAAAD7//T/AQAEAAAAAAD7//X/AQAEAAAAAAD7//b/AQAEAAAAAAD7//f/AQAEAAAAAAD7//j/AQAEAAAAAAD7//n/AQAEAAAAAAD7//r/AQAEAAAAAAD7//v/AQAEAAAAAAD7//z/AQAEAAAAAAD7//3/AQAEAAAAAAD7//7/AQAEAAAAAAD8//P/AQAEAAAAAAD8//T/AQAEAAAAAAD8//X/AQAEAAAAAAD8//b/AQAEAAAAAAD8//f/AQAEAAAAAAD8//j/AQAEAAAAAAD8//n/AQAEAAAAAAD8//r/AQAEAAAAAAD8//v/AQAEAAAAAAD8//z/AQAEAAAAAAD8//3/AQAEAAAAAAD8//7/AQAEAAAAAAD9//P/AQAEAAAAAAD9//T/AQAEAAAAAAD9//X/AQAEAAAAAAD9//b/AQAEAAAAAAD9//f/AQAEAAAAAAD9//j/AQAEAAAAAAD9//n/AQAEAAAAAAD9//r/AQAEAAAAAAD9//v/AQAEAAAAAAD9//z/AQAEAAAAAAD9//3/AQAEAAAAAAD9//7/AQAEAAAAAAD8////AQABAAAAAAD7////AQABAAAAAAD6////AQABAAAAAAD5////AQABAAAAAAD4////AQABAAAAAAD3////AQABAAAAAAD3/wAAAQABAAAAAAD2////AQABAAAAAAD2/wAAAQABAAAAAAD1/wAAAQABAAAAAAD1////AQABAAAAAAD4/wAAAQABAAAAAAD5/wAAAQABAAAAAAD6/wAAAQABAAAAAAD+//3/AQABAAAAAAD+//z/AQABAAAAAAD+//v/AQABAAAAAAD+//r/AQABAAAAAAD+//n/AQABAAAAAAD+//j/AQABAAAAAAD+//f/AQABAAAAAAD+//b/AQABAAAAAAD0/wAAAQABAAAAAAD0////AQABAAAAAADz/wAAAQABAAAAAADz////AQABAAAAAAD+//X/AQABAAAAAAD+//T/AQABAAAAAAD+//P/AQABAAAAAADy//P/AQABAAAAAADy//T/AQABAAAAAADy//X/AQABAAAAAADy//b/AQABAAAAAADy//f/AQABAAAAAADy//j/AQABAAAAAADy//n/AQABAAAAAADy//r/AQABAAAAAADy//v/AQABAAAAAADy//z/AQABAAAAAADy//3/AQABAAAAAADy//7/AQABAAAAAADy////AQABAAAAAADy/wAAAQABAAAAAAD///v/AQABAAAAAAD///r/AQABAAAAAAD///n/AQABAAAAAAD///j/AQABAAAAAAD///f/AQABAAAAAAD///b/AQABAAAAAAD///X/AQABAAAAAAD///T/AQABAAAAAAD///P/AQABAAAAAAD5/wEAAQABAAAAAAD4/wEAAQABAAAAAAD3/wEAAQABAAAAAAD2/wEAAQABAAAAAAD1/wEAAQABAAAAAAD0/wEAAQABAAAAAADz/wEAAQABAAAAAADy/wEAAQABAAAAAAAAAPr/AQABAAAAAAAAAPn/AQABAAAAAAAAAPj/AQABAAAAAAAAAPf/AQABAAAAAAAAAPb/AQABAAAAAAAAAPX/AQABAAAAAAAAAPT/AQABAAAAAAAAAPP/AQABAAAAAAA=")
+tile_set = SubResource("TileSet_rjx6i")
+
 [node name="Player" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="0" unique_id=1786106265 instance=ExtResource("3_player")]
 position = Vector2(0, -1)
+unit_data = SubResource("Resource_li_chun")
+visual_scene = ExtResource("15_li_chun_vis")
+unit_color = Color(1, 0.85, 0, 1)
 
-[node name="MovementManager" parent="." index="7" unique_id=1144669128 node_paths=PackedStringArray("movement_tilemaps", "obstacle_tilemaps")]
+[node name="Craftsman1" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="1" unique_id=1786106266 instance=ExtResource("3_player")]
+position = Vector2(-48, -40)
+unit_data = SubResource("Resource_craftsman_1")
+visual_scene = ExtResource("16_craft_vis")
+unit_color = Color(0.4, 0.8, 0.9, 1)
+
+[node name="Craftsman2" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="2" unique_id=1786106267 instance=ExtResource("3_player")]
+position = Vector2(80, 24)
+unit_data = SubResource("Resource_craftsman_2")
+visual_scene = ExtResource("16_craft_vis")
+unit_color = Color(0.4, 0.8, 0.9, 1)
+
+[node name="Craftsman3" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="3" unique_id=1786106268 instance=ExtResource("3_player")]
+position = Vector2(-16, 8)
+unit_data = SubResource("Resource_craftsman_3")
+visual_scene = ExtResource("16_craft_vis")
+unit_color = Color(0.4, 0.8, 0.9, 1)
+
+[node name="StoneCarrier1" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="4" unique_id=1786106269 instance=ExtResource("3_player")]
+position = Vector2(-512, 0)
+unit_data = SubResource("Resource_carrier_1")
+visual_scene = ExtResource("17_carrier_vis")
+unit_color = Color(0.3, 0.9, 0.5, 1)
+
+[node name="StoneCarrier2" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="5" unique_id=1786106270 instance=ExtResource("3_player")]
+position = Vector2(448, 0)
+unit_data = SubResource("Resource_carrier_2")
+visual_scene = ExtResource("17_carrier_vis")
+unit_color = Color(0.3, 0.9, 0.5, 1)
+
+[node name="Boss" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="6" unique_id=1786106271 instance=ExtResource("3_player")]
+position = Vector2(-6, -164)
+unit_data = SubResource("Resource_boss")
+visual_scene = ExtResource("18_boss_vis")
+
+[node name="FloodSpear1" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="7" unique_id=1786106272 instance=ExtResource("3_player")]
+position = Vector2(32, -16)
+unit_data = SubResource("Resource_flood_spear_1")
+visual_scene = ExtResource("19_spear_vis")
+
+[node name="FloodSpear2" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="8" unique_id=1786106273 instance=ExtResource("3_player")]
+position = Vector2(96, 32)
+unit_data = SubResource("Resource_flood_spear_2")
+visual_scene = ExtResource("19_spear_vis")
+
+[node name="Siltmare" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="9" unique_id=1786106274 instance=ExtResource("3_player")]
+position = Vector2(-400, -24)
+unit_data = SubResource("Resource_siltmare")
+visual_scene = ExtResource("20_silt_vis")
+
+[node name="MovementManager" parent="." index="8" unique_id=1144669128 node_paths=PackedStringArray("movement_tilemaps", "obstacle_tilemaps")]
 movement_tilemaps = [NodePath("../TileMaps/surface z=0"), NodePath("../TileMaps/railing z=7")]
 obstacle_tilemaps = [NodePath("../TileMaps/unvisiable obstacle")]

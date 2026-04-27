@@ -40,8 +40,8 @@ const _MissionHudScene := preload("res://scenes/levels/bridge_tour/mission_hud.t
 const _HERO_COLOR := Color(1, 0.85, 0, 1)
 const _HERO_CELL := Vector2i(0, 0)
 const STANCE_PERSUADED := 70
-const PERSUADE_ACCUM_SCORE_MIN := 1
-const PERSUADE_ACCUM_SCORE_MAX := 5
+const PERSUADE_ACCUM_SCORE_MIN := 6
+const PERSUADE_ACCUM_SCORE_MAX := 15
 const PERSUADE_ROUND_SCORE_MIN := -10
 const PERSUADE_ROUND_SCORE_MAX := 15
 const PERSUADE_TARGET := 3
@@ -87,6 +87,23 @@ func _get_npc_specs() -> Array[Dictionary]:
 				"hint": "可用「扁拱」「二十八道并列拱券」「旧制多孔小拱」回应他的守旧疑虑。",
 				"required_topics": ["flat_arch", "parallel_rings", "old_method"],
 				"bad_arguments": ["只说新法好看", "贬低老师傅", "空喊年轻人有胆量"],
+				"key_points": [
+					{
+						"label": "扁拱可一弧跨河且坡度更缓",
+						"groups": [["扁拱", "弧形拱"], ["跨河", "单孔", "大跨"], ["坡", "缓", "不陡"]],
+						"knowledge_keys": ["flat_arch"],
+					},
+					{
+						"label": "二十八道并列拱券能分力且便于修换",
+						"groups": [["二十八", "28"], ["并列", "分券", "拱券"], ["分力", "受力", "修换", "替换"]],
+						"knowledge_keys": ["parallel_rings"],
+					},
+					{
+						"label": "旧制多孔桥墩易堵水积淤受冲",
+						"groups": [["旧制", "多孔", "桥墩"], ["堵水", "积淤", "冲毁", "洪水"]],
+						"knowledge_keys": ["old_method"],
+					},
+				],
 			},
 		},
 		{
@@ -103,6 +120,23 @@ func _get_npc_specs() -> Array[Dictionary]:
 				"hint": "可用「敞肩拱」「桥台与基础」回应他的防汛疑虑。",
 				"required_topics": ["open_spandrel", "abutment"],
 				"bad_arguments": ["只保证不会出事", "回避汛期", "只谈桥面好走"],
+				"key_points": [
+					{
+						"label": "敞肩小拱能分泄洪势、减轻水压",
+						"groups": [["敞肩", "开肩", "小拱"], ["泄洪", "分水", "水势"], ["减轻", "水压", "冲力", "顶拱"]],
+						"knowledge_keys": ["open_spandrel"],
+					},
+					{
+						"label": "桥台与青砂石基础能承受扁拱推力",
+						"groups": [["桥台", "基础", "青砂石"], ["推力", "水平推力", "承受", "稳"]],
+						"knowledge_keys": ["abutment"],
+					},
+					{
+						"label": "单孔少桥墩让洪水更顺畅通过",
+						"groups": [["单孔", "少桥墩", "无桥墩"], ["不堵", "畅水", "泄洪", "积淤"]],
+						"knowledge_keys": ["old_method", "open_spandrel"],
+					},
+				],
 			},
 		},
 		{
@@ -119,6 +153,23 @@ func _get_npc_specs() -> Array[Dictionary]:
 				"hint": "可用「敞肩拱」「旧制多孔小拱」「时代背景」回应他的工期和政绩疑虑。",
 				"required_topics": ["open_spandrel", "old_method", "sui_era"],
 				"bad_arguments": ["只讲奇观名声", "不谈工期钱粮", "把风险推给朝廷"],
+				"key_points": [
+					{
+						"label": "敞肩拱减重省石，降低工料压力",
+						"groups": [["敞肩", "开肩", "小拱"], ["减重", "省石", "省料", "工料"]],
+						"knowledge_keys": ["open_spandrel"],
+					},
+					{
+						"label": "单孔大跨少建桥墩，通行与治水都更合算",
+						"groups": [["单孔", "大跨", "少桥墩"], ["通行", "商旅", "省工", "堵水", "治水"]],
+						"knowledge_keys": ["old_method"],
+					},
+					{
+						"label": "赵郡交通与隋代统一工程背景能形成政绩",
+						"groups": [["隋", "开皇", "大业", "度量衡"], ["赵郡", "交通", "通商", "政绩"]],
+						"knowledge_keys": ["sui_era"],
+					},
+				],
 			},
 		},
 		# ─── 解答类（4）───
@@ -608,6 +659,7 @@ func _generate_persuade_answer(npc: Unit, topic: String) -> Dictionary:
 		"mission_context": _mission_context_text(npc),
 		"cheat_context": _cheat_context_text(is_cheat, cheat_word),
 		"accum_total": int(npc.get_meta("npc_accum_score_total", 0)),
+		"persuade_key_points": _persuade_key_points_text(persuasion_goal),
 	})
 	var resp: Dictionary = await _get_llm().chat_completion([
 		{"role": "system", "content": sys},
@@ -631,14 +683,7 @@ func _generate_persuade_answer(npc: Unit, topic: String) -> Dictionary:
 			return parsed
 	if is_cheat:
 		return _make_cheat_persuade_answer(npc)
-	return {
-		"reply": "（一时怔住，连连点头）" if is_cheat else _PersonaFallbackScript.pick(persona, "persuade"),
-		"stance_delta": 0,
-		"base_bonus": 0,
-		"tone": "感动" if is_cheat else "沉默",
-		"is_fallback": not is_cheat,
-		"is_cheat": is_cheat,
-	}
+	return _make_rule_persuade_answer(npc, topic, persona, persuasion_goal)
 
 
 func _apply_persuade_result(npc: Unit, ans: Dictionary) -> void:
@@ -648,7 +693,7 @@ func _apply_persuade_result(npc: Unit, ans: Dictionary) -> void:
 	var accum_score: int = clampi(int(ans.get("accum_score", PERSUADE_ACCUM_SCORE_MIN)), PERSUADE_ACCUM_SCORE_MIN, PERSUADE_ACCUM_SCORE_MAX)
 	var round_score: int = clampi(int(ans.get("round_score", 0)), PERSUADE_ROUND_SCORE_MIN, PERSUADE_ROUND_SCORE_MAX)
 	var final_score: int = int(ans.get("final_score", accum_score + round_score))
-	if bool(ans.get("is_fallback", false)) and not force_success:
+	if bool(ans.get("is_fallback", false)) and not force_success and not bool(ans.get("allow_fallback_score", false)):
 		accum_score = 0
 		round_score = 0
 		final_score = 0
@@ -805,6 +850,7 @@ func _generate_qa_eval(npc: Unit, question: String, answer: String) -> Dictionar
 		"dialogue_history": _dialogue_history_text(npc),
 		"mission_context": _mission_context_text(npc),
 		"cheat_context": _cheat_context_text(is_cheat, cheat_word),
+		"qa_key_points": _qa_key_points_text(persona),
 	})
 	var resp: Dictionary = await _get_llm().chat_completion([
 		{"role": "system", "content": sys},
@@ -822,12 +868,7 @@ func _generate_qa_eval(npc: Unit, question: String, answer: String) -> Dictionar
 			return parsed
 	if is_cheat:
 		return _make_cheat_qa_eval(npc)
-	return {
-		"is_correct": false,
-		"feedback": _PersonaFallbackScript.pick(persona, "qa"),
-		"knowledge_used": [],
-		"is_fallback": true,
-	}
+	return _make_rule_qa_eval(npc, answer, persona)
 
 
 func _apply_qa_result(npc: Unit, eval: Dictionary) -> void:
@@ -878,6 +919,59 @@ func _make_cheat_persuade_answer(_npc: Unit) -> Dictionary:
 	}
 
 
+func _make_rule_persuade_answer(npc: Unit, argument: String, persona: Dictionary, persuasion_goal: Dictionary) -> Dictionary:
+	var key_points: Array = _get_dict_array(persuasion_goal, "key_points")
+	var matched: Array[String] = []
+	var missed: Array[String] = []
+	var knowledge_used: Array[String] = []
+	for point_v in key_points:
+		if not (point_v is Dictionary):
+			continue
+		var point: Dictionary = point_v
+		var label := String(point.get("label", "")).strip_edges()
+		if label.is_empty():
+			continue
+		if _key_point_matches(argument, point):
+			matched.append(label)
+			var keys: Array = _get_dict_array(point, "knowledge_keys")
+			for key_v in keys:
+				var key := String(key_v).strip_edges()
+				if not key.is_empty() and not knowledge_used.has(key):
+					knowledge_used.append(key)
+		else:
+			missed.append(label)
+	var matched_count := matched.size()
+	var has_progress := matched_count > 0
+	var accum_score := 0
+	var round_score := 0
+	if has_progress:
+		accum_score = clampi(10 + matched_count * 2, PERSUADE_ACCUM_SCORE_MIN, PERSUADE_ACCUM_SCORE_MAX)
+		round_score = clampi(5 + matched_count * 4, PERSUADE_ROUND_SCORE_MIN, PERSUADE_ROUND_SCORE_MAX)
+	var reply := _pick_persuade_success_feedback(npc, persona) if has_progress else _PersonaFallbackScript.pick(persona, "persuade")
+	return {
+		"reply": reply,
+		"accum_score": accum_score,
+		"round_score": round_score,
+		"final_score": accum_score + round_score,
+		"tone": "松动" if has_progress else "沉默",
+		"knowledge_used": knowledge_used,
+		"matched_points": matched,
+		"missed_points": missed,
+		"is_fallback": true,
+		"allow_fallback_score": has_progress,
+		"fallback_reason": "rule_match",
+	}
+
+
+func _pick_persuade_success_feedback(npc: Unit, persona: Dictionary) -> String:
+	var lines := _fallback_lines_for(persona, "persuade_success")
+	if lines.is_empty():
+		return "这话说到点上了。"
+	var attempt := int(npc.get_meta("npc_persuade_success_attempt", 0))
+	npc.set_meta("npc_persuade_success_attempt", attempt + 1)
+	return String(lines[attempt % lines.size()]).strip_edges()
+
+
 func _make_cheat_qa_eval(_npc: Unit) -> Dictionary:
 	return {
 		"is_correct": true,
@@ -885,6 +979,146 @@ func _make_cheat_qa_eval(_npc: Unit) -> Dictionary:
 		"knowledge_used": [],
 		"is_cheat": true,
 	}
+
+
+func _make_rule_qa_eval(npc: Unit, answer: String, persona: Dictionary) -> Dictionary:
+	var key_points: Array = _get_persona_array(persona, "qa_key_points")
+	var matched: Array[String] = []
+	var missed: Array[String] = []
+	var knowledge_used: Array[String] = []
+	for point_v in key_points:
+		if not (point_v is Dictionary):
+			continue
+		var point: Dictionary = point_v
+		var label := String(point.get("label", "")).strip_edges()
+		if label.is_empty():
+			continue
+		if _key_point_matches(answer, point):
+			matched.append(label)
+			var keys: Array = _get_dict_array(point, "knowledge_keys")
+			for key_v in keys:
+				var key := String(key_v).strip_edges()
+				if not key.is_empty() and not knowledge_used.has(key):
+					knowledge_used.append(key)
+		else:
+			missed.append(label)
+	var is_correct := not matched.is_empty()
+	var feedback := _pick_qa_success_feedback(npc, persona) if is_correct else _PersonaFallbackScript.pick(persona, "qa")
+	return {
+		"is_correct": is_correct,
+		"feedback": feedback,
+		"knowledge_used": knowledge_used,
+		"matched_points": matched,
+		"missed_points": missed,
+		"is_fallback": true,
+		"fallback_reason": "rule_match",
+	}
+
+
+func _pick_qa_success_feedback(npc: Unit, persona: Dictionary) -> String:
+	var lines := _fallback_lines_for(persona, "qa_success")
+	if lines.is_empty():
+		return "这回说到点上了。"
+	var attempt := int(npc.get_meta("npc_qa_success_attempt", 0))
+	npc.set_meta("npc_qa_success_attempt", attempt + 1)
+	return String(lines[attempt % lines.size()]).strip_edges()
+
+
+func _key_point_matches(answer: String, point: Dictionary) -> bool:
+	var normalized := _normalize_match_text(answer)
+	if normalized.is_empty():
+		return false
+	var groups: Array = _get_dict_array(point, "groups")
+	if groups.is_empty():
+		return false
+	var hit_count := 0
+	for group_v in groups:
+		var alternatives: Array = group_v if group_v is Array else [group_v]
+		var hit := false
+		for keyword_v in alternatives:
+			var keyword := _normalize_match_text(String(keyword_v))
+			if not keyword.is_empty() and normalized.find(keyword) >= 0:
+				hit = true
+				break
+		if hit:
+			hit_count += 1
+	var required_hits: int = mini(groups.size(), maxi(2, groups.size() - 1))
+	return hit_count >= required_hits
+
+
+func _normalize_match_text(text: String) -> String:
+	var out := text.strip_edges().to_lower()
+	for ch in [" ", "\n", "\t", "，", "。", "、", "？", "！", "：", "；", "“", "”", "「", "」", "（", "）", "(", ")", ",", ".", "?", "!", ":", ";"]:
+		out = out.replace(ch, "")
+	return out
+
+
+func _qa_key_points_text(persona: Dictionary) -> String:
+	var key_points: Array = _get_persona_array(persona, "qa_key_points")
+	if key_points.is_empty():
+		return "（未配置；按问题语义宽松判断）"
+	var lines: Array[String] = []
+	for point_v in key_points:
+		if not (point_v is Dictionary):
+			continue
+		var point: Dictionary = point_v
+		var label := String(point.get("label", "")).strip_edges()
+		if label.is_empty():
+			continue
+		var keys: Array = _get_dict_array(point, "knowledge_keys")
+		var suffix := ""
+		if not keys.is_empty():
+			suffix = "；关联知识 key：" + "、".join(_string_array(keys))
+		lines.append("- %s%s" % [label, suffix])
+	return "\n".join(lines) if not lines.is_empty() else "（未配置；按问题语义宽松判断）"
+
+
+func _persuade_key_points_text(persuasion_goal: Dictionary) -> String:
+	var key_points: Array = _get_dict_array(persuasion_goal, "key_points")
+	if key_points.is_empty():
+		return "（未配置；按说服目标语义宽松判断）"
+	var lines: Array[String] = []
+	for point_v in key_points:
+		if not (point_v is Dictionary):
+			continue
+		var point: Dictionary = point_v
+		var label := String(point.get("label", "")).strip_edges()
+		if label.is_empty():
+			continue
+		var keys: Array = _get_dict_array(point, "knowledge_keys")
+		var suffix := ""
+		if not keys.is_empty():
+			suffix = "；关联知识 key：" + "、".join(_string_array(keys))
+		lines.append("- %s%s" % [label, suffix])
+	return "\n".join(lines) if not lines.is_empty() else "（未配置；按说服目标语义宽松判断）"
+
+
+func _fallback_lines_for(persona: Dictionary, kind: String) -> Array:
+	var fallback_lines: Variant = persona.get("fallback_lines", {})
+	if fallback_lines is Dictionary:
+		var raw: Variant = (fallback_lines as Dictionary).get(kind, [])
+		if raw is Array:
+			return raw
+	return []
+
+
+func _get_persona_array(persona: Dictionary, key: String) -> Array:
+	var raw: Variant = persona.get(key, [])
+	return raw if raw is Array else []
+
+
+func _get_dict_array(dict: Dictionary, key: String) -> Array:
+	var raw: Variant = dict.get(key, [])
+	return raw if raw is Array else []
+
+
+func _string_array(items: Array) -> Array[String]:
+	var result: Array[String] = []
+	for item in items:
+		var text := String(item).strip_edges()
+		if not text.is_empty():
+			result.append(text)
+	return result
 
 
 func _cheat_context_text(is_cheat: bool, cheat_word: String = "") -> String:

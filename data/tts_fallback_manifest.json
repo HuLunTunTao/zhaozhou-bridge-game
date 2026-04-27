@@ -1499,6 +1499,30 @@
 			"voice": "zh_male_tangseng_uranus_bigtts"
 		},
 		{
+			"kind": "persuade_success",
+			"output": "assets/audio/tts_fallback/bridge_old_master/persuade_success_01.mp3",
+			"slug": "persuade_success_01",
+			"text": "嗯，这才说到拱法根上",
+			"unit_id": "bridge_old_master",
+			"voice": "zh_male_tangseng_uranus_bigtts"
+		},
+		{
+			"kind": "persuade_success",
+			"output": "assets/audio/tts_fallback/bridge_old_master/persuade_success_02.mp3",
+			"slug": "persuade_success_02",
+			"text": "若真能分力修换，老朽可试信",
+			"unit_id": "bridge_old_master",
+			"voice": "zh_male_tangseng_uranus_bigtts"
+		},
+		{
+			"kind": "persuade_success",
+			"output": "assets/audio/tts_fallback/bridge_old_master/persuade_success_03.mp3",
+			"slug": "persuade_success_03",
+			"text": "旧墩堵水这点，老朽记下",
+			"unit_id": "bridge_old_master",
+			"voice": "zh_male_tangseng_uranus_bigtts"
+		},
+		{
 			"kind": "persuade",
 			"output": "assets/audio/tts_fallback/bridge_old_master/persuade_01.mp3",
 			"slug": "persuade_01",
@@ -1623,6 +1647,30 @@
 			"output": "assets/audio/tts_fallback/bridge_river_chief/persuade_opening_03.mp3",
 			"slug": "persuade_opening_03",
 			"text": "桥面好看不是本事，扛得住洨水才算数。敞肩小拱到底能分多少水势？",
+			"unit_id": "bridge_river_chief",
+			"voice": "zh_male_dayi_uranus_bigtts"
+		},
+		{
+			"kind": "persuade_success",
+			"output": "assets/audio/tts_fallback/bridge_river_chief/persuade_success_01.mp3",
+			"slug": "persuade_success_01",
+			"text": "有泄洪和桥台这两条，能谈",
+			"unit_id": "bridge_river_chief",
+			"voice": "zh_male_dayi_uranus_bigtts"
+		},
+		{
+			"kind": "persuade_success",
+			"output": "assets/audio/tts_fallback/bridge_river_chief/persuade_success_02.mp3",
+			"slug": "persuade_success_02",
+			"text": "汛水能走，桥台能扛，我认",
+			"unit_id": "bridge_river_chief",
+			"voice": "zh_male_dayi_uranus_bigtts"
+		},
+		{
+			"kind": "persuade_success",
+			"output": "assets/audio/tts_fallback/bridge_river_chief/persuade_success_03.mp3",
+			"slug": "persuade_success_03",
+			"text": "这回不是空话，先记你一功",
 			"unit_id": "bridge_river_chief",
 			"voice": "zh_male_dayi_uranus_bigtts"
 		},
@@ -1755,6 +1803,30 @@
 			"voice": "zh_male_yizhipiannan_uranus_bigtts"
 		},
 		{
+			"kind": "persuade_success",
+			"output": "assets/audio/tts_fallback/bridge_court_inspector/persuade_success_01.mp3",
+			"slug": "persuade_success_01",
+			"text": "省工省料又利通商，本官可奏",
+			"unit_id": "bridge_court_inspector",
+			"voice": "zh_male_yizhipiannan_uranus_bigtts"
+		},
+		{
+			"kind": "persuade_success",
+			"output": "assets/audio/tts_fallback/bridge_court_inspector/persuade_success_02.mp3",
+			"slug": "persuade_success_02",
+			"text": "若如你言，此桥可成政绩",
+			"unit_id": "bridge_court_inspector",
+			"voice": "zh_male_yizhipiannan_uranus_bigtts"
+		},
+		{
+			"kind": "persuade_success",
+			"output": "assets/audio/tts_fallback/bridge_court_inspector/persuade_success_03.mp3",
+			"slug": "persuade_success_03",
+			"text": "工期钱粮有交代，本官认可",
+			"unit_id": "bridge_court_inspector",
+			"voice": "zh_male_yizhipiannan_uranus_bigtts"
+		},
+		{
 			"kind": "persuade",
 			"output": "assets/audio/tts_fallback/bridge_court_inspector/persuade_01.mp3",
 			"slug": "persuade_01",
@@ -1857,6 +1929,30 @@
 			"text": "朝廷自有定夺",
 			"unit_id": "bridge_court_inspector",
 			"voice": "zh_male_yizhipiannan_uranus_bigtts"
+		},
+		{
+			"kind": "qa_success",
+			"output": "assets/audio/tts_fallback/bridge_apprentice/qa_success_01.mp3",
+			"slug": "qa_success_01",
+			"text": "对！券分开，力也分开",
+			"unit_id": "bridge_apprentice",
+			"voice": "zh_male_sunwukong_uranus_bigtts"
+		},
+		{
+			"kind": "qa_success",
+			"output": "assets/audio/tts_fallback/bridge_apprentice/qa_success_02.mp3",
+			"slug": "qa_success_02",
+			"text": "这下我懂啦，能单道修换",
+			"unit_id": "bridge_apprentice",
+			"voice": "zh_male_sunwukong_uranus_bigtts"
+		},
+		{
+			"kind": "qa_success",
+			"output": "assets/audio/tts_fallback/bridge_apprentice/qa_success_03.mp3",
+			"slug": "qa_success_03",
+			"text": "师父说得明白，稳了",
+			"unit_id": "bridge_apprentice",
+			"voice": "zh_male_sunwukong_uranus_bigtts"
 		},
 		{
 			"kind": "qa",
@@ -1987,6 +2083,30 @@
 			"voice": "zh_male_sunwukong_uranus_bigtts"
 		},
 		{
+			"kind": "qa_success",
+			"output": "assets/audio/tts_fallback/bridge_merchant/qa_success_01.mp3",
+			"slug": "qa_success_01",
+			"text": "这么说，车马倒省力",
+			"unit_id": "bridge_merchant",
+			"voice": "zh_male_cixingjieshuonan_uranus_bigtts"
+		},
+		{
+			"kind": "qa_success",
+			"output": "assets/audio/tts_fallback/bridge_merchant/qa_success_02.mp3",
+			"slug": "qa_success_02",
+			"text": "有坡缓这条，我敢走",
+			"unit_id": "bridge_merchant",
+			"voice": "zh_male_cixingjieshuonan_uranus_bigtts"
+		},
+		{
+			"kind": "qa_success",
+			"output": "assets/audio/tts_fallback/bridge_merchant/qa_success_03.mp3",
+			"slug": "qa_success_03",
+			"text": "账我懂了，走得稳就成",
+			"unit_id": "bridge_merchant",
+			"voice": "zh_male_cixingjieshuonan_uranus_bigtts"
+		},
+		{
 			"kind": "qa",
 			"output": "assets/audio/tts_fallback/bridge_merchant/qa_01.mp3",
 			"slug": "qa_01",
@@ -2113,6 +2233,30 @@
 			"text": "这桥拱压得这么扁，看着像要被自己压塌——为啥不老老实实造个半圆，让我们走着踏实？",
 			"unit_id": "bridge_merchant",
 			"voice": "zh_male_cixingjieshuonan_uranus_bigtts"
+		},
+		{
+			"kind": "qa_success",
+			"output": "assets/audio/tts_fallback/bridge_scholar/qa_success_01.mp3",
+			"slug": "qa_success_01",
+			"text": "妙哉，原来美亦有用",
+			"unit_id": "bridge_scholar",
+			"voice": "zh_male_dongfanghaoran_uranus_bigtts"
+		},
+		{
+			"kind": "qa_success",
+			"output": "assets/audio/tts_fallback/bridge_scholar/qa_success_02.mp3",
+			"slug": "qa_success_02",
+			"text": "如此开肩，倒成其势",
+			"unit_id": "bridge_scholar",
+			"voice": "zh_male_dongfanghaoran_uranus_bigtts"
+		},
+		{
+			"kind": "qa_success",
+			"output": "assets/audio/tts_fallback/bridge_scholar/qa_success_03.mp3",
+			"slug": "qa_success_03",
+			"text": "既能泄洪，形理皆通",
+			"unit_id": "bridge_scholar",
+			"voice": "zh_male_dongfanghaoran_uranus_bigtts"
 		},
 		{
 			"kind": "qa",
@@ -2347,6 +2491,30 @@
 			"voice": "zh_male_baqiqingshu_uranus_bigtts"
 		},
 		{
+			"kind": "qa_success",
+			"output": "assets/audio/tts_fallback/bridge_old_stonemason/qa_success_01.mp3",
+			"slug": "qa_success_01",
+			"text": "嗯，说到石纹根上了",
+			"unit_id": "bridge_old_stonemason",
+			"voice": "zh_male_gaolengchenwen_uranus_bigtts"
+		},
+		{
+			"kind": "qa_success",
+			"output": "assets/audio/tts_fallback/bridge_old_stonemason/qa_success_02.mp3",
+			"slug": "qa_success_02",
+			"text": "按这法挑石，也成",
+			"unit_id": "bridge_old_stonemason",
+			"voice": "zh_male_gaolengchenwen_uranus_bigtts"
+		},
+		{
+			"kind": "qa_success",
+			"output": "assets/audio/tts_fallback/bridge_old_stonemason/qa_success_03.mp3",
+			"slug": "qa_success_03",
+			"text": "懂得退石，才算会砌",
+			"unit_id": "bridge_old_stonemason",
+			"voice": "zh_male_gaolengchenwen_uranus_bigtts"
+		},
+		{
 			"kind": "qa",
 			"output": "assets/audio/tts_fallback/bridge_old_stonemason/qa_01.mp3",
 			"slug": "qa_01",
@@ -2473,6 +2641,30 @@
 			"text": "按手感看，这本地青石不全都能用。你这分券法怎么挑石？说说看",
 			"unit_id": "bridge_old_stonemason",
 			"voice": "zh_male_gaolengchenwen_uranus_bigtts"
+		},
+		{
+			"kind": "qa_success",
+			"output": "assets/audio/tts_fallback/bridge_fisherman/qa_success_01.mp3",
+			"slug": "qa_success_01",
+			"text": "这话听着踏实，水能走",
+			"unit_id": "bridge_fisherman",
+			"voice": "zh_male_guanggaojieshuo_uranus_bigtts"
+		},
+		{
+			"kind": "qa_success",
+			"output": "assets/audio/tts_fallback/bridge_fisherman/qa_success_02.mp3",
+			"slug": "qa_success_02",
+			"text": "小拱能泄洪，我懂了",
+			"unit_id": "bridge_fisherman",
+			"voice": "zh_male_guanggaojieshuo_uranus_bigtts"
+		},
+		{
+			"kind": "qa_success",
+			"output": "assets/audio/tts_fallback/bridge_fisherman/qa_success_03.mp3",
+			"slug": "qa_success_03",
+			"text": "不堵水，这桥就有理",
+			"unit_id": "bridge_fisherman",
+			"voice": "zh_male_guanggaojieshuo_uranus_bigtts"
 		},
 		{
 			"kind": "qa",
