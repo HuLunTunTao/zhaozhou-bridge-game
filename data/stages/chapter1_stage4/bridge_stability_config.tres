@@ -1,7 +1,6 @@
-[gd_resource type="Resource" script_class="BridgeStabilityConfig" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="BridgeStabilityConfig" format=3 uid="uid://dntt7tjhpoeil"]
 
-[ext_resource type="Script" path="res://scripts/data/bridge_stability_config.gd" id="1"]
+[ext_resource type="Script" uid="uid://b0amo7qcippcd" path="res://scripts/data/bridge_stability_config.gd" id="1"]
 
 [resource]
 script = ExtResource("1")
-initial_overall = 100

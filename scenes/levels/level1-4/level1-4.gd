@@ -178,6 +178,25 @@ func get_wave_config() -> Dictionary:
 	return waves
 
 
+## 1-4 的开局友方、Boss 与首批敌人由 tscn 静态定义；只有波次/阶段援军走这里动态生成。
+## 复用 origin/wcx 的 _spawn_enemy 逻辑，确保刷怪落在空可走格，并按 UnitData 覆盖运行时数值。
+func _process_wave(round_num: int) -> Array[Unit]:
+	var waves := get_wave_config()
+	if not waves.has(round_num):
+		return [] as Array[Unit]
+	var spawned: Array[Unit] = []
+	for entry: Dictionary in waves[round_num]:
+		var skills: Array[SkillData] = []
+		if entry.has("skills"):
+			skills.assign(entry["skills"])
+		var vis: PackedScene = entry.get("visual", null)
+		var unit := _spawn_enemy(entry["unit_data"], entry["cell"], skills, vis)
+		if entry.has("color"):
+			unit.unit_color = entry["color"]
+		spawned.append(unit)
+	return spawned
+
+
 # 把 unit_kind 字符串 → (UnitData 副本, 技能列表)。第四关原生 + 第一关自然系混编。
 func _resolve_wave_unit(kind: String) -> Dictionary:
 	match kind:
@@ -319,8 +338,8 @@ func check_defeat() -> String:
 
 func _on_level_ready() -> void:
 	_overall_stability = _stability_config.initial_overall
-	_left_pier_stability = _stability_config.initial_left_pier
-	_right_pier_stability = _stability_config.initial_right_pier
+	# _left_pier_stability = _stability_config.initial_left_pier
+	# _right_pier_stability = _stability_config.initial_right_pier
 	if boss_hit_area_tilemap != null:
 		boss_hit_area_tilemap.visible = false
 	_setup_anchor_cells()
@@ -1311,6 +1330,21 @@ func _open_arch_count() -> int:
 		if _phase_arch_skill_used.get(arch_key, false):
 			count += 1
 	return count
+
+
+func _spawn_enemy(data: UnitData, cell: Vector2i, skills: Array[SkillData], visual: PackedScene = null) -> Unit:
+	var unit := spawn_unit(data, _find_empty_walkable_cell(cell), ENEMY_TEAM, visual)
+	set_unit_skills(unit, skills)
+	setup_unit_stats(
+			unit,
+			data.unit_name,
+			data.max_hp,
+			data.base_atk,
+			data.ap_max,
+			data.move_cost_per_tile,
+			data.innate_element,
+			data.innate_element_amount)
+	return unit
 
 
 func _nearest_walkable(target: Vector2i) -> Vector2i:

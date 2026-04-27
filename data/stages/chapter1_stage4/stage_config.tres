@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="StageConfig" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="StageConfig" format=3 uid="uid://cmvlidwpbnh28"]
 
 [ext_resource type="Script" path="res://scripts/data/stage_config.gd" id="1"]
 
