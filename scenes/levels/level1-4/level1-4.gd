@@ -69,6 +69,13 @@ const SmallArchTileClass := preload("res://scenes/levels/level1-4/small_arch_til
 const SiltTileClass := preload("res://scenes/levels/level1-4/silt_tile.gd")
 const RapidEdgeTileClass := preload("res://scenes/levels/level1-4/rapid_edge_tile.gd")
 
+# 小拱 marker 的杆+下指箭头颜色：按"可交互性"语义区分。
+# 黄=可开 / 紫=本阶段不可开 / 绿=已开 / 红=被敌人占位（沿用 halo 红的"塞"信号）。
+const POLE_AVAILABLE := Color(1.0, 0.95, 0.55, 0.95)
+const POLE_LOCKED := Color(0.75, 0.45, 0.95, 0.95)
+const POLE_INTERACTED := Color(0.45, 0.95, 0.55, 0.95)
+const POLE_BLOCKED := Color(1.0, 0.45, 0.45, 0.95)
+
 var _arch_tiles: Dictionary = {}          # arch_key → SmallArchTile
 var _silt_tiles: Dictionary = {}          # cell → SiltTile
 var _rapid_edge_tiles: Dictionary = {}    # cell → RapidEdgeTile
@@ -315,16 +322,20 @@ func _refresh_arch_visuals() -> void:
 			continue
 		if _arch_blocked_overlay.get(arch_key, false):
 			marker.halo_color = SmallArchTile.COLOR_BLOCKED
+			marker.pole_color = POLE_BLOCKED
 			marker.label_text = "塞"
 		elif _phase_arch_skill_used.get(arch_key, false):
 			marker.halo_color = SmallArchTile.COLOR_OPEN
+			marker.pole_color = POLE_INTERACTED
 			marker.label_text = "通"
 		elif _is_arch_available(arch_key):
 			marker.halo_color = SmallArchTile.COLOR_CLOSED
+			marker.pole_color = POLE_AVAILABLE
 			marker.label_text = "肩"
 		else:
 			# 锁定态：halo 调暗 + 用次要符号"·"
 			marker.halo_color = SmallArchTile.COLOR_CLOSED * Color(0.4, 0.4, 0.4, 1.0)
+			marker.pole_color = POLE_LOCKED
 			marker.label_text = "·"
 
 
