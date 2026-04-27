@@ -9,10 +9,11 @@ var _craftsmen: Array[Unit] = []
 var _stone_carriers: Array[Unit] = []
 var _boss: Unit
 
-var _overall_stability := 12
-var _left_pier_stability := 6
-var _right_pier_stability := 6
+var _overall_stability := 100
 var _pending_enemy_resolution := false
+
+# 整桥稳定值上限（= 初值，玩家击杀/打 boss 回血最多回到 100）
+const STABILITY_MAX: int = 100
 
 var _left_pier: Vector2i
 var _right_pier: Vector2i
@@ -174,18 +175,22 @@ func _duplicate_unit_data(base: UnitData) -> UnitData:
 func get_objectives_text() -> Dictionary:
 	return {
 		"victory": [
-			"- 保护李春与左右桥台，熬过汛情",
-			"- 引导运石工与李春开启小拱泄洪（共 4 座）",
-			"- 开肩越多，怒水压制越弱；全开后击退怒水即可收束",
-			"- [color=#ffcb55][b]Boss 周期被动【怒涛拍面】[/b][/color]：释放后 CD 2 回合，对全场未含「护持」的我方造成 0.5×水属性伤害（附水 1）并朝远离 Boss 方向击退 [b]2[/b] 格",
-			"- [color=#ff8c55][b]Boss 周期被动【翻岸压塌】[/b][/color]：释放后 CD 3 回合，对距 Boss 最近的 [b]2[/b] 名我方造成 0.7×土属性伤害（附土 2）并击退 [b]3[/b] 格；同回合与拍面撞期时本技优先，拍面让位至下回合",
-			"- [color=#7adfff][b]反制要点[/b][/color]：工匠「[color=#7adfff]捍作护行[/color]」可给邻接 4 格友军赋予[b]护持 2 回合[/b]——拍面对护持目标[b]完全豁免[/b]；压塌只能[b]半减[/b]（-16 伤 + 击退压到 1 格）。每回合开始会预告下回合 Boss 释放的技能，请提前调度",
+			"- 保护李春与整桥（稳定值 100，归零即败），熬过汛情",
+			"- 击杀怒水即胜利",
+			"- [color=#7adfff][b]整桥扣血[/b][/color]：怒水存活每回合 -1；阶段未拆肩另算（见下）；桥台噬者邻 watch_point -2；泥沙魇邻 watch_point -1；洪锋·漂木群冲撞穿桥心 -1",
+			"- [color=#7aff8c][b]整桥回血[/b][/color]：怒水每受到一次攻击 +1；任意敌方倒下 +2（封顶 100）",
+			"- [color=#ffcb55][b]阶段拆肩与压制[/b][/color]：",
+			"   • [b]P1[/b] (HP>75%)：无肩可开，无附加压力",
+			"   • [b]P2[/b] (50%~75%)：解锁外两肩 1&4；都未开 -1/回合，全开 0",
+			"   • [b]P3[/b] (<50%)：解锁四肩，对应 boss 减伤两阶段；都未开 -2；开 2&3 → -1；再开 1&4 → 0",
+			"- [color=#ff8c55][b]Boss 周期被动【怒涛拍面】[/b][/color]：CD 2，对全场未护持我方 0.5×水(附水1) 击退 2 格；护持完全豁免",
+			"- [color=#ff8c55][b]Boss 周期被动【翻岸压塌】[/b][/color]：CD 3，对最近 2 名我方 0.7×土(附土2) 击退 3 格；护持半减(-16伤/击退压到 1 格)；与拍面撞期本技优先",
+			"- [color=#7adfff][b]反制[/b][/color]：工匠「捍作护行」赋护持 2 回合 — 每回合预告下回合 boss 释放的技能，请提前调度",
 		],
 		"defeat": [
 			"- 李春倒下",
-			"- 左右桥台任一崩溃（稳定值降至 0）",
 			"- 整桥稳定值归零",
-			"- 超过第 15 回合未能压退怒水",
+			"- 超过第 50 回合未能压退怒水",
 		],
 	}
 
@@ -208,16 +213,13 @@ func _record_clear_summary() -> void:
 	var summary: Dictionary = {
 		"turns": round_number,
 		"overall_stability_left": _overall_stability,
-		"left_pier_stability_left": _left_pier_stability,
-		"right_pier_stability_left": _right_pier_stability,
 		"open_arches": _open_arch_count(),
 		"full_release_kill": full_release,
 		"li_chun_stage_title": "安桥者",
 	}
 	Progress.set_level_clear_summary("关卡1-4", summary)
-	CombatLog.msg("结算: 回合 %d | 整桥 %d | 左/右 %d/%d | 小拱 %d/4 | 全泄%s | 称号「安桥者」" % [
+	CombatLog.msg("结算: 回合 %d | 整桥 %d | 小拱 %d/4 | 全泄%s | 称号「安桥者」" % [
 		summary["turns"], summary["overall_stability_left"],
-		summary["left_pier_stability_left"], summary["right_pier_stability_left"],
 		summary["open_arches"], "✓" if full_release else "✗",
 	])
 
@@ -227,10 +229,6 @@ func check_defeat() -> String:
 		return "李春倒下"
 	if _overall_stability <= 0:
 		return "整桥稳定值耗尽"
-	if _left_pier_stability <= 0:
-		return "左桥台崩毁"
-	if _right_pier_stability <= 0:
-		return "右桥台崩毁"
 	if round_number > _stage_config.turn_limit:
 		return "超过第 %d 回合" % _stage_config.turn_limit
 	return ""
@@ -238,8 +236,6 @@ func check_defeat() -> String:
 
 func _on_level_ready() -> void:
 	_overall_stability = _stability_config.initial_overall
-	_left_pier_stability = _stability_config.initial_left_pier
-	_right_pier_stability = _stability_config.initial_right_pier
 	_setup_anchor_cells()
 	_setup_arch_tiles()
 	_setup_li_chun()
@@ -247,9 +243,10 @@ func _on_level_ready() -> void:
 	_spawn_enemies()
 	team_turn_started.connect(_on_stage_team_turn_started)
 	unit_hp_changed.connect(_on_stage_hp_changed)
+	unit_died.connect(_on_stage_unit_died)
 	round_started.connect(_on_stage_round_started)
 	phase_changed.connect(_on_phase_changed_for_onboarding)
-	Notify.notify("李春与运石工可开启小拱；运石工可抢修桥台", Notify.Position.TOP_CENTER, Notify.Style.INFO, 3.0)
+	Notify.notify("李春与运石工可开启小拱；整桥稳定值 100 归零即败", Notify.Position.TOP_CENTER, Notify.Style.INFO, 3.0)
 
 
 # 轻教学：进入 PLAYING 阶段后在开局几回合分段 Notify 提示关键机制。
@@ -281,11 +278,11 @@ func _onboarding_hints() -> void:
 	await get_tree().create_timer(0.8).timeout
 	if is_phase_ended():
 		return
-	Notify.notify("李春开肩 30AP / 运石工开肩 35AP；运石工抢修桥台 40AP", Notify.Position.TOP_CENTER, Notify.Style.INFO, 4.0)
+	Notify.notify("李春开肩 30AP / 运石工开肩 35AP；P2 拆 1&4 解压，P3 再拆 2&3 / 1&4 阶梯减压", Notify.Position.TOP_CENTER, Notify.Style.INFO, 4.5)
 	await get_tree().create_timer(0.8).timeout
 	if is_phase_ended():
 		return
-	Notify.notify("开 1/2/3/4 肩 → Boss 伤害上限 1/6/12/∞；全开 Boss -15% 伤", Notify.Position.TOP_CENTER, Notify.Style.INFO, 5.0)
+	Notify.notify("开肩还能削怒水免伤：P2 拆 1&4 肩、P3 拆 2&3 后再拆 1&4 → 易伤 25%", Notify.Position.TOP_CENTER, Notify.Style.INFO, 5.0)
 
 
 # 在 4 座小拱「2×2 区域」中心生成 TilePulsingMarker 用作状态指示。
@@ -404,10 +401,8 @@ func _expire_transient_tiles() -> void:
 
 
 func _on_unit_moved() -> void:
-	if selected_unit == null or not (selected_unit is Unit):
-		return
-	var unit := selected_unit as Unit
-	_try_repair_pier(unit)
+	# 整桥单一稳定值版本：无桥台抢修玩法，钩子保留以便后续接入。
+	pass
 
 
 func _on_skill_executed(caster: Unit, skill: SkillData, cast_cell: Vector2i, _exec_result: SkillExecutor.ExecuteResult) -> void:
@@ -418,22 +413,16 @@ func _on_skill_executed(caster: Unit, skill: SkillData, cast_cell: Vector2i, _ex
 				break
 		return
 
-	# 洪锋 / 漂木群·洪水版 的冲撞线命中桥台 → 对应桥台 -1（设计稿 §1.3）
+	# 洪锋 / 漂木群·洪水版 的冲撞线命中桥心 watch_point → 整桥 -1
 	if caster == null or caster.combat_stats == null:
 		return
 	var unit_name_str := caster.combat_stats.unit_name
 	if unit_name_str != "洪锋" and unit_name_str != "漂木群·洪水版":
 		return
 	var path := _charge_line_cells(caster.cell, cast_cell)
-	var hit_left := _left_pier in path
-	var hit_right := _right_pier in path
-	if hit_left:
-		_left_pier_stability -= 1
-		Notify.notify("%s 冲撞左桥台！稳定值 %d" % [unit_name_str, _left_pier_stability], Notify.Position.TOP_RIGHT, Notify.Style.WARNING, 2.5)
-	if hit_right:
-		_right_pier_stability -= 1
-		Notify.notify("%s 冲撞右桥台！稳定值 %d" % [unit_name_str, _right_pier_stability], Notify.Position.TOP_RIGHT, Notify.Style.WARNING, 2.5)
-	if hit_left or hit_right:
+	if _watch_point in path:
+		_overall_stability -= 1
+		Notify.notify("%s 冲撞桥心！整桥 −1 → %d" % [unit_name_str, _overall_stability], Notify.Position.TOP_RIGHT, Notify.Style.WARNING, 2.5)
 		_check_win_lose()
 
 	# 击退可能把单位推到激流桥缘上；_force_move_cell 直接改 cell 不走
@@ -478,8 +467,9 @@ func _charge_line_cells(from_cell: Vector2i, to_cell: Vector2i) -> Array:
 
 # ─────────────────────────────────────────────
 # 防御兜底：失败条件触发测试（调试键）
-# Ctrl+1 李春死亡 / Ctrl+2 整桥归零 / Ctrl+3 左桥台归零 / Ctrl+4 右桥台归零 / Ctrl+5 回合>15
+# Ctrl+1 李春死亡 / Ctrl+2 整桥归零 / Ctrl+5 回合>turn_limit
 # Ctrl+6 强制翻潮压桥 / Ctrl+7 强制怒涛拍面 / Ctrl+8 强杀 Boss 验证结算
+# Ctrl+9/0 强制进入第 2/3 阶段
 # 注意：F5/F6/F8 被 Godot 编辑器占用（Run / Run Scene / Stop），改用 Ctrl+数字避开。
 # 仅在 OS.is_debug_build() 下启用，发布版自动失效。
 # ─────────────────────────────────────────────
@@ -496,10 +486,6 @@ func _unhandled_key_input(event: InputEvent) -> void:
 			_debug_force_defeat("li_chun_down")
 		KEY_2:
 			_debug_force_defeat("overall_zero")
-		KEY_3:
-			_debug_force_defeat("left_pier_zero")
-		KEY_4:
-			_debug_force_defeat("right_pier_zero")
 		KEY_5:
 			_debug_force_defeat("round_over")
 		KEY_6:
@@ -550,12 +536,8 @@ func _debug_force_defeat(kind: String) -> void:
 				_li_chun.refresh_overhead_bars()
 		"overall_zero":
 			_overall_stability = 0
-		"left_pier_zero":
-			_left_pier_stability = 0
-		"right_pier_zero":
-			_right_pier_stability = 0
 		"round_over":
-			round_number = 16
+			round_number = _stage_config.turn_limit + 1
 	Notify.notify("[DEBUG] 强制触发失败：%s" % kind, Notify.Position.TOP_CENTER, Notify.Style.ERROR, 2.0)
 	_check_win_lose()
 
@@ -567,17 +549,10 @@ func _debug_force_defeat(kind: String) -> void:
 func _cast_overturn_bridge() -> void:
 	if _boss == null or _boss.combat_stats == null or not _boss.combat_stats.is_alive():
 		return
-	# 效果1：较低稳定桥台 -1（平局打左，与全闭态惩罚方向一致）
-	if _left_pier_stability <= _right_pier_stability:
-		_left_pier_stability -= 1
-	else:
-		_right_pier_stability -= 1
-	# 效果2：开启小拱 ≤ 1 时整桥 -1
-	if _open_arch_count() <= 1:
-		_overall_stability -= 1
-	# 效果3：桥面上下边缘生成激流桥缘 1 回合
+	# 桥稳压制现在统一在 _resolve_enemy_pressure（基于已开肩数）结算，本技保留：
+	# 桥面上下边缘生成激流桥缘 1 回合（位移陷阱）+ 视觉/语义上的 boss 大招感
 	_spawn_rapid_edges_for_overturn()
-	Notify.notify("怒水释放【翻潮压桥】", Notify.Position.CENTER, Notify.Style.WARNING, 2.5)
+	Notify.notify("怒水释放【翻潮压桥】（桥缘激流持续 1 回合）", Notify.Position.CENTER, Notify.Style.WARNING, 2.5)
 	_check_win_lose()
 
 
@@ -797,11 +772,46 @@ func _apply_silt_lingering_penalty(team_index: int) -> void:
 		CombatLog.msg("  淤行持续: %s 从淤泥中起步 -2AP (%d → %d)" % [u.combat_stats.unit_name, before, u.combat_stats.ap_current])
 
 
-func _on_stage_hp_changed(unit: Unit, _old_hp: int, _new_hp: int) -> void:
+func _on_stage_hp_changed(unit: Unit, old_hp: int, new_hp: int) -> void:
 	if unit != _boss:
 		return
+	# 怒水受击 → 整桥 +1（伤害下降才算，治疗或同值不算）。
+	if new_hp < old_hp and _boss.combat_stats != null and _boss.combat_stats.is_alive():
+		_gain_stability(1, "怒水受击")
 	# 阶段切换由 HP 阈值驱动；DR 已在 CombatResolver 通过 incoming_damage_factor 生效。
 	_check_phase_transition()
+
+
+# 任意敌方单位死亡 → 整桥 +2。Boss 死亡也会触发，但此时已胜利结算，加血只影响 summary。
+func _on_stage_unit_died(unit: Unit) -> void:
+	if unit == null or unit.combat_stats == null:
+		return
+	if teams.size() <= ENEMY_TEAM:
+		return
+	var is_enemy: bool = false
+	for u in teams[ENEMY_TEAM].units:
+		if u == unit:
+			is_enemy = true
+			break
+	if not is_enemy:
+		return
+	_gain_stability(2, "%s 倒下" % unit.combat_stats.unit_name)
+
+
+# 整桥 +amount，封顶 STABILITY_MAX。amount<=0 时不操作。
+func _gain_stability(amount: int, reason: String) -> void:
+	if amount <= 0:
+		return
+	var before: int = _overall_stability
+	_overall_stability = mini(_overall_stability + amount, STABILITY_MAX)
+	var actual: int = _overall_stability - before
+	if actual <= 0:
+		return
+	Notify.notify(
+		"整桥 +%d → %d（%s）" % [actual, _overall_stability, reason],
+		Notify.Position.TOP_RIGHT, Notify.Style.SUCCESS, 2.0,
+	)
+	CombatLog.msg("整桥稳定 +%d (%s) → %d" % [actual, reason, _overall_stability])
 
 
 # 怒水当前阶段的免伤值（>0 = 减伤；<0 = 易伤；=0 = 无修正）。
@@ -946,26 +956,6 @@ func _try_mark_arch_interacted(arch_key: String) -> void:
 	CombatLog.msg("拆肩: %s 已交互；当前 %s" % [arch_key, label])
 
 
-func _try_repair_pier(unit: Unit) -> void:
-	var stats: CombatStats = unit.combat_stats if unit != null else null
-	if unit not in _stone_carriers or stats == null:
-		return
-	if not stats.has_infinite_actions() and stats.ap_current < 40:
-		return
-	if _is_adjacent_or_same(unit.cell, _left_pier) and _left_pier_stability < _stability_config.pier_max:
-		if not stats.has_infinite_actions():
-			stats.ap_current -= 40
-		unit.refresh_overhead_bars()
-		_left_pier_stability = mini(_left_pier_stability + 1, _stability_config.pier_max)
-		Notify.notify("左桥台抢修完成，稳定值 %d" % _left_pier_stability, Notify.Position.TOP_RIGHT, Notify.Style.SUCCESS, 2.0)
-	elif _is_adjacent_or_same(unit.cell, _right_pier) and _right_pier_stability < _stability_config.pier_max:
-		if not stats.has_infinite_actions():
-			stats.ap_current -= 40
-		unit.refresh_overhead_bars()
-		_right_pier_stability = mini(_right_pier_stability + 1, _stability_config.pier_max)
-		Notify.notify("右桥台抢修完成，稳定值 %d" % _right_pier_stability, Notify.Position.TOP_RIGHT, Notify.Style.SUCCESS, 2.0)
-
-
 func _resolve_enemy_pressure() -> void:
 	# 重算 blocked overlay：开始时清空，再按当前敌人占位重新刷一遍。
 	# blocked 仅是视觉提示（红 "塞"），不影响 _phase_arch_skill_used 与 boss DR。
@@ -984,32 +974,61 @@ func _resolve_enemy_pressure() -> void:
 			_spawn_silt_at(enemy.cell)
 	_refresh_arch_visuals()
 
-	# 整桥/桥台稳定值压力：基于本阶段已交互肩数（_open_arch_count() 现读 _phase_arch_skill_used）。
-	var open_count := _open_arch_count()
-	if open_count == 0:
-		_overall_stability -= 2
-		if _left_pier_stability <= _right_pier_stability:
-			_left_pier_stability -= 1
-		else:
-			_right_pier_stability -= 1
-	elif open_count == 1:
-		_overall_stability -= 2
-	elif open_count == 2:
-		_overall_stability -= 1
+	# ── 整桥稳定值压力（单一值，初始 100，归零即败）──
+	# A. 怒水存活基础：boss 活着每回合 -1。
+	# B. 阶段未拆肩附加：
+	#    P1 (HP>75%) — 没有肩可以开 → 0 附加
+	#    P2 (50%<HP≤75%) — 解锁外两肩(1=left_back,4=right_back)；都未开 -1，全开 0
+	#    P3 (HP≤50%) — 解锁四肩，对应 boss 减伤的两个阶段：
+	#      0 阶段未做（默认）：-2
+	#      已开 inner(2&3) → -1（DR 75%→25%）
+	#      再开 outer(1&4) → 0（DR 25%→-25% 易伤）
+	# C. 邻接事件（保留小怪机制）：桥台噬者邻 watch_point -2；泥沙魇邻 watch_point -1。
+	# 玩家正向收益（在 hp_changed/unit_died 钩子里给）：
+	#    怒水受击 +1 ｜ 任意敌方倒下 +2（封顶 100）
+	var boss_alive: bool = _boss != null and _boss.combat_stats != null and _boss.combat_stats.is_alive()
+	var alive_dmg: int = 1 if boss_alive else 0
+	var phase_dmg: int = _compute_phase_arch_pressure() if boss_alive else 0
 
+	var event_dmg: int = 0
 	for enemy in teams[ENEMY_TEAM].units:
 		if not (enemy is Unit) or enemy.combat_stats == null or not enemy.combat_stats.is_alive():
 			continue
-		if enemy.combat_stats.unit_name == "桥台噬者":
-			if _is_adjacent_or_same(enemy.cell, _left_pier):
-				_left_pier_stability -= 1
-			if _is_adjacent_or_same(enemy.cell, _right_pier):
-				_right_pier_stability -= 1
-		if enemy.combat_stats.unit_name == "泥沙魇" and _is_adjacent_or_same(enemy.cell, _watch_point):
-			_overall_stability -= 1
+		var u_name: String = enemy.combat_stats.unit_name
+		if not _is_adjacent_or_same(enemy.cell, _watch_point):
+			continue
+		if u_name == "桥台噬者":
+			event_dmg += 2
+		elif u_name == "泥沙魇":
+			event_dmg += 1
 
-	Notify.notify("整桥:%d 左桥台:%d 右桥台:%d 已拆肩:%d/4" % [_overall_stability, _left_pier_stability, _right_pier_stability, open_count], Notify.Position.TOP_RIGHT, Notify.Style.WARNING, 2.5)
+	var total: int = alive_dmg + phase_dmg + event_dmg
+	if total > 0:
+		_overall_stability -= total
+
+	Notify.notify(
+		"整桥:%d 已拆肩:%d/4（怒水 -%d｜阶段 -%d｜邻桥心 -%d）" % [
+			_overall_stability, _open_arch_count(), alive_dmg, phase_dmg, event_dmg,
+		],
+		Notify.Position.TOP_RIGHT, Notify.Style.WARNING, 2.5,
+	)
 	_check_win_lose()
+
+
+# 阶段相关肩压力。归位规则镜像 boss DR 的进程，给玩家一致的"拆肩 = 减压"反馈。
+func _compute_phase_arch_pressure() -> int:
+	match _boss_phase:
+		2:
+			return 0 if _all_done(PHASE2_AVAILABLE) else 1
+		3:
+			var inner_done: bool = _all_done(PHASE3_INNER)
+			var outer_done: bool = _all_done(PHASE3_OUTER)
+			if inner_done and outer_done:
+				return 0
+			if inner_done:
+				return 1
+			return 2
+	return 0
 
 
 func _get_ai_context() -> Dictionary:
@@ -1021,41 +1040,39 @@ func _get_ai_context() -> Dictionary:
 	}
 
 
-# 每个敌方回合开始时重算：当前桥台强弱、运石工存活、小拱关闭状态都会影响谁最该被盯。
-# 设计稿 §2 敌方 AI：
-#   洪锋     → 桥台相邻格 > 桥面我方 > 最近（用「靠近较弱桥台的桥面我方」作 proxy）
-#   泥沙魇   → 小拱 > 运石工 > 最近（先选「最近关闭小拱的运石工」，再全部运石工）
-#   桥台噬者 → 较低稳定桥台 > 任意桥台 > 运石工（和洪锋同 proxy，顺带把运石工压后）
-#   漂木群·洪水版 → hazard_charge 直线模板，方向在 drift_directions，无优先表
+# 每个敌方回合开始时重算：当前运石工存活、小拱关闭状态都会影响谁最该被盯。
+# 设计稿 §2 敌方 AI（整桥单值版本）：
+#   洪锋     → 桥面我方优先；同区段按「到 watch_point 曼哈顿距离」排序
+#   桥台噬者 → 任意我方，按「到 watch_point 曼哈顿距离」排序（贴桥心 -2 整桥）
+#   泥沙魇   → 运石工优先，按「到最近未交互肩距离」排序
+#   漂木群   → hazard_charge 直线模板，方向在 drift_directions
 func _build_priority_targets() -> Dictionary:
 	var priorities: Dictionary = {}
-	var weak_pier: Vector2i = _left_pier if _left_pier_stability <= _right_pier_stability else _right_pier
 
 	var alive_allies: Array = []
 	for a in get_friendly_units():
 		if a is Unit and a.combat_stats != null and a.combat_stats.is_alive():
 			alive_allies.append(a)
 
-	# 洪锋：桥面我方优先，且越靠近弱桥台越靠前；不在桥面的放后面
+	# 洪锋：桥面我方优先；同区段越靠近 watch_point 越靠前
 	var flood_spear_list: Array = alive_allies.duplicate()
 	flood_spear_list.sort_custom(func(x: Unit, y: Unit) -> bool:
 		var x_on: int = 0 if _is_on_main_bridge(x.cell) else 1
 		var y_on: int = 0 if _is_on_main_bridge(y.cell) else 1
 		if x_on != y_on:
 			return x_on < y_on
-		return _manhattan(x.cell, weak_pier) < _manhattan(y.cell, weak_pier)
+		return _manhattan(x.cell, _watch_point) < _manhattan(y.cell, _watch_point)
 	)
 	priorities["洪锋"] = flood_spear_list
 
-	# 桥台噬者：任何我方，按「到弱桥台曼哈顿」排序
+	# 桥台噬者：任何我方，按到 watch_point 曼哈顿距离排序（趋近桥心制造 -2 压力）
 	var gnawer_list: Array = alive_allies.duplicate()
 	gnawer_list.sort_custom(func(x: Unit, y: Unit) -> bool:
-		return _manhattan(x.cell, weak_pier) < _manhattan(y.cell, weak_pier)
+		return _manhattan(x.cell, _watch_point) < _manhattan(y.cell, _watch_point)
 	)
-	# 同距离下把运石工压后（让它先去蹭桥台，再考虑敲运石工）
 	priorities["桥台噬者"] = gnawer_list
 
-	# 泥沙魇：运石工优先；按到最近"未交互肩"距离排序（替代原 closed 状态查询）
+	# 泥沙魇：运石工优先；按到最近"未交互肩"距离排序
 	var closed_arches: Array = []
 	for arch_key in _side_arch_cells.keys():
 		if not _phase_arch_skill_used.get(arch_key, false):

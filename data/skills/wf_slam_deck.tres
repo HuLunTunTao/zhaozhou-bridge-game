@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="SkillData" format=3 uid="uid://b4xtwf1slamdck"]
+[gd_resource type="Resource" script_class="SkillData" format=3 uid="uid://b4byy43j8ec7c"]
 
 [ext_resource type="Script" uid="uid://cp0ew5p75uio0" path="res://scripts/data/skill_data.gd" id="1"]
 
