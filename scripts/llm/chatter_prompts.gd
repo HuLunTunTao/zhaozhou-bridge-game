@@ -176,10 +176,12 @@ knowledge_used 给出他的回答里**确实**用到的 key（没用就给空数
 - 结合你与李春的对话历史（system prompt 里），承接前文，不要重复你之前说过的字眼
 - reply ≤ 70 字
 
-━━━ 输出格式（先纯文本讲解，再 ###META### 分隔，再 JSON 元数据）━━━
-<你以人设口吻把这条讲给李春，70 字内，纯文本不带引号>
-###META###
-{"topic_key":"<key>"}""" % [
+**严格 JSON 输出**（只输出 JSON）：
+{"reply": "<以你的口吻把这条知识讲给李春听，70 字以内>", "topic_key": "<knowledge.gd 里那条的 key>"}
+要点：
+  - reply 用你的人设语气讲，不是干巴的教科书
+  - reply 必须用上知识库里那条 key 的核心内容（数字、史实、要点都可以引）
+  - topic_key 必须是上面列出的 key 之一，不能编造""" % [
 				persona.get("name", "你"),
 				extra.get("query", "?"),
 				str(extra.get("topics_csv", "")),

@@ -150,7 +150,7 @@ var resp := await _get_llm().chat_completion([
    - 已学知识。
    - 与该 NPC 的历史对话。
 3. 玩家输入论述。
-4. `_generate_persuade_answer(npc, argument)` 请求 LLM。
+4. `_generate_persuade_answer(npc, argument)` 非流式请求 LLM，要求返回完整 JSON。
 5. `_apply_persuade_result(npc, ans)` 结算分数。
 6. `_append_dialogue_log()` 写入历史。
 7. `_play_npc_line()` 播放 NPC 回复。
@@ -189,7 +189,7 @@ var resp := await _get_llm().chat_completion([
 
 字段含义：
 
-- `reply`：NPC 本轮实际说给玩家的话。
+- `reply`：NPC 本轮实际说给玩家的话；LLM 完整返回后，由 TTS 流式播放。
 - `accum_score`：累积分，范围 `1..5`。
 - `round_score`：本轮评分，范围 `-10..15`。
 - `tone`：情绪标签。
@@ -308,7 +308,7 @@ QA prompt 要求 LLM 严格输出 JSON：
 字段含义：
 
 - `is_correct`：是否答对。
-- `feedback`：NPC 反馈。
+- `feedback`：NPC 反馈；LLM 完整返回后，由 TTS 流式播放。
 - `knowledge_used`：李春答案中实际用到的知识 key。
 
 如果 `is_correct == true`：
@@ -329,7 +329,7 @@ QA prompt 要求 LLM 严格输出 JSON：
 5. `_apply_mentor_lesson()` 校验 `topic_key` 是否存在。
 6. 若存在且未学过，则加入 `_player_learned_topics`。
 
-导师 prompt 的输出格式：
+导师 prompt 要求 LLM 严格输出 JSON：
 
 ```json
 {

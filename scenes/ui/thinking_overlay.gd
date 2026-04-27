@@ -9,6 +9,21 @@ extends CanvasLayer
 ##
 ## 静态布局：所有视觉在 .tscn 里。需要换文案就改 Label 的 text 字段。
 
+@onready var _label: Label = %Label
+
+var _pending_message: String = ""
+
+
+func _ready() -> void:
+	if not _pending_message.is_empty():
+		_label.text = _pending_message
+
+
+func set_message(message: String) -> void:
+	_pending_message = message
+	if is_inside_tree() and _label != null:
+		_label.text = message
+
 
 func _unhandled_input(_event: InputEvent) -> void:
 	# 全部输入吃掉，避免方向键 / 点击穿透到关卡
