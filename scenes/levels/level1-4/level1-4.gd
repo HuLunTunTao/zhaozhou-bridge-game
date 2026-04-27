@@ -166,8 +166,13 @@ func get_wave_config() -> Dictionary:
 			push_warning("wave_spawns: 未知 unit_kind '%s'" % unit_kind)
 			continue
 		var cell := _resolve_cell_hint(cell_hint)
+		# water_only 单位（暗涌 / 水旋 / 浮木群）只能在水格活动，
+		# 若 cell_hint 解析到陆地，强制改为附近水格，否则 ai_brain 会让它原地不动。
+		var ud: UnitData = unit_bundle["unit_data"]
+		if ud != null and ud.water_only and movement_manager != null and not movement_manager.is_water_cell(cell):
+			cell = _find_water_cell_near(cell, 8)
 		var wave_item := {
-			"unit_data": unit_bundle["unit_data"],
+			"unit_data": ud,
 			"cell": cell,
 			"team_index": ENEMY_TEAM,
 			"skills": unit_bundle["skills"],
@@ -240,6 +245,12 @@ func _resolve_cell_hint(hint: String) -> Vector2i:
 			return _find_water_cell_near(_left_pier + Vector2i(-3, 0), 6)
 		"water_near_right":
 			return _find_water_cell_near(_right_pier + Vector2i(3, 0), 6)
+		# 地图东西两端（桥的远端两侧），所有 wave spawn 都从这里登场。
+		# 这两个绝对坐标接近 surface tilemap 的左右极限。
+		"map_west_edge":
+			return _nearest_walkable(Vector2i(-20, 41))
+		"map_east_edge":
+			return _nearest_walkable(Vector2i(41, -20))
 	push_warning("wave_spawns: 未知 cell_hint '%s'，退回 watch_point" % hint)
 	return _watch_point
 
@@ -999,16 +1010,16 @@ func _spawn_phase_reinforcements(phase: int) -> void:
 	match phase:
 		2:
 			bundles = ["flood_spear", "pier_gnawer"]
-			hints = ["watch_north_2", "near_left_pier_west"]
+			hints = ["map_west_edge", "map_east_edge"]
 			Notify.notify(
-				"怒水唤援：洪锋 + 桥台噬者 入场",
+				"怒水唤援：洪锋（西） + 桥台噬者（东） 入场",
 				Notify.Position.TOP_CENTER, Notify.Style.WARNING, 3.5,
 			)
 		3:
 			bundles = ["flood_driftwood_pack", "pier_gnawer", "siltmare"]
-			hints = ["arch_right_front_north_2", "near_right_pier_east", "watch_north_2"]
+			hints = ["map_east_edge", "map_west_edge", "map_east_edge"]
 			Notify.notify(
-				"怒水洪魁灌涌：漂木群 + 桥台噬者 + 泥沙魇 入场",
+				"怒水洪魁灌涌：漂木群 + 桥台噬者 + 泥沙魇 从两端入场",
 				Notify.Position.TOP_CENTER, Notify.Style.WARNING, 4.0,
 			)
 		_:
@@ -1020,7 +1031,11 @@ func _spawn_phase_reinforcements(phase: int) -> void:
 		var skills: Array[SkillData] = []
 		skills.assign(bundle["skills"])
 		var cell: Vector2i = _resolve_cell_hint(hints[i])
-		_spawn_enemy(bundle["unit_data"], cell, skills)
+		var ud: UnitData = bundle["unit_data"]
+		# 与 wave 系统相同的 water_only 兜底
+		if ud != null and ud.water_only and movement_manager != null and not movement_manager.is_water_cell(cell):
+			cell = _find_water_cell_near(cell, 8)
+		_spawn_enemy(ud, cell, skills)
 		CombatLog.msg("阶段 %d 召唤: %s @ %s" % [phase, bundles[i], cell])
 
 

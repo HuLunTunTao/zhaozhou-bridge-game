@@ -1,108 +1,109 @@
-[gd_resource type="Resource" script_class="WaveSpawns" format=3 uid="uid://cxef5irj8wvc5"]
+[gd_resource type="Resource" script_class="WaveSpawns" load_steps=20 format=3 uid="uid://cxef5irj8wvc5"]
 
 [ext_resource type="Script" path="res://scripts/data/wave_spawns.gd" id="1"]
 [ext_resource type="Script" path="res://scripts/data/wave_entry.gd" id="2"]
 
 [sub_resource type="Resource" id="W_R1"]
 script = ExtResource("2")
+round_number = 1
 unit_kind = "flood_spear"
-cell_hint = "watch_north_2"
+cell_hint = "map_west_edge"
 
 [sub_resource type="Resource" id="W_R3a"]
 script = ExtResource("2")
 round_number = 3
 unit_kind = "dark_current"
-cell_hint = "water_north"
+cell_hint = "map_west_edge"
 
 [sub_resource type="Resource" id="W_R3b"]
 script = ExtResource("2")
 round_number = 3
 unit_kind = "flood_driftwood_pack"
-cell_hint = "water_south"
+cell_hint = "map_east_edge"
 
 [sub_resource type="Resource" id="W_R5"]
 script = ExtResource("2")
 round_number = 5
 unit_kind = "flood_driftwood_pack"
-cell_hint = "arch_left_front_north_2"
+cell_hint = "map_east_edge"
 
 [sub_resource type="Resource" id="W_R8a"]
 script = ExtResource("2")
 round_number = 8
 unit_kind = "pier_gnawer"
-cell_hint = "near_left_pier_west"
+cell_hint = "map_west_edge"
 
 [sub_resource type="Resource" id="W_R8b"]
 script = ExtResource("2")
 round_number = 8
 unit_kind = "bank_mud_wraith"
-cell_hint = "near_right_pier_east"
+cell_hint = "map_east_edge"
 
 [sub_resource type="Resource" id="W_R10"]
 script = ExtResource("2")
 round_number = 10
 unit_kind = "siltmare"
-cell_hint = "watch_north_2"
+cell_hint = "map_west_edge"
 
 [sub_resource type="Resource" id="W_R13a"]
 script = ExtResource("2")
 round_number = 13
 unit_kind = "flood_spear"
-cell_hint = "near_left_pier_west"
+cell_hint = "map_east_edge"
 
 [sub_resource type="Resource" id="W_R13b"]
 script = ExtResource("2")
 round_number = 13
 unit_kind = "whirl_pool"
-cell_hint = "water_near_left"
+cell_hint = "map_west_edge"
 
 [sub_resource type="Resource" id="W_R15"]
 script = ExtResource("2")
 round_number = 15
 unit_kind = "flood_driftwood_pack"
-cell_hint = "arch_right_front_north_2"
+cell_hint = "map_east_edge"
 
 [sub_resource type="Resource" id="W_R18"]
 script = ExtResource("2")
 round_number = 18
 unit_kind = "pier_gnawer"
-cell_hint = "near_right_pier_east"
+cell_hint = "map_west_edge"
 
 [sub_resource type="Resource" id="W_R21a"]
 script = ExtResource("2")
 round_number = 21
 unit_kind = "siltmare"
-cell_hint = "watch_north_2"
+cell_hint = "map_east_edge"
 
 [sub_resource type="Resource" id="W_R21b"]
 script = ExtResource("2")
 round_number = 21
 unit_kind = "dark_current"
-cell_hint = "water_south"
+cell_hint = "map_west_edge"
 
 [sub_resource type="Resource" id="W_R23"]
 script = ExtResource("2")
 round_number = 23
 unit_kind = "flood_spear"
-cell_hint = "watch_north_2"
+cell_hint = "map_east_edge"
 
 [sub_resource type="Resource" id="W_R26a"]
 script = ExtResource("2")
 round_number = 26
 unit_kind = "pier_gnawer"
-cell_hint = "near_left_pier_west"
+cell_hint = "map_west_edge"
 
 [sub_resource type="Resource" id="W_R26b"]
 script = ExtResource("2")
 round_number = 26
 unit_kind = "flood_driftwood_pack"
-cell_hint = "water_north"
+cell_hint = "map_east_edge"
 
 [sub_resource type="Resource" id="W_R29"]
 script = ExtResource("2")
 round_number = 29
 unit_kind = "flood_driftwood_pack"
-cell_hint = "arch_left_front_north_2"
+cell_hint = "map_east_edge"
 
 [resource]
 script = ExtResource("1")
