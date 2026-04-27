@@ -4,10 +4,20 @@ extends BaseLevel
 const PLAYER_TEAM := 0
 const ENEMY_TEAM := 1
 
+## Boss 怒水的"受击范围" TileMap：设计师在编辑器里画哪些格子算 Boss 受击。
+## 运行时设为不可见；其内容会在 _setup_enemies_from_scene 里转成 _boss.extra_target_cells。
+@export var boss_hit_area_tilemap: TileMapLayer
+
 var _li_chun: Unit
 var _craftsmen: Array[Unit] = []
 var _stone_carriers: Array[Unit] = []
 var _boss: Unit
+# 开局即在场景中预置的敌方非 boss 单位；和 _boss 一样，必须在 get_teams_config
+# 阶段缓存住——_on_level_ready 阶段已经被 _reparent_entities_to_obstacles 搬到
+# obstacles_tilemap_layer 下，再用 $"Entities/Units/..." 找会拿到 null。
+var _flood_spear_1: Unit
+var _flood_spear_2: Unit
+var _siltmare: Unit
 
 var _overall_stability := 12
 var _left_pier_stability := 6
@@ -87,11 +97,14 @@ func get_teams_config() -> Array:
 		$"Entities/Units/StoneCarrier2" as Unit,
 	]
 	_boss = $"Entities/Units/Boss" as Unit
+	_flood_spear_1 = $"Entities/Units/FloodSpear1" as Unit
+	_flood_spear_2 = $"Entities/Units/FloodSpear2" as Unit
+	_siltmare = $"Entities/Units/Siltmare" as Unit
 	var enemies: Array = [
 		_boss,
-		$"Entities/Units/FloodSpear1" as Unit,
-		$"Entities/Units/FloodSpear2" as Unit,
-		$"Entities/Units/Siltmare" as Unit,
+		_flood_spear_1,
+		_flood_spear_2,
+		_siltmare,
 	]
 	var player_units: Array = [_li_chun]
 	player_units.append_array(_craftsmen)
@@ -242,6 +255,8 @@ func _on_level_ready() -> void:
 	_overall_stability = _stability_config.initial_overall
 	_left_pier_stability = _stability_config.initial_left_pier
 	_right_pier_stability = _stability_config.initial_right_pier
+	if boss_hit_area_tilemap != null:
+		boss_hit_area_tilemap.visible = false
 	_setup_anchor_cells()
 	_setup_arch_tiles()
 	_setup_li_chun()
@@ -774,32 +789,38 @@ func _setup_allies_from_scene() -> void:
 
 
 func _setup_enemies_from_scene() -> void:
-	# Boss 怒水：固定不动（move_cost_per_tile=99 / ap_max=1），通过 extra_target_cells
-	# 把"判定区"扩展到桥面南侧 7 行，让远程攻击也能蹭到。
+	# Boss 怒水：固定不动（move_cost_per_tile=99 / ap_max=1），受击范围由
+	# TileMaps/boss_hit_area 这层 TileMap 定义——设计师在编辑器里画哪些桥面格
+	# 算"打到 Boss"。运行时把这些绝对格子转成相对偏移塞进 extra_target_cells，
+	# 让 base_level 的 targeting overlay + skill_executor 的命中判定都直接复用。
 	setup_unit_stats(_boss, "怒水", 360, 24, 1, 99, Enums.Element.WATER, 2)
 	set_unit_skills(_boss, [_overturn_bridge])
-	_boss.extra_target_cells = [
-		Vector2i(-1, 0), Vector2i(1, 0),                    # 同行两侧
-		Vector2i(-1, 1), Vector2i(0, 1), Vector2i(1, 1),    # 南 1 行
-		Vector2i(-1, 2), Vector2i(0, 2), Vector2i(1, 2),    # 南 2 行
-		Vector2i(-1, 3), Vector2i(0, 3), Vector2i(1, 3),    # 南 3 行
-		Vector2i(-1, 4), Vector2i(0, 4), Vector2i(1, 4),    # 南 4 行
-		Vector2i(-1, 5), Vector2i(0, 5), Vector2i(1, 5),    # 南 5 行
-		Vector2i(-1, 6), Vector2i(0, 6), Vector2i(1, 6),    # 南 6 行
-		Vector2i(-1, 7), Vector2i(0, 7), Vector2i(1, 7),    # 南 7 行 ← 桥北边缘 melee 关键行
-	]
+	_populate_boss_hit_area()
 
-	var spear1 := $"Entities/Units/FloodSpear1" as Unit
-	setup_unit_stats(spear1, "洪锋", 98, 24, 90, 10, Enums.Element.WATER, 2)
-	set_unit_skills(spear1, [_torrent_ram])
+	setup_unit_stats(_flood_spear_1, "洪锋", 98, 24, 90, 10, Enums.Element.WATER, 2)
+	set_unit_skills(_flood_spear_1, [_torrent_ram])
 
-	var spear2 := $"Entities/Units/FloodSpear2" as Unit
-	setup_unit_stats(spear2, "洪锋", 98, 24, 90, 10, Enums.Element.WATER, 2)
-	set_unit_skills(spear2, [_torrent_ram])
+	setup_unit_stats(_flood_spear_2, "洪锋", 98, 24, 90, 10, Enums.Element.WATER, 2)
+	set_unit_skills(_flood_spear_2, [_torrent_ram])
 
-	var siltmare := $"Entities/Units/Siltmare" as Unit
-	setup_unit_stats(siltmare, "泥沙魇", 84, 18, 90, 10, Enums.Element.EARTH, 2)
-	set_unit_skills(siltmare, [_mire_steps])
+	setup_unit_stats(_siltmare, "泥沙魇", 84, 18, 90, 10, Enums.Element.EARTH, 2)
+	set_unit_skills(_siltmare, [_mire_steps])
+
+
+# 把 boss_hit_area_tilemap 上画好的绝对格子转成相对 _boss.cell 的偏移，写进
+# _boss.extra_target_cells。base_level 的 hover overlay（_show_skill_targeting_for）
+# 与 skill_executor 的命中判定（_unit_in_effect）都消费这个数组——零改基类即可生效。
+func _populate_boss_hit_area() -> void:
+	if _boss == null:
+		return
+	if boss_hit_area_tilemap == null:
+		push_warning("[Level1-4] boss_hit_area_tilemap 未配置，Boss 受击范围退化为本格")
+		return
+	var origin: Vector2i = _boss.cell
+	var offsets: Array[Vector2i] = []
+	for cell in boss_hit_area_tilemap.get_used_cells():
+		offsets.append(cell - origin)
+	_boss.extra_target_cells = offsets
 
 
 func _try_mark_arch_interacted(arch_key: String) -> void:
