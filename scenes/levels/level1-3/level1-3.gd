@@ -45,6 +45,12 @@ var _craftsman_data: UnitData = preload("res://data/units/craftsman_guard.tres")
 var _mud_data: UnitData = preload("res://data/units/bank_mud_wraith.tres")
 var _dark_data: UnitData = preload("res://data/units/dark_current.tres")
 
+# 教程引导（L1-1 / L1-4 同款 dialogue 流程）。
+var _li_chun_portrait: Texture2D = preload("res://assets/face/li_chun.png")
+const TUTORIAL_ID := "level1-3"
+# 教程"亲手用一次墨绳校券"的同步态。
+var _tutorial_inkline_used: bool = false
+
 var _staff: SkillData = preload("res://data/skills/sw_staff_end_strike.tres")
 var _mallet: SkillData = preload("res://data/skills/cg_mallet_strike.tres")
 var _guard: SkillData = preload("res://data/skills/cg_guard_the_works.tres")
@@ -234,11 +240,100 @@ func _on_level_ready() -> void:
 	team_turn_started.connect(_on_stage_team_turn_started)
 	unit_hp_changed.connect(_on_stage_hp_changed)
 	round_started.connect(_on_stage_round_started)
+	# 教程对话不能在 BRIEFING 阶段就跑（会和初始目标面板抢输入），等 PLAYING 之后再触发。
+	phase_changed.connect(_on_phase_changed_for_onboarding)
 	_update_status_panel()
 	_update_crown_visibility()
 	_prev_balance_state = _balance_state()
-	Notify.notify("推进券值：运石工去棕色石料场取石，再走到金/蓝券台旁 +1；或李春用「墨绳校券」远程 +1（CD 2）", Notify.Position.TOP_CENTER, Notify.Style.INFO, 5.0)
-	Notify.notify("击败偏载傀 + 两侧凑满 10 后，桥中央紫色拱冠合龙点激活，李春用「墨绳校券」命中拱冠点即胜利", Notify.Position.TOP_CENTER, Notify.Style.INFO, 6.0)
+
+
+func _on_phase_changed_for_onboarding(p: int) -> void:
+	if p != LevelPhase.PLAYING:
+		return
+	_run_onboarding()
+
+
+# 完整对话教程（仿 L1-1 / L1-4 P1）。复玩走 has_seen_tutorial 自动跳过。
+# 设计：四段对话 + 一次实操（用一次墨绳校券）+ 收尾确认。
+#   ① 战场目标与三件事（券值 / 合龙 / boss）
+#   ② 推券两条路：取送石 vs 墨绳校券；CD/AP 数值
+#   ③ 平衡机制：均衡 / 偏衡 / 失衡 → boss 受伤上限
+#   ④ 让玩家亲自打一发墨绳校券（最直观的"我也能改券值"反馈）
+#   ⑤ 命中确认 + 拱冠合龙 + 失败条件
+func _run_onboarding() -> void:
+	if Progress.has_seen_tutorial(TUTORIAL_ID):
+		Notify.notify(
+			"运石工取送石 +1 / 李春「墨绳校券」远程 +1（CD 2）；两侧 10 + 击败偏载傀 → 紫色拱冠点合龙",
+			Notify.Position.TOP_CENTER, Notify.Style.INFO, 6.0,
+		)
+		return
+	await get_tree().create_timer(0.4).timeout
+	if is_phase_ended():
+		return
+	# ── ① 战场目标 ──
+	await play_dialogue([
+		_lc_line("二十八券要在这里成形——这一关不是杀光全场，而是把桥『券』够。"),
+		_lc_line("左上券值面板看着：左、右两侧各要凑到 [b]10[/b]，差值要 [b]≤1[/b]，再把『偏载傀』那只大家伙打掉。"),
+		_lc_line("条件全满之后，桥中央会亮起[color=#c060f0]紫色拱冠点[/color]——我用『墨绳校券』点上去就算合龙。"),
+	])
+	if is_phase_ended():
+		return
+	# ── ② 推券两条路 ──
+	await play_dialogue([
+		_lc_line("券值有两条推法。一条是工人路：让运石工到[b]棕色石料场[/b]取石，再走到[color=#e0a830]金券台[/color]或[color=#3098e8]蓝券台[/color]旁边，自动把这一侧 +1。"),
+		_lc_line("另一条是我自己——『墨绳校券』，远程 [b]+1[/b]，CD 2 回合。可以隔着场子单方加券，关键时候用来抢节奏。"),
+		_lc_line("注意：这招命中券台后，命中侧 +1 同时对侧 [b]-1[/b]。是『调拨』不是『凭空印』——平衡两边时是神技，乱用会失衡。"),
+	])
+	if is_phase_ended():
+		return
+	# ── ③ 平衡机制 + boss ──
+	await play_dialogue([
+		_lc_line("讲到失衡：左右券值差是关卡的命脉。差 0 → [color=#7aff8c]均衡[/color]，正常打偏载傀；差 ≥2 → [color=#ffc855]偏衡[/color]，它每次最多挨 10 伤；差 ≥4 → [color=#ff5555]失衡[/color]，几乎免伤，每个敌方回合末桥体还 -1。"),
+		_lc_line("所以打偏载傀的窗口只在『均衡』。一边赶券、一边别让差值拉开是这关的核心。"),
+		_lc_line("整桥稳定值 6，归零即败。再加上 50 回合时限——别拖。"),
+	])
+	if is_phase_ended():
+		return
+	# ── ④ 实战：先打一发墨绳校券 ──
+	await play_dialogue([
+		_lc_line("光说不练假把式。选中我，对着[color=#e0a830]金券台[/color]或[color=#3098e8]蓝券台[/color]来一发『墨绳校券』，看看券值面板的变化。"),
+	])
+	if is_phase_ended():
+		return
+	Notify.notify(
+		"选中李春 → 选「墨绳校券」→ 点金券台或蓝券台 2×2 任意一格",
+		Notify.Position.TOP_CENTER, Notify.Style.INFO, 14.0,
+	)
+	_tutorial_inkline_used = false
+	skill_executed.connect(_on_tutorial_skill_executed)
+	while not _tutorial_inkline_used:
+		await skill_executed
+		if is_phase_ended():
+			if skill_executed.is_connected(_on_tutorial_skill_executed):
+				skill_executed.disconnect(_on_tutorial_skill_executed)
+			return
+	if skill_executed.is_connected(_on_tutorial_skill_executed):
+		skill_executed.disconnect(_on_tutorial_skill_executed)
+	# ── ⑤ 收尾确认 ──
+	await play_dialogue([
+		_lc_line("看到了吧——命中侧 +1，对侧 -1。等之后两边都到 10、差值 ≤1、boss 倒了，紫色拱冠点会亮起，再来这一招就合龙。"),
+		_lc_line("剩下的就交给你了——把券推满、把那只大家伙拉到均衡里打死、最后一击我来。"),
+	])
+	if is_phase_ended():
+		return
+	Progress.mark_tutorial_seen(TUTORIAL_ID)
+
+
+# 教程专用 skill_executed 监听：仅当李春释放「墨绳校券」时翻起 _tutorial_inkline_used。
+# 其它操作（取送石、技能试招）不打断教程主协程。
+func _on_tutorial_skill_executed(caster: Unit, skill: SkillData, _cast_cell: Vector2i) -> void:
+	if caster == _li_chun and skill != null and skill.skill_id == "lc_inkline_balance_arch":
+		_tutorial_inkline_used = true
+
+
+# 李春对话单行构造的小帮手：自动带头像，放左侧。仿 L1-1 / L1-4 同名函数。
+func _lc_line(text: String) -> DialogueLine:
+	return DialogueLine.create("李春", text, _li_chun_portrait, "left")
 
 
 func _on_unit_moved() -> void:
