@@ -146,7 +146,7 @@
 | `brittle.tres` | brittle | 脆裂 | 2 | 是 | 下一次受到的伤害额外提高20% | 受击时倍率x1.2，触发后消失 |
 | `cold_damp.tres` | cold_damp | 湿寒 | 2 | 否 | 下回合行动力恢复值降低15% | 回合开始时 AP -= ap_max*15% |
 | `fracture_step.tres` | fracture_step | 陷裂 | 2 | 否 | 移动时前2格每格额外消耗4点行动力 | 移动每格额外+4 AP消耗 |
-| `guarded_cover.tres` | guarded_cover | 护持 | 2 | 否 | 首次受到的伤害-12，不能被拖拽或击退超过1格 | （描述性，待完善） |
+| `guarded_cover.tres` | guarded_cover | 护持 | 2 | 否 | 首次受到的伤害-16，不能被拖拽或击退超过1格 | （描述性，待完善） |
 | `hindered_step.tres` | hindered_step | 迟滞 | 2 | 否 | 每移动1格额外消耗2点行动力 | 移动每格额外+2 AP消耗 |
 | `open_fissure.tres` | open_fissure | 剖隙 | 2 | 否 | 受到击退/冲撞/地形撞击时额外承受施术者ATKx0.50的伤害 | （描述性，待完善） |
 | `overgrow_bind.tres` | overgrow_bind | 蔓缚 | 2 | 否 | 最大可移动格数-1 | 移动范围减少1格 |

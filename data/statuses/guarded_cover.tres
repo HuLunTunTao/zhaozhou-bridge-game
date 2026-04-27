@@ -7,4 +7,4 @@ script = ExtResource("1")
 status_id = "guarded_cover"
 status_name = "护持"
 duration_turns = 2
-description = "首次受到的伤害-12，不能被拖拽或击退超过1格"
+description = "首次受到的伤害-16，不能被拖拽或击退超过1格"
