@@ -30,6 +30,13 @@ var _boss_phase: int = 1
 var _phase_arch_skill_used: Dictionary = {}   # arch_key → bool；_enter_phase 重置
 var _arch_blocked_overlay: Dictionary = {}    # arch_key → bool；transient (敌人占位)
 
+# 周期被动 CD：仅在"成功释放"后才进入冷却（设计：释放过后才进入 CD）。
+# 初始 = base，确保前几回合按 base 节奏首发；撞期时被让位的技能 CD 维持 0，下回合即可释放。
+const SLAM_CD_BASE: int = 2
+const TOPPLE_CD_BASE: int = 3
+var _slam_cd_remaining: int = SLAM_CD_BASE
+var _topple_cd_remaining: int = TOPPLE_CD_BASE
+
 var _hero_data: UnitData = preload("res://data/units/hero_li_chun.tres")
 var _hero_visual: PackedScene = preload("res://scenes/unit/visual/human/li_chun/li_chun_visual.tscn")
 var _survey_data: UnitData = preload("res://data/units/survey_worker.tres")
@@ -56,6 +63,8 @@ var _torrent_ram: SkillData = preload("res://data/skills/fs_torrent_ram.tres")
 var _mire_steps: SkillData = preload("res://data/skills/sm_mire_steps.tres")
 var _gnaw_pier: SkillData = preload("res://data/skills/pg_gnaw_pier.tres")
 var _overturn_bridge: SkillData = preload("res://data/skills/wf_overturn_bridge.tres")
+var _slam_deck: SkillData = preload("res://data/skills/wf_slam_deck.tres")
+var _topple_bank: SkillData = preload("res://data/skills/wf_topple_bank.tres")
 
 # 关卡配置资源（浅拆：数值 + anchor 偏移 + 波次模板；绝对 cell 运行时算）
 var _stage_config: StageConfig = preload("res://data/stages/chapter1_stage4/stage_config.tres")
@@ -168,6 +177,9 @@ func get_objectives_text() -> Dictionary:
 			"- 保护李春与左右桥台，熬过汛情",
 			"- 引导运石工与李春开启小拱泄洪（共 4 座）",
 			"- 开肩越多，怒水压制越弱；全开后击退怒水即可收束",
+			"- [color=#ffcb55][b]Boss 周期被动【怒涛拍面】[/b][/color]：释放后 CD 2 回合，对全场未含「护持」的我方造成 0.5×水属性伤害（附水 1）并朝远离 Boss 方向击退 [b]2[/b] 格",
+			"- [color=#ff8c55][b]Boss 周期被动【翻岸压塌】[/b][/color]：释放后 CD 3 回合，对距 Boss 最近的 [b]2[/b] 名我方造成 0.7×土属性伤害（附土 2）并击退 [b]3[/b] 格；同回合与拍面撞期时本技优先，拍面让位至下回合",
+			"- [color=#7adfff][b]反制要点[/b][/color]：工匠「[color=#7adfff]捍作护行[/color]」可给邻接 4 格友军赋予[b]护持 2 回合[/b]——拍面对护持目标[b]完全豁免[/b]；压塌只能[b]半减[/b]（-16 伤 + 击退压到 1 格）。每回合开始会预告下回合 Boss 释放的技能，请提前调度",
 		],
 		"defeat": [
 			"- 李春倒下",
@@ -254,6 +266,18 @@ func _onboarding_hints() -> void:
 	if is_phase_ended():
 		return
 	Notify.notify("怒水登场：每回合压桥 + 桥面边缘生成激流带", Notify.Position.TOP_CENTER, Notify.Style.WARNING, 4.0)
+	await get_tree().create_timer(0.8).timeout
+	if is_phase_ended():
+		return
+	Notify.notify("怒涛拍面（CD 2）：全场未护持我方受 0.5×水属性伤害+附水 1，击退 2 格", Notify.Position.TOP_CENTER, Notify.Style.WARNING, 5.0)
+	await get_tree().create_timer(0.8).timeout
+	if is_phase_ended():
+		return
+	Notify.notify("翻岸压塌（CD 3，撞期优先）：最近 2 名我方受 0.7×土属性伤害+附土 2，击退 3 格", Notify.Position.TOP_CENTER, Notify.Style.WARNING, 5.0)
+	await get_tree().create_timer(0.8).timeout
+	if is_phase_ended():
+		return
+	Notify.notify("反制：工匠「捍作护行」上护持可豁免拍面；对压塌只半减（-16 伤 + 击退压到 1 格）", Notify.Position.TOP_CENTER, Notify.Style.SUCCESS, 5.5)
 	await get_tree().create_timer(0.8).timeout
 	if is_phase_ended():
 		return
@@ -560,31 +584,104 @@ func _cast_overturn_bridge() -> void:
 func _boss_slam_deck() -> void:
 	if _boss == null or _boss.combat_stats == null or not _boss.combat_stats.is_alive():
 		return
-	var candidates: Array = []
+	var targets: Array = []
 	for ally in get_friendly_units():
 		if ally == null or ally.combat_stats == null or not ally.combat_stats.is_alive():
 			continue
-		if not _is_on_main_bridge(ally.cell):
-			continue
 		if _has_guarding_status(ally):
 			continue
-		candidates.append(ally)
-	if candidates.is_empty():
+		targets.append(ally)
+	if targets.is_empty():
+		Notify.notify("怒涛拍面：全员护持，无效", Notify.Position.TOP_RIGHT, Notify.Style.SUCCESS, 2.0)
+		return
+	Notify.notify("怒水释放【怒涛拍面】", Notify.Position.CENTER, Notify.Style.WARNING, 2.5)
+	CombatLog.msg("怒涛拍面: 命中 %d 名未护持单位" % targets.size())
+	for target in targets:
+		var hit: CombatResolver.HitResult = CombatResolver.resolve_hit(_boss.combat_stats, target.combat_stats, _slam_deck, 0.5)
+		var old_hp: int = target.combat_stats.current_hp
+		CombatResolver.apply_hit(target.combat_stats, _slam_deck, hit)
+		target.refresh_overhead_bars()
+		unit_hp_changed.emit(target, old_hp, target.combat_stats.current_hp)
+		if target.combat_stats.current_hp <= 0:
+			unit_died.emit(target)
+			continue
+		_knockback_cells(target, _boss.cell, 2)
+	_apply_rapid_edge_if_present()
+	_check_win_lose()
+
+
+# 翻岸压塌：每 3 回合 1 次。对最近 2 名我方造成 0.7×土属性伤害（附土 2），击退 3 格。
+# 与怒涛拍面不同：本技 [b]不[/b] 跳过含护持的目标——护持只走 resolver 的 -16 减伤
+# + 在此处把击退距离压到 1 格，作为"半减"而非完全豁免。
+func _boss_topple_bank() -> void:
+	if _boss == null or _boss.combat_stats == null or not _boss.combat_stats.is_alive():
+		return
+	var alive: Array = []
+	for ally in get_friendly_units():
+		if ally == null or ally.combat_stats == null or not ally.combat_stats.is_alive():
+			continue
+		alive.append(ally)
+	if alive.is_empty():
 		return
 	var boss_cell := _boss.cell
-	candidates.sort_custom(func(a: Unit, b: Unit) -> bool:
+	alive.sort_custom(func(a: Unit, b: Unit) -> bool:
 		return _manhattan(a.cell, boss_cell) < _manhattan(b.cell, boss_cell)
 	)
-	var target: Unit = candidates[0]
-	var dmg := roundi(float(_boss.combat_stats.base_atk) * 0.5)
-	var old_hp := target.combat_stats.current_hp
-	target.combat_stats.current_hp = maxi(old_hp - dmg, 0)
-	target.refresh_overhead_bars()
-	unit_hp_changed.emit(target, old_hp, target.combat_stats.current_hp)
-	Notify.notify("怒涛拍面：%s 受 %d 伤害" % [target.combat_stats.unit_name, dmg], Notify.Position.TOP_RIGHT, Notify.Style.WARNING, 2.5)
-	if target.combat_stats.current_hp <= 0:
-		unit_died.emit(target)
+	var targets: Array = alive.slice(0, mini(2, alive.size()))
+	Notify.notify("怒水释放【翻岸压塌】", Notify.Position.CENTER, Notify.Style.WARNING, 2.5)
+	CombatLog.msg("翻岸压塌: 命中 %d 名最近单位" % targets.size())
+	for target in targets:
+		var hit: CombatResolver.HitResult = CombatResolver.resolve_hit(_boss.combat_stats, target.combat_stats, _topple_bank, 0.7)
+		var old_hp: int = target.combat_stats.current_hp
+		CombatResolver.apply_hit(target.combat_stats, _topple_bank, hit)
+		target.refresh_overhead_bars()
+		unit_hp_changed.emit(target, old_hp, target.combat_stats.current_hp)
+		if target.combat_stats.current_hp <= 0:
+			unit_died.emit(target)
+			continue
+		# 护持半减：击退 3 → 1（与设定文档「护持抗位移最多 1 格」一致）
+		var kb_dist: int = 1 if _has_guarding_status(target) else 3
+		_knockback_cells(target, _boss.cell, kb_dist)
+	_apply_rapid_edge_if_present()
 	_check_win_lose()
+
+
+# 朝"远离 from_cell"的方向逐格击退 target，最多 distance 格。地形不可走或被其他单位占据则提前停步。
+func _knockback_cells(target: Unit, from_cell: Vector2i, distance: int) -> void:
+	if target == null or movement_manager == null or distance <= 0:
+		return
+	var diff: Vector2i = target.cell - from_cell
+	if diff == Vector2i.ZERO:
+		return
+	var dir: Vector2i
+	if absi(diff.x) >= absi(diff.y):
+		dir = Vector2i(signi(diff.x), 0)
+	else:
+		dir = Vector2i(0, signi(diff.y))
+	var from := target.cell
+	var current := target.cell
+	for i in range(distance):
+		var next: Vector2i = current + dir
+		if movement_manager.get_movement_cost(next) == TileType.IMPASSABLE:
+			break
+		var blocked := false
+		for team in teams:
+			for u in team.units:
+				if u is Unit and u != target and (u as Unit).cell == next:
+					blocked = true
+					break
+			if blocked:
+				break
+		if blocked:
+			break
+		current = next
+	if current == from:
+		return
+	target.cell = current
+	if movement_manager.movement_tilemaps.size() > 0:
+		var tm: TileMapLayer = movement_manager.movement_tilemaps[0]
+		target.position = tm.map_to_local(current)
+	CombatLog.msg("  击退: %s (%s → %s)" % [target.combat_stats.unit_name, from, current])
 
 
 func _is_on_main_bridge(cell: Vector2i) -> bool:
@@ -618,8 +715,47 @@ func _on_stage_team_turn_started(team_index: int) -> void:
 	elif team_index == PLAYER_TEAM and _pending_enemy_resolution:
 		_pending_enemy_resolution = false
 		_resolve_enemy_pressure()
-		_boss_slam_deck()
+		# 周期被动调度：翻岸压塌（每 3 回合）优先于怒涛拍面（每 2 回合），
+		# 同一回合两者撞期时只发 topple_bank，slam 让位（设计稿"不能同时释放"）。
+		_boss_decide_periodic_skill()
 		_apply_silt_lingering_penalty.call_deferred(PLAYER_TEAM)
+
+
+# 选择本回合 boss 释放哪个周期被动；并给出下回合的预警 Notify。
+# 调度规则：
+#   1. 每个玩家回合开始先 cd-=1（clamp ≥0）。CD==0 即可释放。
+#   2. 同回合两者都到 0 时，翻岸压塌 优先；怒涛拍面 让位（CD 不重置，下回合再发）。
+#   3. 仅"成功释放"后才把 CD 重置为 base — 这是用户要求的"释放过后才进入 CD"。
+func _boss_decide_periodic_skill() -> void:
+	if _boss == null or _boss.combat_stats == null or not _boss.combat_stats.is_alive():
+		return
+	_slam_cd_remaining = maxi(_slam_cd_remaining - 1, 0)
+	_topple_cd_remaining = maxi(_topple_cd_remaining - 1, 0)
+	if _topple_cd_remaining == 0:
+		_boss_topple_bank()
+		_topple_cd_remaining = TOPPLE_CD_BASE
+		# slam 若同回合也 ready，cd 维持 0 → 下回合即释放（让位语义）
+	elif _slam_cd_remaining == 0:
+		_boss_slam_deck()
+		_slam_cd_remaining = SLAM_CD_BASE
+	_show_next_round_preview()
+
+
+# 每回合都展示下回合 boss 将释放的技能（用户要求）。
+# 通过模拟 cd-=1 来预测，逻辑与 _boss_decide_periodic_skill 一致。
+func _show_next_round_preview() -> void:
+	if _boss == null or _boss.combat_stats == null or not _boss.combat_stats.is_alive():
+		return
+	var sim_slam: int = maxi(_slam_cd_remaining - 1, 0)
+	var sim_topple: int = maxi(_topple_cd_remaining - 1, 0)
+	var label: String
+	if sim_topple == 0:
+		label = "【翻岸压塌】（土，最近 2 名 0.7×+附土 2，击退 3 格）— 护持只能半减(-16伤/击退压到1格)，无法豁免"
+	elif sim_slam == 0:
+		label = "【怒涛拍面】（水，全场未护持 0.5×+附水 1，击退 2 格）— 用工匠「捍作护行」覆盖关键单位可豁免"
+	else:
+		label = "蓄力中（无周期被动；可推进开肩）"
+	Notify.notify("下回合怒水：%s" % label, Notify.Position.TOP_RIGHT, Notify.Style.INFO, 4.0)
 
 
 # 洪锋·被动【涌锋】：本回合首次移动 +1 格。
@@ -762,7 +898,7 @@ func _spawn_allies() -> void:
 
 
 func _spawn_enemies() -> void:
-	_boss = _spawn_enemy(_make_unit_data(_wrathful_flood_data, "怒水", 360, 24, 1, 99, Enums.Element.WATER, 2), _watch_point + Vector2i(0, -9), [_overturn_bridge], preload("res://scenes/unit/visual/monster/怒水/怒水_visual.tscn"))
+	_boss = _spawn_enemy(_make_unit_data(_wrathful_flood_data, "怒水", 360, 18, 1, 99, Enums.Element.WATER, 2), _watch_point + Vector2i(0, -9), [_overturn_bridge], preload("res://scenes/unit/visual/monster/怒水/怒水_visual.tscn"))
 	_boss.extra_target_cells = [
 		Vector2i(-1, 0), Vector2i(1, 0),                    # 同行两侧
 		Vector2i(-1, 1), Vector2i(0, 1), Vector2i(1, 1),    # 南 1 行

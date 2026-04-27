@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="SkillData" format=3 uid="uid://b4xtwf1slamdck"]
+
+[ext_resource type="Script" uid="uid://cp0ew5p75uio0" path="res://scripts/data/skill_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+skill_id = "wf_slam_deck"
+skill_name = "怒涛拍面"
+damage_ratio = 0.5
+damage_element = 3
+attach_amount = 1
+extra_effect_id = "stage_special_slam_deck"
+description = "Boss 周期被动：释放后冷却 2 回合。对全场所有未含「护持」状态的我方造成 0.5 倍率水属性伤害（附水 1），并将其朝远离 Boss 方向击退 2 格。可由工匠「捍作护行」赋予的护持豁免。"
+cast_offsets = Array[Vector2i]([Vector2i(0, 0)])
