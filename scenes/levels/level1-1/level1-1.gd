@@ -560,6 +560,13 @@ func _run_onboarding() -> void:
 		if team_idx == 0:
 			break
 
+	# ── 步骤 4.5：难度可调（基本操作教学结束后的友情提示）──
+	await play_dialogue([
+		_lc_line("基本操作就是这些。再交代一句：屏幕右上角的 ⚙ 是设置（按 Esc 也能打开），里面可以随时调『难度』。"),
+		_lc_line("觉得吃力就调低一档，觉得没劲就调高一档——敌人的血量和攻击会跟着变，自家不影响。"),
+	])
+	if is_phase_ended(): return
+
 	# ── 步骤 5：引流到右上角规则说明 + 任务 ──
 	await play_dialogue([
 		_lc_line("基本功就这些。五行流转、化势反应、地形消耗这些细节——点右上角的 📖，规则说明里都写着。"),
