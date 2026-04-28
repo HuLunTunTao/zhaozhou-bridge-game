@@ -16,8 +16,8 @@
 [ext_resource type="Resource" path="res://data/units/hero_li_chun.tres" id="15_olp7u"]
 [ext_resource type="PackedScene" uid="uid://qkwxdp8ayb57" path="res://scenes/unit/visual/human/li_chun/li_chun_visual.tscn" id="16_w4xdg"]
 [ext_resource type="Resource" path="res://data/units/craftsman_guard.tres" id="17_86kac"]
-[ext_resource type="PackedScene" uid="uid://byxh2ycfe88e3" path="res://scenes/unit/visual/human/工匠/工匠_visual.tscn" id="18_7kr6p"]
 [ext_resource type="PackedScene" uid="uid://0uq3glxe4jwj" path="res://scenes/unit/visual/human/朝廷视察官/朝廷视察官_visual.tscn" id="18_8iyre"]
+[ext_resource type="PackedScene" uid="uid://mc2o57d7tg7f" path="res://scenes/unit/visual/human/河工总管/河工总管_visual.tscn" id="18_lwe1a"]
 [ext_resource type="PackedScene" uid="uid://0vf68k1e0k18" path="res://scenes/unit/visual/human/测量工/测量工_visual.tscn" id="19_daqxj"]
 [ext_resource type="PackedScene" uid="uid://bpt076tq8pqlv" path="res://scenes/unit/visual/human/商旅过客/商旅过客_visual.tscn" id="19_w27ab"]
 [ext_resource type="PackedScene" uid="uid://7puc72kt0m1q" path="res://scenes/unit/visual/human/游学书生/游学书生_visual.tscn" id="20_156tw"]
@@ -872,7 +872,7 @@ unit_color = Color(0.55, 0.4, 0.3, 1)
 [node name="NpcRiverChief" parent="Entities/Units" unique_id=667147196 instance=ExtResource("13_w1vbv")]
 position = Vector2(-96, -16)
 unit_data = ExtResource("17_86kac")
-visual_scene = ExtResource("18_7kr6p")
+visual_scene = ExtResource("18_lwe1a")
 unit_color = Color(0.4, 0.55, 0.7, 1)
 
 [node name="NpcCourtInspector" parent="Entities/Units" unique_id=802343641 instance=ExtResource("13_w1vbv")]
