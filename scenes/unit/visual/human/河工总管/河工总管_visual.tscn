@@ -1,0 +1,58 @@
+[gd_scene format=3 uid="uid://mc2o57d7tg7f"]
+
+[ext_resource type="PackedScene" uid="uid://cbjso0lvbcag1" path="res://scenes/unit/visual/visual.tscn" id="1_iclxl"]
+[ext_resource type="Shader" uid="uid://w8w41kw1kylj" path="res://scenes/unit/shader/unit_edge_light.gdshader" id="2_kowld"]
+[ext_resource type="Texture2D" uid="uid://bvmuccob5d36j" path="res://assets/character/河工总管/河工总管.png" id="3_kowld"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_xuo6q"]
+resource_local_to_scene = true
+shader = ExtResource("2_kowld")
+shader_parameter/outline_color = Color(1, 1, 0, 0.3)
+shader_parameter/outline_width = 7.0
+shader_parameter/frame_uv_rect = Vector4(0, 0, 1, 1)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_xuo6q"]
+atlas = ExtResource("3_kowld")
+region = Rect2(0, 0, 256, 256)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_nrj6r"]
+atlas = ExtResource("3_kowld")
+region = Rect2(256, 0, 256, 256)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ako5i"]
+atlas = ExtResource("3_kowld")
+region = Rect2(512, 0, 256, 256)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_lgmb0"]
+atlas = ExtResource("3_kowld")
+region = Rect2(768, 0, 256, 256)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_i8ke5"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_xuo6q")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_nrj6r")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_ako5i")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_lgmb0")
+}],
+"loop": true,
+"name": &"default",
+"speed": 5.0
+}]
+
+[node name="Visual" unique_id=1878430534 instance=ExtResource("1_iclxl")]
+material = SubResource("ShaderMaterial_xuo6q")
+sprite_frames = SubResource("SpriteFrames_i8ke5")
+frame_progress = 0.88285923
+move_is_idle = true
+flip_h_for_turning = true
+
+[node name="FootMarker" parent="." index="0"]
+position = Vector2(0, 113.33333)
