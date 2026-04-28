@@ -139,56 +139,56 @@ func get_wave_config() -> Dictionary:
 		misaligned_flank = left_flank
 	return {
 		3: [
-			{"unit_data": _make_unit_data(_dark_data, "断索鬼", 78, 18, 100, 7, Enums.Element.WOOD, 2),
+			{"unit_data": _make_unit_data(_dark_data, "断索鬼", 66, 18, 100, 7, Enums.Element.WOOD, 2),
 				"cell": stone_yard_left, "team_index": ENEMY_TEAM,
 				"skills": [_timber], "visual": _visual_rope_sever},
 		],
 		5: [
-			{"unit_data": _make_unit_data(_craftsman_data, "错券兵", 90, 17, 90, 9),
+			{"unit_data": _make_unit_data(_craftsman_data, "错券兵", 77, 17, 90, 9),
 				"cell": misaligned_flank, "team_index": ENEMY_TEAM,
 				"skills": [_mallet], "visual": _visual_misaligned},
 		],
 		7: [
-			{"unit_data": _make_unit_data(_mud_data, "裂石兽", 112, 22, 90, 10, Enums.Element.EARTH, 2),
+			{"unit_data": _make_unit_data(_mud_data, "裂石兽", 95, 22, 90, 10, Enums.Element.EARTH, 2),
 				"cell": center_front, "team_index": ENEMY_TEAM,
 				"skills": [_crush], "visual": _visual_stone_split},
-			{"unit_data": _make_unit_data(_craftsman_data, "错券兵", 90, 17, 90, 9),
+			{"unit_data": _make_unit_data(_craftsman_data, "错券兵", 77, 17, 90, 9),
 				"cell": misaligned_flank, "team_index": ENEMY_TEAM,
 				"skills": [_mallet], "visual": _visual_misaligned},
 		],
 		10: [
-			{"unit_data": _make_unit_data(_dark_data, "脱缝鬼", 70, 15, 95, 8, Enums.Element.WATER, 2),
+			{"unit_data": _make_unit_data(_dark_data, "脱缝鬼", 60, 15, 95, 8, Enums.Element.WATER, 2),
 				"cell": _joint_cells[0], "team_index": ENEMY_TEAM,
 				"skills": [_lunge], "visual": _visual_joint_shade},
 		],
 		13: [
-			{"unit_data": _make_unit_data(_craftsman_data, "错券兵", 90, 17, 90, 9),
+			{"unit_data": _make_unit_data(_craftsman_data, "错券兵", 77, 17, 90, 9),
 				"cell": misaligned_flank, "team_index": ENEMY_TEAM,
 				"skills": [_mallet], "visual": _visual_misaligned},
 		],
 		15: [
-			{"unit_data": _make_unit_data(_dark_data, "断索鬼", 78, 18, 100, 7, Enums.Element.WOOD, 2),
+			{"unit_data": _make_unit_data(_dark_data, "断索鬼", 66, 18, 100, 7, Enums.Element.WOOD, 2),
 				"cell": stone_yard_right, "team_index": ENEMY_TEAM,
 				"skills": [_timber], "visual": _visual_rope_sever},
-			{"unit_data": _make_unit_data(_mud_data, "裂石兽", 112, 22, 90, 10, Enums.Element.EARTH, 2),
+			{"unit_data": _make_unit_data(_mud_data, "裂石兽", 95, 22, 90, 10, Enums.Element.EARTH, 2),
 				"cell": right_flank, "team_index": ENEMY_TEAM,
 				"skills": [_crush], "visual": _visual_stone_split},
 		],
 		18: [
-			{"unit_data": _make_unit_data(_dark_data, "脱缝鬼", 70, 15, 95, 8, Enums.Element.WATER, 2),
+			{"unit_data": _make_unit_data(_dark_data, "脱缝鬼", 60, 15, 95, 8, Enums.Element.WATER, 2),
 				"cell": _joint_cells[1], "team_index": ENEMY_TEAM,
 				"skills": [_lunge], "visual": _visual_joint_shade},
 		],
 		21: [
-			{"unit_data": _make_unit_data(_craftsman_data, "错券兵", 90, 17, 90, 9),
+			{"unit_data": _make_unit_data(_craftsman_data, "错券兵", 77, 17, 90, 9),
 				"cell": misaligned_flank, "team_index": ENEMY_TEAM,
 				"skills": [_mallet], "visual": _visual_misaligned},
 		],
 		24: [
-			{"unit_data": _make_unit_data(_dark_data, "断索鬼", 78, 18, 100, 7, Enums.Element.WOOD, 2),
+			{"unit_data": _make_unit_data(_dark_data, "断索鬼", 66, 18, 100, 7, Enums.Element.WOOD, 2),
 				"cell": stone_yard_left, "team_index": ENEMY_TEAM,
 				"skills": [_timber], "visual": _visual_rope_sever},
-			{"unit_data": _make_unit_data(_craftsman_data, "错券兵", 90, 17, 90, 9),
+			{"unit_data": _make_unit_data(_craftsman_data, "错券兵", 77, 17, 90, 9),
 				"cell": misaligned_flank, "team_index": ENEMY_TEAM,
 				"skills": [_mallet], "visual": _visual_misaligned},
 		],
@@ -575,11 +575,11 @@ func _spawn_enemies() -> void:
 	# —— **倾压之号触发前不能动也不能主动出手**，只靠被动机制（偏压移衡 / 压台）压玩家。
 	# 倾压之号触发时调 _unlock_boss 放开机动 + 补土系近战，Boss 开始下桥还手。
 	# 玩家仍可远程打 Boss，Boss 受击伤害仍按 _boss_damage_cap 截断。
-	_boss = _spawn_enemy(_make_unit_data(_mud_data, "偏载傀", 320, 18, 1, 99, Enums.Element.EARTH, 2), _nearest_bridge_cell(BOSS_CELL), [], _visual_boss)
+	_boss = _spawn_enemy(_make_unit_data(_mud_data, "偏载傀", 420, 18, 1, 99, Enums.Element.EARTH, 2), _nearest_bridge_cell(BOSS_CELL), [], _visual_boss)
 	# 两个错券兵分别贴在左右券台外侧（关于桥中轴镜像），与券台 2×2 相邻以便扰券。
-	_spawn_enemy(_make_unit_data(_craftsman_data, "错券兵", 90, 17, 90, 9), _nearest_bridge_cell(_left_platform + Vector2i(-1, -1)), [_mallet], _visual_misaligned)
-	_spawn_enemy(_make_unit_data(_craftsman_data, "错券兵", 90, 17, 90, 9), _nearest_bridge_cell(_right_platform + Vector2i(1, 1)), [_mallet], _visual_misaligned)
-	_spawn_enemy(_make_unit_data(_mud_data, "裂石兽", 112, 22, 90, 10, Enums.Element.EARTH, 2), _nearest_bridge_cell(_crown_point + Vector2i(0, 1)), [_crush], _visual_stone_split)
+	_spawn_enemy(_make_unit_data(_craftsman_data, "错券兵", 77, 17, 90, 9), _nearest_bridge_cell(_left_platform + Vector2i(-1, -1)), [_mallet], _visual_misaligned)
+	_spawn_enemy(_make_unit_data(_craftsman_data, "错券兵", 77, 17, 90, 9), _nearest_bridge_cell(_right_platform + Vector2i(1, 1)), [_mallet], _visual_misaligned)
+	_spawn_enemy(_make_unit_data(_mud_data, "裂石兽", 95, 22, 90, 10, Enums.Element.EARTH, 2), _nearest_bridge_cell(_crown_point + Vector2i(0, 1)), [_crush], _visual_stone_split)
 
 
 func _try_pick_or_deliver_stone(unit: Unit) -> void:
@@ -706,7 +706,7 @@ func _maybe_boss_clutch_summon() -> void:
 	for off in offsets:
 		var cell := _nearest_bridge_cell(platform + off)
 		var unit := _spawn_enemy(
-			_make_unit_data(_craftsman_data, "错券兵", 90, 17, 90, 9),
+			_make_unit_data(_craftsman_data, "错券兵", 77, 17, 90, 9),
 			cell, [_mallet], _visual_misaligned,
 		)
 		summoned.append(unit)
