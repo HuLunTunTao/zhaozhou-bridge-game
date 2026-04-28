@@ -108,23 +108,23 @@ func get_objectives_text() -> Dictionary:
 	match _current_task:
 		TaskState.TASK1_PARAMETERS:
 			var status := " (%d/%d)" % [_parameter_use_count, PARAMETER_REQUIRED_USES]
-			lines.append("- 在参数点 (-1, 2) 测定 [b]河宽 / 河床 / 汛位[/b] 3 项数据（「测尺取参 / 参数确认」%s）" % status)
+			lines.append("- 在参数点 (-1, 2) 测定 河宽 / 河床 / 汛位 3 项数据（「测尺取参 / 参数确认」%s）" % status)
 			lines.append("- 李春抵达中央绘样台")
 			lines.append("- 李春执行「执墨定拱」")
 			lines.append("- 累计击退 8 名受驱役敌人")
 		TaskState.TASK2_PLATFORM:
-			lines.append("- 在参数点测定 [b]河宽 / 河床 / 汛位[/b] 3 项数据 (3/3)")
+			lines.append("- 在参数点测定 河宽 / 河床 / 汛位 3 项数据 (3/3)")
 			lines.append("- 李春抵达中央绘样台 (0/1)")
 			lines.append("- 李春执行「执墨定拱」")
 			lines.append("- 累计击退 8 名受驱役敌人")
 		TaskState.TASK3_ARCH:
-			lines.append("- 在参数点测定 [b]河宽 / 河床 / 汛位[/b] 3 项数据 (3/3)")
+			lines.append("- 在参数点测定 河宽 / 河床 / 汛位 3 项数据 (3/3)")
 			lines.append("- 李春抵达中央绘样台 (1/1)")
 			var arch_status := " (0/1)" if not _finalized else " (1/1)"
 			lines.append("- 李春执行「执墨定拱」%s" % arch_status)
 			lines.append("- 累计击退 8 名受驱役敌人")
 		TaskState.TASK4_HUNT:
-			lines.append("- 在参数点测定 [b]河宽 / 河床 / 汛位[/b] 3 项数据 (3/3)")
+			lines.append("- 在参数点测定 河宽 / 河床 / 汛位 3 项数据 (3/3)")
 			lines.append("- 李春抵达中央绘样台 (1/1)")
 			lines.append("- 李春执行「执墨定拱」 (1/1)")
 			lines.append("- 累计击退 8 名受驱役敌人(%d/%d)" % [_minion_kills, REQUIRED_DEFEATS])
