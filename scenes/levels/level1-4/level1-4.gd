@@ -1180,17 +1180,17 @@ func _setup_enemies_from_scene() -> void:
 	set_unit_skills(_boss, [_overturn_bridge])
 	_populate_boss_hit_area()
 
-	setup_unit_stats(_flood_spear_1, "洪锋", 98, 24, 90, 10, Enums.Element.WATER, 2)
+	setup_unit_stats(_flood_spear_1, "洪锋", 98, 21, 90, 10, Enums.Element.WATER, 2)
 	set_unit_skills(_flood_spear_1, [_torrent_ram])
 
-	setup_unit_stats(_flood_spear_2, "洪锋", 98, 24, 90, 10, Enums.Element.WATER, 2)
+	setup_unit_stats(_flood_spear_2, "洪锋", 98, 21, 90, 10, Enums.Element.WATER, 2)
 	set_unit_skills(_flood_spear_2, [_torrent_ram])
 
 	# 与 wave 系统保持一致：开局两只洪锋也从地图东西两端登场，而不是 .tscn 里的预置点。
 	_relocate_unit_to_edge(_flood_spear_1, "map_west_edge")
 	_relocate_unit_to_edge(_flood_spear_2, "map_east_edge")
 
-	setup_unit_stats(_siltmare, "泥沙魇", 84, 18, 90, 10, Enums.Element.EARTH, 2)
+	setup_unit_stats(_siltmare, "泥沙魇", 84, 15, 90, 10, Enums.Element.EARTH, 2)
 	set_unit_skills(_siltmare, [_mire_steps])
 
 
