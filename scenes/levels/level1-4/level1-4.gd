@@ -126,6 +126,7 @@ const POLE_BLOCKED := Color(1.0, 0.45, 0.45, 0.95)
 var _arch_tiles: Dictionary = {}          # arch_key → SmallArchTile
 var _silt_tiles: Dictionary = {}          # cell → SiltTile
 var _rapid_edge_tiles: Dictionary = {}    # cell → RapidEdgeTile
+var _status_panel: RichTextLabel = null
 
 
 func get_teams_config() -> Array:
@@ -372,6 +373,7 @@ func _on_level_ready() -> void:
 		boss_hit_area_tilemap.visible = false
 	_setup_anchor_cells()
 	_setup_arch_tiles()
+	_setup_status_panel()
 	_setup_li_chun()
 	_setup_allies_from_scene()
 	_setup_enemies_from_scene()
@@ -380,6 +382,7 @@ func _on_level_ready() -> void:
 	unit_died.connect(_on_stage_unit_died)
 	round_started.connect(_on_stage_round_started)
 	phase_changed.connect(_on_phase_changed_for_onboarding)
+	_update_status_panel()
 	Notify.notify("李春与运石工可开启小拱；整桥稳定值 100 归零即败", Notify.Position.TOP_CENTER, Notify.Style.INFO, 3.0)
 
 
@@ -525,6 +528,40 @@ func _setup_arch_tiles() -> void:
 	_refresh_arch_visuals()
 
 
+func _setup_status_panel() -> void:
+	_status_panel = RichTextLabel.new()
+	_status_panel.name = "Level4StatusPanel"
+	_status_panel.bbcode_enabled = true
+	_status_panel.fit_content = true
+	_status_panel.scroll_active = false
+	_status_panel.autowrap_mode = TextServer.AUTOWRAP_OFF
+	_status_panel.anchors_preset = Control.PRESET_TOP_LEFT
+	_status_panel.offset_left = 18
+	_status_panel.offset_top = 84
+	_status_panel.offset_right = 300
+	_status_panel.offset_bottom = 120
+	_status_panel.add_theme_font_size_override("normal_font_size", 16)
+	_status_panel.add_theme_color_override("default_color", Color(0.96, 0.94, 0.88))
+	_status_panel.add_theme_color_override("font_outline_color", Color(0.08, 0.08, 0.08))
+	_status_panel.add_theme_constant_override("outline_size", 3)
+	_status_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	gui.add_child(_status_panel)
+
+
+func _update_status_panel() -> void:
+	if _status_panel == null:
+		return
+	var ratio: float = float(_overall_stability) / float(STABILITY_MAX)
+	var stability_color := "#d8f6ff"
+	if ratio <= 0.30:
+		stability_color = "#ff5c5c"
+	elif ratio <= 0.60:
+		stability_color = "#ffd66e"
+	_status_panel.text = "整桥稳定 [color=%s]%d/%d[/color]" % [
+		stability_color, _overall_stability, STABILITY_MAX,
+	]
+
+
 # 返回一座小拱占据的 2×2 cells（start + 左 + 上 + 左上）
 func _arch_cells_for(arch_key: String) -> Array[Vector2i]:
 	var start: Vector2i = _side_arch_cells[arch_key]
@@ -573,12 +610,12 @@ func _refresh_arch_visuals() -> void:
 		elif _is_arch_available(arch_key):
 			marker.halo_color = SmallArchTile.COLOR_CLOSED
 			marker.pole_color = POLE_AVAILABLE
-			marker.label_text = "肩"
+			marker.label_text = "可开肩"
 		else:
-			# 锁定态：halo 调暗 + 用次要符号"·"
+			# 锁定态仍标出肩的位置，只用暗色表达尚未进入开肩窗口。
 			marker.halo_color = SmallArchTile.COLOR_CLOSED * Color(0.4, 0.4, 0.4, 1.0)
 			marker.pole_color = POLE_LOCKED
-			marker.label_text = "·"
+			marker.label_text = "肩"
 
 
 # 当前阶段下某 arch 是否"可用"（玩家技能命中是否生效，且视觉是否亮起）。
@@ -645,7 +682,8 @@ func _on_skill_executed(caster: Unit, skill: SkillData, cast_cell: Vector2i, _ex
 		return
 	var path := _charge_line_cells(caster.cell, cast_cell)
 	if _watch_point in path:
-		_overall_stability -= 1
+		_overall_stability = maxi(_overall_stability - 1, 0)
+		_update_status_panel()
 		Notify.notify("%s 冲撞桥心！整桥 −1 → %d" % [unit_name_str, _overall_stability], Notify.Position.TOP_RIGHT, Notify.Style.WARNING, 2.5)
 		_check_win_lose()
 
@@ -760,6 +798,7 @@ func _debug_force_defeat(kind: String) -> void:
 				_li_chun.refresh_overhead_bars()
 		"overall_zero":
 			_overall_stability = 0
+			_update_status_panel()
 		"round_over":
 			round_number = _stage_config.turn_limit + 1
 	Notify.notify("[DEBUG] 强制触发失败：%s" % kind, Notify.Position.TOP_CENTER, Notify.Style.ERROR, 2.0)
@@ -1049,6 +1088,7 @@ func _gain_stability(amount: int, reason: String) -> void:
 		return
 	var before: int = _overall_stability
 	_overall_stability = mini(_overall_stability + amount, STABILITY_MAX)
+	_update_status_panel()
 	var actual: int = _overall_stability - before
 	if actual <= 0:
 		return
@@ -1339,7 +1379,8 @@ func _resolve_enemy_pressure() -> void:
 
 	var total: int = alive_dmg + phase_dmg + event_dmg
 	if total > 0:
-		_overall_stability -= total
+		_overall_stability = maxi(_overall_stability - total, 0)
+		_update_status_panel()
 
 	Notify.notify(
 		"整桥:%d 已拆肩:%d/4（怒水 -%d｜阶段 -%d｜邻桥心 -%d）" % [
