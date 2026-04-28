@@ -565,6 +565,7 @@ func _run_onboarding() -> void:
 	# ── 步骤 4：结束回合 ──
 	await play_dialogue([
 		_lc_line("不错。等全队都动完了，点右下角的「结束回合」，把这轮交给敌人。"),
+		_lc_line("如果回合AP没有消耗完，需要点击两次「结束回合」才能真正结束，这是为了防止误触。"), 
 	])
 	if is_phase_ended():
 		_finish_onboarding()
