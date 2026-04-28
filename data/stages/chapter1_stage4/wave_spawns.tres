@@ -1,11 +1,10 @@
-[gd_resource type="Resource" script_class="WaveSpawns" load_steps=20 format=3 uid="uid://cxef5irj8wvc5"]
+[gd_resource type="Resource" script_class="WaveSpawns" format=3 uid="uid://cxef5irj8wvc5"]
 
 [ext_resource type="Script" path="res://scripts/data/wave_spawns.gd" id="1"]
 [ext_resource type="Script" path="res://scripts/data/wave_entry.gd" id="2"]
 
 [sub_resource type="Resource" id="W_R1"]
 script = ExtResource("2")
-round_number = 1
 unit_kind = "flood_spear"
 cell_hint = "map_west_edge"
 
