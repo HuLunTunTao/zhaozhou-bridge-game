@@ -1,8 +1,7 @@
 extends Node
 ## 全局设置单例。负责读取、保存和应用游戏设置。
-## 数据持久化到 Godot 用户数据目录（user://settings.json）。
+## 数据持久化到当前存档位目录（user://1～9/settings.json）。
 
-const SETTINGS_PATH := "user://settings.json"
 const DEFAULT_DIFFICULTY := "normal"
 
 signal settings_changed
@@ -37,6 +36,10 @@ func _ready() -> void:
 
 ## 将当前设置保存到本地文件
 func save_settings() -> void:
+	var path := _get_settings_path()
+	if not SaveSlots.ensure_slot_dir():
+		push_error("Settings: 无法创建存档位目录")
+		return
 	var data := {
 		"music_volume": music_volume,
 		"sfx_volume": sfx_volume,
@@ -51,22 +54,24 @@ func save_settings() -> void:
 		"difficulty": difficulty,
 	}
 	var json := JSON.stringify(data)
-	var file := FileAccess.open(SETTINGS_PATH, FileAccess.WRITE)
+	var file := FileAccess.open(path, FileAccess.WRITE)
 	if file:
 		file.store_string(json)
 		file.close()
 	else:
-		push_error("Settings: 无法保存设置到 %s" % SETTINGS_PATH)
+		push_error("Settings: 无法保存设置到 %s" % path)
 
 
 ## 从本地文件读取设置；若文件不存在则使用默认值
 func load_settings() -> void:
-	if not FileAccess.file_exists(SETTINGS_PATH):
+	_reset_values_to_defaults()
+	var path := _get_settings_path()
+	if not FileAccess.file_exists(path):
 		return
 
-	var file := FileAccess.open(SETTINGS_PATH, FileAccess.READ)
+	var file := FileAccess.open(path, FileAccess.READ)
 	if not file:
-		push_error("Settings: 无法读取设置文件 %s" % SETTINGS_PATH)
+		push_error("Settings: 无法读取设置文件 %s" % path)
 		return
 
 	var json := file.get_as_text()
@@ -89,6 +94,10 @@ func load_settings() -> void:
 			difficulty = DEFAULT_DIFFICULTY
 	else:
 		push_error("Settings: 设置文件格式错误")
+
+
+func _get_settings_path() -> String:
+	return SaveSlots.get_settings_path()
 
 
 #AI辅助生成， Kimi Code，2026-04-19
@@ -194,6 +203,11 @@ func set_difficulty(id: String) -> void:
 
 ## 重置为默认值（仅更新内存状态，不落盘）
 func reset_to_defaults() -> void:
+	_reset_values_to_defaults()
+	apply_settings()
+
+
+func _reset_values_to_defaults() -> void:
 	music_volume = 0.8
 	sfx_volume = 0.8
 	ui_volume = 0.8
@@ -205,4 +219,3 @@ func reset_to_defaults() -> void:
 	window_height = 1080
 	fullscreen = false
 	difficulty = DEFAULT_DIFFICULTY
-	apply_settings()

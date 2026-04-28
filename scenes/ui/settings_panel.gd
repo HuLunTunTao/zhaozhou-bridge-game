@@ -17,6 +17,7 @@ signal closed
 @onready var apply_display_button: Button = %ApplyDisplayButton
 @onready var difficulty_option: OptionButton = %DifficultyOption
 @onready var settings_title: Label = %SettingsTitle
+@onready var save_manager_button: Button = %SaveManagerButton
 @onready var quick_save_button: Button = %QuickSaveButton
 @onready var restart_button: Button = %RestartButton
 @onready var back_to_menu_button: Button = %BackToMenuButton
@@ -29,17 +30,14 @@ var _title_tap_reset_timer: SceneTreeTimer
 
 func _ready() -> void:
 	layer = 90
-	quick_save_button.visible = show_back_to_menu
+	save_manager_button.visible = not show_back_to_menu
+	quick_save_button.visible = false
 	restart_button.visible = show_back_to_menu
 	back_to_menu_button.visible = show_back_to_menu
 
-	music_slider.value = Settings.music_volume * 100.0
-	sfx_slider.value = Settings.sfx_volume * 100.0
-	ui_slider.value = Settings.ui_volume * 100.0
-	voice_slider.value = Settings.voice_volume * 100.0
-	ambience_slider.value = Settings.ambience_volume * 100.0
 	_populate_resolution_options()
 	_populate_difficulty_options()
+	_refresh_controls_from_settings()
 	for button in find_children("*", "BaseButton", true, false):
 		UiSounds.bind_button(button as BaseButton)
 	UiSounds.play_popup()
@@ -171,6 +169,7 @@ const SaveManagerScene := preload("res://scenes/ui/save_manager.tscn")
 func _on_save_manager_pressed() -> void:
 	var manager: SaveManager = SaveManagerScene.instantiate()
 	add_child(manager)
+	manager.slot_data_changed.connect(_refresh_controls_from_settings, CONNECT_REFERENCE_COUNTED)
 	UiSounds.play_popup()
 
 
@@ -190,8 +189,7 @@ func _on_settings_title_gui_input(event: InputEvent) -> void:
 
 
 func _on_quick_save_pressed() -> void:
-	# TODO: 快速存档到固定栏位（如 slot 0），保存当前关卡状态
-	print("TODO: quick save")
+	pass
 
 
 func _on_restart_pressed() -> void:
@@ -252,19 +250,18 @@ func _show_clear_data_confirm(step: int) -> void:
 
 
 func _clear_all_local_data() -> void:
-	var dir := DirAccess.open("user://")
-	if dir != null:
-		dir.list_dir_begin()
-		var file_name := dir.get_next()
-		while file_name != "":
-			if not dir.current_is_dir():
-				dir.remove(file_name)
-			file_name = dir.get_next()
-		dir.list_dir_end()
-
+	SaveSlots.clear_all_slot_data()
 	Settings.reset_to_defaults()
 	Progress.clear_all_in_memory()
 
+	_populate_resolution_options()
+	_populate_difficulty_options()
+	_refresh_controls_from_settings()
+
+	Notify.notify("本地数据已清除", Notify.Position.TOP_CENTER, Notify.Style.SUCCESS, 2.5)
+
+
+func _refresh_controls_from_settings() -> void:
 	music_slider.value = Settings.music_volume * 100.0
 	sfx_slider.value = Settings.sfx_volume * 100.0
 	ui_slider.value = Settings.ui_volume * 100.0
@@ -272,8 +269,6 @@ func _clear_all_local_data() -> void:
 	ambience_slider.value = Settings.ambience_volume * 100.0
 	_populate_resolution_options()
 	_populate_difficulty_options()
-
-	Notify.notify("本地数据已清除", Notify.Position.TOP_CENTER, Notify.Style.SUCCESS, 2.5)
 
 
 func _close() -> void:

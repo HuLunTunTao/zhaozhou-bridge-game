@@ -1,12 +1,13 @@
 class_name SaveManager
 extends CanvasLayer
-## Minecraft-style save management overlay.
-## Top: selectable slot list. Bottom: action buttons for selected slot.
+## Save slot management overlay. Slots store only settings.json and progress.json.
 
 signal closed
+signal slot_data_changed
 
 const SLOT_COUNT := 9
 
+@onready var active_slot_label: Label = %ActiveSlotLabel
 @onready var slot_container: VBoxContainer = %SlotContainer
 @onready var save_button: Button = %SaveButton
 @onready var load_button: Button = %LoadButton
@@ -18,6 +19,8 @@ var _slot_buttons: Array[Button] = []
 
 func _ready() -> void:
 	layer = 95
+	for button in find_children("*", "BaseButton", true, false):
+		UiSounds.bind_button(button as BaseButton)
 	_build_slots()
 	_update_action_buttons()
 
@@ -29,6 +32,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _build_slots() -> void:
+	active_slot_label.text = "当前存档位：%d" % SaveSlots.active_slot
 	_slot_buttons.clear()
 	for child in slot_container.get_children():
 		child.queue_free()
@@ -45,6 +49,9 @@ func _build_slots() -> void:
 		btn.pressed.connect(_on_slot_selected.bind(slot_num))
 		slot_container.add_child(btn)
 		_slot_buttons.append(btn)
+		if slot_num == SaveSlots.active_slot:
+			btn.button_pressed = true
+			_selected_slot = slot_num
 
 
 var _button_group: ButtonGroup
@@ -68,39 +75,53 @@ func _update_action_buttons() -> void:
 	delete_button.disabled = not has_save
 
 
-func _slot_has_save(_slot_num: int) -> bool:
-	# TODO: 检查 user://save_{slot_num}.dat 是否存在
-	return false
+func _slot_has_save(slot_num: int) -> bool:
+	return SaveSlots.slot_exists(slot_num)
 
 
-func _get_slot_status(_slot_num: int) -> String:
-	# TODO: 检查存档文件，返回存档时间等信息
-	return "—— 空 ——"
+func _get_slot_status(slot_num: int) -> String:
+	var parts: Array[String] = []
+	if slot_num == SaveSlots.active_slot:
+		parts.append("当前")
+	parts.append("已存在" if SaveSlots.slot_exists(slot_num) else "空")
+	return " / ".join(parts)
 
 
 func _on_save_pressed() -> void:
 	if _selected_slot < 1:
 		return
-	# TODO: 将 GameState 序列化写入 user://save_{_selected_slot}.dat
-	print("TODO: save to slot %d" % _selected_slot)
+	if not SaveSlots.save_current_to_slot(_selected_slot):
+		Notify.notify("存档失败", Notify.Position.TOP_CENTER, Notify.Style.ERROR, 2.0)
+		return
+	Notify.notify("已保存到栏位 %d" % _selected_slot, Notify.Position.TOP_CENTER, Notify.Style.SUCCESS, 2.0)
 	_build_slots()
 	_select_slot(_selected_slot)
+	slot_data_changed.emit()
 
 
 func _on_load_pressed() -> void:
 	if _selected_slot < 1:
 		return
-	# TODO: 从 user://save_{_selected_slot}.dat 读取并恢复 GameState
-	print("TODO: load from slot %d" % _selected_slot)
+	if not SaveSlots.load_slot(_selected_slot):
+		Notify.notify("读档失败或栏位为空", Notify.Position.TOP_CENTER, Notify.Style.ERROR, 2.0)
+		return
+	Notify.notify("已切换到栏位 %d" % _selected_slot, Notify.Position.TOP_CENTER, Notify.Style.SUCCESS, 2.0)
+	_build_slots()
+	_select_slot(_selected_slot)
+	slot_data_changed.emit()
 
 
 func _on_delete_pressed() -> void:
 	if _selected_slot < 1:
 		return
-	# TODO: 删除 user://save_{_selected_slot}.dat
-	print("TODO: delete slot %d" % _selected_slot)
+	var deleted_slot := _selected_slot
+	if not SaveSlots.delete_slot(deleted_slot):
+		Notify.notify("删档失败", Notify.Position.TOP_CENTER, Notify.Style.ERROR, 2.0)
+		return
+	Notify.notify("已删除栏位 %d" % deleted_slot, Notify.Position.TOP_CENTER, Notify.Style.SUCCESS, 2.0)
 	_build_slots()
-	_select_slot(_selected_slot)
+	_select_slot(SaveSlots.active_slot)
+	slot_data_changed.emit()
 
 
 func _select_slot(slot_num: int) -> void:

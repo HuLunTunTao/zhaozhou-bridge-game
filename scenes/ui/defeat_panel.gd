@@ -16,9 +16,8 @@ func _ready() -> void:
 	layer = 90
 	_reason_label.text = defeat_reason
 	_retry_button.grab_focus()
-	# TODO: 读取存档功能
 	_load_button.disabled = true
-	_load_button.tooltip_text = "存档功能尚未实现"
+	_load_button.visible = false
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -33,7 +32,6 @@ func _on_retry_pressed() -> void:
 
 
 func _on_load_pressed() -> void:
-	# TODO: 读取存档
 	pass
 
 

@@ -1,7 +1,6 @@
 extends Node
 ## 全局章节进度。负责关卡解锁、李春技能池解锁、5技能战斗配置与测试控制。
 
-const PROGRESS_PATH := "user://progress.json"
 const MAX_EQUIPPED_SKILLS := 4
 
 const LEVEL_ORDER: Array[String] = [
@@ -134,14 +133,15 @@ var level_clear_summary: Dictionary = {}
 
 func _ready() -> void:
 	load_progress()
-	_normalize_progress()
+	normalize_and_save()
 
 
 func load_progress() -> void:
-	if not FileAccess.file_exists(PROGRESS_PATH):
+	var path := _get_progress_path()
+	if not FileAccess.file_exists(path):
 		_reset_defaults(false)
 		return
-	var file := FileAccess.open(PROGRESS_PATH, FileAccess.READ)
+	var file := FileAccess.open(path, FileAccess.READ)
 	if file == null:
 		_reset_defaults(false)
 		return
@@ -161,9 +161,13 @@ func load_progress() -> void:
 
 
 func save_progress() -> void:
-	var file := FileAccess.open(PROGRESS_PATH, FileAccess.WRITE)
+	var path := _get_progress_path()
+	if not SaveSlots.ensure_slot_dir():
+		push_error("Progress: 无法创建存档位目录")
+		return
+	var file := FileAccess.open(path, FileAccess.WRITE)
 	if file == null:
-		push_error("Progress: 无法保存到 %s" % PROGRESS_PATH)
+		push_error("Progress: 无法保存到 %s" % path)
 		return
 	file.store_string(JSON.stringify({
 		"completed_levels": completed_levels,
@@ -176,6 +180,14 @@ func save_progress() -> void:
 		"level_clear_summary": level_clear_summary,
 	}))
 	file.close()
+
+
+func normalize_and_save() -> void:
+	_normalize_progress()
+
+
+func _get_progress_path() -> String:
+	return SaveSlots.get_progress_path()
 
 
 func is_level_unlocked(level_name: String) -> bool:
