@@ -797,7 +797,7 @@ unit_color = Color(0.4, 0.8, 0.9, 1)
 [node name="ParameterMarker_坡度" parent="Markers" index="0" unique_id=1486649248 instance=ExtResource("14_marker")]
 position = Vector2(-32, 16)
 halo_color = Color(0.95, 0.72, 0.2, 0.42)
-label_text = "坡度"
+label_text = "河宽/河床/讯位"
 show_tile = false
 show_pole = false
 
