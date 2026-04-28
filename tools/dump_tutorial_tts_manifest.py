@@ -28,6 +28,13 @@ LEVEL_FILES = {
 LINE_RE = re.compile(r"_lc_line\(\s*\"((?:[^\"\\]|\\.)*)\"\s*\)")
 TAG_RE = re.compile(r"\[/?(?:b|i|u|s|center|right|left|wave|shake|rainbow|pulse|font_size|color)(?:=[^\]]*)?\]")
 
+BASE_CONTEXT_HINT = (
+    "李春是同一位温和沉稳的新手教程引导者，语气有古意但清楚口语化；"
+    "这些台词属于同一段连续教学，请自然承接上下句，不要突然兴奋、压低、夸张停顿或重置情绪；"
+    "当前是桥梁战棋教学关卡，正在指导玩家理解站位、HP、AP、CD、技能和阶段目标；"
+    "HP、AP、CD 保持英文缩写读法，不要翻译成中文术语。"
+)
+
 
 def gd_unescape(value: str) -> str:
     # These GDScript string literals only use simple escapes that Python can
@@ -37,6 +44,20 @@ def gd_unescape(value: str) -> str:
 
 def strip_bbcode(text: str) -> str:
     return TAG_RE.sub("", text).strip()
+
+
+def build_context_text(level_id: str, line_index: int, lines: list[str]) -> str:
+    previous_text = lines[line_index - 2] if line_index > 1 else "无"
+    current_text = lines[line_index - 1]
+    next_text = lines[line_index] if line_index < len(lines) else "无"
+    return (
+        f"{BASE_CONTEXT_HINT}"
+        f" 关卡：{level_id}。"
+        f" 当前为第 {line_index}/{len(lines)} 句。"
+        f" 上一句：{previous_text}"
+        f" 当前句：{current_text}"
+        f" 下一句：{next_text}"
+    )
 
 
 def read_hero_voice() -> str:
@@ -55,10 +76,9 @@ def collect_items() -> list[dict]:
     items: list[dict] = []
     for level_id, rel_path in LEVEL_FILES.items():
         text = (REPO_ROOT / rel_path).read_text("utf-8")
-        idx = 0
-        for match in LINE_RE.finditer(text):
-            idx += 1
-            display_text = gd_unescape(match.group(1)).strip()
+        display_lines = [gd_unescape(match.group(1)).strip() for match in LINE_RE.finditer(text)]
+        tts_lines = [strip_bbcode(line) for line in display_lines]
+        for idx, display_text in enumerate(display_lines, start=1):
             slug = "tutorial_%02d" % idx
             items.append(
                 {
@@ -67,8 +87,11 @@ def collect_items() -> list[dict]:
                     "voice": voice,
                     "kind": "tutorial",
                     "slug": slug,
+                    "context_group": f"{level_id}:tutorial",
+                    "line_index": idx,
                     "text": display_text,
-                    "tts_text": strip_bbcode(display_text),
+                    "tts_text": tts_lines[idx - 1],
+                    "context_texts": [build_context_text(level_id, idx, tts_lines)],
                     "output": "assets/audio/tts_tutorial/%s/%s.mp3" % (level_id, slug),
                 }
             )

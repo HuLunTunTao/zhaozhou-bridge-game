@@ -32,7 +32,7 @@ import ssl
 import sys
 import time
 import uuid
-from typing import Iterator
+from typing import Iterator, Sequence
 
 ENDPOINT = "https://openspeech.bytedance.com/api/v3/tts/unidirectional"
 DEFAULT_MANIFEST = "data/tts_fallback_manifest.json"
@@ -41,7 +41,7 @@ TIMEOUT_SEC = 30     # 单次 HTTP 总超时
 
 
 def synthesize(api_key: str, resource_id: str, user_uid: str,
-               voice: str, text: str) -> bytes:
+               voice: str, text: str, context_texts: Sequence[str] | None = None) -> bytes:
     """调火山 unidirectional HTTP TTS 端点，返回完整 MP3 字节。"""
     headers = {
         "Content-Type": "application/json",
@@ -50,13 +50,19 @@ def synthesize(api_key: str, resource_id: str, user_uid: str,
         "X-Api-Connect-Id": str(uuid.uuid4()),
         "X-Api-Request-Id": str(uuid.uuid4()),
     }
+    req_params = {
+        "text": text,
+        "speaker": voice,
+        "audio_params": {"format": "mp3"},
+    }
+    if context_texts:
+        req_params["additions"] = json.dumps(
+            {"context_texts": list(context_texts)},
+            ensure_ascii=False,
+        )
     body = {
         "user": {"uid": user_uid},
-        "req_params": {
-            "text": text,
-            "speaker": voice,
-            "audio_params": {"format": "mp3"},
-        },
+        "req_params": req_params,
     }
     try:
         return _synthesize_with_requests(headers, body)
@@ -114,6 +120,12 @@ def _synthesize_with_urllib(headers: dict, body: dict) -> bytes:
         raise RuntimeError(f"HTTP {e.code}: {detail[:200]}") from e
 
 
+def normalize_context_texts(value) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    return [item.strip() for item in value if isinstance(item, str) and item.strip()]
+
+
 def cmd_bake(args, manifest: dict, repo_root: pathlib.Path) -> int:
     api_key = os.environ.get("VOLC_TTS_API_KEY", "").strip()
     if not api_key:
@@ -141,6 +153,7 @@ def cmd_bake(args, manifest: dict, repo_root: pathlib.Path) -> int:
         slug = it.get("slug", "?")
         text = it.get("tts_text") or it.get("text", "")
         voice = it.get("voice", "")
+        context_texts = normalize_context_texts(it.get("context_texts"))
         if not text or not voice:
             print(f"[SKIP] {unit_id}/{slug} 缺 text/voice", file=sys.stderr)
             n_fail += 1
@@ -148,12 +161,13 @@ def cmd_bake(args, manifest: dict, repo_root: pathlib.Path) -> int:
 
         for attempt in range(args.retry + 1):
             try:
-                audio = synthesize(api_key, resource_id, user_uid, voice, text)
+                audio = synthesize(api_key, resource_id, user_uid, voice, text, context_texts)
                 if not audio:
                     raise RuntimeError("空音频")
                 out.write_bytes(audio)
                 size_kb = len(audio) / 1024
-                print(f"[OK]   {unit_id}/{slug}  {size_kb:.1f}KB  '{text[:18]}...'")
+                ctx_flag = "[CTX]" if context_texts else "     "
+                print(f"[OK]{ctx_flag} {unit_id}/{slug}  {size_kb:.1f}KB  '{text[:18]}...'")
                 n_ok += 1
                 break
             except Exception as e:
