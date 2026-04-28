@@ -52,10 +52,11 @@ var _dismiss_token: int = 0
 ## 当前行音频播放器（仅在有 line.audio_stream 时启用）。auto_dismiss 时长会被拉到不短于音频时长。
 var _audio_player: AudioStreamPlayer = null
 var _current_audio_length: float = 0.0
+var _current_line_can_skip: bool = true
 ## 外部 TTS 语音句柄（鸭子接口：is_streaming() -> bool, signal streaming_done）。
 ## auto_dismiss 在它结束 + 0.5s 之前不会关闭。chatter 场景由 ChatterScheduler 注入。
 var _voice_handle: Node = null
-## start() 调用时刻，用作 "open + N 秒" 类下限的参考点。
+## 当前行开始显示的时刻，用作 "line open + N 秒" 类下限的参考点。
 var _open_time: float = 0.0
 
 
@@ -102,6 +103,8 @@ func _input(event: InputEvent) -> void:
 
 	if accept:
 		get_viewport().set_input_as_handled()
+		if not _current_line_can_skip:
+			return
 		if _typing:
 			# 跳过打字机，直接显示全文
 			_skip_typewriter()
@@ -148,6 +151,8 @@ func _apply_line(line: DialogueLine) -> void:
 
 	# 配音：先停旧的，再播新的；记录时长供 auto_dismiss 用
 	_current_audio_length = 0.0
+	_current_line_can_skip = line.can_skip
+	_open_time = Time.get_ticks_msec() / 1000.0
 	if _audio_player:
 		_audio_player.stop()
 		_audio_player.stream = null
@@ -169,7 +174,7 @@ func _start_typewriter(full_text: String) -> void:
 	var total_chars := full_text.length()
 	if total_chars == 0:
 		_typing = false
-		continue_indicator.visible = not _auto_dismiss
+		continue_indicator.visible = not _should_auto_advance_current_line()
 		_schedule_auto_dismiss()
 		return
 
@@ -179,25 +184,29 @@ func _start_typewriter(full_text: String) -> void:
 
 	if _typing:  # 没有被跳过
 		_typing = false
-		continue_indicator.visible = not _auto_dismiss
+		continue_indicator.visible = not _should_auto_advance_current_line()
 		_schedule_auto_dismiss()
 
 
 func _skip_typewriter() -> void:
 	_typing = false
 	text_label.visible_ratio = 1.0
-	continue_indicator.visible = not _auto_dismiss
+	continue_indicator.visible = not _should_auto_advance_current_line()
 	# 跳过后同样触发 auto_dismiss 倒计时
 	_schedule_auto_dismiss()
 
 
-## auto_dismiss 模式下，等满三个条件再关：
+func _should_auto_advance_current_line() -> bool:
+	return _auto_dismiss or not _current_line_can_skip
+
+
+## auto_dismiss / 不可跳过行模式下，等满三个条件再关：
 ##   1. 文字打完（本函数已是文字打完后才被调用，天然满足）
 ##   2. 语音结束 + VOICE_AFTERMATH_DELAY（仅当 _voice_handle 在 streaming 时生效）
-##   3. 对话框开启时间 + _dismiss_delay
+##   3. 当前行开启时间 + _dismiss_delay
 ## 玩家在此期间手动推进则 _dismiss_token 自增，本协程静默退出。
 func _schedule_auto_dismiss() -> void:
-	if not _auto_dismiss:
+	if not _should_auto_advance_current_line():
 		return
 	var token := _dismiss_token
 

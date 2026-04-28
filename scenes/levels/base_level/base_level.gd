@@ -10,6 +10,7 @@ const LEVEL_BGM_BY_LEVEL := {
 const DEBUG_INFINITE_AP_BUDGET := 9999
 ## Base class for all battle levels.
 const _AIBrain := preload("res://scripts/combat/ai_brain.gd")
+const _LI_CHUN_PORTRAIT := preload("res://assets/face/li_chun.png")
 ## Inherited scenes should add TileMapLayers under the TileMaps node,
 ## and place unit nodes under the Entities node.
 ##
@@ -1264,6 +1265,29 @@ func play_dialogue(lines: Array[DialogueLine], auto_dismiss: bool = false, dismi
 		return
 	box.start(lines, auto_dismiss, dismiss_delay)
 	await box.dialogue_finished
+
+
+## 李春教程对话单行构造：自动带头像、左侧显示，并按当前关卡匹配预生成 TTS。
+func _lc_line(text: String, can_skip: bool = true) -> DialogueLine:
+	return DialogueLine.create(
+		"李春",
+		text,
+		_LI_CHUN_PORTRAIT,
+		"left",
+		null,
+		TutorialTtsIndex.get_audio(_tutorial_tts_level_id(), "hero_li_chun", text),
+		can_skip
+	)
+
+
+func _tutorial_tts_level_id() -> String:
+	var path := scene_file_path
+	if path.is_empty():
+		var script := get_script() as Script
+		if script != null:
+			path = script.resource_path
+	var basename := path.get_file().get_basename()
+	return basename if not basename.is_empty() else name
 
 
 ## 单行 chatter 对话的便捷入口。单位阵营决定头像左右，头像来自 PortraitResolver，自动飘过。

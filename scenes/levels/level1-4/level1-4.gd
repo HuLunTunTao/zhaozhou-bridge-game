@@ -98,7 +98,6 @@ var _side_arch_config: SideArchConfig = preload("res://data/stages/chapter1_stag
 var _wave_spawns: WaveSpawns = preload("res://data/stages/chapter1_stage4/wave_spawns.tres")
 
 # 教程引导（L1-1 同款 dialogue 流程，分三段挂在 boss 阶段切换上）。
-var _li_chun_portrait: Texture2D = preload("res://assets/face/li_chun.png")
 const TUTORIAL_ID_P1 := "level1-4_p1"
 const TUTORIAL_ID_P2 := "level1-4_p2"
 const TUTORIAL_ID_P3 := "level1-4_p3"
@@ -496,18 +495,6 @@ func _run_p3_tutorial() -> void:
 	if is_phase_ended():
 		return
 	Progress.mark_tutorial_seen(TUTORIAL_ID_P3)
-
-
-# 李春对话单行构造的小帮手：自动带头像，放左侧。仿 L1-1 同名函数。
-func _lc_line(text: String) -> DialogueLine:
-	return DialogueLine.create(
-		"李春",
-		text,
-		_li_chun_portrait,
-		"left",
-		null,
-		TutorialTtsIndex.get_audio("level1-4", "hero_li_chun", text)
-	)
 
 
 # 在 4 座小拱「2×2 区域」中心生成 TilePulsingMarker 用作状态指示。

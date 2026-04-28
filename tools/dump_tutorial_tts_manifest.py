@@ -25,7 +25,7 @@ LEVEL_FILES = {
     "level1-4": "scenes/levels/level1-4/level1-4.gd",
 }
 
-LINE_RE = re.compile(r"_lc_line\(\s*\"((?:[^\"\\]|\\.)*)\"\s*\)")
+LINE_RE = re.compile(r"_lc_line\(\s*\"((?:[^\"\\]|\\.)*)\"\s*(?:,\s*[^)]*)?\)")
 TAG_RE = re.compile(r"\[/?(?:b|i|u|s|center|right|left|wave|shake|rainbow|pulse|font_size|color)(?:=[^\]]*)?\]")
 
 BASE_CONTEXT_HINT = (

@@ -46,7 +46,6 @@ var _mud_data: UnitData = preload("res://data/units/bank_mud_wraith.tres")
 var _dark_data: UnitData = preload("res://data/units/dark_current.tres")
 
 # 教程引导（L1-1 / L1-4 同款 dialogue 流程）。
-var _li_chun_portrait: Texture2D = preload("res://assets/face/li_chun.png")
 const TUTORIAL_ID := "level1-3"
 # 教程"亲手用一次墨绳校券"的同步态。
 var _tutorial_inkline_used: bool = false
@@ -327,18 +326,6 @@ func _run_onboarding() -> void:
 func _on_tutorial_skill_executed(caster: Unit, skill: SkillData, _cast_cell: Vector2i) -> void:
 	if caster == _li_chun and skill != null and skill.skill_id == "lc_inkline_balance_arch":
 		_tutorial_inkline_used = true
-
-
-# 李春对话单行构造的小帮手：自动带头像，放左侧。仿 L1-1 / L1-4 同名函数。
-func _lc_line(text: String) -> DialogueLine:
-	return DialogueLine.create(
-		"李春",
-		text,
-		_li_chun_portrait,
-		"left",
-		null,
-		TutorialTtsIndex.get_audio("level1-3", "hero_li_chun", text)
-	)
 
 
 func _on_unit_moved() -> void:

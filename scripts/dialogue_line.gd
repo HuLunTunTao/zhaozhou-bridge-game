@@ -16,6 +16,9 @@ extends Resource
 ## 配音（AudioStream，例如 AudioStreamMP3）。dialogue_box 会在显示这一行时播放它。
 ## 留空则无配音。auto_dismiss 模式下，停留时长会被拉长到不短于音频长度。
 @export var audio_stream: AudioStream = null
+## 当前行是否允许玩家点击/按键跳过。
+## false 时会忽略玩家推进输入，并在文字/语音播放完成后自动进入下一行或关闭。
+@export var can_skip: bool = true
 
 
 ## 快捷构造函数
@@ -25,7 +28,8 @@ static func create(
 	p_portrait: Texture2D = null,
 	p_side: String = "left",
 	p_portrait_bg: Texture2D = null,
-	p_audio_stream: AudioStream = null
+	p_audio_stream: AudioStream = null,
+	p_can_skip: bool = true
 ) -> DialogueLine:
 	var line := DialogueLine.new()
 	line.speaker = p_speaker
@@ -34,4 +38,5 @@ static func create(
 	line.portrait_side = p_side
 	line.portrait_bg = p_portrait_bg
 	line.audio_stream = p_audio_stream
+	line.can_skip = p_can_skip
 	return line

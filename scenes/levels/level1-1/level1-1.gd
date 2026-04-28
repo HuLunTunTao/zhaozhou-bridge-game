@@ -17,8 +17,6 @@ var _ud_whirl_pool: UnitData = preload("res://data/units/whirl_pool.tres")
 var _ud_mud_wraith: UnitData = preload("res://data/units/bank_mud_wraith.tres")
 var _ud_drift_log: UnitData = preload("res://data/units/drift_log_pack.tres")
 
-# ── 教程引导资源 ──
-var _li_chun_portrait: Texture2D = preload("res://assets/face/li_chun.png")
 const TUTORIAL_ID := "level1-1"
 
 # ── 敌方队伍索引 ──
@@ -519,7 +517,7 @@ func _run_onboarding() -> void:
 	set_tutorial_onboarding_active(true)
 	# ── 步骤 1：欢迎 + 选中 ──
 	await play_dialogue([
-		_lc_line("接下来的引导非常重要，与我们能否打赢这场硬仗息息相关。"),
+		_lc_line("接下来的引导非常重要，我将为你介绍关卡机制和玩法，与我们能否打赢这场硬仗息息相关。", false),
 		_lc_line("赵县的洨河，我们要在这里起一座石桥。先让我看看你熟不熟悉这场仗的规矩。"),
 		_lc_line("左键点一下我，就能选中我——左键用来确认，右键或 Esc 用来取消。"),
 	])
@@ -605,15 +603,3 @@ func _run_onboarding() -> void:
 
 func _finish_onboarding() -> void:
 	set_tutorial_onboarding_active(false)
-
-
-## 李春对话单行构造的小帮手：自动带头像，放左侧。
-func _lc_line(text: String) -> DialogueLine:
-	return DialogueLine.create(
-		"李春",
-		text,
-		_li_chun_portrait,
-		"left",
-		null,
-		TutorialTtsIndex.get_audio("level1-1", "hero_li_chun", text)
-	)
