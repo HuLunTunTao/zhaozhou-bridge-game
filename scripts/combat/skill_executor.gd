@@ -1,12 +1,25 @@
 class_name SkillExecutor
 ## 技能执行流水线。验证 → 收集目标 → 结算 → 应用额外效果。
 
+const STATUS_KNOCKBACK_IMMUNE := "knockback_immune"
+
 
 class ExecuteResult:
 	var success: bool = false
 	var hit_results: Array = []
 	var targets: Array = []
 	var error: String = ""
+
+
+class DisplacementResult:
+	var from_cell: Vector2i
+	var to_cell: Vector2i
+	var immune: bool = false
+
+	func _init(p_from_cell: Vector2i, p_to_cell: Vector2i, p_immune: bool = false) -> void:
+		from_cell = p_from_cell
+		to_cell = p_to_cell
+		immune = p_immune
 
 
 static func execute(
@@ -175,9 +188,9 @@ static func _effect_knockback(caster: Unit, targets: Array, distance: int) -> vo
 		var dir := _get_direction(caster.cell, tu.cell)
 		if dir == Vector2i.ZERO:
 			continue
-		var from := tu.cell
-		var to := _force_move_cell(tu, dir, distance)
-		CombatLog.msg("  额外效果: 击退%d格 (%s 从%s→%s)" % [distance, tu.combat_stats.unit_name, from, to])
+		var move := _apply_displacement(tu, dir, distance, "击退")
+		if move.immune:
+			continue
 		# 击退时检查剖隙状态
 		_check_open_fissure(tu, caster)
 
@@ -192,11 +205,11 @@ static func _effect_knockback_with_block_bonus(caster: Unit, hit_results: Array,
 		var dir := _get_direction(caster.cell, tu.cell)
 		if dir == Vector2i.ZERO:
 			continue
-		var from := tu.cell
-		var to := _force_move_cell(tu, dir, distance)
-		CombatLog.msg("  额外效果: 击退%d格 (%s 从%s→%s)" % [distance, tu.combat_stats.unit_name, from, to])
+		var move := _apply_displacement(tu, dir, distance, "击退")
+		if move.immune:
+			continue
 		_check_open_fissure(tu, caster)
-		if to == from:
+		if move.to_cell == move.from_cell:
 			# 推不动 → 追加伤害
 			var bonus_dmg: int = roundi(hit.damage * bonus_ratio)
 			if bonus_dmg > 0:
@@ -214,11 +227,11 @@ static func _effect_knockback_with_water_bonus(caster: Unit, hit_results: Array,
 		var dir := _get_direction(caster.cell, tu.cell)
 		if dir == Vector2i.ZERO:
 			continue
-		var from := tu.cell
-		var to := _force_move_cell(tu, dir, distance)
-		CombatLog.msg("  额外效果: 击退%d格 (%s 从%s→%s)" % [distance, tu.combat_stats.unit_name, from, to])
+		var move := _apply_displacement(tu, dir, distance, "击退")
+		if move.immune:
+			continue
 		_check_open_fissure(tu, caster)
-		if tu.movement_manager and tu.movement_manager.has_method("is_water_cell") and tu.movement_manager.is_water_cell(to):
+		if tu.movement_manager and tu.movement_manager.has_method("is_water_cell") and tu.movement_manager.is_water_cell(move.to_cell):
 			var bonus_dmg: int = roundi(hit.damage * bonus_ratio)
 			if bonus_dmg > 0:
 				tu.combat_stats.current_hp = maxi(tu.combat_stats.current_hp - bonus_dmg, 0)
@@ -234,9 +247,9 @@ static func _effect_pull(caster: Unit, targets: Array, distance: int) -> void:
 		var dir := _get_direction(tu.cell, caster.cell)
 		if dir == Vector2i.ZERO:
 			continue
-		var from := tu.cell
-		var to := _force_move_cell(tu, dir, distance)
-		CombatLog.msg("  额外效果: 拖拽%d格 (%s 从%s→%s)" % [distance, tu.combat_stats.unit_name, from, to])
+		var move := _apply_displacement(tu, dir, distance, "拖拽")
+		if move.immune:
+			continue
 		_check_open_fissure(tu, caster)
 
 
@@ -250,9 +263,9 @@ static func _effect_pull_first(caster: Unit, targets: Array, distance: int) -> v
 	var dir := _get_direction(first.cell, caster.cell)
 	if dir == Vector2i.ZERO:
 		return
-	var from := first.cell
-	var to := _force_move_cell(first, dir, distance)
-	CombatLog.msg("  额外效果: 首目标拖拽%d格 (%s 从%s→%s)" % [distance, first.combat_stats.unit_name, from, to])
+	var move := _apply_displacement(first, dir, distance, "首目标拖拽", "拖拽")
+	if move.immune:
+		return
 	_check_open_fissure(first, caster)
 
 
@@ -348,6 +361,22 @@ static func _check_open_fissure(target: Unit, _attacker: Unit) -> void:
 			CombatLog.msg("  击退触发【剖隙】: %s 额外受到 %d 伤害 (施术者ATK×0.50)" % [target.combat_stats.unit_name, bonus])
 
 
+static func _has_displacement_immunity(target: Unit) -> bool:
+	if target == null or target.combat_stats == null:
+		return false
+	return target.combat_stats.has_status(STATUS_KNOCKBACK_IMMUNE)
+
+
+static func _apply_displacement(target: Unit, direction: Vector2i, distance: int, action_name: String, immune_action_name: String = "") -> DisplacementResult:
+	var move := _try_move_cell(target, direction, distance)
+	var immune_label := immune_action_name if immune_action_name != "" else action_name
+	if move.immune:
+		CombatLog.msg("  额外效果: %s 拥有【抗击退】，免疫%s%d格" % [target.combat_stats.unit_name, immune_label, distance])
+	else:
+		CombatLog.msg("  额外效果: %s%d格 (%s 从%s→%s)" % [action_name, distance, target.combat_stats.unit_name, move.from_cell, move.to_cell])
+	return move
+
+
 ## 计算从 from 到 to 的主方向（等距4方向之一）。
 static func _get_direction(from: Vector2i, to: Vector2i) -> Vector2i:
 	var diff := to - from
@@ -363,7 +392,14 @@ static func _get_direction(from: Vector2i, to: Vector2i) -> Vector2i:
 ## 强制移动单位（击退/拖拽）。返回最终位置。
 ## 简化实现：只检查目标格是否被其他单位占据，不检查地形通行性（后续可扩展）。
 static func _force_move_cell(target: Unit, direction: Vector2i, distance: int) -> Vector2i:
-	var current := target.cell
+	return _try_move_cell(target, direction, distance).to_cell
+
+
+static func _try_move_cell(target: Unit, direction: Vector2i, distance: int) -> DisplacementResult:
+	var from := target.cell
+	var current := from
+	if _has_displacement_immunity(target):
+		return DisplacementResult.new(from, from, true)
 	for i in range(distance):
 		var next := current + direction
 		# 检查地形通行性
@@ -389,7 +425,7 @@ static func _force_move_cell(target: Unit, direction: Vector2i, distance: int) -
 			tm = target.movement_manager.movement_tilemaps[0]
 		if tm:
 			target.position = tm.map_to_local(current)
-	return current
+	return DisplacementResult.new(from, current)
 
 
 # ─────────────────────────────────────────────

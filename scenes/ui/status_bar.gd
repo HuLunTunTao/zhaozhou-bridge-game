@@ -36,6 +36,7 @@ const _STATUS_NAMES: Dictionary = {
 	"slowed_step": "迟步",
 	"hindered_step": "迟滞",
 	"guarded_cover": "护持",
+	"knockback_immune": "抗击退",
 }
 
 var _current_unit: Node2D = null
@@ -307,7 +308,8 @@ func _update_buffs(stats: CombatStats) -> void:
 	var parts: Array[String] = []
 	for s in stats.statuses:
 		var sname: String = _STATUS_NAMES.get(s.status_id, s.status_id)
-		parts.append("%s(%d)" % [sname, s.remaining_turns])
+		var turns := "∞" if int(s.remaining_turns) < 0 else str(s.remaining_turns)
+		parts.append("%s(%s)" % [sname, turns])
 	_buff_label.text = " ".join(parts)
 
 

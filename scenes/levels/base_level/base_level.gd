@@ -2088,6 +2088,7 @@ const _STATUS_NAMES: Dictionary = {
 	"slowed_step": "迟步",
 	"hindered_step": "迟滞",
 	"guarded_cover": "护持",
+	"knockback_immune": "抗击退",
 }
 
 const _EXTRA_EFFECT_NAMES: Dictionary = {

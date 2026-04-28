@@ -36,6 +36,7 @@ const PHASE_HP_THRESHOLDS: Array = [0.75, 0.50]                # 进 phase 2 / p
 const PHASE2_AVAILABLE: Array = ["left_back", "right_back"]    # 1 & 4
 const PHASE3_INNER: Array = ["left_front", "right_front"]      # 2 & 3
 const PHASE3_OUTER: Array = ["left_back", "right_back"]        # 1 & 4 (= PHASE2_AVAILABLE)
+const STATUS_KNOCKBACK_IMMUNE := "knockback_immune"
 
 var _boss_phase: int = 1
 var _phase_arch_skill_used: Dictionary = {}   # arch_key → bool；_enter_phase 重置
@@ -860,6 +861,9 @@ func _boss_topple_bank() -> void:
 func _knockback_cells(target: Unit, from_cell: Vector2i, distance: int) -> void:
 	if target == null or movement_manager == null or distance <= 0:
 		return
+	if _has_knockback_immune_status(target):
+		CombatLog.msg("  击退: %s 拥有【抗击退】，免疫击退%d格" % [target.combat_stats.unit_name, distance])
+		return
 	var diff: Vector2i = target.cell - from_cell
 	if diff == Vector2i.ZERO:
 		return
@@ -908,6 +912,12 @@ func _has_guarding_status(unit: Unit) -> bool:
 		if s.status_id == "guarded_cover" or s.status_id == "steady_bridge":
 			return true
 	return false
+
+
+func _has_knockback_immune_status(unit: Unit) -> bool:
+	if unit == null or unit.combat_stats == null:
+		return false
+	return unit.combat_stats.has_status(STATUS_KNOCKBACK_IMMUNE)
 
 
 func _manhattan(a: Vector2i, b: Vector2i) -> int:
@@ -1192,6 +1202,7 @@ func _setup_enemies_from_scene() -> void:
 	# 算"打到 Boss"。运行时把这些绝对格子转成相对偏移塞进 extra_target_cells，
 	# 让 base_level 的 targeting overlay + skill_executor 的命中判定都直接复用。
 	setup_unit_stats(_boss, "怒水", 600, 24, 1, 99, Enums.Element.WATER, 2)
+	_apply_permanent_status(_boss, STATUS_KNOCKBACK_IMMUNE)
 	set_unit_skills(_boss, [_overturn_bridge])
 	_populate_boss_hit_area()
 
@@ -1207,6 +1218,20 @@ func _setup_enemies_from_scene() -> void:
 
 	setup_unit_stats(_siltmare, "泥沙魇", 105, 15, 90, 10, Enums.Element.EARTH, 2)
 	set_unit_skills(_siltmare, [_mire_steps])
+
+
+func _apply_permanent_status(unit: Unit, status_id: String) -> void:
+	if unit == null or unit.combat_stats == null:
+		return
+	for s in unit.combat_stats.statuses:
+		if s.status_id == status_id:
+			s.remaining_turns = -1
+			return
+	var si := CombatResolver.StatusInstance.new()
+	si.status_id = status_id
+	si.remaining_turns = -1
+	unit.combat_stats.statuses.append(si)
+	unit.refresh_overhead_bars()
 
 
 # 将场景预置的敌方单位搬到 _resolve_cell_hint 指定的锚点，复用 wave 系统的查格 + 占位避让。

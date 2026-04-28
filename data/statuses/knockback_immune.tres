@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="StatusData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/status_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+status_id = "knockback_immune"
+status_name = "抗击退"
+duration_turns = -1
+description = "免疫击退和拖拽。"

@@ -171,6 +171,13 @@ func is_alive() -> bool:
 # 状态生命周期
 # ─────────────────────────────────────────────
 
+func has_status(status_id: String) -> bool:
+	for s in statuses:
+		if s.status_id == status_id:
+			return true
+	return false
+
+
 ## 回合开始时触发状态效果（AP恢复修正、属性回补跳过等）。
 ## 在 reset_turn_counters() 之后调用。
 func process_turn_start() -> void:
@@ -256,6 +263,9 @@ func _tick_statuses() -> void:
 	var i := statuses.size() - 1
 	while i >= 0:
 		var s = statuses[i]
+		if s.remaining_turns < 0:
+			i -= 1
+			continue
 		s.remaining_turns -= 1
 		if s.remaining_turns <= 0 or (s.trigger_once and s.triggered):
 			statuses.remove_at(i)
