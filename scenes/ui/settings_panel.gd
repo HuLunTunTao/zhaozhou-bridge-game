@@ -185,7 +185,7 @@ func _on_settings_title_gui_input(event: InputEvent) -> void:
 	_title_tap_count += 1
 	_title_tap_reset_timer = get_tree().create_timer(1.2)
 	_title_tap_reset_timer.timeout.connect(func(): _title_tap_count = 0, CONNECT_ONE_SHOT)
-	if _title_tap_count < 7:
+	if _title_tap_count < 20:
 		return
 	_title_tap_count = 0
 	Settings.set_debug_mode(not Settings.debug_mode)
