@@ -262,11 +262,12 @@ func _on_phase_changed_for_onboarding(p: int) -> void:
 #   ⑤ 命中确认 + 拱冠合龙 + 失败条件
 func _run_onboarding() -> void:
 	if Progress.has_seen_tutorial(TUTORIAL_ID):
-		Notify.notify(
-			"运石工取送石 +1 / 李春「墨绳校券」远程 +1（CD 2）；两侧 10 + 击败偏载傀 → 紫色拱冠点合龙",
-			Notify.Position.TOP_CENTER, Notify.Style.INFO, 6.0,
-		)
-		return
+		if not await _ask_tutorial_replay():
+			Notify.notify(
+				"运石工取送石 +1 / 李春「墨绳校券」远程 +1（CD 2）；两侧 10 + 击败偏载傀 → 紫色拱冠点合龙",
+				Notify.Position.TOP_CENTER, Notify.Style.INFO, 6.0,
+			)
+			return
 	await get_tree().create_timer(0.4).timeout
 	if is_phase_ended():
 		return
