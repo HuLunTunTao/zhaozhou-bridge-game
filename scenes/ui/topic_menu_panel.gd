@@ -43,6 +43,20 @@ func show_for(speaker_name: String, topics: Array) -> void:
 		_topic_list.add_child(btn)
 
 
+# 通用 yes/no 选择面板（教程复玩询问等场景）。
+# title 整段写死、不再走"向 X 请教什么？"前缀；隐藏自由提问按钮；
+# 取消按钮与 ESC 沿用既有的 emit "" 语义——caller 用 == yes_label 即可把"取消"自然归为 no。
+func show_yes_no(title: String, yes_label: String, no_label: String) -> void:
+	_title.text = title
+	_free_btn.visible = false
+	for label in [yes_label, no_label]:
+		var btn: Button = _topic_template.duplicate() as Button
+		btn.text = label
+		btn.visible = true
+		btn.pressed.connect(func(): _emit_and_close(label))
+		_topic_list.add_child(btn)
+
+
 func _emit_and_close(text: String) -> void:
 	topic_picked.emit(text)
 	queue_free()

@@ -785,6 +785,30 @@ move_limit = 1
 skill_limit = 1
 metadata/_custom_type_script = "uid://c2077ybi0615r"
 
+[sub_resource type="Resource" id="Resource_craftsman_4"]
+script = ExtResource("14_unit_data")
+unit_id = "craftsman_guard"
+unit_name = "工匠"
+max_hp = 120
+base_atk = 20
+ap_max = 95
+move_cost_per_tile = 9
+move_limit = 1
+skill_limit = 1
+metadata/_custom_type_script = "uid://c2077ybi0615r"
+
+[sub_resource type="Resource" id="Resource_craftsman_5"]
+script = ExtResource("14_unit_data")
+unit_id = "craftsman_guard"
+unit_name = "工匠"
+max_hp = 120
+base_atk = 20
+ap_max = 95
+move_cost_per_tile = 9
+move_limit = 1
+skill_limit = 1
+metadata/_custom_type_script = "uid://c2077ybi0615r"
+
 [sub_resource type="Resource" id="Resource_carrier_1"]
 script = ExtResource("14_unit_data")
 unit_id = "survey_worker"
@@ -980,51 +1004,63 @@ visual_scene = ExtResource("15_li_chun_vis")
 unit_color = Color(1, 0.85, 0, 1)
 
 [node name="Craftsman1" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="1" unique_id=1786106266 instance=ExtResource("3_player")]
-position = Vector2(-48, -40)
+position = Vector2(-32, -17)
 unit_data = SubResource("Resource_craftsman_1")
 visual_scene = ExtResource("16_craft_vis")
 unit_color = Color(0.4, 0.8, 0.9, 1)
 
 [node name="Craftsman2" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="2" unique_id=1786106267 instance=ExtResource("3_player")]
-position = Vector2(80, 24)
+position = Vector2(32, -17)
 unit_data = SubResource("Resource_craftsman_2")
 visual_scene = ExtResource("16_craft_vis")
 unit_color = Color(0.4, 0.8, 0.9, 1)
 
 [node name="Craftsman3" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="3" unique_id=1786106268 instance=ExtResource("3_player")]
-position = Vector2(-16, 8)
+position = Vector2(-48, 23)
 unit_data = SubResource("Resource_craftsman_3")
 visual_scene = ExtResource("16_craft_vis")
 unit_color = Color(0.4, 0.8, 0.9, 1)
 
-[node name="StoneCarrier1" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="4" unique_id=1786106269 instance=ExtResource("3_player")]
-position = Vector2(-512, 0)
+[node name="Craftsman4" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="4" unique_id=1786106275 instance=ExtResource("3_player")]
+position = Vector2(48, 23)
+unit_data = SubResource("Resource_craftsman_4")
+visual_scene = ExtResource("16_craft_vis")
+unit_color = Color(0.4, 0.8, 0.9, 1)
+
+[node name="Craftsman5" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="5" unique_id=1786106276 instance=ExtResource("3_player")]
+position = Vector2(0, 47)
+unit_data = SubResource("Resource_craftsman_5")
+visual_scene = ExtResource("16_craft_vis")
+unit_color = Color(0.4, 0.8, 0.9, 1)
+
+[node name="StoneCarrier1" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="6" unique_id=1786106269 instance=ExtResource("3_player")]
+position = Vector2(-80, -9)
 unit_data = SubResource("Resource_carrier_1")
 visual_scene = ExtResource("17_carrier_vis")
 unit_color = Color(0.3, 0.9, 0.5, 1)
 
-[node name="StoneCarrier2" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="5" unique_id=1786106270 instance=ExtResource("3_player")]
-position = Vector2(448, 0)
+[node name="StoneCarrier2" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="7" unique_id=1786106270 instance=ExtResource("3_player")]
+position = Vector2(80, -9)
 unit_data = SubResource("Resource_carrier_2")
 visual_scene = ExtResource("17_carrier_vis")
 unit_color = Color(0.3, 0.9, 0.5, 1)
 
-[node name="Boss" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="6" unique_id=1786106271 instance=ExtResource("3_player")]
+[node name="Boss" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="8" unique_id=1786106271 instance=ExtResource("3_player")]
 position = Vector2(-6, -164)
 unit_data = SubResource("Resource_boss")
 visual_scene = ExtResource("18_boss_vis")
 
-[node name="FloodSpear1" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="7" unique_id=1786106272 instance=ExtResource("3_player")]
+[node name="FloodSpear1" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="9" unique_id=1786106272 instance=ExtResource("3_player")]
 position = Vector2(32, -16)
 unit_data = SubResource("Resource_flood_spear_1")
 visual_scene = ExtResource("19_spear_vis")
 
-[node name="FloodSpear2" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="8" unique_id=1786106273 instance=ExtResource("3_player")]
+[node name="FloodSpear2" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="10" unique_id=1786106273 instance=ExtResource("3_player")]
 position = Vector2(96, 32)
 unit_data = SubResource("Resource_flood_spear_2")
 visual_scene = ExtResource("19_spear_vis")
 
-[node name="Siltmare" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="9" unique_id=1786106274 instance=ExtResource("3_player")]
+[node name="Siltmare" parent="Entities/Units" parent_id_path=PackedInt32Array(436779837) index="11" unique_id=1786106274 instance=ExtResource("3_player")]
 position = Vector2(-400, -24)
 unit_data = SubResource("Resource_siltmare")
 visual_scene = ExtResource("20_silt_vis")

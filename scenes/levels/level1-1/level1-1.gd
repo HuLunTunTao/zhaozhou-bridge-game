@@ -235,9 +235,10 @@ func _on_phase_changed_for_onboarding(p: int) -> void:
 	if p != LevelPhase.PLAYING:
 		return
 	if Progress.has_seen_tutorial(TUTORIAL_ID):
-		Notify.notify("任务目标一：派测量工前往 3 个勘测点施放「踏勘量址」。", Notify.Position.TOP_CENTER, Notify.Style.INFO, 4.0)
-	else:
-		_run_onboarding()
+		if not await _ask_tutorial_replay():
+			Notify.notify("任务目标一：派测量工前往 3 个勘测点施放「踏勘量址」。", Notify.Position.TOP_CENTER, Notify.Style.INFO, 4.0)
+			return
+	_run_onboarding()
 
 
 func _setup_survey_points() -> void:

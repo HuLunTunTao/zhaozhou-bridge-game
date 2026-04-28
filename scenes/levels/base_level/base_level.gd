@@ -200,6 +200,28 @@ func _close_overlay(kind: ActiveOverlay) -> void:
 	overlay_closed.emit(kind)
 
 
+## 复玩问询：已看过教程的玩家进关时弹 yes/no 菜单，问要不要再听李春讲解一遍。
+## TopicMenuPanel 的 topic_picked 信号带 String 参，无法走 _open_overlay 的默认通道，
+## 这里手动管 _active_overlay 状态，复刻一份互斥语义。
+func _ask_tutorial_replay() -> bool:
+	if _active_overlay != ActiveOverlay.NONE:
+		return false
+	var menu_scene: PackedScene = preload("res://scenes/ui/topic_menu_panel.tscn")
+	var menu := menu_scene.instantiate() as TopicMenuPanel
+	_active_overlay = ActiveOverlay.TUTORIAL_PANEL
+	overlay_opened.emit(ActiveOverlay.TUTORIAL_PANEL)
+	add_child(menu)
+	menu.show_yes_no(
+		"上次已经听过李春讲解，是否再听一遍？",
+		"再听一遍",
+		"跳过，直接开打",
+	)
+	var pick: String = await menu.topic_picked
+	_active_overlay = ActiveOverlay.NONE
+	overlay_closed.emit(ActiveOverlay.TUTORIAL_PANEL)
+	return pick == "再听一遍"
+
+
 func _set_phase(p: LevelPhase) -> void:
 	if _level_phase == p:
 		return

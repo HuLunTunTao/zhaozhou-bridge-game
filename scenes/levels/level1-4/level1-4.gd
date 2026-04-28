@@ -106,6 +106,10 @@ const TUTORIAL_ID_P3 := "level1-4_p3"
 # _on_p1_tutorial_skill_executed 翻成 true，主协程 await 它跳出循环。
 var _p1_tutorial_hit_boss: bool = false
 
+# 复玩进关时玩家的"是否再听一遍"选择，进 P1 时设定一次，被 P2/P3 沿用。
+# 默认 true：首次进关（任意 phase 教程未看过）一切照旧；只有玩家在 P1 主动选"跳过"才会变 false。
+var _wants_tutorial_replay: bool = true
+
 # 特殊地格容器（运行时 register_special_tile）
 const SmallArchTileClass := preload("res://scenes/levels/level1-4/small_arch_tile.gd")
 const SiltTileClass := preload("res://scenes/levels/level1-4/silt_tile.gd")
@@ -129,6 +133,8 @@ func get_teams_config() -> Array:
 		$"Entities/Units/Craftsman1" as Unit,
 		$"Entities/Units/Craftsman2" as Unit,
 		$"Entities/Units/Craftsman3" as Unit,
+		$"Entities/Units/Craftsman4" as Unit,
+		$"Entities/Units/Craftsman5" as Unit,
 	]
 	_stone_carriers = [
 		$"Entities/Units/StoneCarrier1" as Unit,
@@ -386,9 +392,11 @@ func _on_phase_changed_for_onboarding(new_phase: int) -> void:
 
 func _run_p1_tutorial() -> void:
 	if Progress.has_seen_tutorial(TUTORIAL_ID_P1):
-		# 复玩仅给一条简短 Notify 提示玩法重点
-		Notify.notify("整桥稳定 100 归零即败；多打怒水/小怪可回血；工匠「捍作护行」豁免拍面", Notify.Position.TOP_CENTER, Notify.Style.INFO, 5.0)
-		return
+		_wants_tutorial_replay = await _ask_tutorial_replay()
+		if not _wants_tutorial_replay:
+			# 复玩跳过时给一条简短 Notify 提示玩法重点
+			Notify.notify("整桥稳定 100 归零即败；多打怒水/小怪可回血；工匠「捍作护行」豁免拍面", Notify.Position.TOP_CENTER, Notify.Style.INFO, 5.0)
+			return
 	await get_tree().create_timer(0.4).timeout
 	if is_phase_ended():
 		return
@@ -452,7 +460,7 @@ func _on_p1_tutorial_skill_executed(caster: Unit, _skill: SkillData, cast_cell: 
 
 
 func _run_p2_tutorial() -> void:
-	if Progress.has_seen_tutorial(TUTORIAL_ID_P2):
+	if Progress.has_seen_tutorial(TUTORIAL_ID_P2) and not _wants_tutorial_replay:
 		return
 	# 等阶段提示框关闭后再插入对话，避免抢焦点
 	await get_tree().create_timer(0.3).timeout
@@ -470,7 +478,7 @@ func _run_p2_tutorial() -> void:
 
 
 func _run_p3_tutorial() -> void:
-	if Progress.has_seen_tutorial(TUTORIAL_ID_P3):
+	if Progress.has_seen_tutorial(TUTORIAL_ID_P3) and not _wants_tutorial_replay:
 		return
 	await get_tree().create_timer(0.3).timeout
 	if is_phase_ended():
@@ -1180,14 +1188,27 @@ func _setup_enemies_from_scene() -> void:
 	set_unit_skills(_boss, [_overturn_bridge])
 	_populate_boss_hit_area()
 
-	setup_unit_stats(_flood_spear_1, "洪锋", 98, 24, 90, 10, Enums.Element.WATER, 2)
+	setup_unit_stats(_flood_spear_1, "洪锋", 70, 21, 90, 10, Enums.Element.WATER, 2)
 	set_unit_skills(_flood_spear_1, [_torrent_ram])
 
-	setup_unit_stats(_flood_spear_2, "洪锋", 98, 24, 90, 10, Enums.Element.WATER, 2)
+	setup_unit_stats(_flood_spear_2, "洪锋", 70, 21, 90, 10, Enums.Element.WATER, 2)
 	set_unit_skills(_flood_spear_2, [_torrent_ram])
 
-	setup_unit_stats(_siltmare, "泥沙魇", 84, 18, 90, 10, Enums.Element.EARTH, 2)
+	# 与 wave 系统保持一致：开局两只洪锋也从地图东西两端登场，而不是 .tscn 里的预置点。
+	_relocate_unit_to_edge(_flood_spear_1, "map_west_edge")
+	_relocate_unit_to_edge(_flood_spear_2, "map_east_edge")
+
+	setup_unit_stats(_siltmare, "泥沙魇", 105, 15, 90, 10, Enums.Element.EARTH, 2)
 	set_unit_skills(_siltmare, [_mire_steps])
+
+
+# 将场景预置的敌方单位搬到 _resolve_cell_hint 指定的锚点，复用 wave 系统的查格 + 占位避让。
+func _relocate_unit_to_edge(unit: Unit, hint: String) -> void:
+	if unit == null or tilemap == null:
+		return
+	var target := _resolve_cell_hint(hint)
+	var cell := _find_empty_walkable_cell(target)
+	unit.set_cell(cell, tilemap)
 
 
 # 把 boss_hit_area_tilemap 上画好的绝对格子转成相对 _boss.cell 的偏移，写进
