@@ -23,6 +23,7 @@
 [ext_resource type="PackedScene" uid="uid://7puc72kt0m1q" path="res://scenes/unit/visual/human/游学书生/游学书生_visual.tscn" id="20_156tw"]
 [ext_resource type="PackedScene" uid="uid://b6w2s7jcnjreo" path="res://scenes/unit/visual/human/渔夫/渔夫_visual.tscn" id="21_xue6b"]
 [ext_resource type="PackedScene" uid="uid://06cpxiftg72" path="res://scenes/unit/visual/human/老监工/老监工_visual.tscn" id="22_nvjta"]
+[ext_resource type="PackedScene" uid="uid://csh2aaob15upx" path="res://scenes/unit/visual/monster/守法匠首/守法匠首_visual.tscn" id="23_8iyre"]
 [ext_resource type="PackedScene" uid="uid://cbbltju52gq8r" path="res://scenes/unit/visual/human/石匠/石匠_visual.tscn" id="23_bs53k"]
 [ext_resource type="Script" uid="uid://ckcgeq5qlukx6" path="res://scenes/levels/base_level/move_overlay.gd" id="24_rr4al"]
 [ext_resource type="Script" path="res://scenes/levels/base_level/hover_overlay.gd" id="25_778ek"]
@@ -865,7 +866,7 @@ unit_color = Color(1, 0.85, 0, 1)
 [node name="NpcOldMaster" parent="Entities/Units" unique_id=161741424 instance=ExtResource("13_w1vbv")]
 position = Vector2(145, 25)
 unit_data = ExtResource("17_86kac")
-visual_scene = ExtResource("18_7kr6p")
+visual_scene = ExtResource("23_8iyre")
 unit_color = Color(0.55, 0.4, 0.3, 1)
 
 [node name="NpcRiverChief" parent="Entities/Units" unique_id=667147196 instance=ExtResource("13_w1vbv")]
