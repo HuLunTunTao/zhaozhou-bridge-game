@@ -25,6 +25,54 @@ godot --editor --path /path/to/Godot-game
 
 The main scene is `scenes/menu/main_menu.tscn`.
 
+## Development Workflow
+
+Before editing, run `git status --short` and preserve any unrelated user changes. Do not revert files you did not intentionally touch.
+
+### Validation
+
+Use the project Godot binary for script/load validation:
+
+```bash
+/Applications/Godot/Godot_v4.6.1.app/Contents/MacOS/Godot --headless --path . --quit
+```
+
+Known benign output: the command may report `ObjectDB instances leaked at exit` / `resources still in use at exit`. Treat it as pass if there are no script parse errors, load failures, or runtime errors before shutdown.
+
+Also run:
+
+```bash
+git diff --check
+```
+
+For level-mechanic UI work, verify every state mutation refreshes the UI. Example:
+
+```bash
+rg -n "_overall_stability\\s*(=|-=|\\+=)|_update_status_panel\\(" scenes/levels/level1-4/level1-4.gd
+```
+
+### Tutorial TTS Workflow
+
+Tutorial TTS is generated from `_lc_line("...")` calls by `tools/dump_tutorial_tts_manifest.py`. Do not manually edit `data/tutorial_tts_manifest.json` for dialogue changes.
+
+When tutorial dialogue changes:
+
+1. Update the `_lc_line` text in the level script.
+2. Regenerate the manifest:
+   ```bash
+   python3 tools/dump_tutorial_tts_manifest.py
+   ```
+3. Re-bake only the changed tutorial MP3s when possible. `tools/generate_tts_fallbacks.py` expects `VOLC_TTS_API_KEY`; use the game-configured key from `scripts/config/api_config.gd` rather than asking the user for a separate key.
+4. Check all manifest outputs exist:
+   ```bash
+   python3 tools/generate_tts_fallbacks.py check --manifest data/tutorial_tts_manifest.json
+   ```
+
+Notes:
+- `assets/audio/tts_tutorial/**/*.mp3` may be gitignored but still required locally for runtime playback.
+- If only non-dialogue UI text changes, do not regenerate tutorial TTS.
+- If Python TTS baking fails because of local certificate issues, prefer the same Volcengine endpoint/key via `curl -L`; do not commit temp request files containing the key.
+
 ## Architecture
 
 ### Autoloads (`project.godot`)
