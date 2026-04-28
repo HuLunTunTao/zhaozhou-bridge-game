@@ -1186,8 +1186,21 @@ func _setup_enemies_from_scene() -> void:
 	setup_unit_stats(_flood_spear_2, "洪锋", 98, 24, 90, 10, Enums.Element.WATER, 2)
 	set_unit_skills(_flood_spear_2, [_torrent_ram])
 
+	# 与 wave 系统保持一致：开局两只洪锋也从地图东西两端登场，而不是 .tscn 里的预置点。
+	_relocate_unit_to_edge(_flood_spear_1, "map_west_edge")
+	_relocate_unit_to_edge(_flood_spear_2, "map_east_edge")
+
 	setup_unit_stats(_siltmare, "泥沙魇", 84, 18, 90, 10, Enums.Element.EARTH, 2)
 	set_unit_skills(_siltmare, [_mire_steps])
+
+
+# 将场景预置的敌方单位搬到 _resolve_cell_hint 指定的锚点，复用 wave 系统的查格 + 占位避让。
+func _relocate_unit_to_edge(unit: Unit, hint: String) -> void:
+	if unit == null or tilemap == null:
+		return
+	var target := _resolve_cell_hint(hint)
+	var cell := _find_empty_walkable_cell(target)
+	unit.set_cell(cell, tilemap)
 
 
 # 把 boss_hit_area_tilemap 上画好的绝对格子转成相对 _boss.cell 的偏移，写进
