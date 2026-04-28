@@ -540,7 +540,7 @@ func _run_onboarding() -> void:
 	# ── 步骤 3：AP + 技能 ──
 	await play_dialogue([
 		_lc_line("走路花的是 AP，剩下的 AP 还能放技能。点状态栏右边的技能图标，再左键点想施放的位置。"),
-		_lc_line("技能不只能打人。先挑一块空地放一下感受感受——瞄错了就按右键或 Esc 取消。"),
+		_lc_line("技能不只能进攻。先挑一块空地放一下感受感受——瞄错了就按右键或 Esc 取消。"),
 		_lc_line("熟了之后，再朝敌人所在的格子来一下，看看命中后会发生什么。"),
 	])
 	if is_phase_ended(): return

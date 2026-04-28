@@ -203,11 +203,11 @@ func get_objectives_text() -> Dictionary:
 			"- 左券值达到 10（当前 %d/10）" % _left_arch_value,
 			"- 右券值达到 10（当前 %d/10）" % _right_arch_value,
 			"- 左右差值保持 ≤1（当前 %d）" % gap,
-			"- 击败偏载傀（%s）" % ("已击败" if not boss_alive else "存活"),
+			"- 击退偏载傀（%s）" % ("已击退" if not boss_alive else "仍在场"),
 			"- 上述三项满足后，李春用「墨绳校券」命中桥中央[color=#c060f0]紫色拱冠点[/color]完成合龙（%s）" % ("已完成" if _arch_closed else "未完成"),
 		],
 		"defeat": [
-			"- 李春倒下",
+			"- 李春失去行动能力",
 			"- 桥体稳定值归零（当前 %d/6）" % _bridge_stability,
 			"- 超过第 50 回合（当前第 %d 回合）" % round_number,
 		],
@@ -220,7 +220,7 @@ func check_victory() -> bool:
 
 func check_defeat() -> String:
 	if _li_chun == null or _li_chun.combat_stats == null or not _li_chun.combat_stats.is_alive():
-		return "李春倒下"
+		return "李春失去行动能力"
 	if _bridge_stability <= 0:
 		return "桥体稳定值耗尽"
 	if round_number > 50:
@@ -264,7 +264,7 @@ func _run_onboarding() -> void:
 	if Progress.has_seen_tutorial(TUTORIAL_ID):
 		if not await _ask_tutorial_replay():
 			Notify.notify(
-				"运石工取送石 +1 / 李春「墨绳校券」远程 +1（CD 2）；两侧 10 + 击败偏载傀 → 紫色拱冠点合龙",
+				"运石工取送石 +1 / 李春「墨绳校券」远程 +1（CD 2）；两侧 10 + 击退偏载傀 → 紫色拱冠点合龙",
 				Notify.Position.TOP_CENTER, Notify.Style.INFO, 6.0,
 			)
 			return
@@ -273,8 +273,8 @@ func _run_onboarding() -> void:
 		return
 	# ── ① 战场目标 ──
 	await play_dialogue([
-		_lc_line("二十八券要在这里成形——这一关不是击败全场，而是把桥『券』够。"),
-		_lc_line("左上券值面板看着：左、右两侧各要凑到 [b]10[/b]，差值要 [b]≤1[/b]，再把『偏载傀』那只大家伙打掉。"),
+		_lc_line("二十八券要在这里成形——这一关不是清空全场，而是把桥『券』够。"),
+		_lc_line("左上券值面板看着：左、右两侧各要凑到 [b]10[/b]，差值要 [b]≤1[/b]，再把『偏载傀』这个偏载威胁击退。"),
 		_lc_line("条件全满之后，桥中央会亮起[color=#c060f0]紫色拱冠点[/color]——我用『墨绳校券』点上去就算合龙。"),
 	])
 	if is_phase_ended():
@@ -289,8 +289,8 @@ func _run_onboarding() -> void:
 		return
 	# ── ③ 平衡机制 + boss ──
 	await play_dialogue([
-		_lc_line("讲到失衡：左右券值差是关卡的命脉。差 0 → [color=#7aff8c]均衡[/color]，正常打偏载傀；差 ≥2 → [color=#ffc855]偏衡[/color]，它每次最多挨 10 伤；差 ≥4 → [color=#ff5555]失衡[/color]，几乎免伤，每个敌方回合末桥体还 -1。"),
-		_lc_line("所以打偏载傀的窗口只在『均衡』。一边赶券、一边别让差值拉开是这关的核心。"),
+		_lc_line("讲到失衡：左右券值差是关卡的命脉。差 0 → [color=#7aff8c]均衡[/color]，正常压制偏载傀；差 ≥2 → [color=#ffc855]偏衡[/color]，它每次最多承受 10 点伤害；差 ≥4 → [color=#ff5555]失衡[/color]，几乎免伤，每个敌方回合末桥体还 -1。"),
+		_lc_line("所以压制偏载傀的窗口只在『均衡』。一边赶券、一边别让差值拉开是这关的核心。"),
 		_lc_line("整桥稳定值 6，归零即败。再加上 50 回合时限——别拖。"),
 	])
 	if is_phase_ended():
@@ -317,8 +317,8 @@ func _run_onboarding() -> void:
 		skill_executed.disconnect(_on_tutorial_skill_executed)
 	# ── ⑤ 收尾确认 ──
 	await play_dialogue([
-		_lc_line("看到了吧——命中侧 +1，对侧 -1。等之后两边都到 10、差值 ≤1、boss 倒了，紫色拱冠点会亮起，再来这一招就合龙。"),
-		_lc_line("剩下的就交给你了——把券推满、把那只大家伙拉到均衡里打死、最后一击我来。"),
+		_lc_line("看到了吧——命中侧 +1，对侧 -1。等之后两边都到 10、差值 ≤1、偏载傀被击退，紫色拱冠点会亮起，再来这一招就合龙。"),
+		_lc_line("剩下的就交给你了——把券推满、把偏载傀引入均衡状态并击退，最后合龙由我来。"),
 	])
 	if is_phase_ended():
 		return
@@ -406,7 +406,7 @@ func _on_skill_executed(caster: Unit, skill: SkillData, cast_cell: Vector2i, exe
 			var extra := maxi(int(base_damage * 0.15), 1)
 			target.combat_stats.current_hp = maxi(target.combat_stats.current_hp - extra, 0)
 			target.refresh_overhead_bars()
-			Notify.notify("裂石兽袭石（+%d HP）" % extra, Notify.Position.TOP_RIGHT, Notify.Style.WARNING, 1.5)
+			Notify.notify("裂石兽袭石（追加 %d 点伤害）" % extra, Notify.Position.TOP_RIGHT, Notify.Style.WARNING, 1.5)
 		# 断索鬼「断索」：命中携石运石工则直接卸货
 		elif caster_name == "断索鬼":
 			_carrying_stone[key] = false
@@ -433,7 +433,7 @@ func _on_stage_hp_changed(unit: Unit, old_hp: int, new_hp: int) -> void:
 	if damage > cap:
 		unit.combat_stats.current_hp = old_hp - cap
 		unit.refresh_overhead_bars()
-	# Boss HP 变化（含被打死）→ 重新评估拱冠是否激活
+	# Boss HP 变化（含被击退）→ 重新评估拱冠是否激活
 	_update_crown_visibility()
 
 
@@ -504,7 +504,7 @@ func _setup_crown_marker() -> void:
 
 
 ## 检查拱冠激活条件并切换可见性 + 首次激活弹通知。
-## 条件：Boss 死亡 + 左右券值都 ≥10 + gap≤1 + 尚未合龙。
+## 条件：Boss 被击退 + 左右券值都 ≥10 + gap≤1 + 尚未合龙。
 ## 任意券值变动 / Boss HP 变动后调用一次即可。
 func _update_crown_visibility() -> void:
 	if _arch_closed:
@@ -632,7 +632,7 @@ func _is_boss_alive() -> bool:
 func _close_arch_failure_reason() -> String:
 	var reasons: Array[String] = []
 	if _is_boss_alive():
-		reasons.append("偏载傀未击败（HP %d）" % _boss.combat_stats.current_hp)
+		reasons.append("偏载傀尚未被击退（HP %d）" % _boss.combat_stats.current_hp)
 	if _left_arch_value < 10 or _right_arch_value < 10:
 		reasons.append("券值不足（左 %d/10，右 %d/10）" % [_left_arch_value, _right_arch_value])
 	if _arch_gap() > 1:
