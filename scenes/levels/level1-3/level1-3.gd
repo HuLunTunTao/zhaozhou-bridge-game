@@ -11,11 +11,11 @@ var _boss: Unit
 
 var _left_arch_value := 2
 var _right_arch_value := 2
-var _bridge_stability := 6
 var _arch_closed := false
 var _pending_enemy_resolution := false
 var _carrying_stone: Dictionary = {}
 var _carrier_base_move_cost: Dictionary = {}
+const STATUS_CARRYING_STONE := "carrying_stone"
 # ── UI 常驻状态面板（左上角）──
 var _status_panel: RichTextLabel = null
 # 上一次结算时的平衡状态（"均衡" / "偏衡" / "失衡"），用于检测状态切换
@@ -208,7 +208,6 @@ func get_objectives_text() -> Dictionary:
 		],
 		"defeat": [
 			"- 李春失去行动能力",
-			"- 桥体稳定值归零（当前 %d/6）" % _bridge_stability,
 			"- 超过第 50 回合（当前第 %d 回合）" % round_number,
 		],
 	}
@@ -221,8 +220,6 @@ func check_victory() -> bool:
 func check_defeat() -> String:
 	if _li_chun == null or _li_chun.combat_stats == null or not _li_chun.combat_stats.is_alive():
 		return "李春失去行动能力"
-	if _bridge_stability <= 0:
-		return "桥体稳定值耗尽"
 	if round_number > 50:
 		return "超过第 50 回合"
 	return ""
@@ -289,9 +286,9 @@ func _run_onboarding() -> void:
 		return
 	# ── ③ 平衡机制 + boss ──
 	await play_dialogue([
-		_lc_line("讲到失衡：左右券值差是关卡的命脉。差 0 → [color=#7aff8c]均衡[/color]，正常压制偏载傀；差 ≥2 → [color=#ffc855]偏衡[/color]，它每次最多承受 10 点伤害；差 ≥4 → [color=#ff5555]失衡[/color]，几乎免伤，每个敌方回合末桥体还 -1。"),
+		_lc_line("讲到失衡：左右券值差是关卡的命脉。差 0 → [color=#7aff8c]均衡[/color]，正常压制偏载傀；差 ≥2 → [color=#ffc855]偏衡[/color]，它每次最多承受 10 点伤害；差 ≥4 → [color=#ff5555]失衡[/color]，几乎免伤。"),
 		_lc_line("所以压制偏载傀的窗口只在『均衡』。一边赶券、一边别让差值拉开是这关的核心。"),
-		_lc_line("整桥稳定值 6，归零即败。再加上 50 回合时限——别拖。"),
+		_lc_line("再加上 50 回合时限——别拖。"),
 	])
 	if is_phase_ended():
 		return
@@ -421,7 +418,6 @@ func _on_skill_executed(caster: Unit, skill: SkillData, cast_cell: Vector2i, exe
 		elif caster_name == "断索鬼":
 			_carrying_stone[key] = false
 			_set_carrier_loaded(target, false)
-			target.refresh_overhead_bars()
 			Notify.notify("%s 被断索鬼夺下石料" % target.combat_stats.unit_name, Notify.Position.TOP_RIGHT, Notify.Style.ERROR, 2.0)
 
 
@@ -626,7 +622,6 @@ func _try_pick_or_deliver_stone(unit: Unit) -> void:
 	if _is_in_any_zone(unit.cell, _stone_yard_cells) and not _carrying_stone.get(key, false):
 		_carrying_stone[key] = true
 		_set_carrier_loaded(unit, true)
-		unit.refresh_overhead_bars()
 		Notify.notify("%s 已取石" % unit.combat_stats.unit_name, Notify.Position.TOP_RIGHT, Notify.Style.INFO, 1.5)
 		return
 	if not _carrying_stone.get(key, false):
@@ -636,12 +631,10 @@ func _try_pick_or_deliver_stone(unit: Unit) -> void:
 		_adjust_arch_value(true, 3, "%s 运石入左券" % unit.combat_stats.unit_name)
 		_carrying_stone[key] = false
 		_set_carrier_loaded(unit, false)
-		unit.refresh_overhead_bars()
 	elif _is_in_zone(unit.cell, _right_platform):
 		_adjust_arch_value(false, 3, "%s 运石入右券" % unit.combat_stats.unit_name)
 		_carrying_stone[key] = false
 		_set_carrier_loaded(unit, false)
-		unit.refresh_overhead_bars()
 
 
 func _close_arch_conditions_met() -> bool:
@@ -782,24 +775,7 @@ func _resolve_enemy_pressure() -> void:
 		elif _is_adjacent_or_same(enemy.cell, _right_platform):
 			_adjust_arch_value(false, -1, "错券兵扰券（右）")
 
-	# 2. 失衡扣桥体稳定
-	if _arch_gap() >= 4:
-		_bridge_stability -= 1
-		Notify.notify("左右失衡！桥体稳定值 -1", Notify.Position.TOP_CENTER, Notify.Style.WARNING, 2.0)
-
-	# 3. 脱缝鬼在缝口位扣稳定
-	for enemy in teams[ENEMY_TEAM].units:
-		if not (enemy is Unit):
-			continue
-		if enemy.combat_stats == null or not enemy.combat_stats.is_alive():
-			continue
-		if enemy.combat_stats.unit_name != "脱缝鬼":
-			continue
-		if enemy.cell in _joint_cells:
-			_bridge_stability -= 1
-			Notify.notify("脱缝鬼侵蚀缝口，桥体稳定值 -1", Notify.Position.TOP_CENTER, Notify.Style.WARNING, 2.0)
-
-	# 4. 偏载傀「压台」——以 Boss 为中心 12×12 范围（切比雪夫半径 6）内，按距离最近选至多 2 个我方扣 base_atk × 0.5 无属伤
+	# 2. 偏载傀「压台」——以 Boss 为中心 12×12 范围（切比雪夫半径 6）内，按距离最近选至多 2 个我方扣 base_atk × 0.5 无属伤
 	if _is_boss_alive():
 		var press_damage := int(_boss.combat_stats.base_atk * 0.5)
 		var press_radius := 6                       # 12×12 = 中心 ±6 切比雪夫
@@ -847,15 +823,35 @@ func _adjust_arch_value(is_left: bool, delta: int, reason: String) -> void:
 		_left_arch_value = clampi(_left_arch_value + delta, 0, 10)
 	else:
 		_right_arch_value = clampi(_right_arch_value + delta, 0, 10)
-	Notify.notify("%s  左券:%d 右券:%d 稳定:%d" % [reason, _left_arch_value, _right_arch_value, _bridge_stability], Notify.Position.TOP_RIGHT, Notify.Style.INFO, 2.5)
+	Notify.notify("%s  左券:%d 右券:%d 差值:%d" % [reason, _left_arch_value, _right_arch_value, _arch_gap()], Notify.Position.TOP_RIGHT, Notify.Style.INFO, 2.5)
 	_update_crown_visibility()
 	_update_status_panel()
 
 
 func _set_carrier_loaded(unit: Unit, loaded: bool) -> void:
+	if unit == null or unit.combat_stats == null:
+		return
 	var key := unit.get_instance_id()
 	var base_cost := int(_carrier_base_move_cost.get(key, unit.combat_stats.move_cost_per_tile))
 	unit.combat_stats.move_cost_per_tile = base_cost + 3 if loaded else base_cost
+	_set_runtime_status(unit.combat_stats, STATUS_CARRYING_STONE, loaded)
+	unit.refresh_overhead_bars()
+	if loaded:
+		unit.set_overhead_status_label("负石", Color(0.95, 0.78, 0.35))
+
+
+func _set_runtime_status(stats: CombatStats, status_id: String, enabled: bool) -> void:
+	if stats == null:
+		return
+	for i in range(stats.statuses.size() - 1, -1, -1):
+		var s = stats.statuses[i]
+		if s.status_id == status_id:
+			stats.statuses.remove_at(i)
+	if enabled:
+		var si := CombatResolver.StatusInstance.new()
+		si.status_id = status_id
+		si.remaining_turns = -1
+		stats.statuses.append(si)
 
 
 func _spawn_enemy(data: UnitData, cell: Vector2i, skills: Array[SkillData], visual: PackedScene = null) -> Unit:
@@ -1008,9 +1004,9 @@ func _update_status_panel() -> void:
 	elif state == "失衡":
 		state_color = "#e6463c"
 	var closed_text := "已合龙" if _arch_closed else "未合龙"
-	_status_panel.text = "左券 %d/10    右券 %d/10    差值 %d\n桥体稳定 %d/6    [color=%s]%s[/color]    %s" % [
+	_status_panel.text = "左券 %d/10    右券 %d/10    差值 %d\n[color=%s]%s[/color]    %s" % [
 		_left_arch_value, _right_arch_value, gap,
-		_bridge_stability, state_color, state, closed_text,
+		state_color, state, closed_text,
 	]
 
 
@@ -1025,7 +1021,7 @@ func _maybe_notify_balance_transition() -> void:
 		"偏衡":
 			Notify.notify("左右偏衡，偏载傀直接受到的伤害上限 10。", Notify.Position.TOP_CENTER, Notify.Style.WARNING, 3.0)
 		"失衡":
-			Notify.notify("左右失衡！偏载傀几乎无伤，每敌方回合末桥体 -1。", Notify.Position.TOP_CENTER, Notify.Style.ERROR, 3.5)
+			Notify.notify("左右失衡！偏载傀几乎无伤。", Notify.Position.TOP_CENTER, Notify.Style.ERROR, 3.5)
 	_prev_balance_state = new_state
 
 

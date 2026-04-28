@@ -37,6 +37,7 @@ const _STATUS_NAMES: Dictionary = {
 	"hindered_step": "迟滞",
 	"guarded_cover": "护持",
 	"knockback_immune": "抗击退",
+	"carrying_stone": "负石",
 }
 
 var _current_unit: Node2D = null
