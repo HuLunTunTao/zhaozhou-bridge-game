@@ -3,19 +3,21 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cr1p8wilxvep8"
-path="res://.godot/imported/tile_086.png-bc6ae79ba8e713fb158407eefa27f6fa.ctex"
+path.s3tc="res://.godot/imported/tile_086.png-bc6ae79ba8e713fb158407eefa27f6fa.s3tc.ctex"
+path.etc2="res://.godot/imported/tile_086.png-bc6ae79ba8e713fb158407eefa27f6fa.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/thepixeltiles/isometric tileset/separated images/tile_086.png"
-dest_files=["res://.godot/imported/tile_086.png-bc6ae79ba8e713fb158407eefa27f6fa.ctex"]
+dest_files=["res://.godot/imported/tile_086.png-bc6ae79ba8e713fb158407eefa27f6fa.s3tc.ctex", "res://.godot/imported/tile_086.png-bc6ae79ba8e713fb158407eefa27f6fa.etc2.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0

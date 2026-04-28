@@ -20,21 +20,25 @@ void fragment() {
 		COLOR = col;
 	} else {
 		vec2 ps = TEXTURE_PIXEL_SIZE;
-		float w = outline_width;
+		float w = max(outline_width, 1.0);
+		float hw = max(w * 0.5, 1.0);
 		float total = 0.0;
-		float samples = 0.0;
-		for (float x = -w; x <= w; x += 1.0) {
-			for (float y = -w; y <= w; y += 1.0) {
-				float d = length(vec2(x, y));
-				if (d > w || d == 0.0) { continue; }
-				samples += 1.0;
-				vec2 sample_uv = UV + vec2(x, y) * ps;
-				// clamp 到帧矩形内，防止采样到相邻帧
-				sample_uv = clamp(sample_uv, frame_uv_rect.xy, frame_uv_rect.zw);
-				total += texture(TEXTURE, sample_uv).a;
-			}
+
+		// 固定 12 次采样，避免 outline_width 变大时采样量按面积暴涨。
+		vec2 offsets[12] = vec2[](
+			vec2( w, 0.0), vec2(-w, 0.0), vec2(0.0,  w), vec2(0.0, -w),
+			vec2( w,  w) * 0.7071, vec2(-w,  w) * 0.7071,
+			vec2( w, -w) * 0.7071, vec2(-w, -w) * 0.7071,
+			vec2( hw, 0.0), vec2(-hw, 0.0), vec2(0.0,  hw), vec2(0.0, -hw)
+		);
+
+		for (int i = 0; i < 12; i++) {
+			vec2 sample_uv = UV + offsets[i] * ps;
+			sample_uv = clamp(sample_uv, frame_uv_rect.xy, frame_uv_rect.zw);
+			total += texture(TEXTURE, sample_uv).a;
 		}
-		float avg = total / max(samples, 1.0);
+
+		float avg = total / 12.0;
 		float edge = smoothstep(0.0, 0.5, avg);
 		if (edge > 0.01) {
 			COLOR = vec4(outline_color.rgb, outline_color.a * edge);

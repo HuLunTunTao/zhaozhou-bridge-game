@@ -3,19 +3,21 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://58t6kgy7fkbr"
-path="res://.godot/imported/green.png-3fcabaf3bb9eeb10a12d085ded78cfef.ctex"
+path.s3tc="res://.godot/imported/green.png-3fcabaf3bb9eeb10a12d085ded78cfef.s3tc.ctex"
+path.etc2="res://.godot/imported/green.png-3fcabaf3bb9eeb10a12d085ded78cfef.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/face_background/green.png"
-dest_files=["res://.godot/imported/green.png-3fcabaf3bb9eeb10a12d085ded78cfef.ctex"]
+dest_files=["res://.godot/imported/green.png-3fcabaf3bb9eeb10a12d085ded78cfef.s3tc.ctex", "res://.godot/imported/green.png-3fcabaf3bb9eeb10a12d085ded78cfef.etc2.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0

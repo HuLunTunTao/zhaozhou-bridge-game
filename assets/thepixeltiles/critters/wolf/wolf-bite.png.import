@@ -3,19 +3,21 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cbitqmyoitmyv"
-path="res://.godot/imported/wolf-bite.png-dc0df36a0810ee932dfe7eff89f2c76e.ctex"
+path.s3tc="res://.godot/imported/wolf-bite.png-dc0df36a0810ee932dfe7eff89f2c76e.s3tc.ctex"
+path.etc2="res://.godot/imported/wolf-bite.png-dc0df36a0810ee932dfe7eff89f2c76e.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/thepixeltiles/critters/wolf/wolf-bite.png"
-dest_files=["res://.godot/imported/wolf-bite.png-dc0df36a0810ee932dfe7eff89f2c76e.ctex"]
+dest_files=["res://.godot/imported/wolf-bite.png-dc0df36a0810ee932dfe7eff89f2c76e.s3tc.ctex", "res://.godot/imported/wolf-bite.png-dc0df36a0810ee932dfe7eff89f2c76e.etc2.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0

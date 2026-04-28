@@ -3,19 +3,21 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://7ywk16edi2ww"
-path="res://.godot/imported/post_01.png-aae7ad6405803df018a1d2fee27c6762.ctex"
+path.s3tc="res://.godot/imported/post_01.png-aae7ad6405803df018a1d2fee27c6762.s3tc.ctex"
+path.etc2="res://.godot/imported/post_01.png-aae7ad6405803df018a1d2fee27c6762.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/cutscenes/level1-1/post_01.png"
-dest_files=["res://.godot/imported/post_01.png-aae7ad6405803df018a1d2fee27c6762.ctex"]
+dest_files=["res://.godot/imported/post_01.png-aae7ad6405803df018a1d2fee27c6762.s3tc.ctex", "res://.godot/imported/post_01.png-aae7ad6405803df018a1d2fee27c6762.etc2.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0

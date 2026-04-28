@@ -928,7 +928,7 @@ z_index = 1
 
 [node name="赵州桥施工图高清对称版" type="Sprite2D" parent="TileMaps" parent_id_path=PackedInt32Array(1122336516) index="4" unique_id=121612010]
 visible = false
-position = Vector2(0, 438)
+position = Vector2(5.563667, 439.11273)
 scale = Vector2(2.2254667, 2.2254672)
 texture = ExtResource("7_k3eki")
 offset = Vector2(-5, 0)
@@ -940,7 +940,7 @@ tile_set = SubResource("TileSet_rjx6i")
 
 [node name="railing down" type="Sprite2D" parent="TileMaps/railing z=7" index="0" unique_id=778391101]
 texture_filter = 1
-position = Vector2(-14, 444)
+position = Vector2(-1.23, 316.9385)
 scale = Vector2(1.277, 1.277)
 texture = ExtResource("11_wdsub")
 
@@ -981,7 +981,7 @@ tile_set = SubResource("TileSet_rjx6i")
 [node name="RailingUp z=6" type="Sprite2D" parent="TileMaps" parent_id_path=PackedInt32Array(1122336516) index="11" unique_id=174427946]
 z_index = 6
 texture_filter = 1
-position = Vector2(-9.000001, 82)
+position = Vector2(3.769999, -45.0615)
 scale = Vector2(1.277, 1.277)
 texture = ExtResource("12_jg1f3")
 

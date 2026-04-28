@@ -3,19 +3,21 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://d4h30xb4eja78"
-path="res://.godot/imported/mixbrick.png-61403d6952649501a766c65e3ddd62e0.ctex"
+path.s3tc="res://.godot/imported/mixbrick.png-61403d6952649501a766c65e3ddd62e0.s3tc.ctex"
+path.etc2="res://.godot/imported/mixbrick.png-61403d6952649501a766c65e3ddd62e0.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/thepixeltiles/bridge/mixbrick.png"
-dest_files=["res://.godot/imported/mixbrick.png-61403d6952649501a766c65e3ddd62e0.ctex"]
+dest_files=["res://.godot/imported/mixbrick.png-61403d6952649501a766c65e3ddd62e0.s3tc.ctex", "res://.godot/imported/mixbrick.png-61403d6952649501a766c65e3ddd62e0.etc2.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0

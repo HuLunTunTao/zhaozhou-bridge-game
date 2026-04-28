@@ -3,19 +3,21 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://ckcic3av5dla4"
-path="res://.godot/imported/boar_SE_run_3.png-5accf467e7ee6488f1e294859f661327.ctex"
+path.s3tc="res://.godot/imported/boar_SE_run_3.png-5accf467e7ee6488f1e294859f661327.s3tc.ctex"
+path.etc2="res://.godot/imported/boar_SE_run_3.png-5accf467e7ee6488f1e294859f661327.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/thepixeltiles/critters/boar/boar_SE_run_3.png"
-dest_files=["res://.godot/imported/boar_SE_run_3.png-5accf467e7ee6488f1e294859f661327.ctex"]
+dest_files=["res://.godot/imported/boar_SE_run_3.png-5accf467e7ee6488f1e294859f661327.s3tc.ctex", "res://.godot/imported/boar_SE_run_3.png-5accf467e7ee6488f1e294859f661327.etc2.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0

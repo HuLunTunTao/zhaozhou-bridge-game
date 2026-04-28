@@ -3,19 +3,21 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://blow62u33y7e6"
-path="res://.godot/imported/flag.png-a21a4f18e0170d8340c3467080f6cce3.ctex"
+path.s3tc="res://.godot/imported/flag.png-a21a4f18e0170d8340c3467080f6cce3.s3tc.ctex"
+path.etc2="res://.godot/imported/flag.png-a21a4f18e0170d8340c3467080f6cce3.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/thepixeltiles/items/flag.png"
-dest_files=["res://.godot/imported/flag.png-a21a4f18e0170d8340c3467080f6cce3.ctex"]
+dest_files=["res://.godot/imported/flag.png-a21a4f18e0170d8340c3467080f6cce3.s3tc.ctex", "res://.godot/imported/flag.png-a21a4f18e0170d8340c3467080f6cce3.etc2.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0

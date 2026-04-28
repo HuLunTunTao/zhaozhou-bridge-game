@@ -3,19 +3,21 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://u1ux7vfp82gy"
-path="res://.godot/imported/左前方待机.png-8fa32c571c17f2986e7b1f26633ed475.ctex"
+path.s3tc="res://.godot/imported/左前方待机.png-8fa32c571c17f2986e7b1f26633ed475.s3tc.ctex"
+path.etc2="res://.godot/imported/左前方待机.png-8fa32c571c17f2986e7b1f26633ed475.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/character/li_chun/左前方待机.png"
-dest_files=["res://.godot/imported/左前方待机.png-8fa32c571c17f2986e7b1f26633ed475.ctex"]
+dest_files=["res://.godot/imported/左前方待机.png-8fa32c571c17f2986e7b1f26633ed475.s3tc.ctex", "res://.godot/imported/左前方待机.png-8fa32c571c17f2986e7b1f26633ed475.etc2.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0

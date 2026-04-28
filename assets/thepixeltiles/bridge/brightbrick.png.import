@@ -3,19 +3,21 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://b01fmm7ycttvd"
-path="res://.godot/imported/brightbrick.png-2442f3e27918d29ccb2e7d19e64f516d.ctex"
+path.s3tc="res://.godot/imported/brightbrick.png-2442f3e27918d29ccb2e7d19e64f516d.s3tc.ctex"
+path.etc2="res://.godot/imported/brightbrick.png-2442f3e27918d29ccb2e7d19e64f516d.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/thepixeltiles/bridge/brightbrick.png"
-dest_files=["res://.godot/imported/brightbrick.png-2442f3e27918d29ccb2e7d19e64f516d.ctex"]
+dest_files=["res://.godot/imported/brightbrick.png-2442f3e27918d29ccb2e7d19e64f516d.s3tc.ctex", "res://.godot/imported/brightbrick.png-2442f3e27918d29ccb2e7d19e64f516d.etc2.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0

@@ -3,19 +3,21 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://d0ucfdn5mde17"
-path="res://.godot/imported/wolf-idle.png-6a46b74ef2beb6fdd86158d7c3384eb0.ctex"
+path.s3tc="res://.godot/imported/wolf-idle.png-6a46b74ef2beb6fdd86158d7c3384eb0.s3tc.ctex"
+path.etc2="res://.godot/imported/wolf-idle.png-6a46b74ef2beb6fdd86158d7c3384eb0.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/thepixeltiles/critters/wolf/wolf-idle.png"
-dest_files=["res://.godot/imported/wolf-idle.png-6a46b74ef2beb6fdd86158d7c3384eb0.ctex"]
+dest_files=["res://.godot/imported/wolf-idle.png-6a46b74ef2beb6fdd86158d7c3384eb0.s3tc.ctex", "res://.godot/imported/wolf-idle.png-6a46b74ef2beb6fdd86158d7c3384eb0.etc2.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0

@@ -3,19 +3,21 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://w0leosv01hb3"
-path="res://.godot/imported/boar_NE_idle_strip.png-40d203c4c07b8dba081ddd9c150b7d7d.ctex"
+path.s3tc="res://.godot/imported/boar_NE_idle_strip.png-40d203c4c07b8dba081ddd9c150b7d7d.s3tc.ctex"
+path.etc2="res://.godot/imported/boar_NE_idle_strip.png-40d203c4c07b8dba081ddd9c150b7d7d.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/thepixeltiles/critters/boar/boar_NE_idle_strip.png"
-dest_files=["res://.godot/imported/boar_NE_idle_strip.png-40d203c4c07b8dba081ddd9c150b7d7d.ctex"]
+dest_files=["res://.godot/imported/boar_NE_idle_strip.png-40d203c4c07b8dba081ddd9c150b7d7d.s3tc.ctex", "res://.godot/imported/boar_NE_idle_strip.png-40d203c4c07b8dba081ddd9c150b7d7d.etc2.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0

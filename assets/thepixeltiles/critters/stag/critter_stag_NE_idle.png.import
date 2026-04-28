@@ -3,19 +3,21 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://btsvm2u0233e3"
-path="res://.godot/imported/critter_stag_NE_idle.png-55b9c818b4c6370da0747b679c7bcf51.ctex"
+path.s3tc="res://.godot/imported/critter_stag_NE_idle.png-55b9c818b4c6370da0747b679c7bcf51.s3tc.ctex"
+path.etc2="res://.godot/imported/critter_stag_NE_idle.png-55b9c818b4c6370da0747b679c7bcf51.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/thepixeltiles/critters/stag/critter_stag_NE_idle.png"
-dest_files=["res://.godot/imported/critter_stag_NE_idle.png-55b9c818b4c6370da0747b679c7bcf51.ctex"]
+dest_files=["res://.godot/imported/critter_stag_NE_idle.png-55b9c818b4c6370da0747b679c7bcf51.s3tc.ctex", "res://.godot/imported/critter_stag_NE_idle.png-55b9c818b4c6370da0747b679c7bcf51.etc2.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0

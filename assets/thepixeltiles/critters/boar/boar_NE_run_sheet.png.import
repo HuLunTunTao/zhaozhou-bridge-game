@@ -3,19 +3,21 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://bvs2ex30ry5ay"
-path="res://.godot/imported/boar_NE_run_sheet.png-6b8efb440b9d53c9366449dfd5bbce62.ctex"
+path.s3tc="res://.godot/imported/boar_NE_run_sheet.png-6b8efb440b9d53c9366449dfd5bbce62.s3tc.ctex"
+path.etc2="res://.godot/imported/boar_NE_run_sheet.png-6b8efb440b9d53c9366449dfd5bbce62.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/thepixeltiles/critters/boar/boar_NE_run_sheet.png"
-dest_files=["res://.godot/imported/boar_NE_run_sheet.png-6b8efb440b9d53c9366449dfd5bbce62.ctex"]
+dest_files=["res://.godot/imported/boar_NE_run_sheet.png-6b8efb440b9d53c9366449dfd5bbce62.s3tc.ctex", "res://.godot/imported/boar_NE_run_sheet.png-6b8efb440b9d53c9366449dfd5bbce62.etc2.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0
