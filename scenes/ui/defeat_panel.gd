@@ -16,8 +16,9 @@ func _ready() -> void:
 	layer = 90
 	_reason_label.text = defeat_reason
 	_retry_button.grab_focus()
-	_load_button.disabled = true
-	_load_button.visible = false
+	if _load_button != null:
+		_load_button.disabled = true
+		_load_button.visible = false
 
 
 func _unhandled_input(event: InputEvent) -> void:

@@ -74,27 +74,34 @@ layout_mode = 2
 
 [node name="Actions" type="HBoxContainer" parent="Backdrop/Panel/Layout"]
 layout_mode = 2
-theme_override_constants/separation = 8
+theme_override_constants/separation = 6
 alignment = 1
+
+[node name="NewButton" type="Button" parent="Backdrop/Panel/Layout/Actions"]
+unique_name_in_owner = true
+layout_mode = 2
+custom_minimum_size = Vector2(82, 0)
+disabled = true
+text = "新建进度"
 
 [node name="SaveButton" type="Button" parent="Backdrop/Panel/Layout/Actions"]
 unique_name_in_owner = true
 layout_mode = 2
-custom_minimum_size = Vector2(72, 0)
+custom_minimum_size = Vector2(56, 0)
 disabled = true
 text = "存档"
 
 [node name="LoadButton" type="Button" parent="Backdrop/Panel/Layout/Actions"]
 unique_name_in_owner = true
 layout_mode = 2
-custom_minimum_size = Vector2(72, 0)
+custom_minimum_size = Vector2(56, 0)
 disabled = true
 text = "读档"
 
 [node name="DeleteButton" type="Button" parent="Backdrop/Panel/Layout/Actions"]
 unique_name_in_owner = true
 layout_mode = 2
-custom_minimum_size = Vector2(72, 0)
+custom_minimum_size = Vector2(56, 0)
 disabled = true
 text = "删档"
 
@@ -102,6 +109,7 @@ text = "删档"
 layout_mode = 2
 text = "关闭"
 
+[connection signal="pressed" from="Backdrop/Panel/Layout/Actions/NewButton" to="." method="_on_new_pressed"]
 [connection signal="pressed" from="Backdrop/Panel/Layout/Actions/SaveButton" to="." method="_on_save_pressed"]
 [connection signal="pressed" from="Backdrop/Panel/Layout/Actions/LoadButton" to="." method="_on_load_pressed"]
 [connection signal="pressed" from="Backdrop/Panel/Layout/Actions/DeleteButton" to="." method="_on_delete_pressed"]

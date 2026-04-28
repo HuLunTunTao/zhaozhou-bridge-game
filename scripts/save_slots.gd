@@ -85,6 +85,25 @@ func load_slot(slot: int) -> bool:
 	return set_active_slot(slot, true)
 
 
+func new_progress_in_slot(slot: int) -> bool:
+	if not is_valid_slot(slot):
+		return false
+	if slot_exists(slot) and not _remove_slot_dir(slot):
+		return false
+	if not ensure_slot_dir(slot):
+		return false
+	var changed := active_slot != slot
+	active_slot = slot
+	_save_active_slot()
+	Settings.reset_to_defaults()
+	Settings.save_settings()
+	Progress.clear_all_in_memory()
+	Progress.save_progress()
+	if changed:
+		active_slot_changed.emit(active_slot)
+	return true
+
+
 func delete_slot(slot: int) -> bool:
 	if not is_valid_slot(slot):
 		return false

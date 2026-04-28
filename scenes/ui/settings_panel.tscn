@@ -184,6 +184,7 @@ text = "保存设置"
 layout_mode = 2
 
 [node name="SaveManagerButton" type="Button" parent="Backdrop/Panel/ScrollContainer/Content" unique_id=1841298912]
+unique_name_in_owner = true
 layout_mode = 2
 text = "存档管理"
 

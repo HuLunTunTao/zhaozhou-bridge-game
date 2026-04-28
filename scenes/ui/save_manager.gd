@@ -9,6 +9,7 @@ const SLOT_COUNT := 9
 
 @onready var active_slot_label: Label = %ActiveSlotLabel
 @onready var slot_container: VBoxContainer = %SlotContainer
+@onready var new_button: Button = %NewButton
 @onready var save_button: Button = %SaveButton
 @onready var load_button: Button = %LoadButton
 @onready var delete_button: Button = %DeleteButton
@@ -70,6 +71,7 @@ func _on_slot_selected(slot_num: int) -> void:
 func _update_action_buttons() -> void:
 	var has_selection := _selected_slot > 0
 	var has_save := has_selection and _slot_has_save(_selected_slot)
+	new_button.disabled = not has_selection
 	save_button.disabled = not has_selection
 	load_button.disabled = not has_save
 	delete_button.disabled = not has_save
@@ -85,6 +87,36 @@ func _get_slot_status(slot_num: int) -> String:
 		parts.append("当前")
 	parts.append("已存在" if SaveSlots.slot_exists(slot_num) else "空")
 	return " / ".join(parts)
+
+
+func _on_new_pressed() -> void:
+	if _selected_slot < 1:
+		return
+	var selected_slot := _selected_slot
+	if SaveSlots.slot_exists(selected_slot):
+		_confirm_overwrite_with_new_progress(selected_slot)
+		return
+	_create_new_progress(selected_slot)
+
+
+func _confirm_overwrite_with_new_progress(slot_num: int) -> void:
+	var dialog := ConfirmationDialog.new()
+	dialog.dialog_text = "栏位 %d 已有存档。\n新建进度会清空该栏位原有进度与设置。\n\n确定继续？" % slot_num
+	dialog.ok_button_text = "新建"
+	dialog.cancel_button_text = "取消"
+	dialog.confirmed.connect(func(): _create_new_progress(slot_num), CONNECT_ONE_SHOT)
+	add_child(dialog)
+	dialog.popup_centered()
+
+
+func _create_new_progress(slot_num: int) -> void:
+	if not SaveSlots.new_progress_in_slot(slot_num):
+		Notify.notify("新建进度失败", Notify.Position.TOP_CENTER, Notify.Style.ERROR, 2.0)
+		return
+	Notify.notify("已在栏位 %d 新建进度" % slot_num, Notify.Position.TOP_CENTER, Notify.Style.SUCCESS, 2.0)
+	_build_slots()
+	_select_slot(slot_num)
+	slot_data_changed.emit()
 
 
 func _on_save_pressed() -> void:

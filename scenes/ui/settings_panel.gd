@@ -17,10 +17,10 @@ signal closed
 @onready var apply_display_button: Button = %ApplyDisplayButton
 @onready var difficulty_option: OptionButton = %DifficultyOption
 @onready var settings_title: Label = %SettingsTitle
-@onready var save_manager_button: Button = %SaveManagerButton
-@onready var quick_save_button: Button = %QuickSaveButton
-@onready var restart_button: Button = %RestartButton
-@onready var back_to_menu_button: Button = %BackToMenuButton
+@onready var save_manager_button: Button = get_node_or_null("Backdrop/Panel/ScrollContainer/Content/SaveManagerButton") as Button
+@onready var quick_save_button: Button = get_node_or_null("Backdrop/Panel/ScrollContainer/Content/QuickSaveButton") as Button
+@onready var restart_button: Button = get_node_or_null("Backdrop/Panel/ScrollContainer/Content/RestartButton") as Button
+@onready var back_to_menu_button: Button = get_node_or_null("Backdrop/Panel/ScrollContainer/Content/BackToMenuButton") as Button
 
 const FULLSCREEN_INDEX := -1  ## OptionButton 中代表「全屏」的 metadata 值
 
@@ -30,10 +30,14 @@ var _title_tap_reset_timer: SceneTreeTimer
 
 func _ready() -> void:
 	layer = 90
-	save_manager_button.visible = not show_back_to_menu
-	quick_save_button.visible = false
-	restart_button.visible = show_back_to_menu
-	back_to_menu_button.visible = show_back_to_menu
+	if save_manager_button != null:
+		save_manager_button.visible = not show_back_to_menu
+	if quick_save_button != null:
+		quick_save_button.visible = false
+	if restart_button != null:
+		restart_button.visible = show_back_to_menu
+	if back_to_menu_button != null:
+		back_to_menu_button.visible = show_back_to_menu
 
 	_populate_resolution_options()
 	_populate_difficulty_options()
@@ -230,13 +234,13 @@ func _show_clear_data_confirm(step: int) -> void:
 	var dialog := ConfirmationDialog.new()
 	match step:
 		1:
-			dialog.dialog_text = "您即将删除所有本地数据。\n包括：游戏进度、存档栏位、设置。\n\n该操作不可撤销，确定继续？"
+			dialog.dialog_text = "您即将删除所有本地数据。\n包括：全部 1～9 号存档、当前存档位记录、设置。\n\n该操作不可撤销，确定继续？"
 			dialog.ok_button_text = "继续"
 		2:
-			dialog.dialog_text = "再次确认：\n所有章节进度、技能解锁、存档\n将被永久删除！\n\n您真的要继续吗？"
+			dialog.dialog_text = "再次确认：\n所有存档位中的章节进度、技能解锁、成长选择和设置\n都将被永久删除！\n\n您真的要继续吗？"
 			dialog.ok_button_text = "我已知晓，继续"
 		_:
-			dialog.dialog_text = "最终确认：\n此为最后一次警告！\n\n点击「立即删除」将无法恢复任何数据。"
+			dialog.dialog_text = "最终确认：\n这会清空全部存档，无法恢复。\n\n点击「立即删除」将删除所有本地数据。"
 			dialog.ok_button_text = "立即删除"
 	dialog.cancel_button_text = "取消"
 	dialog.confirmed.connect(func():
