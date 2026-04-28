@@ -103,6 +103,14 @@ func _subscribe_level_signal(signal_name: StringName, callable: Callable) -> voi
 	_level_subs.append({"signal": signal_name, "callable": callable})
 
 
+func _is_onboarding_paused() -> bool:
+	if _level == null or not is_instance_valid(_level):
+		return false
+	if _level.has_method("is_tutorial_onboarding_active") and _level.is_tutorial_onboarding_active():
+		return true
+	return _level.has_meta("tutorial/onboarding_active") and bool(_level.get_meta("tutorial/onboarding_active"))
+
+
 func _exit_tree() -> void:
 	if _level == null or not is_instance_valid(_level):
 		_level_subs.clear()
@@ -148,7 +156,7 @@ func _on_team_turn_started(_team_index: int) -> void:
 
 
 func _on_team_turn_ended(_team_index: int) -> void:
-	if _busy or _level == null or _level.is_phase_ended():
+	if _busy or _level == null or _level.is_phase_ended() or _is_onboarding_paused():
 		return
 	if _attacked_this_turn.is_empty():
 		return
@@ -175,7 +183,7 @@ func _on_round_started(_round_number: int) -> void:
 
 
 func _on_round_ended(round_number: int) -> void:
-	if _busy or _level == null or _level.is_phase_ended():
+	if _busy or _level == null or _level.is_phase_ended() or _is_onboarding_paused():
 		return
 	_busy = true
 	# 阶段 1：场景内带 chatter_always_each_round 的单位强制说话（多个则依次）
@@ -183,7 +191,7 @@ func _on_round_ended(round_number: int) -> void:
 	for fixed_unit: Node in _collect_fixed_chatter_units():
 		if not _is_alive(fixed_unit) or _spoke_this_round.has(fixed_unit):
 			continue
-		if _level.is_phase_ended():
+		if _level.is_phase_ended() or _is_onboarding_paused():
 			_busy = false
 			return
 		var full_map: bool = _is_full_map_range(fixed_unit)
@@ -416,6 +424,9 @@ func _say(unit: Node, trigger_kind: String, extra: Dictionary) -> void:
 ## audio 由 voice_handle=_voice 让 dialogue_box 等播完。
 ## trigger_kind 参数保留以兼容旧调用方（实际由 _build_line 传给 speak）。
 func _speak_line(unit: Node, line: DialogueLine, _trigger_kind: String = "") -> bool:
+	if _is_onboarding_paused():
+		_voice.cancel()
+		return false
 	# 记录"本回合已发声"——避免随机触发与固定触发在同一单位上重复
 	if unit != null and not _spoke_this_round.has(unit):
 		_spoke_this_round.append(unit)
@@ -438,6 +449,8 @@ func _wait_for_voice_end() -> void:
 ## LLM 失败 → 跳过本次 chatter（不用 fallback_lines，那是"老监工"语气，套到别的角色严重出戏）。
 ## 被 _say / _do_adjacent_chat 共用。**调用方负责 _busy 锁**（外层 trigger 入口已设）。
 func _build_line(unit: Node, trigger_kind: String, extra: Dictionary) -> DialogueLine:
+	if _is_onboarding_paused():
+		return null
 	if unit == null or not (unit is Unit) or not _is_alive(unit):
 		return null
 	var u := unit as Unit
@@ -453,6 +466,8 @@ func _build_line(unit: Node, trigger_kind: String, extra: Dictionary) -> Dialogu
 		{"role": "system", "content": system_msg},
 		{"role": "user", "content": user_msg},
 	], {"max_tokens": LLM_MAX_TOKENS, "temperature": LLM_TEMPERATURE})
+	if _is_onboarding_paused():
+		return null
 
 	if not resp.get("ok", false):
 		push_warning("[ChatterFallback][LLM_ONLY] unit=%s trigger=%s error=%s fallback=persona_text+tts" % [

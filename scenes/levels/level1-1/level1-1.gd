@@ -516,26 +516,36 @@ func get_post_level_growth_options() -> Array[Dictionary]:
 ## 因此不会与初始 BRIEFING 目标面板抢输入。所有 await 均基于 self-signal，节点被 queue_free
 ## 时协程静默死亡，不会触碰 freed node。
 func _run_onboarding() -> void:
+	set_tutorial_onboarding_active(true)
 	# ── 步骤 1：欢迎 + 选中 ──
 	await play_dialogue([
+		_lc_line("接下来的引导非常重要，与我们能否打赢这场硬仗息息相关。"),
 		_lc_line("赵县的洨河，我们要在这里起一座石桥。先让我看看你熟不熟悉这场仗的规矩。"),
 		_lc_line("左键点一下我，就能选中我——左键用来确认，右键或 Esc 用来取消。"),
 	])
-	if is_phase_ended(): return
+	if is_phase_ended():
+		_finish_onboarding()
+		return
 	Notify.notify("左键点击李春（或任意己方单位）。", Notify.Position.TOP_CENTER, Notify.Style.INFO, 8.0)
 	while selected_unit == null:
 		await selection_changed
-		if is_phase_ended(): return
+		if is_phase_ended():
+			_finish_onboarding()
+			return
 
 	# ── 步骤 2：看状态栏 + 移动 ──
 	await play_dialogue([
 		_lc_line("屏幕底下的状态栏里：左边是血量 HP 和行动力 AP，右边是可用技能，还有我的当前属性与固有属性。"),
 		_lc_line("地图上高亮的格子，就是这回合能走到的范围。左键点其中一格试试。"),
 	])
-	if is_phase_ended(): return
+	if is_phase_ended():
+		_finish_onboarding()
+		return
 	Notify.notify("左键点击一个高亮格让单位走过去。", Notify.Position.TOP_CENTER, Notify.Style.INFO, 8.0)
 	await unit_move_completed
-	if is_phase_ended(): return
+	if is_phase_ended():
+		_finish_onboarding()
+		return
 
 	# ── 步骤 3：AP + 技能 ──
 	await play_dialogue([
@@ -543,20 +553,28 @@ func _run_onboarding() -> void:
 		_lc_line("技能不只能进攻。先挑一块空地放一下感受感受——瞄错了就按右键或 Esc 取消。"),
 		_lc_line("熟了之后，再朝敌人所在的格子来一下，看看命中后会发生什么。"),
 	])
-	if is_phase_ended(): return
+	if is_phase_ended():
+		_finish_onboarding()
+		return
 	Notify.notify("点技能图标 → 左键点目标（先试空地，再试敌人）。", Notify.Position.TOP_CENTER, Notify.Style.INFO, 12.0)
 	await skill_executed
-	if is_phase_ended(): return
+	if is_phase_ended():
+		_finish_onboarding()
+		return
 
 	# ── 步骤 4：结束回合 ──
 	await play_dialogue([
 		_lc_line("不错。等全队都动完了，点右下角的「结束回合」，把这轮交给敌人。"),
 	])
-	if is_phase_ended(): return
+	if is_phase_ended():
+		_finish_onboarding()
+		return
 	Notify.notify("按右下角「结束回合」结束本回合。", Notify.Position.TOP_CENTER, Notify.Style.INFO, 12.0)
 	while true:
 		var team_idx: int = await team_turn_started
-		if is_phase_ended(): return
+		if is_phase_ended():
+			_finish_onboarding()
+			return
 		if team_idx == 0:
 			break
 
@@ -565,18 +583,27 @@ func _run_onboarding() -> void:
 		_lc_line("基本操作就是这些。再交代一句：屏幕右上角的 ⚙ 是设置（按 Esc 也能打开），里面可以随时调『难度』。"),
 		_lc_line("觉得吃力就调低一档，觉得没劲就调高一档——敌人的血量和攻击会跟着变，自家不影响。"),
 	])
-	if is_phase_ended(): return
+	if is_phase_ended():
+		_finish_onboarding()
+		return
 
 	# ── 步骤 5：引流到右上角规则说明 + 任务 ──
 	await play_dialogue([
 		_lc_line("基本功就这些。五行流转、化势反应、地形消耗这些细节——点右上角的 📖，规则说明里都写着。"),
 		_lc_line("这一关你要做的事，是让测量工到三个勘测点上用「踏勘量址」标记。接下来就看你的了。"),
 	])
-	if is_phase_ended(): return
+	if is_phase_ended():
+		_finish_onboarding()
+		return
 
 	Notify.notify("任务目标一：派测量工前往 3 个勘测点施放「踏勘量址」。", Notify.Position.TOP_CENTER, Notify.Style.INFO, 4.0)
 
 	Progress.mark_tutorial_seen(TUTORIAL_ID)
+	_finish_onboarding()
+
+
+func _finish_onboarding() -> void:
+	set_tutorial_onboarding_active(false)
 
 
 ## 李春对话单行构造的小帮手：自动带头像，放左侧。

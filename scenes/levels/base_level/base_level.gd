@@ -179,6 +179,15 @@ func has_overlay() -> bool:
 	return _active_overlay != ActiveOverlay.NONE
 
 
+func set_tutorial_onboarding_active(active: bool) -> void:
+	tutorial_onboarding_active = active
+	set_meta("tutorial/onboarding_active", active)
+
+
+func is_tutorial_onboarding_active() -> bool:
+	return tutorial_onboarding_active
+
+
 ## 进入一个 overlay。若已有 overlay 则拒绝（互斥），node 由本方法 add_child 并挂 closed 回调。
 ## 返回是否成功进入。
 func _open_overlay(kind: ActiveOverlay, node: Node, closed_signal: StringName = &"closed") -> bool:
@@ -276,6 +285,8 @@ var selected_unit: Node2D = null
 var _hovered_unit: Unit = null
 ## 当前是否等待玩家输入。
 var _waiting_for_player_input: bool = false
+## 关卡脚本可在新手引导等流程中置为 true，暂停所有战场闲聊触发。
+var tutorial_onboarding_active: bool = false
 
 ## 特殊地块：cell → SpecialTile
 var _special_tile_map: Dictionary = {}
