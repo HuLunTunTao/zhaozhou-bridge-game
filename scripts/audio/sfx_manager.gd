@@ -8,7 +8,7 @@ const SKILL_MELEE_PATHS: Array[String] = [
 	"res://assets/audio/sfx/攻击3.mp3",
 ]
 const SKILL_RANGED_PATHS: Array[String] = [
-	"res://assets/audio/sfx/拉弓.mp3",
+	"res://assets/audio/sfx/剑相击1.mp3",
 	"res://assets/audio/sfx/放弓.mp3",
 ]
 const SKILL_SUPPORT_PATHS: Array[String] = [
