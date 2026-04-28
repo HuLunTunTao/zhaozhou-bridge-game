@@ -21,6 +21,7 @@ UNIT_ID = "hero_li_chun"
 DEFAULT_RESOURCE_ID = "seed-tts-2.0"
 LEVEL_FILES = {
     "level1-1": "scenes/levels/level1-1/level1-1.gd",
+    "level1-2": "scenes/levels/level1-2/level1-2.gd",
     "level1-3": "scenes/levels/level1-3/level1-3.gd",
     "level1-4": "scenes/levels/level1-4/level1-4.gd",
 }
