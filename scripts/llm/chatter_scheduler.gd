@@ -211,7 +211,7 @@ func _on_round_ended(round_number: int) -> void:
 # ─────────────────────────────────────────────────────────
 
 func _do_attacked_reaction(entry: Dictionary) -> void:
-	# 受击单位可能在小回合内被打死并 queue_free，dict 里残留着 freed 引用。
+	# 受击单位可能在小回合内被击退并 queue_free，dict 里残留着 freed 引用。
 	# 必须先 untyped 取 + is_instance_valid 验，再做 typed 赋值。
 	var victim_raw = entry.get("victim")
 	if not is_instance_valid(victim_raw) or not _is_alive(victim_raw):
