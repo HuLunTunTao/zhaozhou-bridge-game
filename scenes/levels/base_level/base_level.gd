@@ -532,6 +532,11 @@ func _on_skill_executed(_caster: Unit, _skill: SkillData, _cast_cell: Vector2i, 
 	pass
 
 
+## 子类覆写：在战斗反馈显示前修正单次命中的最终 HP / 实际伤害。
+func _finalize_skill_hit_damage(_caster: Unit, _skill: SkillData, _target: Unit, _hit: CombatResolver.HitResult) -> void:
+	pass
+
+
 ## 处理波次生成。在每大回合开始时调用。
 func _process_wave(round_num: int) -> Array[Unit]:
 	var waves := get_wave_config()
@@ -1000,7 +1005,7 @@ func _execute_ai_skill(unit: Unit, skill: SkillData, cast_cell: Vector2i) -> voi
 	unit.face_towards_cell(cast_cell)
 	var all_units: Array = _get_all_units()
 	var caster_faction: String = unit.faction if "faction" in unit else ""
-	var exec_result := SkillExecutor.execute(unit, skill, cast_cell, all_units, caster_faction)
+	var exec_result := SkillExecutor.execute(unit, skill, cast_cell, all_units, caster_faction, Callable(self, "_finalize_skill_hit_damage"))
 
 	if exec_result.success:
 		SfxManager.play_skill_cast(skill)
@@ -1932,7 +1937,7 @@ func _confirm_targeting_skill(cell: Vector2i) -> void:
 	var caster_faction: String = selected_unit.faction if "faction" in selected_unit else ""
 
 	selected_unit.face_towards_cell(cell)
-	var exec_result := SkillExecutor.execute(selected_unit, _current_skill, cell, all_units, caster_faction)
+	var exec_result := SkillExecutor.execute(selected_unit, _current_skill, cell, all_units, caster_faction, Callable(self, "_finalize_skill_hit_damage"))
 	var used_skill: SkillData = _current_skill
 	_clear_skill_targeting()
 
@@ -2022,29 +2027,34 @@ func _show_combat_feedback(exec_result: SkillExecutor.ExecuteResult, _caster_nam
 		if target_unit is Unit and (target_unit as Unit).combat_stats:
 			target_name = (target_unit as Unit).combat_stats.unit_name
 
+		var actual_damage: int = hit.actual_damage if hit.actual_damage >= 0 else hit.damage
+
 		# 伤害弹字
-		if hit.damage > 0:
+		if actual_damage > 0:
 			var phase_name := ""
 			if hit.phase_result and hit.phase_result.phase_data:
 				phase_name = hit.phase_result.phase_data.phase_name
 			var popup := DamagePopup.new()
 			add_child(popup)
-			popup.show_at(target_unit.global_position, hit.damage, phase_name)
+			popup.show_at(target_unit.global_position, actual_damage, phase_name)
 
 			if hit.is_kill:
-				Notify.notify("%s 受到 %d 点伤害，被击败了！" % [target_name, hit.damage], Notify.Position.TOP_RIGHT, Notify.Style.ERROR, 3.0)
+				Notify.notify("%s 受到 %d 点伤害，被击败了！" % [target_name, actual_damage], Notify.Position.TOP_RIGHT, Notify.Style.ERROR, 3.0)
 			else:
-				Notify.notify("%s 受到 %d 点伤害！" % [target_name, hit.damage], Notify.Position.TOP_RIGHT, Notify.Style.INFO, 3.0)
+				Notify.notify("%s 受到 %d 点伤害！" % [target_name, actual_damage], Notify.Position.TOP_RIGHT, Notify.Style.INFO, 3.0)
+
+		if hit.damage_limit_message != "":
+			Notify.notify(hit.damage_limit_message, Notify.Position.TOP_RIGHT, Notify.Style.WARNING, 3.5)
 
 		# 刷新头顶状态条
 		if target_unit is Unit:
 			(target_unit as Unit).refresh_overhead_bars()
 
 		# 关卡事件信号：HP 变化 + 倒下
-		if target_unit is Unit and hit.damage > 0:
+		if target_unit is Unit and actual_damage > 0:
 			var stats := (target_unit as Unit).combat_stats
 			var new_hp: int = stats.current_hp
-			var old_hp: int = new_hp + hit.damage
+			var old_hp: int = hit.hp_before if hit.hp_before >= 0 else new_hp + actual_damage
 			unit_hp_changed.emit(target_unit, old_hp, new_hp)
 			if hit.is_kill:
 				unit_died.emit(target_unit)

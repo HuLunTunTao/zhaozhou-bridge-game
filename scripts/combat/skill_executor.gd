@@ -27,7 +27,8 @@ static func execute(
 	skill: SkillData,
 	cast_cell: Vector2i,
 	all_units: Array,
-	caster_faction: String
+	caster_faction: String,
+	damage_finalizer: Callable = Callable()
 ) -> ExecuteResult:
 	var result := ExecuteResult.new()
 	var unit := caster as Unit
@@ -94,12 +95,14 @@ static func execute(
 			if global_ratio_mult != 1.0:
 				var base_for_mult: float = (skill.damage_ratio if per_ratio < 0.0 else per_ratio)
 				per_ratio = base_for_mult * global_ratio_mult
+			var hp_before: int = tu.combat_stats.current_hp
 			var hit := CombatResolver.resolve_hit(stats, tu.combat_stats, skill, per_ratio)
+			hit.hp_before = hp_before
 			CombatResolver.apply_hit(tu.combat_stats, skill, hit)
 			result.hit_results.append({"unit": target_unit, "hit": hit})
 			CombatLog.msg("  结果: %s HP %d → %d" % [
 				tu.combat_stats.unit_name,
-				tu.combat_stats.current_hp + hit.damage,
+				hp_before,
 				tu.combat_stats.current_hp,
 			])
 		else:
@@ -111,6 +114,7 @@ static func execute(
 	if skill.extra_effect_id != "":
 		_apply_extra_effect(skill, unit, cast_cell, targets, all_units, caster_faction, result.hit_results, hit_count)
 
+	_finalize_hit_results(result.hit_results, unit, skill, damage_finalizer)
 	result.success = true
 	return result
 
@@ -177,6 +181,25 @@ static func _apply_extra_effect(
 			pass
 		_:
 			CombatLog.msg("  额外效果: 未知 effect_id '%s'" % skill.extra_effect_id)
+
+
+static func _finalize_hit_results(hit_results: Array, caster: Unit, skill: SkillData, damage_finalizer: Callable) -> void:
+	for entry in hit_results:
+		var target: Unit = entry.get("unit") as Unit
+		var hit: CombatResolver.HitResult = entry.get("hit") as CombatResolver.HitResult
+		if target == null or target.combat_stats == null or hit == null:
+			continue
+		if hit.hp_before < 0:
+			hit.hp_before = target.combat_stats.current_hp + hit.damage
+		hit.actual_damage = maxi(hit.hp_before - target.combat_stats.current_hp, 0)
+		if damage_finalizer.is_valid():
+			damage_finalizer.call(caster, skill, target, hit)
+		hit.actual_damage = maxi(hit.hp_before - target.combat_stats.current_hp, 0)
+		hit.is_kill = hit.actual_damage > 0 and target.combat_stats.current_hp <= 0
+		if hit.actual_damage != hit.damage:
+			CombatLog.msg("  实际伤害: %s %d → %d" % [target.combat_stats.unit_name, hit.damage, hit.actual_damage])
+		if hit.is_kill and caster != null and caster.combat_stats != null:
+			CombatLog.log_defeat(caster.combat_stats.unit_name, target.combat_stats.unit_name)
 
 
 ## 击退：将每个目标沿施法者→目标方向推开 distance 格。

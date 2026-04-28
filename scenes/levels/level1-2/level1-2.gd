@@ -573,11 +573,19 @@ func _on_stage_unit_died(unit: Unit) -> void:
 
 
 func _on_stage_hp_changed(unit: Unit, old_hp: int, new_hp: int) -> void:
-	# Boss 完全免疫伤害：血量下降时回滚。
-	if unit != _boss or old_hp <= new_hp:
+	if unit == _boss and new_hp < old_hp:
+		# Boss 免疫已在 _finalize_skill_hit_damage 中于战斗反馈前处理。
+		pass
+
+
+func _finalize_skill_hit_damage(_caster: Unit, _skill: SkillData, target: Unit, hit: CombatResolver.HitResult) -> void:
+	if target != _boss or hit.actual_damage <= 0:
 		return
-	unit.combat_stats.current_hp = old_hp
-	unit.refresh_overhead_bars()
+	var raw_damage := hit.actual_damage
+	target.combat_stats.current_hp = hit.hp_before
+	target.refresh_overhead_bars()
+	hit.damage_limit_message = "旧制监工不可被直接击退，请优先完成本关任务目标。"
+	CombatLog.msg("    关卡机制: %s（原伤害 %d → 实际 0）" % [hit.damage_limit_message, raw_damage])
 
 
 # ─────────────────────────────────────────────

@@ -406,14 +406,17 @@ func _on_skill_executed(caster: Unit, skill: SkillData, cast_cell: Vector2i, exe
 			continue
 		# 裂石兽「袭石」：对携石运石工的这一击追加 15% 伤害
 		if caster_name == "裂石兽":
-			var hit = hit_entry.get("hit", null)
+			var hit: CombatResolver.HitResult = hit_entry.get("hit") as CombatResolver.HitResult
 			var base_damage: int = 0
-			if hit != null and "damage" in hit:
-				base_damage = hit.damage
+			if hit != null:
+				base_damage = hit.actual_damage if hit.actual_damage >= 0 else hit.damage
 			var extra := maxi(int(base_damage * 0.15), 1)
-			target.combat_stats.current_hp = maxi(target.combat_stats.current_hp - extra, 0)
+			var old_hp: int = target.combat_stats.current_hp
+			target.combat_stats.current_hp = maxi(old_hp - extra, 0)
+			var actual_extra: int = old_hp - target.combat_stats.current_hp
 			target.refresh_overhead_bars()
-			Notify.notify("裂石兽袭石（追加 %d 点伤害）" % extra, Notify.Position.TOP_RIGHT, Notify.Style.WARNING, 1.5)
+			if actual_extra > 0:
+				_show_direct_damage_feedback(target, old_hp, target.combat_stats.current_hp, "裂石兽袭石（追加 %d 点伤害）" % actual_extra)
 		# 断索鬼「断索」：命中携石运石工则直接卸货
 		elif caster_name == "断索鬼":
 			_carrying_stone[key] = false
@@ -435,13 +438,38 @@ func _on_stage_team_turn_started(team_index: int) -> void:
 func _on_stage_hp_changed(unit: Unit, old_hp: int, new_hp: int) -> void:
 	if unit != _boss or new_hp >= old_hp:
 		return
-	var damage := old_hp - new_hp
-	var cap := _boss_damage_cap()
-	if damage > cap:
-		unit.combat_stats.current_hp = old_hp - cap
-		unit.refresh_overhead_bars()
 	# Boss HP 变化（含被击退）→ 重新评估拱冠是否激活
 	_update_crown_visibility()
+
+
+func _finalize_skill_hit_damage(_caster: Unit, _skill: SkillData, target: Unit, hit: CombatResolver.HitResult) -> void:
+	if target != _boss or hit.actual_damage <= 0:
+		return
+	var cap := _boss_damage_cap()
+	if hit.actual_damage <= cap:
+		return
+	var raw_damage := hit.actual_damage
+	var capped_damage: int = mini(raw_damage, cap)
+	target.combat_stats.current_hp = maxi(hit.hp_before - capped_damage, 0)
+	target.refresh_overhead_bars()
+	var state := _balance_state()
+	hit.damage_limit_message = "偏载傀处于%s：本次最多承受 %d 点伤害（原伤害 %d → 实际 %d）" % [
+		state, cap, raw_damage, capped_damage,
+	]
+	CombatLog.msg("    关卡机制: %s" % hit.damage_limit_message)
+
+
+func _show_direct_damage_feedback(unit: Unit, old_hp: int, new_hp: int, message: String) -> void:
+	var actual_damage: int = maxi(old_hp - new_hp, 0)
+	if actual_damage <= 0:
+		return
+	var popup := DamagePopup.new()
+	add_child(popup)
+	popup.show_at(unit.global_position, actual_damage)
+	Notify.notify(message, Notify.Position.TOP_RIGHT, Notify.Style.WARNING, 1.5)
+	unit_hp_changed.emit(unit, old_hp, new_hp)
+	if new_hp <= 0:
+		unit_died.emit(unit)
 
 
 func _setup_anchor_cells() -> void:

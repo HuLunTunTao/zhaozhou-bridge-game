@@ -5,6 +5,12 @@ class_name CombatResolver
 ## 单次命中的结算结果。
 class HitResult:
 	var damage: int = 0
+	## 命中前目标 HP。由 SkillExecutor 在实际扣血前填入。
+	var hp_before: int = -1
+	## 本次命中导致的实际 HP 变化，包含关卡最终修正与额外效果。
+	var actual_damage: int = -1
+	## 关卡机制截断/免疫伤害时给 UI 展示的说明。
+	var damage_limit_message: String = ""
 	var phase_result: PhaseTable.PhaseResult = null
 	var element_applied: bool = false
 	var statuses_to_apply: Array = []
@@ -136,9 +142,6 @@ static func resolve_hit(attacker: CombatStats, target: CombatStats, skill: Skill
 		attacker.base_atk, ratio, base_damage,
 		phase_name, multiplier, bonus, result.damage
 	)
-
-	if result.is_kill:
-		CombatLog.log_defeat(attacker.unit_name, target.unit_name)
 
 	# 8. 化势施加状态
 	if phase.phase_data != null and phase.phase_data.apply_status_id != "":
