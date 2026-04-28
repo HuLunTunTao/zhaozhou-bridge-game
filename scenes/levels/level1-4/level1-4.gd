@@ -129,6 +129,8 @@ func get_teams_config() -> Array:
 		$"Entities/Units/Craftsman1" as Unit,
 		$"Entities/Units/Craftsman2" as Unit,
 		$"Entities/Units/Craftsman3" as Unit,
+		$"Entities/Units/Craftsman4" as Unit,
+		$"Entities/Units/Craftsman5" as Unit,
 	]
 	_stone_carriers = [
 		$"Entities/Units/StoneCarrier1" as Unit,
