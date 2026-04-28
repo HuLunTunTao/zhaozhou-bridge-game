@@ -1,0 +1,58 @@
+[gd_scene format=3 uid="uid://bpt076tq8pqlv"]
+
+[ext_resource type="PackedScene" uid="uid://cbjso0lvbcag1" path="res://scenes/unit/visual/visual.tscn" id="1_1ygt3"]
+[ext_resource type="Shader" uid="uid://w8w41kw1kylj" path="res://scenes/unit/shader/unit_edge_light.gdshader" id="2_phx0f"]
+[ext_resource type="Texture2D" uid="uid://t82k20j8tdtg" path="res://assets/character/商旅过客/商旅过客.png" id="3_phx0f"]
+[ext_resource type="Script" uid="uid://bs5n4s440cqae" path="res://scenes/unit/visual/human/商旅过客/商旅过客_visual.gd" id="4_2apux"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_2apux"]
+resource_local_to_scene = true
+shader = ExtResource("2_phx0f")
+shader_parameter/outline_color = Color(1, 1, 0, 0.3)
+shader_parameter/outline_width = 7.0
+shader_parameter/frame_uv_rect = Vector4(0, 0, 1, 1)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_2apux"]
+atlas = ExtResource("3_phx0f")
+region = Rect2(0, 0, 256, 256)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_8kcvu"]
+atlas = ExtResource("3_phx0f")
+region = Rect2(256, 0, 256, 256)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_a6nff"]
+atlas = ExtResource("3_phx0f")
+region = Rect2(0, 256, 256, 256)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ibl6d"]
+atlas = ExtResource("3_phx0f")
+region = Rect2(256, 256, 256, 256)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_isbus"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_2apux")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_8kcvu")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_a6nff")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_ibl6d")
+}],
+"loop": true,
+"name": &"default",
+"speed": 5.0
+}]
+
+[node name="Visual" unique_id=1878430534 instance=ExtResource("1_1ygt3")]
+material = SubResource("ShaderMaterial_2apux")
+sprite_frames = SubResource("SpriteFrames_isbus")
+frame_progress = 0.19441934
+script = ExtResource("4_2apux")
+
+[node name="FootMarker" parent="." index="0"]
+position = Vector2(0, 106.66666)

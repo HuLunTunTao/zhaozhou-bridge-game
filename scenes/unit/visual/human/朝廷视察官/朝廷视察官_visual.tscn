@@ -1,0 +1,60 @@
+[gd_scene format=3 uid="uid://0uq3glxe4jwj"]
+
+[ext_resource type="PackedScene" uid="uid://cbjso0lvbcag1" path="res://scenes/unit/visual/visual.tscn" id="1_xvx8j"]
+[ext_resource type="Shader" uid="uid://w8w41kw1kylj" path="res://scenes/unit/shader/unit_edge_light.gdshader" id="2_57i4o"]
+[ext_resource type="Texture2D" uid="uid://gf80g18hoq6e" path="res://assets/character/朝廷视察官/朝廷视察官.png" id="3_57i4o"]
+[ext_resource type="Script" uid="uid://2euu1ie8xlnn" path="res://scenes/unit/visual/human/朝廷视察官/朝廷视察官_visual.gd" id="4_bch67"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_bch67"]
+resource_local_to_scene = true
+shader = ExtResource("2_57i4o")
+shader_parameter/outline_color = Color(1, 1, 0, 0.3)
+shader_parameter/outline_width = 7.0
+shader_parameter/frame_uv_rect = Vector4(0, 0, 1, 1)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_bch67"]
+atlas = ExtResource("3_57i4o")
+region = Rect2(0, 0, 256, 256)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_obbof"]
+atlas = ExtResource("3_57i4o")
+region = Rect2(256, 0, 256, 256)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_byqmo"]
+atlas = ExtResource("3_57i4o")
+region = Rect2(0, 256, 256, 256)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_8pn3e"]
+atlas = ExtResource("3_57i4o")
+region = Rect2(256, 256, 256, 256)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_l1ec4"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_bch67")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_obbof")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_byqmo")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_8pn3e")
+}],
+"loop": true,
+"name": &"default",
+"speed": 5.0
+}]
+
+[node name="Visual" unique_id=1878430534 instance=ExtResource("1_xvx8j")]
+material = SubResource("ShaderMaterial_bch67")
+sprite_frames = SubResource("SpriteFrames_l1ec4")
+frame_progress = 0.04826274
+script = ExtResource("4_bch67")
+move_is_idle = true
+flip_h_for_turning = true
+
+[node name="FootMarker" parent="." index="0"]
+position = Vector2(0, 100)

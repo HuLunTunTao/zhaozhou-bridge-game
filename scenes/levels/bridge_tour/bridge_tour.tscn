@@ -1,33 +1,34 @@
 [gd_scene format=4 uid="uid://b03oyc2xo14ls"]
 
-[ext_resource type="Script" path="res://scenes/levels/bridge_tour/bridge_tour.gd" id="1_7x1hq"]
-[ext_resource type="Texture2D" path="res://assets/thepixeltiles/bridge/darkbrick.png" id="2_m5iqv"]
-[ext_resource type="Texture2D" path="res://assets/thepixeltiles/isometric tileset/spritesheet.png" id="3_1ueck"]
-[ext_resource type="Texture2D" path="res://assets/thepixeltiles/bridge/darkhalfbrick.png" id="4_i3pf3"]
-[ext_resource type="Texture2D" path="res://assets/thepixeltiles/bridge/slope.png" id="5_2qncf"]
-[ext_resource type="Texture2D" path="res://assets/thepixeltiles/bridge/brightbrick.png" id="6_fnt42"]
-[ext_resource type="Texture2D" path="res://assets/thepixeltiles/bridge/brighthalfbrick.png" id="7_ng0hu"]
-[ext_resource type="Texture2D" path="res://assets/thepixeltiles/bridge/mixbrick.png" id="8_cv2u2"]
-[ext_resource type="Texture2D" path="res://assets/thepixeltiles/bridge/赵州桥施工图高清对称版.png" id="9_42xyo"]
-[ext_resource type="Texture2D" path="res://assets/thepixeltiles/bridge/railing down.png" id="10_ohtcq"]
-[ext_resource type="Texture2D" path="res://assets/thepixeltiles/bridge/railing up.png" id="11_7vbo8"]
-[ext_resource type="TileSet" path="res://assets/battle_tile_set.tres" id="12_siygh"]
-[ext_resource type="PackedScene" path="res://scenes/unit/unit.tscn" id="13_w1vbv"]
-[ext_resource type="Script" path="res://scenes/unit/unit.gd" id="14_d5n1e"]
+[ext_resource type="Script" uid="uid://duprdtgj6kcdq" path="res://scenes/levels/bridge_tour/bridge_tour.gd" id="1_7x1hq"]
+[ext_resource type="Texture2D" uid="uid://ckrfp7ysl0p4f" path="res://assets/thepixeltiles/bridge/darkbrick.png" id="2_m5iqv"]
+[ext_resource type="Texture2D" uid="uid://dajatjtpi2mtu" path="res://assets/thepixeltiles/isometric tileset/spritesheet.png" id="3_1ueck"]
+[ext_resource type="Texture2D" uid="uid://rkm8752ejjfe" path="res://assets/thepixeltiles/bridge/darkhalfbrick.png" id="4_i3pf3"]
+[ext_resource type="Texture2D" uid="uid://c3udfnux45j40" path="res://assets/thepixeltiles/bridge/slope.png" id="5_2qncf"]
+[ext_resource type="Texture2D" uid="uid://b01fmm7ycttvd" path="res://assets/thepixeltiles/bridge/brightbrick.png" id="6_fnt42"]
+[ext_resource type="Texture2D" uid="uid://2gywkibcc7nu" path="res://assets/thepixeltiles/bridge/brighthalfbrick.png" id="7_ng0hu"]
+[ext_resource type="Texture2D" uid="uid://d4h30xb4eja78" path="res://assets/thepixeltiles/bridge/mixbrick.png" id="8_cv2u2"]
+[ext_resource type="Texture2D" uid="uid://dwdqlsswubotb" path="res://assets/thepixeltiles/bridge/赵州桥施工图高清对称版.png" id="9_42xyo"]
+[ext_resource type="Texture2D" uid="uid://dlvc5frx3jdvr" path="res://assets/thepixeltiles/bridge/railing down.png" id="10_ohtcq"]
+[ext_resource type="Texture2D" uid="uid://douwjujehq1nr" path="res://assets/thepixeltiles/bridge/railing up.png" id="11_7vbo8"]
+[ext_resource type="TileSet" uid="uid://bdvi30tgeb2kv" path="res://assets/battle_tile_set.tres" id="12_siygh"]
+[ext_resource type="PackedScene" uid="uid://d150ubnb1eitk" path="res://scenes/unit/unit.tscn" id="13_w1vbv"]
 [ext_resource type="Resource" path="res://data/units/hero_li_chun.tres" id="15_olp7u"]
-[ext_resource type="PackedScene" path="res://scenes/unit/visual/human/li_chun/li_chun_visual.tscn" id="16_w4xdg"]
+[ext_resource type="PackedScene" uid="uid://qkwxdp8ayb57" path="res://scenes/unit/visual/human/li_chun/li_chun_visual.tscn" id="16_w4xdg"]
 [ext_resource type="Resource" path="res://data/units/craftsman_guard.tres" id="17_86kac"]
-[ext_resource type="PackedScene" path="res://scenes/unit/visual/human/工匠/工匠_visual.tscn" id="18_7kr6p"]
-[ext_resource type="PackedScene" path="res://scenes/unit/visual/human/测量工/测量工_visual.tscn" id="19_daqxj"]
-[ext_resource type="PackedScene" path="res://scenes/unit/visual/human/游学书生/游学书生_visual.tscn" id="20_156tw"]
-[ext_resource type="PackedScene" path="res://scenes/unit/visual/human/渔夫/渔夫_visual.tscn" id="21_xue6b"]
-[ext_resource type="PackedScene" path="res://scenes/unit/visual/human/老监工/老监工_visual.tscn" id="22_nvjta"]
-[ext_resource type="PackedScene" path="res://scenes/unit/visual/human/石匠/石匠_visual.tscn" id="23_bs53k"]
-[ext_resource type="Script" path="res://scenes/levels/base_level/move_overlay.gd" id="24_rr4al"]
+[ext_resource type="PackedScene" uid="uid://byxh2ycfe88e3" path="res://scenes/unit/visual/human/工匠/工匠_visual.tscn" id="18_7kr6p"]
+[ext_resource type="PackedScene" uid="uid://0uq3glxe4jwj" path="res://scenes/unit/visual/human/朝廷视察官/朝廷视察官_visual.tscn" id="18_8iyre"]
+[ext_resource type="PackedScene" uid="uid://0vf68k1e0k18" path="res://scenes/unit/visual/human/测量工/测量工_visual.tscn" id="19_daqxj"]
+[ext_resource type="PackedScene" uid="uid://bpt076tq8pqlv" path="res://scenes/unit/visual/human/商旅过客/商旅过客_visual.tscn" id="19_w27ab"]
+[ext_resource type="PackedScene" uid="uid://7puc72kt0m1q" path="res://scenes/unit/visual/human/游学书生/游学书生_visual.tscn" id="20_156tw"]
+[ext_resource type="PackedScene" uid="uid://b6w2s7jcnjreo" path="res://scenes/unit/visual/human/渔夫/渔夫_visual.tscn" id="21_xue6b"]
+[ext_resource type="PackedScene" uid="uid://06cpxiftg72" path="res://scenes/unit/visual/human/老监工/老监工_visual.tscn" id="22_nvjta"]
+[ext_resource type="PackedScene" uid="uid://cbbltju52gq8r" path="res://scenes/unit/visual/human/石匠/石匠_visual.tscn" id="23_bs53k"]
+[ext_resource type="Script" uid="uid://ckcgeq5qlukx6" path="res://scenes/levels/base_level/move_overlay.gd" id="24_rr4al"]
 [ext_resource type="Script" path="res://scenes/levels/base_level/hover_overlay.gd" id="25_778ek"]
-[ext_resource type="Script" path="res://scenes/levels/base_level/level_camera.gd" id="26_mt0k3"]
-[ext_resource type="PackedScene" path="res://scenes/ui/status_bar.tscn" id="27_pvm18"]
-[ext_resource type="Script" path="res://scenes/levels/base_level/movement_manager.gd" id="28_f8p8a"]
+[ext_resource type="Script" uid="uid://y23vshydkrvf" path="res://scenes/levels/base_level/level_camera.gd" id="26_mt0k3"]
+[ext_resource type="PackedScene" uid="uid://drujkj0i8k8lh" path="res://scenes/ui/status_bar.tscn" id="27_pvm18"]
+[ext_resource type="Script" uid="uid://dtbq71h31mwwx" path="res://scenes/levels/base_level/movement_manager.gd" id="28_f8p8a"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_i3du0"]
 texture = ExtResource("2_m5iqv")
@@ -855,72 +856,62 @@ tile_set = ExtResource("12_siygh")
 
 [node name="Units" type="Node2D" parent="Entities" unique_id=436779837]
 
-[node name="Player" type="Node2D" parent="Entities/Units" unique_id=1506978219 instance=ExtResource("13_w1vbv")]
+[node name="Player" parent="Entities/Units" unique_id=1506978219 instance=ExtResource("13_w1vbv")]
 position = Vector2(16, 8)
-script = ExtResource("14_d5n1e")
 unit_data = ExtResource("15_olp7u")
 visual_scene = ExtResource("16_w4xdg")
 unit_color = Color(1, 0.85, 0, 1)
 
-[node name="NpcOldMaster" type="Node2D" parent="Entities/Units" unique_id=161741424 instance=ExtResource("13_w1vbv")]
+[node name="NpcOldMaster" parent="Entities/Units" unique_id=161741424 instance=ExtResource("13_w1vbv")]
 position = Vector2(145, 25)
-script = ExtResource("14_d5n1e")
 unit_data = ExtResource("17_86kac")
 visual_scene = ExtResource("18_7kr6p")
 unit_color = Color(0.55, 0.4, 0.3, 1)
 
-[node name="NpcRiverChief" type="Node2D" parent="Entities/Units" unique_id=667147196 instance=ExtResource("13_w1vbv")]
+[node name="NpcRiverChief" parent="Entities/Units" unique_id=667147196 instance=ExtResource("13_w1vbv")]
 position = Vector2(-96, -16)
-script = ExtResource("14_d5n1e")
 unit_data = ExtResource("17_86kac")
 visual_scene = ExtResource("18_7kr6p")
 unit_color = Color(0.4, 0.55, 0.7, 1)
 
-[node name="NpcCourtInspector" type="Node2D" parent="Entities/Units" unique_id=802343641 instance=ExtResource("13_w1vbv")]
+[node name="NpcCourtInspector" parent="Entities/Units" unique_id=802343641 instance=ExtResource("13_w1vbv")]
 position = Vector2(160, 0)
-script = ExtResource("14_d5n1e")
 unit_data = ExtResource("17_86kac")
-visual_scene = ExtResource("18_7kr6p")
+visual_scene = ExtResource("18_8iyre")
 unit_color = Color(0.7, 0.55, 0.3, 1)
 
-[node name="NpcApprentice" type="Node2D" parent="Entities/Units" unique_id=1754759594 instance=ExtResource("13_w1vbv")]
+[node name="NpcApprentice" parent="Entities/Units" unique_id=1754759594 instance=ExtResource("13_w1vbv")]
 position = Vector2(-80, 24)
-script = ExtResource("14_d5n1e")
 unit_data = ExtResource("17_86kac")
 visual_scene = ExtResource("19_daqxj")
 unit_color = Color(0.5, 0.85, 0.6, 1)
 
-[node name="NpcMerchant" type="Node2D" parent="Entities/Units" unique_id=833667993 instance=ExtResource("13_w1vbv")]
+[node name="NpcMerchant" parent="Entities/Units" unique_id=833667993 instance=ExtResource("13_w1vbv")]
 position = Vector2(96, 80)
-script = ExtResource("14_d5n1e")
 unit_data = ExtResource("17_86kac")
-visual_scene = ExtResource("19_daqxj")
+visual_scene = ExtResource("19_w27ab")
 unit_color = Color(0.85, 0.7, 0.4, 1)
 
-[node name="NpcScholar" type="Node2D" parent="Entities/Units" unique_id=1532409080 instance=ExtResource("13_w1vbv")]
+[node name="NpcScholar" parent="Entities/Units" unique_id=1532409080 instance=ExtResource("13_w1vbv")]
 position = Vector2(-146, 111)
-script = ExtResource("14_d5n1e")
 unit_data = ExtResource("17_86kac")
 visual_scene = ExtResource("20_156tw")
 unit_color = Color(0.85, 0.85, 0.95, 1)
 
-[node name="NpcFisherman" type="Node2D" parent="Entities/Units" unique_id=47502702 instance=ExtResource("13_w1vbv")]
+[node name="NpcFisherman" parent="Entities/Units" unique_id=47502702 instance=ExtResource("13_w1vbv")]
 position = Vector2(-80, 72)
-script = ExtResource("14_d5n1e")
 unit_data = ExtResource("17_86kac")
 visual_scene = ExtResource("21_xue6b")
 unit_color = Color(0.55, 0.7, 0.85, 1)
 
-[node name="NpcOldOverseer" type="Node2D" parent="Entities/Units" unique_id=594664341 instance=ExtResource("13_w1vbv")]
+[node name="NpcOldOverseer" parent="Entities/Units" unique_id=594664341 instance=ExtResource("13_w1vbv")]
 position = Vector2(208, 24)
-script = ExtResource("14_d5n1e")
 unit_data = ExtResource("17_86kac")
 visual_scene = ExtResource("22_nvjta")
 unit_color = Color(0.65, 0.55, 0.5, 1)
 
-[node name="NpcOldStonemason" type="Node2D" parent="Entities/Units" unique_id=845433362 instance=ExtResource("13_w1vbv")]
+[node name="NpcOldStonemason" parent="Entities/Units" unique_id=845433362 instance=ExtResource("13_w1vbv")]
 position = Vector2(0, 111)
-script = ExtResource("14_d5n1e")
 unit_data = ExtResource("17_86kac")
 visual_scene = ExtResource("23_bs53k")
 unit_color = Color(0.7, 0.65, 0.55, 1)
@@ -1070,8 +1061,7 @@ offset_right = 612.0
 offset_bottom = 35.0
 text = "桥梁知识"
 
-[node name="StatusBarScene" type="CanvasLayer" parent="." unique_id=1549933772 instance=ExtResource("27_pvm18")]
-layer = 10
+[node name="StatusBarScene" parent="." unique_id=1549933772 instance=ExtResource("27_pvm18")]
 
 [node name="MovementManager" type="Node" parent="." unique_id=1144669128 node_paths=PackedStringArray("movement_tilemaps", "obstacle_tilemaps")]
 script = ExtResource("28_f8p8a")
