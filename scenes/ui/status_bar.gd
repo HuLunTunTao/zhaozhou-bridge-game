@@ -281,15 +281,9 @@ func _advance_portrait_animation(delta: float) -> void:
 
 
 func _update_hp_color(stats: CombatStats) -> void:
-	var ratio := float(stats.current_hp) / float(stats.max_hp) if stats.max_hp > 0 else 0.0
 	var fill := _hp_bar.get_theme_stylebox("fill") as StyleBoxFlat
 	if fill:
-		if ratio > 0.6:
-			fill.bg_color = Color(0.2, 0.8, 0.3)
-		elif ratio > 0.3:
-			fill.bg_color = Color(0.9, 0.75, 0.2)
-		else:
-			fill.bg_color = Color(0.9, 0.2, 0.2)
+		fill.bg_color = Color(0.9, 0.2, 0.2) if stats.camp == Enums.Camp.ENEMY else Color(0.2, 0.8, 0.3)
 
 
 func _update_element(logo_label: Label, value_label: Label, element: Enums.Element, amount: int) -> void:

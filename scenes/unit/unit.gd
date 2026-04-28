@@ -316,7 +316,7 @@ func die() -> void:
 ## 刷新血条显示。外部在伤害/治疗后调用。
 func refresh_hp_bar() -> void:
 	if _hp_bar and combat_stats:
-		_hp_bar.update_hp(float(combat_stats.current_hp) / float(combat_stats.max_hp))
+		_hp_bar.update_hp(float(combat_stats.current_hp) / float(combat_stats.max_hp), combat_stats.camp)
 
 
 ## 刷新 AP 条显示。

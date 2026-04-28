@@ -5,6 +5,8 @@ extends Node2D
 class_name UnitHpBar
 
 const BAR_WIDTH: float = 30.0
+const HP_COLOR_ALLY := Color(0.15, 0.95, 0.15)
+const HP_COLOR_ENEMY := Color(1.0, 0.15, 0.15)
 const _LABEL_DEFAULT_RECT := Rect2(-53.0, 0.0, 35.0, 24.0)
 const _LABEL_NAME_RECT := Rect2(-48.0, -2.0, 96.0, 20.0)
 
@@ -56,18 +58,11 @@ func _apply_label_rect(rect: Rect2, align: HorizontalAlignment) -> void:
 	_elem_label.horizontal_alignment = align
 
 
-## 更新血条。ratio = current_hp / max_hp (0.0 ~ 1.0)。
-func update_hp(ratio: float) -> void:
+## 更新血条。ratio = current_hp / max_hp (0.0 ~ 1.0)，颜色只表示敌我阵营。
+func update_hp(ratio: float, camp: int = Enums.Camp.ALLY) -> void:
 	ratio = clampf(ratio, 0.0, 1.0)
 	_hp_fill.size.x = BAR_WIDTH * ratio
-
-	# 颜色渐变: 亮绿(>60%) → 亮黄(30%~60%) → 亮红(<30%)
-	if ratio > 0.6:
-		_hp_fill.color = Color(0.15, 0.95, 0.15)
-	elif ratio > 0.3:
-		_hp_fill.color = Color(1.0, 0.9, 0.1)
-	else:
-		_hp_fill.color = Color(1.0, 0.15, 0.15)
+	_hp_fill.color = HP_COLOR_ENEMY if camp == Enums.Camp.ENEMY else HP_COLOR_ALLY
 
 
 ## 更新 AP 条。ratio = ap_current / ap_max (0.0 ~ 1.0)。
