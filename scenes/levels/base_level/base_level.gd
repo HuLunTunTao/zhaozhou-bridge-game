@@ -373,8 +373,11 @@ func _begin_initial_briefing() -> void:
 	panel.victory_lines = obj["victory"]
 	panel.defeat_lines = obj["defeat"]
 	panel.detail_lines = obj.get("details", [])
-	panel.closed.connect(_on_initial_briefing_done, CONNECT_ONE_SHOT)
-	_open_overlay(ActiveOverlay.BRIEFING_OBJECTIVES, panel)
+	if _open_overlay(ActiveOverlay.BRIEFING_OBJECTIVES, panel):
+		panel.closed.connect(_on_initial_briefing_done, CONNECT_ONE_SHOT)
+	else:
+		panel.queue_free()
+		_on_initial_briefing_done()
 
 
 ## 初始目标面板关闭：BRIEFING → PLAYING，启动回合系统。
