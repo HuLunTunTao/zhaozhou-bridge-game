@@ -2,21 +2,31 @@ extends Node
 ## 全局设置单例。负责读取、保存和应用游戏设置。
 ## 数据持久化到当前存档位目录（user://1～9/settings.json）。
 
+const DEFAULT_MUSIC_VOLUME := 0.3
+const DEFAULT_SFX_VOLUME := 0.8
+const DEFAULT_UI_VOLUME := 0.8
+const DEFAULT_VOICE_VOLUME := 0.8
+const DEFAULT_AMBIENCE_VOLUME := 0.8
+const DEFAULT_DEBUG_MODE := false
+const DEFAULT_MUTED := false
+const DEFAULT_WINDOW_WIDTH := 1920
+const DEFAULT_WINDOW_HEIGHT := 1080
+const DEFAULT_FULLSCREEN := false
 const DEFAULT_DIFFICULTY := "normal"
 
 signal settings_changed
 signal difficulty_changed(new_id: String)
 
-var music_volume := 0.8    ## 音乐音量，范围 0.0 ~ 1.0
-var sfx_volume := 0.8      ## 音效音量，范围 0.0 ~ 1.0
-var ui_volume := 0.8       ## UI 音量，范围 0.0 ~ 1.0
-var voice_volume := 0.8    ## 语音音量，范围 0.0 ~ 1.0
-var ambience_volume := 0.8 ## 环境音量，范围 0.0 ~ 1.0
-var debug_mode := false    ## 隐藏调试模式开关。
-var muted := false         ## 全局静音开关（不覆盖各通道记忆值）。
-var window_width := 1920   ## 窗口宽度（像素）。仅在非全屏模式下使用。
-var window_height := 1080  ## 窗口高度（像素）。仅在非全屏模式下使用。
-var fullscreen := false    ## 是否使用独占全屏（fullscreen 模式）。
+var music_volume := DEFAULT_MUSIC_VOLUME       ## 音乐音量，范围 0.0 ~ 1.0
+var sfx_volume := DEFAULT_SFX_VOLUME           ## 音效音量，范围 0.0 ~ 1.0
+var ui_volume := DEFAULT_UI_VOLUME             ## UI 音量，范围 0.0 ~ 1.0
+var voice_volume := DEFAULT_VOICE_VOLUME       ## 语音音量，范围 0.0 ~ 1.0
+var ambience_volume := DEFAULT_AMBIENCE_VOLUME ## 环境音量，范围 0.0 ~ 1.0
+var debug_mode := DEFAULT_DEBUG_MODE           ## 隐藏调试模式开关。
+var muted := DEFAULT_MUTED                     ## 全局静音开关（不覆盖各通道记忆值）。
+var window_width := DEFAULT_WINDOW_WIDTH       ## 窗口宽度（像素）。仅在非全屏模式下使用。
+var window_height := DEFAULT_WINDOW_HEIGHT     ## 窗口高度（像素）。仅在非全屏模式下使用。
+var fullscreen := DEFAULT_FULLSCREEN           ## 是否使用独占全屏（fullscreen 模式）。
 var difficulty := DEFAULT_DIFFICULTY ## 难度档位 ID，配置见 GameState.DIFFICULTY_CONFIG。
 
 # AI辅助编程，Kimi Code，2026-04-20
@@ -208,14 +218,14 @@ func reset_to_defaults() -> void:
 
 
 func _reset_values_to_defaults() -> void:
-	music_volume = 0.8
-	sfx_volume = 0.8
-	ui_volume = 0.8
-	voice_volume = 0.8
-	ambience_volume = 0.8
-	debug_mode = false
-	muted = false
-	window_width = 1920
-	window_height = 1080
-	fullscreen = false
+	music_volume = DEFAULT_MUSIC_VOLUME
+	sfx_volume = DEFAULT_SFX_VOLUME
+	ui_volume = DEFAULT_UI_VOLUME
+	voice_volume = DEFAULT_VOICE_VOLUME
+	ambience_volume = DEFAULT_AMBIENCE_VOLUME
+	debug_mode = DEFAULT_DEBUG_MODE
+	muted = DEFAULT_MUTED
+	window_width = DEFAULT_WINDOW_WIDTH
+	window_height = DEFAULT_WINDOW_HEIGHT
+	fullscreen = DEFAULT_FULLSCREEN
 	difficulty = DEFAULT_DIFFICULTY
