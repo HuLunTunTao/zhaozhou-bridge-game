@@ -334,7 +334,14 @@ func _on_tutorial_skill_executed(caster: Unit, skill: SkillData, _cast_cell: Vec
 
 # 李春对话单行构造的小帮手：自动带头像，放左侧。仿 L1-1 / L1-4 同名函数。
 func _lc_line(text: String) -> DialogueLine:
-	return DialogueLine.create("李春", text, _li_chun_portrait, "left")
+	return DialogueLine.create(
+		"李春",
+		text,
+		_li_chun_portrait,
+		"left",
+		null,
+		TutorialTtsIndex.get_audio("level1-3", "hero_li_chun", text)
+	)
 
 
 func _on_unit_moved() -> void:

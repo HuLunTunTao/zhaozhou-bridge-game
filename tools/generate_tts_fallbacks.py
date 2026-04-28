@@ -28,6 +28,7 @@ import base64
 import json
 import os
 import pathlib
+import ssl
 import sys
 import time
 import uuid
@@ -42,7 +43,6 @@ TIMEOUT_SEC = 30     # 单次 HTTP 总超时
 def synthesize(api_key: str, resource_id: str, user_uid: str,
                voice: str, text: str) -> bytes:
     """调火山 unidirectional HTTP TTS 端点，返回完整 MP3 字节。"""
-    import requests   # 延迟导入：仅 bake 模式需要
     headers = {
         "Content-Type": "application/json",
         "X-Api-Key": api_key,
@@ -58,27 +58,60 @@ def synthesize(api_key: str, resource_id: str, user_uid: str,
             "audio_params": {"format": "mp3"},
         },
     }
+    try:
+        return _synthesize_with_requests(headers, body)
+    except ModuleNotFoundError:
+        return _synthesize_with_urllib(headers, body)
+
+
+def _collect_audio_from_lines(lines: Iterator[str]) -> bytes:
     audio = bytearray()
+    for raw in lines:
+        if not raw:
+            continue
+        try:
+            d = json.loads(raw)
+        except json.JSONDecodeError:
+            continue   # 火山偶尔混入 keep-alive 空行
+        code = d.get("code", -1)
+        if code == 20000000:
+            break        # 正常结束信号
+        if code != 0:
+            msg = d.get("message", "?")
+            raise RuntimeError(f"火山返回 code={code} msg={msg}")
+        data = d.get("data")
+        if isinstance(data, str) and data:
+            audio.extend(base64.b64decode(data))
+    return bytes(audio)
+
+
+def _synthesize_with_requests(headers: dict, body: dict) -> bytes:
+    import requests   # 延迟导入：仅 bake 模式需要
     with requests.post(ENDPOINT, json=body, headers=headers,
                        stream=True, timeout=TIMEOUT_SEC) as resp:
         resp.raise_for_status()
-        for raw in resp.iter_lines(decode_unicode=True):
-            if not raw:
-                continue
-            try:
-                d = json.loads(raw)
-            except json.JSONDecodeError:
-                continue   # 火山偶尔混入 keep-alive 空行
-            code = d.get("code", -1)
-            if code == 20000000:
-                break        # 正常结束信号
-            if code != 0:
-                msg = d.get("message", "?")
-                raise RuntimeError(f"火山返回 code={code} msg={msg}")
-            data = d.get("data")
-            if isinstance(data, str) and data:
-                audio.extend(base64.b64decode(data))
-    return bytes(audio)
+        return _collect_audio_from_lines(resp.iter_lines(decode_unicode=True))
+
+
+def _synthesize_with_urllib(headers: dict, body: dict) -> bytes:
+    import urllib.error
+    import urllib.request
+    req = urllib.request.Request(
+        ENDPOINT,
+        data=json.dumps(body).encode("utf-8"),
+        headers=headers,
+        method="POST",
+    )
+    context = None
+    if os.environ.get("VOLC_TTS_INSECURE_SSL", "").strip() in {"1", "true", "TRUE", "yes", "YES"}:
+        context = ssl._create_unverified_context()
+    try:
+        with urllib.request.urlopen(req, timeout=TIMEOUT_SEC, context=context) as resp:
+            lines = (line.decode("utf-8").strip() for line in resp)
+            return _collect_audio_from_lines(lines)
+    except urllib.error.HTTPError as e:
+        detail = e.read().decode("utf-8", errors="replace")
+        raise RuntimeError(f"HTTP {e.code}: {detail[:200]}") from e
 
 
 def cmd_bake(args, manifest: dict, repo_root: pathlib.Path) -> int:
@@ -106,7 +139,7 @@ def cmd_bake(args, manifest: dict, repo_root: pathlib.Path) -> int:
             continue
         out.parent.mkdir(parents=True, exist_ok=True)
         slug = it.get("slug", "?")
-        text = it.get("text", "")
+        text = it.get("tts_text") or it.get("text", "")
         voice = it.get("voice", "")
         if not text or not voice:
             print(f"[SKIP] {unit_id}/{slug} 缺 text/voice", file=sys.stderr)

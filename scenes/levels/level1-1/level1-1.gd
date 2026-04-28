@@ -581,4 +581,11 @@ func _run_onboarding() -> void:
 
 ## 李春对话单行构造的小帮手：自动带头像，放左侧。
 func _lc_line(text: String) -> DialogueLine:
-	return DialogueLine.create("李春", text, _li_chun_portrait, "left")
+	return DialogueLine.create(
+		"李春",
+		text,
+		_li_chun_portrait,
+		"left",
+		null,
+		TutorialTtsIndex.get_audio("level1-1", "hero_li_chun", text)
+	)

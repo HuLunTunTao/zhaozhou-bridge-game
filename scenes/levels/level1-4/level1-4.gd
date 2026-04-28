@@ -496,7 +496,14 @@ func _run_p3_tutorial() -> void:
 
 # 李春对话单行构造的小帮手：自动带头像，放左侧。仿 L1-1 同名函数。
 func _lc_line(text: String) -> DialogueLine:
-	return DialogueLine.create("李春", text, _li_chun_portrait, "left")
+	return DialogueLine.create(
+		"李春",
+		text,
+		_li_chun_portrait,
+		"left",
+		null,
+		TutorialTtsIndex.get_audio("level1-4", "hero_li_chun", text)
+	)
 
 
 # 在 4 座小拱「2×2 区域」中心生成 TilePulsingMarker 用作状态指示。
