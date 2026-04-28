@@ -1065,6 +1065,12 @@ func _get_unit_at_cell(cell: Vector2i, team: TeamData) -> Node2D:
 	for unit: Node2D in team.units:
 		if unit.cell == cell:
 			return unit
+		if unit is Unit:
+			var u := unit as Unit
+			# 巨型单位可用 extra_target_cells 扩展受击区；点击这些格也应查看该单位。
+			for offset in u.extra_target_cells:
+				if u.cell + offset == cell:
+					return unit
 	return null
 
 
