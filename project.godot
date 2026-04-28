@@ -12,6 +12,7 @@ config_version=5
 
 config/name="game"
 run/main_scene="res://scenes/menu/main_menu.tscn"
+run/max_fps=75
 config/features=PackedStringArray("4.6", "Forward Plus")
 boot_splash/bg_color=Color(0.08, 0.06, 0.04, 1)
 boot_splash/image="res://assets/background.png"
