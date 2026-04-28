@@ -1050,12 +1050,12 @@ func _gain_stability(amount: int, reason: String) -> void:
 
 
 # 怒水当前阶段的免伤值（>0 = 减伤；<0 = 易伤；=0 = 无修正）。
-# Phase 1: 0 / Phase 2: 0.5（PHASE2_AVAILABLE 全 done 后 0）
+# Phase 1: 0 / Phase 2: 0.75（PHASE2_AVAILABLE 全 done 后 0）
 # Phase 3: 0.75 → 0.25（内对全 done）→ -0.25（再外对全 done）
 func _compute_boss_dr() -> float:
 	match _boss_phase:
 		2:
-			return 0.0 if _all_done(PHASE2_AVAILABLE) else 0.5
+			return 0.0 if _all_done(PHASE2_AVAILABLE) else 0.75
 		3:
 			var inner_done := _all_done(PHASE3_INNER)
 			var outer_done := _all_done(PHASE3_OUTER)
