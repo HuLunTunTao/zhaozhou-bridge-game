@@ -867,6 +867,7 @@ func _make_unit_data(base: UnitData, unit_name: String, max_hp: int, base_atk: i
 	var data := base.duplicate(true) as UnitData
 	data.resource_local_to_scene = true
 	data.unit_name = unit_name
+	data.camp = Enums.Camp.ENEMY
 	data.max_hp = max_hp
 	data.base_atk = base_atk
 	data.ap_max = ap_max
