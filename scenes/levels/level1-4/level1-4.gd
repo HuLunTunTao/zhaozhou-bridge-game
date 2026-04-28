@@ -1191,7 +1191,7 @@ func _setup_enemies_from_scene() -> void:
 	# TileMaps/boss_hit_area 这层 TileMap 定义——设计师在编辑器里画哪些桥面格
 	# 算"打到 Boss"。运行时把这些绝对格子转成相对偏移塞进 extra_target_cells，
 	# 让 base_level 的 targeting overlay + skill_executor 的命中判定都直接复用。
-	setup_unit_stats(_boss, "怒水", 360, 24, 1, 99, Enums.Element.WATER, 2)
+	setup_unit_stats(_boss, "怒水", 600, 24, 1, 99, Enums.Element.WATER, 2)
 	set_unit_skills(_boss, [_overturn_bridge])
 	_populate_boss_hit_area()
 
