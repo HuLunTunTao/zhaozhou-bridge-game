@@ -2357,8 +2357,8 @@ func apply_unit_growth_bonus(unit: Unit, hp_delta: int = 0, atk_delta: int = 0, 
 ##   g1_X_ap:  全体我方行动力上限 +5
 ##   g1_2_craft: 全体工匠 HP +10 / ATK +2
 ##   g1_3_team:  全体我方 HP +10 / 运石工 AP 上限 +5
-## 解锁类（gX_X_river / push / pile / ring / lock / link / anchor）由 GROWTH_SKILL_UNLOCKS
-## + _normalize_progress 自动写入 unlocked_skill_ids，这里不重复处理。
+## 解锁类成长在 Progress.LEVEL_GROWTH_OPTIONS 中配置 skill_id，
+## 由 Progress._normalize_progress 自动写入 unlocked_skill_ids，这里不重复处理。
 func _apply_persistent_growth_effects() -> void:
 	# 攻击力 +4（每关都有，可叠加 +12）
 	for atk_id in ["g1_1_atk", "g1_2_atk", "g1_3_atk"]:

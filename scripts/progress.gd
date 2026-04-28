@@ -45,36 +45,26 @@ const LEVEL_STAGE_SKILLS := {
 
 const LEVEL_GROWTH_OPTIONS := {
 	"关卡1-1": [
-		{"id": "g1_1_river", "name": "请益河工", "description": "李春获得新技能“分波束桩”（水属性 2×2 群击退）"},
-		{"id": "g1_1_push", "name": "顺水推舟", "description": "李春获得新技能“顺水推舟”（水属性直线 3 击退 / 推水加伤）"},
-		{"id": "g1_1_pile", "name": "镇基沉桩", "description": "李春获得新技能“镇基沉桩”（土属性单体重击 / 残血处决）"},
+		{"id": "g1_1_river", "name": "请益河工", "skill_id": "lc_pile_bind_wave"},
+		{"id": "g1_1_push", "name": "顺水推舟", "skill_id": "lc_water_push"},
+		{"id": "g1_1_pile", "name": "镇基沉桩", "skill_id": "lc_settle_pile"},
 		{"id": "g1_1_atk", "name": "习图记尺", "description": "李春基础攻击力 +4"},
 		{"id": "g1_1_ap", "name": "操练与动员", "description": "全体我方行动力上限 +5"},
 	],
 	"关卡1-2": [
-		{"id": "g1_2_ring", "name": "围尺八方", "description": "李春获得新技能“围尺八方”（金属性自身环形 8 格 / 越围越疼）"},
-		{"id": "g1_2_lock", "name": "参校定弧", "description": "李春获得新技能“绳准锁弧”（木属性直线 4 全员拖拽）"},
+		{"id": "g1_2_ring", "name": "围尺八方", "skill_id": "lc_ruler_eight"},
+		{"id": "g1_2_lock", "name": "参校定弧", "skill_id": "lc_line_lock_arc"},
 		{"id": "g1_2_atk", "name": "墨绳习算", "description": "李春基础攻击力 +4"},
 		{"id": "g1_2_ap", "name": "熟尺知度", "description": "全体我方行动力上限 +5"},
 		{"id": "g1_2_craft", "name": "护模齐作", "description": "全体工匠最大生命值 +10，基础攻击力 +2"},
 	],
 	"关卡1-3": [
-		{"id": "g1_3_link", "name": "连楔并拱", "description": "李春获得新技能“连楔并拱”（木属性直线 4 + 每命中回 5 AP）"},
-		{"id": "g1_3_anchor", "name": "阵心立桩", "description": "李春获得新技能“阵心立桩”（土属性 3×3 大 AOE）"},
+		{"id": "g1_3_link", "name": "连楔并拱", "skill_id": "lc_link_wedges_arch"},
+		{"id": "g1_3_anchor", "name": "阵心立桩", "skill_id": "lc_anchor_pile"},
 		{"id": "g1_3_atk", "name": "收缝习熟", "description": "李春基础攻击力 +4"},
 		{"id": "g1_3_ap", "name": "立券同力", "description": "全体我方行动力上限 +5"},
 		{"id": "g1_3_team", "name": "同心护城", "description": "全体我方最大生命值 +10，运石工行动力上限 +5"},
 	],
-}
-
-const GROWTH_SKILL_UNLOCKS := {
-	"g1_1_river": "lc_pile_bind_wave",
-	"g1_1_push": "lc_water_push",
-	"g1_1_pile": "lc_settle_pile",
-	"g1_2_ring": "lc_ruler_eight",
-	"g1_2_lock": "lc_line_lock_arc",
-	"g1_3_link": "lc_link_wedges_arch",
-	"g1_3_anchor": "lc_anchor_pile",
 }
 
 const CLEAR_REWARDS := {
@@ -228,7 +218,7 @@ func get_effective_max_equipped() -> int:
 func get_level_growth_options(level_name: String) -> Array[Dictionary]:
 	var rows: Array[Dictionary] = []
 	for row in LEVEL_GROWTH_OPTIONS.get(level_name, []):
-		rows.append((row as Dictionary).duplicate(true))
+		rows.append(_build_growth_option_display(row as Dictionary))
 	return rows
 
 
@@ -241,12 +231,49 @@ func has_level_growth_choices(level_name: String) -> bool:
 
 
 func get_growth_option_name(option_id: String) -> String:
+	var option := _get_growth_option_data(option_id)
+	if not option.is_empty():
+		return str(_build_growth_option_display(option).get("name", option_id))
+	return option_id
+
+
+func _build_growth_option_display(option: Dictionary) -> Dictionary:
+	var row := option.duplicate(true)
+	var skill_id := str(row.get("skill_id", ""))
+	if skill_id.is_empty():
+		return row
+
+	var growth_name := str(row.get("name", ""))
+	var skill_label := skill_id
+	var description := ""
+	var skill := get_skill_resource(skill_id)
+	if skill != null:
+		if not skill.skill_name.is_empty():
+			skill_label = skill.skill_name
+		description = skill.description.strip_edges()
+
+	if growth_name.is_empty():
+		row["name"] = skill_label
+	else:
+		row["name"] = "%s：%s" % [growth_name, skill_label]
+	if description.is_empty():
+		row["description"] = "获得新技能：%s" % skill_label
+	else:
+		row["description"] = description
+	return row
+
+
+func _get_growth_option_data(option_id: String) -> Dictionary:
 	for level_name in LEVEL_GROWTH_OPTIONS.keys():
 		for option in LEVEL_GROWTH_OPTIONS[level_name]:
 			var data := option as Dictionary
 			if str(data.get("id", "")) == option_id:
-				return str(data.get("name", option_id))
-	return option_id
+				return data
+	return {}
+
+
+func _get_growth_option_skill_id(option_id: String) -> String:
+	return str(_get_growth_option_data(option_id).get("skill_id", ""))
 
 
 func has_growth_option(option_id: String) -> bool:
@@ -448,7 +475,7 @@ func _normalize_progress() -> void:
 		if skill_id not in unique_skills:
 			unique_skills.append(skill_id)
 	for option_id in get_all_growth_option_ids():
-		var growth_skill_id := str(GROWTH_SKILL_UNLOCKS.get(option_id, ""))
+		var growth_skill_id := _get_growth_option_skill_id(option_id)
 		if not growth_skill_id.is_empty() and growth_skill_id not in unique_skills:
 			unique_skills.append(growth_skill_id)
 	unlocked_skill_ids = unique_skills
