@@ -108,23 +108,23 @@ func get_objectives_text() -> Dictionary:
 	match _current_task:
 		TaskState.TASK1_PARAMETERS:
 			var status := " (%d/%d)" % [_parameter_use_count, PARAMETER_REQUIRED_USES]
-			lines.append("- 在参数点 (-1, 2) 施放「测尺取参 / 参数确认」共 %d 次%s" % [PARAMETER_REQUIRED_USES, status])
+			lines.append("- 在参数点 (-1, 2) 测定 [b]河宽 / 河床 / 汛位[/b] 3 项数据（「测尺取参 / 参数确认」%s）" % status)
 			lines.append("- 李春抵达中央绘样台")
 			lines.append("- 李春执行「执墨定拱」")
 			lines.append("- 累计击退 8 名受驱役敌人（李春「绳准锁弧」可直线清场）")
 		TaskState.TASK2_PLATFORM:
-			lines.append("- 在参数点完成 3 次取参 (3/3)")
+			lines.append("- 在参数点测定 [b]河宽 / 河床 / 汛位[/b] 3 项数据 (3/3)")
 			lines.append("- 李春抵达中央绘样台 (0/1)")
 			lines.append("- 李春执行「执墨定拱」")
 			lines.append("- 累计击退 8 名受驱役敌人（李春「绳准锁弧」可直线清场）")
 		TaskState.TASK3_ARCH:
-			lines.append("- 在参数点完成 3 次取参 (3/3)")
+			lines.append("- 在参数点测定 [b]河宽 / 河床 / 汛位[/b] 3 项数据 (3/3)")
 			lines.append("- 李春抵达中央绘样台 (1/1)")
 			var arch_status := " (0/1)" if not _finalized else " (1/1)"
 			lines.append("- 李春执行「执墨定拱」%s" % arch_status)
 			lines.append("- 累计击退 8 名受驱役敌人（李春「绳准锁弧」可直线清场）")
 		TaskState.TASK4_HUNT:
-			lines.append("- 在参数点完成 3 次取参 (3/3)")
+			lines.append("- 在参数点测定 [b]河宽 / 河床 / 汛位[/b] 3 项数据 (3/3)")
 			lines.append("- 李春抵达中央绘样台 (1/1)")
 			lines.append("- 李春执行「执墨定拱」 (1/1)")
 			lines.append("- 累计击退 8 名受驱役敌人（李春「绳准锁弧」可直线清场） (%d/%d)" % [_minion_kills, REQUIRED_DEFEATS])
@@ -165,7 +165,7 @@ func _on_level_ready() -> void:
 	team_turn_started.connect(_on_stage_team_turn_started)
 	unit_move_completed.connect(_on_stage_unit_move_completed)
 
-	Notify.notify("派测量工到参数点 (-1, 2) 施放「测尺取参」3 次（每回合不限），或李春「参数确认」补刀（每回合 1 次）。", Notify.Position.TOP_CENTER, Notify.Style.INFO, 4.0)
+	Notify.notify("派测量工到参数点 (-1, 2) 测定河宽 / 河床 / 汛位 3 项数据（「测尺取参」每回合不限），或李春「参数确认」补刀（每回合 1 次）。", Notify.Position.TOP_CENTER, Notify.Style.INFO, 4.0)
 
 
 # ─────────────────────────────────────────────
@@ -390,7 +390,7 @@ func _update_mission_hint() -> void:
 		return
 	match _current_task:
 		TaskState.TASK1_PARAMETERS:
-			_mission_hint_label.text = "任务目标一，在参数点 (-1, 2) 施放「测尺取参 / 参数确认」【%d/%d】" % [_parameter_use_count, PARAMETER_REQUIRED_USES]
+			_mission_hint_label.text = "任务目标一，在参数点 (-1, 2) 测定河宽 / 河床 / 汛位 3 项数据【%d/%d】" % [_parameter_use_count, PARAMETER_REQUIRED_USES]
 		TaskState.TASK2_PLATFORM:
 			_mission_hint_label.text = "任务目标二，李春前往中央绘样台"
 		TaskState.TASK3_ARCH:
@@ -404,7 +404,7 @@ func _update_params_status_hint() -> void:
 	if _params_status_label == null:
 		return
 	var status := "已完成" if _parameter_use_count >= PARAMETER_REQUIRED_USES else "%d/%d" % [_parameter_use_count, PARAMETER_REQUIRED_USES]
-	_params_status_label.text = "参数点进度：\n坡度 (%d, %d) [%s]" % [PARAMETER_CELL.x, PARAMETER_CELL.y, status]
+	_params_status_label.text = "参数点进度：\n河宽 / 河床 / 汛位 (%d, %d) [%s]" % [PARAMETER_CELL.x, PARAMETER_CELL.y, status]
 
 
 # ─────────────────────────────────────────────
