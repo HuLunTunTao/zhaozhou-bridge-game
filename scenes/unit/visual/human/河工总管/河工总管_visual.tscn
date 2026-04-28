@@ -3,6 +3,7 @@
 [ext_resource type="PackedScene" uid="uid://cbjso0lvbcag1" path="res://scenes/unit/visual/visual.tscn" id="1_iclxl"]
 [ext_resource type="Shader" uid="uid://w8w41kw1kylj" path="res://scenes/unit/shader/unit_edge_light.gdshader" id="2_kowld"]
 [ext_resource type="Texture2D" uid="uid://bvmuccob5d36j" path="res://assets/character/河工总管/河工总管.png" id="3_kowld"]
+[ext_resource type="Script" uid="uid://d1sc1kkbsu1qf" path="res://scenes/unit/visual/human/河工总管/河工总管_visual.gd" id="4_xuo6q"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_xuo6q"]
 resource_local_to_scene = true
@@ -50,7 +51,8 @@ animations = [{
 [node name="Visual" unique_id=1878430534 instance=ExtResource("1_iclxl")]
 material = SubResource("ShaderMaterial_xuo6q")
 sprite_frames = SubResource("SpriteFrames_i8ke5")
-frame_progress = 0.88285923
+frame_progress = 0.89408606
+script = ExtResource("4_xuo6q")
 move_is_idle = true
 flip_h_for_turning = true
 
