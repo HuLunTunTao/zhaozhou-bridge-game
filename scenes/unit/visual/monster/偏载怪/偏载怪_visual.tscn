@@ -1,8 +1,8 @@
 [gd_scene format=3 uid="uid://bgx4pa32tvuqt"]
 
 [ext_resource type="PackedScene" uid="uid://cbjso0lvbcag1" path="res://scenes/unit/visual/visual.tscn" id="1_r1ut5"]
-[ext_resource type="Script" path="res://scenes/unit/visual/monster/偏载怪/偏载怪_visual.gd" id="2_script"]
 [ext_resource type="Shader" uid="uid://w8w41kw1kylj" path="res://scenes/unit/shader/unit_edge_light.gdshader" id="2_kmfso"]
+[ext_resource type="Script" uid="uid://bkxj7e24li8cj" path="res://scenes/unit/visual/monster/偏载怪/偏载怪_visual.gd" id="2_script"]
 [ext_resource type="Texture2D" uid="uid://dbtoxhn05q4ce" path="res://assets/character/monster/偏载怪.png" id="3_kmfso"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_sbrei"]
@@ -49,10 +49,11 @@ animations = [{
 }]
 
 [node name="Visual" unique_id=1878430534 instance=ExtResource("1_r1ut5")]
-script = ExtResource("2_script")
 material = SubResource("ShaderMaterial_sbrei")
+position = Vector2(0, -12)
 scale = Vector2(0.11, 0.11)
 sprite_frames = SubResource("SpriteFrames_2k67s")
+script = ExtResource("2_script")
 move_is_idle = true
 flip_h_for_turning = true
 
