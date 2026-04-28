@@ -49,6 +49,8 @@ var _dark_data: UnitData = preload("res://data/units/dark_current.tres")
 const TUTORIAL_ID := "level1-3"
 # 教程"亲手用一次墨绳校券"的同步态。
 var _tutorial_inkline_used: bool = false
+var _tutorial_stone_picked: bool = false
+var _tutorial_stone_delivered: bool = false
 
 var _staff: SkillData = preload("res://data/skills/sw_staff_end_strike.tres")
 var _mallet: SkillData = preload("res://data/skills/cg_mallet_strike.tres")
@@ -209,6 +211,12 @@ func get_objectives_text() -> Dictionary:
 			"- 李春失去行动能力",
 			"- 超过第 50 回合（当前第 %d 回合）" % round_number,
 		],
+		"details": [
+			"- 运石工进入[b]棕色石料场[/b]会自动取石；负石后进入[color=#e0a830]金券台[/color]或[color=#3098e8]蓝券台[/color] 2×2 区域会自动交石，对应侧券值 +3。",
+			"- 李春「墨绳校券」命中一侧券台：命中侧 +1、另一侧 -1；适合把高低两侧拉回平衡。",
+			"- 偏载傀免伤看左右差值：差 ≤1 正常受伤；差 2–3 每次最多 10 伤；差 ≥4 每次最多 1 伤。",
+			"- 两侧都到 10、差值 ≤1、偏载傀被击退后，桥中央紫色拱冠点会亮起；李春再用「墨绳校券」命中它即可胜利。",
+		],
 	}
 
 
@@ -250,17 +258,12 @@ func _on_phase_changed_for_onboarding(p: int) -> void:
 
 
 # 完整对话教程（仿 L1-1 / L1-4 P1）。复玩走 has_seen_tutorial 自动跳过。
-# 设计：四段对话 + 一次实操（用一次墨绳校券）+ 收尾确认。
-#   ① 战场目标与三件事（券值 / 合龙 / boss）
-#   ② 推券两条路：取送石 vs 墨绳校券；CD/AP 数值
-#   ③ 平衡机制：均衡 / 偏衡 / 失衡 → boss 受伤上限
-#   ④ 让玩家亲自打一发墨绳校券（最直观的"我也能改券值"反馈）
-#   ⑤ 命中确认 + 拱冠合龙 + 失败条件
+# 设计：目标说明 → 手把手取石/交石 → boss 免伤机制 → 墨绳校券调平 → 收尾确认。
 func _run_onboarding() -> void:
 	if Progress.has_seen_tutorial(TUTORIAL_ID):
 		if not await _ask_tutorial_replay():
 			Notify.notify(
-				"运石工取送石 +1 / 李春「墨绳校券」远程 +1（CD 2）；两侧 10 + 击退偏载傀 → 紫色拱冠点合龙",
+				"运石工取送石 +3；李春「墨绳校券」命中侧 +1、对侧 -1；保持差值 ≤1 才能有效击退偏载傀",
 				Notify.Position.TOP_CENTER, Notify.Style.INFO, 6.0,
 			)
 			return
@@ -269,7 +272,7 @@ func _run_onboarding() -> void:
 		return
 	# ── ① 战场目标 ──
 	await play_dialogue([
-		_lc_line("二十八券要在这里成形——这一关不是清空全场，而是把桥『券』够。"),
+		_lc_line("二十八券要在这里成形——这一关的最终目标不是清空全场敌人，而是把桥『券』够。"),
 		_lc_line("左上券值面板看着：左、右两侧各要凑到 [b]10[/b]，差值要 [b]≤1[/b]，再把『偏载傀』这个偏载威胁击退。"),
 		_lc_line("条件全满之后，桥中央会亮起[color=#c060f0]紫色拱冠点[/color]——我用『墨绳校券』点上去就算合龙。"),
 	])
@@ -277,28 +280,53 @@ func _run_onboarding() -> void:
 		return
 	# ── ② 推券两条路 ──
 	await play_dialogue([
-		_lc_line("券值有两条推法。一条是工人路：让运石工到[b]棕色石料场[/b]取石，再走到[color=#e0a830]金券台[/color]或[color=#3098e8]蓝券台[/color]旁边，自动把这一侧 +3。"),
-		_lc_line("另一条是我自己——『墨绳校券』，远程 [b]+1[/b]，CD 2 回合。可以隔着场子单方加券，关键时候用来抢节奏。"),
-		_lc_line("注意：这招命中券台后，命中侧 +1 同时对侧 [b]-1[/b]。是『调拨』不是『凭空印』——平衡两边时是神技，乱用会失衡。"),
+		_lc_line("券值先靠工人推。让运石工进入[b]棕色石料场[/b]，他会自动取石；再把石头送进[color=#e0a830]金券台[/color]或[color=#3098e8]蓝券台[/color]的 2×2 区域，对应侧就会 +3。"),
+		_lc_line("先亲手走一遍。选一个运石工，把他移动到任意一处[b]棕色石料场[/b]里。"),
 	])
 	if is_phase_ended():
 		return
-	# ── ③ 平衡机制 + boss ──
+	_tutorial_stone_picked = false
+	Notify.notify(
+		"选中运石工 → 移动到棕色石料场 2×2 区域；进格后会自动取石。",
+		Notify.Position.TOP_CENTER, Notify.Style.INFO, 14.0,
+	)
+	while not _tutorial_stone_picked:
+		await unit_move_completed
+		if is_phase_ended():
+			return
+	# ── ③ 手把手交石加券 ──
 	await play_dialogue([
-		_lc_line("讲到失衡：左右券值差是关卡的命脉。差 0 → [color=#7aff8c]均衡[/color]，正常压制偏载傀；差 ≥2 → [color=#ffc855]偏衡[/color]，它每次最多承受 10 点伤害；差 ≥4 → [color=#ff5555]失衡[/color]，几乎免伤。"),
-		_lc_line("所以压制偏载傀的窗口只在『均衡』。一边赶券、一边别让差值拉开是这关的核心。"),
-		_lc_line("再加上 50 回合时限——别拖。"),
+		_lc_line("好，头顶出现『负石』就说明石料已经背上了。负石会让移动更沉，别让断索鬼盯上。"),
+		_lc_line("现在把这个运石工送到[color=#e0a830]金券台[/color]或[color=#3098e8]蓝券台[/color]里。进到 2×2 区域就会自动交石，加到那一侧券值上。"),
 	])
 	if is_phase_ended():
 		return
-	# ── ④ 实战：先打一发墨绳校券 ──
+	_tutorial_stone_delivered = false
+	Notify.notify(
+		"移动负石运石工 → 进入金/蓝券台 2×2 区域；交石后该侧券值 +3。",
+		Notify.Position.TOP_CENTER, Notify.Style.INFO, 14.0,
+	)
+	while not _tutorial_stone_delivered:
+		await unit_move_completed
+		if is_phase_ended():
+			return
+	# ── ④ 平衡机制 + boss ──
 	await play_dialogue([
-		_lc_line("光说不练假把式。选中我，对着[color=#e0a830]金券台[/color]或[color=#3098e8]蓝券台[/color]来一发『墨绳校券』，看看券值面板的变化。"),
+		_lc_line("看左上面板：交石会把一侧推高，所以左右差值也会变。差值就是偏载傀的免伤开关。"),
+		_lc_line("差值 ≤1 时是[color=#7aff8c]均衡[/color]，可以正常打偏载傀；差值 2–3 是[color=#ffc855]偏衡[/color]，它每次最多只吃 10 点伤害。"),
+		_lc_line("差值 ≥4 就是[color=#ff5555]失衡[/color]，偏载傀每次最多只吃 1 点伤害——几乎等于打不动。想打 boss，先把左右拉平。"),
+	])
+	if is_phase_ended():
+		return
+	# ── ⑤ 实战：打一发墨绳校券调平 ──
+	await play_dialogue([
+		_lc_line("我这边还有一招『墨绳校券』：命中一侧券台，那侧 +1，另一侧 -1。它不是凭空加券，而是用来调平。"),
+		_lc_line("选中我，对着当前券值较低的那一侧券台来一发，看看差值怎么被拉回来。"),
 	])
 	if is_phase_ended():
 		return
 	Notify.notify(
-		"选中李春 → 选「墨绳校券」→ 点金券台或蓝券台 2×2 任意一格",
+		"选中李春 → 选「墨绳校券」→ 点券值较低一侧的券台 2×2 任意一格。",
 		Notify.Position.TOP_CENTER, Notify.Style.INFO, 14.0,
 	)
 	_tutorial_inkline_used = false
@@ -311,10 +339,11 @@ func _run_onboarding() -> void:
 			return
 	if skill_executed.is_connected(_on_tutorial_skill_executed):
 		skill_executed.disconnect(_on_tutorial_skill_executed)
-	# ── ⑤ 收尾确认 ──
+	# ── ⑥ 收尾确认 ──
 	await play_dialogue([
-		_lc_line("看到了吧——命中侧 +1，对侧 -1。等之后两边都到 10、差值 ≤1、偏载傀被击退，紫色拱冠点会亮起，再来这一招就合龙。"),
-		_lc_line("剩下的就交给你了——把券推满、把偏载傀引入均衡状态并击退，最后合龙由我来。"),
+		_lc_line("看到了吧——运石负责把总量堆上去，墨绳负责把左右调回来。两条线要一起做。"),
+		_lc_line("后面记住三件事：两侧都到 10、差值 ≤1、偏载傀被击退。三项齐了，紫色拱冠点会亮起，再用『墨绳校券』合龙。"),
+		_lc_line("如果忘了，就点右上角的目标按钮；关卡详情里也写了取石、交石和偏载傀免伤规则。"),
 	])
 	if is_phase_ended():
 		return
@@ -609,6 +638,7 @@ func _try_pick_or_deliver_stone(unit: Unit) -> void:
 	if _is_in_any_zone(unit.cell, _stone_yard_cells) and not _carrying_stone.get(key, false):
 		_carrying_stone[key] = true
 		_set_carrier_loaded(unit, true)
+		_tutorial_stone_picked = true
 		Notify.notify("%s 已取石" % unit.combat_stats.unit_name, Notify.Position.TOP_RIGHT, Notify.Style.INFO, 1.5)
 		return
 	if not _carrying_stone.get(key, false):
@@ -618,10 +648,12 @@ func _try_pick_or_deliver_stone(unit: Unit) -> void:
 		_adjust_arch_value(true, 3, "%s 运石入左券" % unit.combat_stats.unit_name)
 		_carrying_stone[key] = false
 		_set_carrier_loaded(unit, false)
+		_tutorial_stone_delivered = true
 	elif _is_in_zone(unit.cell, _right_platform):
 		_adjust_arch_value(false, 3, "%s 运石入右券" % unit.combat_stats.unit_name)
 		_carrying_stone[key] = false
 		_set_carrier_loaded(unit, false)
+		_tutorial_stone_delivered = true
 
 
 func _close_arch_conditions_met() -> bool:

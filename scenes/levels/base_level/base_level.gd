@@ -365,13 +365,14 @@ func _ready() -> void:
 ## BRIEFING 入口：弹出初始目标面板；若无目标文本则直接进入 PLAYING。
 func _begin_initial_briefing() -> void:
 	var obj := get_objectives_text()
-	var has_objectives: bool = not obj["victory"].is_empty() or not obj["defeat"].is_empty()
+	var has_objectives: bool = not obj["victory"].is_empty() or not obj["defeat"].is_empty() or not obj.get("details", []).is_empty()
 	if not has_objectives:
 		_on_initial_briefing_done()
 		return
 	var panel: ObjectivesPanel = ObjectivesPanelScene.instantiate()
 	panel.victory_lines = obj["victory"]
 	panel.defeat_lines = obj["defeat"]
+	panel.detail_lines = obj.get("details", [])
 	panel.closed.connect(_on_initial_briefing_done, CONNECT_ONE_SHOT)
 	_open_overlay(ActiveOverlay.BRIEFING_OBJECTIVES, panel)
 
@@ -528,7 +529,7 @@ func check_defeat() -> String:
 
 
 ## 子类覆写：返回本关目标文本。
-## 格式：{ "victory": Array[String], "defeat": Array[String] }
+## 格式：{ "victory": Array[String], "defeat": Array[String], "details": Array[String] 可选 }
 func get_objectives_text() -> Dictionary:
 	return { "victory": [], "defeat": [] }
 
@@ -1485,11 +1486,12 @@ func show_objectives() -> void:
 	if has_overlay():
 		return
 	var obj := get_objectives_text()
-	if obj["victory"].is_empty() and obj["defeat"].is_empty():
+	if obj["victory"].is_empty() and obj["defeat"].is_empty() and obj.get("details", []).is_empty():
 		return
 	var panel: ObjectivesPanel = ObjectivesPanelScene.instantiate()
 	panel.victory_lines = obj["victory"]
 	panel.defeat_lines = obj["defeat"]
+	panel.detail_lines = obj.get("details", [])
 	_open_overlay(ActiveOverlay.OBJECTIVES_REVIEW, panel)
 
 

@@ -6,9 +6,13 @@ signal closed
 
 var victory_lines: Array = []
 var defeat_lines: Array = []
+var detail_lines: Array = []
 
 @onready var _victory_label: RichTextLabel = %VictoryContent
 @onready var _defeat_label: RichTextLabel = %DefeatContent
+@onready var _details_header: Label = %DetailsHeader
+@onready var _details_label: RichTextLabel = %DetailsContent
+@onready var _details_separator: HSeparator = %DetailsSeparator
 @onready var _confirm_button: Button = %ConfirmButton
 
 
@@ -20,6 +24,13 @@ func _ready() -> void:
 	_defeat_label.text = ""
 	for line in defeat_lines:
 		_defeat_label.text += line + "\n"
+	_details_label.text = ""
+	for line in detail_lines:
+		_details_label.text += line + "\n"
+	var has_details := not detail_lines.is_empty()
+	_details_header.visible = has_details
+	_details_label.visible = has_details
+	_details_separator.visible = has_details
 	_confirm_button.grab_focus()
 
 
