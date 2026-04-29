@@ -34,11 +34,11 @@ static func pick(persona: Dictionary, trigger_kind: String) -> String:
 	if bag is Dictionary:
 		var arr: Variant = (bag as Dictionary).get(trigger_kind, [])
 		if arr is Array and not (arr as Array).is_empty():
-			return String((arr as Array)[randi() % (arr as Array).size()])
+			return str((arr as Array)[randi() % (arr as Array).size()])
 	var fallback: Array = _GLOBAL.get(trigger_kind, [""])
 	if fallback.is_empty():
 		return ""
-	return String(fallback[randi() % fallback.size()])
+	return str(fallback[randi() % fallback.size()])
 
 
 ## 给定 unit_id 的便利重载，自动取 persona。

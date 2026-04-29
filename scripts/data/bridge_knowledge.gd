@@ -81,7 +81,7 @@ static func get_topic(key: String) -> Dictionary:
 static func all_keys() -> Array[String]:
 	var keys: Array[String] = []
 	for t in TOPICS:
-		keys.append(String(t.get("key", "")))
+		keys.append(str(t.get("key", "")))
 	return keys
 
 

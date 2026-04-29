@@ -99,7 +99,7 @@ func speak(unit: Node, text: String, trigger_kind: String = "", context: Diction
 	# 解析 unit_id（用于 fallback 查表）
 	var unit_id: String = ""
 	if unit is Unit and (unit as Unit).unit_data != null:
-		unit_id = String((unit as Unit).unit_data.unit_id)
+		unit_id = str((unit as Unit).unit_data.unit_id)
 	# 先剥离动作描写括号；如果全是括号动作（剥完为空）→ 跳过 TTS，让显示路径自己计时收尾。
 	var clean_text := _sanitize_for_tts(text)
 	if clean_text.is_empty():

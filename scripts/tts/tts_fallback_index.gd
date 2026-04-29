@@ -50,9 +50,9 @@ func _load_manifest() -> void:
 		if not (it_raw is Dictionary):
 			continue
 		var it: Dictionary = it_raw
-		var unit_id: String = String(it.get("unit_id", "")).strip_edges()
-		var text: String = String(it.get("text", "")).strip_edges()
-		var output: String = String(it.get("output", "")).strip_edges()
+		var unit_id: String = str(it.get("unit_id", "")).strip_edges()
+		var text: String = str(it.get("text", "")).strip_edges()
+		var output: String = str(it.get("output", "")).strip_edges()
 		if unit_id.is_empty() or text.is_empty() or output.is_empty():
 			continue
 		var path: String = "res://" + output if not output.begins_with("res://") else output

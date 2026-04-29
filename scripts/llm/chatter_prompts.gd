@@ -211,11 +211,11 @@ static func _format_prompt_list(value: Variant) -> String:
 	if value is Array:
 		var parts: Array[String] = []
 		for item in value:
-			var item_text := String(item).strip_edges()
+			var item_text := str(item).strip_edges()
 			if not item_text.is_empty():
 				parts.append(item_text)
 		return "、".join(parts) if not parts.is_empty() else "（无）"
-	var value_text := String(value).strip_edges()
+	var value_text := str(value).strip_edges()
 	return value_text if not value_text.is_empty() else "（无）"
 
 

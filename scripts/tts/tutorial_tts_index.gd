@@ -41,10 +41,10 @@ func _load_manifest() -> void:
 		if not (raw_item is Dictionary):
 			continue
 		var item: Dictionary = raw_item
-		var level_id := String(item.get("level_id", "")).strip_edges()
-		var unit_id := String(item.get("unit_id", "")).strip_edges()
-		var text := String(item.get("text", "")).strip_edges()
-		var output := String(item.get("output", "")).strip_edges()
+		var level_id := str(item.get("level_id", "")).strip_edges()
+		var unit_id := str(item.get("unit_id", "")).strip_edges()
+		var text := str(item.get("text", "")).strip_edges()
+		var output := str(item.get("output", "")).strip_edges()
 		if level_id.is_empty() or unit_id.is_empty() or text.is_empty() or output.is_empty():
 			continue
 

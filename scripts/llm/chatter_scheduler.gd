@@ -479,7 +479,7 @@ func _build_line(unit: Node, trigger_kind: String, extra: Dictionary) -> Dialogu
 			"code": resp.get("code", ""),
 			"error": resp.get("error", ""),
 		})
-	var text: String = String(resp.get("text", "")).strip_edges()
+	var text: String = str(resp.get("text", "")).strip_edges()
 	if text.is_empty():
 		push_warning("[ChatterFallback][LLM_ONLY] unit=%s trigger=%s error=empty_text fallback=persona_text+tts" % [
 			_unit_display_name(u),
