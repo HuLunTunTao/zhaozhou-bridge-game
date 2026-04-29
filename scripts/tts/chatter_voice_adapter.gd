@@ -93,9 +93,9 @@ func speak(unit: Node, text: String, trigger_kind: String = "", context: Diction
 	_speak_token += 1
 	var my_token := _speak_token
 	var llm_ok: bool = bool(context.get("llm_ok", true))
-	var source: String = String(context.get("source", "llm"))
-	var llm_code: String = String(context.get("llm_code", ""))
-	var llm_error: String = String(context.get("llm_error", ""))
+	var source: String = str(context.get("source", "llm"))
+	var llm_code: String = str(context.get("llm_code", ""))
+	var llm_error: String = str(context.get("llm_error", ""))
 	# 解析 unit_id（用于 fallback 查表）
 	var unit_id: String = ""
 	if unit is Unit and (unit as Unit).unit_data != null:
