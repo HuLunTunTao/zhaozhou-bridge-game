@@ -15,7 +15,7 @@ const LLM_BASE_URL: String = "https://route.ffcrazy.top/v1"
 const LLM_API_KEY: String = "sk-T88jvv1yfilIaKI3EWOWgcXv09uDjJZ8gP4qRdMT7BFJQmd4"
 
 ## 模型名。按 base_url 服务方约定。
-const LLM_MODEL: String = "qwen-gamer"
+const LLM_MODEL: String = "ds/deepseek-v4-pro"
 
 ## 默认请求超时秒数。0 表示不超时。
 const LLM_TIMEOUT_SEC: float = 30.0
