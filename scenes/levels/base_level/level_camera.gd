@@ -23,6 +23,16 @@ var _is_dragging := false
 var _drag_start := Vector2.ZERO
 var _drag_accumulated := Vector2.ZERO
 
+## 多点触控状态（移动端/触摸屏）。键=触点 index，值=最近一次屏幕坐标。
+## 单指触摸交给 base_level 做点选/移动，相机只在出现 2 个及以上触点时介入。
+var _touches: Dictionary = {}
+## 双指捏合的初始两指距离，作为缩放比例的基准。
+var _pinch_initial_distance: float = 0.0
+## 双指捏合开始时的 target_zoom 快照，用于按比例计算新缩放。
+var _pinch_initial_zoom: Vector2 = Vector2.ONE
+## 上一帧两指中点（屏幕坐标），用于计算两指拖动相机位移。
+var _pinch_last_midpoint: Vector2 = Vector2.ZERO
+
 ## 锁定跟随的目标。非 null 时 _process 会每帧把相机拉到其位置，并禁用玩家手动操作。
 var _lock_target: Node2D = null
 ## 进入 lock_on 之前的 target_zoom，unlock 时按需恢复。
@@ -159,6 +169,93 @@ func _unhandled_input(event: InputEvent) -> void:
 		if _is_dragging:
 			target_position -= event.relative / zoom
 			get_viewport().set_input_as_handled()
+	elif event is InputEventScreenTouch:
+		_handle_screen_touch(event as InputEventScreenTouch)
+	elif event is InputEventScreenDrag:
+		_handle_screen_drag(event as InputEventScreenDrag)
+	elif event is InputEventMagnifyGesture:
+		# 触控板捏合（macOS / 部分 Linux）。factor>1 放大，<1 缩小。
+		target_zoom *= (event as InputEventMagnifyGesture).factor
+		target_zoom = target_zoom.clampf(min_zoom, max_zoom)
+		get_viewport().set_input_as_handled()
+	elif event is InputEventPanGesture:
+		# 触控板双指拖动（系统派发，与多点触摸独立）。
+		var pan := (event as InputEventPanGesture).delta
+		target_position += pan / zoom
+		get_viewport().set_input_as_handled()
+
+
+## 触点按下/抬起：维护 _touches，并在双指出现/消失时初始化或清空捏合基准。
+## 单指触摸不消费事件，留给 base_level 走点选 / 移动。
+## 第二指落下的瞬间会触发 _emit_cancel_action()，行为镜像鼠标右键按下。
+func _handle_screen_touch(event: InputEventScreenTouch) -> void:
+	if event.pressed:
+		_touches[event.index] = event.position
+		if _touches.size() == 2:
+			_begin_pinch()
+			# 双指按下 = 鼠标右键：base_level 的 cancel_action() 自带状态闸门，
+			# 仅在 TARGETING_MOVE / TARGETING_SKILL 时真正取消，其它状态下是无害空操作。
+			_emit_cancel_action()
+			get_viewport().set_input_as_handled()
+		elif _touches.size() > 2:
+			# 三指及以上不做手势识别，但仍然消费事件防止穿透到 base_level 误触。
+			get_viewport().set_input_as_handled()
+	else:
+		var was_two_or_more := _touches.size() >= 2
+		_touches.erase(event.index)
+		if was_two_or_more:
+			get_viewport().set_input_as_handled()
+		if _touches.size() == 2:
+			# 从 3+ 指降到 2 指，重新建立捏合基准。
+			_begin_pinch()
+		elif _touches.size() < 2:
+			_pinch_initial_distance = 0.0
+
+
+## 触点拖动：更新 _touches 中对应 index 的最新位置，再按当前两指状态做缩放 + 平移。
+func _handle_screen_drag(event: InputEventScreenDrag) -> void:
+	if not _touches.has(event.index):
+		return
+	_touches[event.index] = event.position
+	if _touches.size() < 2:
+		return
+	var positions: Array = _touches.values()
+	if positions.size() > 2:
+		positions = positions.slice(0, 2)
+	var p0: Vector2 = positions[0]
+	var p1: Vector2 = positions[1]
+	var distance: float = p0.distance_to(p1)
+	var midpoint: Vector2 = (p0 + p1) * 0.5
+
+	# 双指缩放：相对初始距离比，按 _pinch_initial_zoom 等比扩缩。
+	if _pinch_initial_distance > 0.0 and distance > 0.0:
+		var ratio: float = distance / _pinch_initial_distance
+		target_zoom = (_pinch_initial_zoom * ratio).clampf(min_zoom, max_zoom)
+
+	# 双指拖动：用中点位移驱动相机位移（屏幕坐标 → 世界坐标除以 zoom）。
+	var midpoint_delta: Vector2 = midpoint - _pinch_last_midpoint
+	_pinch_last_midpoint = midpoint
+	target_position -= midpoint_delta / zoom
+	get_viewport().set_input_as_handled()
+
+
+## 进入双指手势时记下基准距离 / 中点 / 缩放，后续 drag 都基于这组初始值算 delta。
+func _begin_pinch() -> void:
+	var positions: Array = _touches.values()
+	if positions.size() < 2:
+		return
+	var p0: Vector2 = positions[0]
+	var p1: Vector2 = positions[1]
+	_pinch_initial_distance = max(p0.distance_to(p1), 1.0)
+	_pinch_initial_zoom = target_zoom
+	_pinch_last_midpoint = (p0 + p1) * 0.5
+
+
+## 触发 BaseLevel.cancel_action()，等价鼠标右键按下；非 targeting 状态下是无害空操作。
+func _emit_cancel_action() -> void:
+	var parent := get_parent()
+	if parent != null and parent.has_method("cancel_action"):
+		parent.call("cancel_action")
 
 
 

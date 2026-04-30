@@ -36,7 +36,18 @@ const RESOLUTION_PRESETS: Array = [
 	Vector2i(1920, 1080),
 	Vector2i(2880, 1620),
 	Vector2i(3840, 2160),
+	Vector2i(2360, 1640),  ## iPad Air 5
+	Vector2i(2778, 1284),  ## iPhone 12 Pro Max
+	Vector2i(2772, 1280),  ## Redmi Turbo 5 Max
 ]
+
+## 部分预设附带设备名（手机/平板），用于设置面板下拉的友好显示。
+## 键 = "宽×高"，值 = 设备简称。
+const RESOLUTION_DEVICE_LABELS := {
+	"2360×1640": "苹果平板",
+	"2778×1284": "苹果手机",
+	"2772×1280": "安卓手机",
+}
 
 
 func _ready() -> void:
@@ -136,13 +147,17 @@ func _apply_window_settings() -> void:
 	var window := get_window()
 	window.content_scale_factor = 1.0
 	window.content_scale_size = Vector2i(960, 540)
+	var target_size := Vector2i(window_width, window_height)
+	# fullscreen 分支也必须设 size：iOS / Android 上 MODE_FULLSCREEN 是空操作，
+	# 渲染目标尺寸完全由 window.size 决定。
+	window.size = target_size
+	DisplayServer.window_set_size(target_size)
 	if fullscreen:
 		window.mode = Window.MODE_FULLSCREEN
-		_print_display_info(window)
-		return
-	window.mode = Window.MODE_WINDOWED
-	window.size = Vector2i(window_width, window_height)
-	window.call_deferred("move_to_center")
+	else:
+		if window.mode != Window.MODE_WINDOWED:
+			window.mode = Window.MODE_WINDOWED
+		window.call_deferred("move_to_center")
 	_print_display_info(window)
 
 
@@ -166,6 +181,34 @@ func set_fullscreen(enabled: bool) -> void:
 	if fullscreen == enabled:
 		return
 	fullscreen = enabled
+	apply_settings()
+	save_settings()
+
+
+## 移动端自适应：把渲染目标对齐到当前屏幕，保持游戏 16:9 长宽比。
+## - iOS / Android：渲染目标 = 物理屏幕尺寸 + fullscreen。letterbox 由 stretch_aspect 自动处理。
+## - 桌面端：算出能放进屏幕的最大 16:9 矩形，要么贴满高度要么贴满宽度。
+func apply_mobile_adaptive() -> void:
+	var screen_idx := DisplayServer.window_get_current_screen()
+	var screen_size := DisplayServer.screen_get_size(screen_idx)
+	if OS.has_feature("mobile"):
+		window_width = screen_size.x
+		window_height = screen_size.y
+		fullscreen = true
+		apply_settings()
+		save_settings()
+		return
+	# 桌面：在屏幕里塞最大 16:9 矩形。
+	var w_from_h := screen_size.y * 16 / 9
+	var win: Vector2i
+	if w_from_h <= screen_size.x:
+		win = Vector2i(w_from_h, screen_size.y)
+	else:
+		win = Vector2i(screen_size.x, screen_size.x * 9 / 16)
+	# 偶数像素避免半像素抖动。
+	window_width = win.x & ~1
+	window_height = win.y & ~1
+	fullscreen = false
 	apply_settings()
 	save_settings()
 

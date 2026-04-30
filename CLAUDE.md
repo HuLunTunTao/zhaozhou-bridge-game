@@ -261,6 +261,15 @@ These patterns cause "works in editor, fails in export" bugs. **Always avoid the
 4. **Prefer PackedScene `.instantiate()` over `.new()` for complex UI node trees.**
    Programmatically built Control trees (PanelContainer > HBoxContainer > RichTextLabel) may have minimum_size propagation timing issues in export. Use a `.tscn` template instead. See `scenes/ui/notification_popup.tscn`.
 
+5. **Mobile (iOS / Android): `MODE_FULLSCREEN` is a no-op; `window.size` is what matters.**
+   On iOS / Android the OS forces fullscreen — `window.mode = MODE_FULLSCREEN` does nothing. The render-target size is determined entirely by `window.size`. If you ever set `window.size` to a desktop preset (e.g. 1920×1080) on a mobile device, that value sticks until explicitly overwritten — the OS will upscale the wrong-size buffer to the device screen, producing blurry / mis-aspect output. `Settings.apply_mobile_adaptive()` exists to reset `window.size = DisplayServer.screen_get_size(0)` on mobile and to compute a 16:9 fit-to-screen on desktop. Detect mobile with `OS.has_feature("mobile")` (cross-platform stable), not `OS.get_name() == "iOS"`. Also keep `window/stretch/mode = canvas_items` + `stretch/aspect = keep` in `project.godot` so the 16:9 viewport letterboxes cleanly on any aspect ratio. Full write-up: [docs/mobile-export-pitfalls.md](docs/mobile-export-pitfalls.md).
+
+## Autoload reload caveat
+
+Editing an autoload script (`Settings`, `GameState`, `Notify`, etc.) does **not** hot-reload into a running game. F5 (game restart) re-instantiates autoloads from latest source — that's enough. F6 (current-scene restart) is **not** enough. When you change autoload code and observe "the change isn't taking effect", first suspect "autoload didn't restart", then debug logic.
+
+Scripts attached to `.tscn` nodes (panels, levels) DO reload on each scene instantiation, so they pick up edits immediately.
+
 ## MCP Integration
 
 Godot MCP server is configured (`@coding-solo/godot-mcp`) for scene creation, node manipulation, and project inspection.

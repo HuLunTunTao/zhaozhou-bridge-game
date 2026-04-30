@@ -23,6 +23,7 @@ signal closed
 @onready var back_to_menu_button: Button = get_node_or_null("Backdrop/Panel/ScrollContainer/Content/BackToMenuButton") as Button
 
 const FULLSCREEN_INDEX := -1  ## OptionButton 中代表「全屏」的 metadata 值
+const MOBILE_AUTO_INDEX := -2  ## OptionButton 中代表「移动端自适应」的 metadata 值
 
 var _title_tap_count := 0
 var _title_tap_reset_timer: SceneTreeTimer
@@ -54,12 +55,20 @@ func _populate_resolution_options() -> void:
 	resolution_option.clear()
 	for i in Settings.RESOLUTION_PRESETS.size():
 		var res: Vector2i = Settings.RESOLUTION_PRESETS[i]
-		resolution_option.add_item("%d×%d" % [res.x, res.y], i)
+		var key := "%d×%d" % [res.x, res.y]
+		var label: String = key
+		if Settings.RESOLUTION_DEVICE_LABELS.has(key):
+			label = "%s (%s)" % [Settings.RESOLUTION_DEVICE_LABELS[key], key]
+		resolution_option.add_item(label, i)
 		resolution_option.set_item_metadata(i, res)
 	# 全屏单独一档
 	var fs_idx := resolution_option.item_count
-	resolution_option.add_item("全屏", FULLSCREEN_INDEX)
+	resolution_option.add_item("桌面端全屏", FULLSCREEN_INDEX)
 	resolution_option.set_item_metadata(fs_idx, FULLSCREEN_INDEX)
+	# 移动端自适应（按运行平台和当前屏幕尺寸自动挑选）
+	var mobile_idx := resolution_option.item_count
+	resolution_option.add_item("移动端自适应", MOBILE_AUTO_INDEX)
+	resolution_option.set_item_metadata(mobile_idx, MOBILE_AUTO_INDEX)
 	# 同步当前选中项
 	var current_idx := fs_idx if Settings.fullscreen else _find_resolution_index(Settings.window_width, Settings.window_height)
 	resolution_option.select(current_idx)
@@ -141,6 +150,9 @@ func _has_pending_display_change() -> bool:
 	var meta: Variant = resolution_option.get_item_metadata(idx)
 	if typeof(meta) == TYPE_INT and int(meta) == FULLSCREEN_INDEX:
 		return not Settings.fullscreen
+	if typeof(meta) == TYPE_INT and int(meta) == MOBILE_AUTO_INDEX:
+		# 自适应每次点击都重新挑选，不做"等价检测"，永远允许应用。
+		return true
 	if meta is Vector2i:
 		var res: Vector2i = meta
 		return Settings.fullscreen or Settings.window_width != res.x or Settings.window_height != res.y
@@ -154,6 +166,8 @@ func _on_apply_display_pressed() -> void:
 	var meta: Variant = resolution_option.get_item_metadata(idx)
 	if typeof(meta) == TYPE_INT and int(meta) == FULLSCREEN_INDEX:
 		Settings.set_fullscreen(true)
+	elif typeof(meta) == TYPE_INT and int(meta) == MOBILE_AUTO_INDEX:
+		Settings.apply_mobile_adaptive()
 	elif meta is Vector2i:
 		var res: Vector2i = meta
 		Settings.set_window_resolution(res.x, res.y)
