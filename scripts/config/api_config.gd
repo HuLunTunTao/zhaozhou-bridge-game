@@ -9,13 +9,13 @@ class_name ApiConfig
 # ────────────── LLM（OpenAI Chat Completions 兼容）──────────────
 
 ## API 根地址，不带尾斜杠。chat completions 端点会拼成 base_url + "/chat/completions"。
-const LLM_BASE_URL: String = "https://route.ffcrazy.top/v1"
+const LLM_BASE_URL: String = ""
 
 ## 形如 "sk-..."。空字符串则 LLMClient 拒绝请求。
-const LLM_API_KEY: String = "sk-T88jvv1yfilIaKI3EWOWgcXv09uDjJZ8gP4qRdMT7BFJQmd4"
+const LLM_API_KEY: String = ""
 
 ## 模型名。按 base_url 服务方约定。
-const LLM_MODEL: String = "ds/deepseek-v4-pro"
+const LLM_MODEL: String = ""
 
 ## 默认请求超时秒数。0 表示不超时。
 const LLM_TIMEOUT_SEC: float = 30.0
@@ -31,7 +31,7 @@ const TTS_RESOURCE_ID: String = "seed-tts-2.0"
 
 ## 火山控制台拿到的 API Key。空字符串则 VolcengineTTSClient 跳过合成
 ## 并允许 ChatterScheduler 走系统 TTS 兜底。
-const TTS_API_KEY: String = "090296d2-e97d-49a0-a6fc-3d37b2353767"
+const TTS_API_KEY: String = ""
 
 ## 模型名。空字符串走音色默认；常用："seed-tts-2.0-expressive"
 const TTS_MODEL: String = "seed-tts-2.0-expressive"
