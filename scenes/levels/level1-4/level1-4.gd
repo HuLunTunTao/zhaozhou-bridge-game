@@ -245,9 +245,9 @@ func _resolve_wave_unit(kind: String) -> Dictionary:
 func _resolve_cell_hint(hint: String) -> Vector2i:
 	match hint:
 		"near_left_pier_west":
-			return _nearest_walkable(_left_pier + Vector2i(-2, 0))
+			return CellMath.nearest_walkable(movement_manager, _left_pier + Vector2i(-2, 0))
 		"near_right_pier_east":
-			return _nearest_walkable(_right_pier + Vector2i(2, 0))
+			return CellMath.nearest_walkable(movement_manager, _right_pier + Vector2i(2, 0))
 		"watch_north_2":
 			return _watch_point + Vector2i(0, -2)
 		"arch_left_front_north_2":
@@ -265,9 +265,9 @@ func _resolve_cell_hint(hint: String) -> Vector2i:
 		# 地图东西两端（桥的远端两侧），所有 wave spawn 都从这里登场。
 		# 这两个绝对坐标接近 surface tilemap 的左右极限。
 		"map_west_edge":
-			return _nearest_walkable(Vector2i(-20, 41))
+			return CellMath.nearest_walkable(movement_manager, Vector2i(-20, 41))
 		"map_east_edge":
-			return _nearest_walkable(Vector2i(41, -20))
+			return CellMath.nearest_walkable(movement_manager, Vector2i(41, -20))
 	push_warning("wave_spawns: 未知 cell_hint '%s'，退回 watch_point" % hint)
 	return _watch_point
 
@@ -288,7 +288,7 @@ func _find_water_cell_near(target: Vector2i, max_radius: int) -> Vector2i:
 				if movement_manager.is_water_cell(candidate):
 					return candidate
 	push_warning("water cell hint near %s 找不到水格，退回 nearest_walkable" % target)
-	return _nearest_walkable(target)
+	return CellMath.nearest_walkable(movement_manager, target)
 
 
 # 复制 UnitData 以避免多实例共享同一 Resource 副作用（原 _make_unit_data 的精简版，
@@ -551,15 +551,9 @@ func _update_status_panel() -> void:
 	]
 
 
-# 返回一座小拱占据的 2×2 cells（start + 左 + 上 + 左上）
+# 返回一座小拱占据的 2×2 cells（start + 左 + 上 + 左上，NW 展开）
 func _arch_cells_for(arch_key: String) -> Array[Vector2i]:
-	var start: Vector2i = _side_arch_cells[arch_key]
-	return [
-		start,
-		start + Vector2i(-1, 0),
-		start + Vector2i(0, -1),
-		start + Vector2i(-1, -1),
-	]
+	return CellMath.zone2x2_nw(_side_arch_cells[arch_key])
 
 
 func _make_silt_tile() -> SiltTile:
@@ -783,7 +777,7 @@ func _boss_topple_bank() -> void:
 		return
 	var boss_cell := _boss.cell
 	alive.sort_custom(func(a: Unit, b: Unit) -> bool:
-		return _manhattan(a.cell, boss_cell) < _manhattan(b.cell, boss_cell)
+		return CellMath.manhattan(a.cell, boss_cell) < CellMath.manhattan(b.cell, boss_cell)
 	)
 	var targets: Array = alive.slice(0, mini(2, alive.size()))
 	Notify.notify("怒水释放【翻岸压塌】", Notify.Position.TOP_RIGHT, Notify.Style.WARNING, 2.5)
@@ -863,10 +857,6 @@ func _has_knockback_immune_status(unit: Unit) -> bool:
 	if unit == null or unit.combat_stats == null:
 		return false
 	return unit.combat_stats.has_status(STATUS_KNOCKBACK_IMMUNE)
-
-
-func _manhattan(a: Vector2i, b: Vector2i) -> int:
-	return absi(a.x - b.x) + absi(a.y - b.y)
 
 
 func _on_stage_team_turn_started(team_index: int) -> void:
@@ -1107,9 +1097,9 @@ func _spawn_phase_reinforcements(phase: int) -> void:
 
 func _setup_anchor_cells() -> void:
 	var anchor := _li_chun.cell
-	_watch_point = _nearest_walkable(anchor + Vector2i(0, -1))
-	_left_pier = _nearest_walkable(anchor + Vector2i(-4, 0))
-	_right_pier = _nearest_walkable(anchor + Vector2i(4, 0))
+	_watch_point = CellMath.nearest_walkable(movement_manager, anchor + Vector2i(0, -1))
+	_left_pier = CellMath.nearest_walkable(movement_manager, anchor + Vector2i(-4, 0))
+	_right_pier = CellMath.nearest_walkable(movement_manager, anchor + Vector2i(4, 0))
 	# 4 座小拱：surface z=0 的绝对 cell 坐标，每座是 2×2 区域（start + 左 + 上 + 左上）。
 	# 原始读数在 TileMaps/bridge1（position=Vector2(0,440)）的 cell 系下；surface z=0 在
 	# 原点，两者 tile_set 一致（iso DIAMOND_DOWN, tile_size=32x16），因此换算为
@@ -1276,7 +1266,7 @@ func _resolve_enemy_pressure() -> void:
 		if not (enemy is Unit) or enemy.combat_stats == null or not enemy.combat_stats.is_alive():
 			continue
 		var u_name: String = enemy.combat_stats.unit_name
-		if not _is_adjacent_or_same(enemy.cell, _watch_point):
+		if not CellMath.is_adjacent_or_same(enemy.cell, _watch_point):
 			continue
 		if u_name == "桥台噬者":
 			event_dmg += 2
@@ -1343,14 +1333,14 @@ func _build_priority_targets() -> Dictionary:
 		var y_on: int = 0 if _is_on_main_bridge(y.cell) else 1
 		if x_on != y_on:
 			return x_on < y_on
-		return _manhattan(x.cell, _watch_point) < _manhattan(y.cell, _watch_point)
+		return CellMath.manhattan(x.cell, _watch_point) < CellMath.manhattan(y.cell, _watch_point)
 	)
 	priorities["洪锋"] = flood_spear_list
 
 	# 桥台噬者：任何我方，按到 watch_point 曼哈顿距离排序（趋近桥心制造 -2 压力）
 	var gnawer_list: Array = alive_allies.duplicate()
 	gnawer_list.sort_custom(func(x: Unit, y: Unit) -> bool:
-		return _manhattan(x.cell, _watch_point) < _manhattan(y.cell, _watch_point)
+		return CellMath.manhattan(x.cell, _watch_point) < CellMath.manhattan(y.cell, _watch_point)
 	)
 	priorities["桥台噬者"] = gnawer_list
 
@@ -1379,10 +1369,6 @@ func _min_dist_to_cells(from_cell: Vector2i, cells: Array) -> int:
 		if d < best:
 			best = d
 	return best
-
-
-func _is_adjacent_or_same(a: Vector2i, b: Vector2i) -> bool:
-	return absi(a.x - b.x) + absi(a.y - b.y) <= 1
 
 
 func _cell_is_small_arch(cell: Vector2i) -> bool:
@@ -1455,15 +1441,3 @@ func _spawn_enemy(data: UnitData, cell: Vector2i, skills: Array[SkillData], visu
 			data.innate_element,
 			data.innate_element_amount)
 	return unit
-
-
-func _nearest_walkable(target: Vector2i) -> Vector2i:
-	if movement_manager.get_movement_cost(target) != TileType.IMPASSABLE:
-		return target
-	for radius in range(1, 4):
-		for dx in range(-radius, radius + 1):
-			for dy in range(-radius, radius + 1):
-				var candidate := target + Vector2i(dx, dy)
-				if movement_manager.get_movement_cost(candidate) != TileType.IMPASSABLE:
-					return candidate
-	return target

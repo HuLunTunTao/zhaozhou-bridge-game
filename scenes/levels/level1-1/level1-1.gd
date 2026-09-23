@@ -478,18 +478,6 @@ func _on_unit_moved() -> void:
 			_update_mission_hint()
 
 
-func _nearest_walkable(target: Vector2i) -> Vector2i:
-	if movement_manager.get_movement_cost(target) != TileType.IMPASSABLE:
-		return target
-	for radius in range(1, 6):
-		for dx in range(-radius, radius + 1):
-			for dy in range(-radius, radius + 1):
-				var candidate := target + Vector2i(dx, dy)
-				if movement_manager.get_movement_cost(candidate) != TileType.IMPASSABLE:
-					return candidate
-	return target
-
-
 func _get_ai_context() -> Dictionary:
 	return {
 		"escort_units": [_survey_a, _survey_b],

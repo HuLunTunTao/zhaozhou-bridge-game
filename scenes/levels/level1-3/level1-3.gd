@@ -371,8 +371,8 @@ func _on_skill_executed(caster: Unit, skill: SkillData, cast_cell: Vector2i, exe
 		# 命中拱冠点 / 站在拱冠点上自施 → 收缝合龙
 		# 视觉光晕覆盖多格，命中点接受 _crown_point 切比雪夫半径 ≤1 范围（容差）
 		var hit_crown: bool = (
-			_is_adjacent_or_same(caster.cell, _crown_point)
-			or _is_adjacent_or_same(cast_cell, _crown_point)
+			CellMath.is_adjacent_or_same(caster.cell, _crown_point)
+			or CellMath.is_adjacent_or_same(cast_cell, _crown_point)
 		)
 		if hit_crown:
 			if _close_arch_conditions_met():
@@ -388,11 +388,11 @@ func _on_skill_executed(caster: Unit, skill: SkillData, cast_cell: Vector2i, exe
 					Notify.Position.TOP_CENTER, Notify.Style.WARNING, 3.5,
 				)
 			return
-		if _is_in_zone(cast_cell, _left_platform):
+		if CellMath.is_in_zone2x2(cast_cell, _left_platform):
 			_adjust_arch_value(true, 1, "墨绳校券（左 +1）")
 			_adjust_arch_value(false, -1, "墨绳校券（右 -1）")
 			_update_status_panel()
-		elif _is_in_zone(cast_cell, _right_platform):
+		elif CellMath.is_in_zone2x2(cast_cell, _right_platform):
 			_adjust_arch_value(false, 1, "墨绳校券（右 +1）")
 			_adjust_arch_value(true, -1, "墨绳校券（左 -1）")
 			_update_status_panel()
@@ -485,16 +485,16 @@ func _show_direct_damage_feedback(unit: Unit, old_hp: int, new_hp: int, message:
 func _setup_anchor_cells() -> void:
 	# 桥面锚点都是地图固定坐标，不再从李春的 cell 派生；以后李春可以任意开局位置，
 	# 拱冠 / 券台 / 缝口 / 石料场都不动。
-	_crown_point = _nearest_walkable(CROWN_CELL)
-	_left_platform = _nearest_walkable(LEFT_PLATFORM_CELL)
-	_right_platform = _nearest_walkable(RIGHT_PLATFORM_CELL)
+	_crown_point = CellMath.nearest_walkable(movement_manager, CROWN_CELL)
+	_left_platform = CellMath.nearest_walkable(movement_manager, LEFT_PLATFORM_CELL)
+	_right_platform = CellMath.nearest_walkable(movement_manager, RIGHT_PLATFORM_CELL)
 	_stone_yard_cells = [
-		_nearest_walkable(STONE_YARD_CELL_A),
-		_nearest_walkable(STONE_YARD_CELL_B),
+		CellMath.nearest_walkable(movement_manager, STONE_YARD_CELL_A),
+		CellMath.nearest_walkable(movement_manager, STONE_YARD_CELL_B),
 	]
 	_joint_cells = [
-		_nearest_walkable(JOINT_CELL_A),
-		_nearest_walkable(JOINT_CELL_B),
+		CellMath.nearest_walkable(movement_manager, JOINT_CELL_A),
+		CellMath.nearest_walkable(movement_manager, JOINT_CELL_B),
 	]
 	# ── 调试 ──
 	print("[Level1-3] anchors:")
@@ -510,13 +510,13 @@ func _setup_anchor_cells() -> void:
 
 ## 左/右券台视觉：2×2 彩色地块 + 预置的脉动光晕（见 level1-3.tscn 的 Markers 节点）。
 func _setup_platform_markers() -> void:
-	for c in _zone_cells(_left_platform):
+	for c in CellMath.zone2x2_se(_left_platform):
 		var t := _make_platform_tile(COLOR_LEFT_PLATFORM)
 		t.name = "LeftArchTile_%d_%d" % [c.x, c.y]
 		register_special_tile(t, c)
 	_left_platform_marker = get_node("Markers/LeftArchMarker")
 
-	for c in _zone_cells(_right_platform):
+	for c in CellMath.zone2x2_se(_right_platform):
 		var t := _make_platform_tile(COLOR_RIGHT_PLATFORM)
 		t.name = "RightArchTile_%d_%d" % [c.x, c.y]
 		register_special_tile(t, c)
@@ -527,7 +527,7 @@ func _setup_platform_markers() -> void:
 func _setup_stone_yard_markers() -> void:
 	for i in _stone_yard_cells.size():
 		var anchor: Vector2i = _stone_yard_cells[i]
-		for c in _zone_cells(anchor):
+		for c in CellMath.zone2x2_se(anchor):
 			var tile := _make_platform_tile(COLOR_STONE_YARD)
 			tile.name = "StoneYardTile_%d_%d_%d" % [i, c.x, c.y]
 			register_special_tile(tile, c)
@@ -611,7 +611,7 @@ func _spawn_extra_carriers() -> void:
 		_stone_yard_cells[1] + Vector2i(-1, 0),   # 右石料场西侧（靠桥一侧）
 	]
 	for target in spawn_targets:
-		var cell := _nearest_walkable(target)
+		var cell := CellMath.nearest_walkable(movement_manager, target)
 		var carrier := spawn_unit(carrier_data, cell, PLAYER_TEAM, _visual_carrier)
 		_stone_carriers.append(carrier)
 
@@ -633,7 +633,7 @@ func _try_pick_or_deliver_stone(unit: Unit) -> void:
 		return
 	var key := unit.get_instance_id()
 	# 取石：进入 2×2 石料场区域且空手 → 自动取石（不再扣 AP）
-	if _is_in_any_zone(unit.cell, _stone_yard_cells) and not _carrying_stone.get(key, false):
+	if CellMath.is_in_any_zone2x2(unit.cell, _stone_yard_cells) and not _carrying_stone.get(key, false):
 		_carrying_stone[key] = true
 		_set_carrier_loaded(unit, true)
 		_tutorial_stone_picked = true
@@ -642,12 +642,12 @@ func _try_pick_or_deliver_stone(unit: Unit) -> void:
 	if not _carrying_stone.get(key, false):
 		return
 	# 交石：载石时进入 2×2 券台区域 → 自动卸石 + 对应侧 +1（不再扣 AP）
-	if _is_in_zone(unit.cell, _left_platform):
+	if CellMath.is_in_zone2x2(unit.cell, _left_platform):
 		_adjust_arch_value(true, 3, "%s 运石入左券" % unit.combat_stats.unit_name)
 		_carrying_stone[key] = false
 		_set_carrier_loaded(unit, false)
 		_tutorial_stone_delivered = true
-	elif _is_in_zone(unit.cell, _right_platform):
+	elif CellMath.is_in_zone2x2(unit.cell, _right_platform):
 		_adjust_arch_value(false, 3, "%s 运石入右券" % unit.combat_stats.unit_name)
 		_carrying_stone[key] = false
 		_set_carrier_loaded(unit, false)
@@ -787,9 +787,9 @@ func _resolve_enemy_pressure() -> void:
 			continue
 		if enemy.combat_stats.unit_name != "错券兵":
 			continue
-		if _is_adjacent_or_same(enemy.cell, _left_platform):
+		if CellMath.is_adjacent_or_same(enemy.cell, _left_platform):
 			_adjust_arch_value(true, -1, "错券兵扰券（左）")
-		elif _is_adjacent_or_same(enemy.cell, _right_platform):
+		elif CellMath.is_adjacent_or_same(enemy.cell, _right_platform):
 			_adjust_arch_value(false, -1, "错券兵扰券（右）")
 
 	# 2. 偏载傀「压台」——以 Boss 为中心 12×12 范围（切比雪夫半径 6）内，按距离最近选至多 2 个我方扣 base_atk × 0.5 无属伤
@@ -894,18 +894,6 @@ func _make_unit_data(base: UnitData, unit_name: String, max_hp: int, base_atk: i
 	return data
 
 
-func _nearest_walkable(target: Vector2i) -> Vector2i:
-	if movement_manager.get_movement_cost(target) != TileType.IMPASSABLE:
-		return target
-	for radius in range(1, 4):
-		for dx in range(-radius, radius + 1):
-			for dy in range(-radius, radius + 1):
-				var candidate := target + Vector2i(dx, dy)
-				if movement_manager.get_movement_cost(candidate) != TileType.IMPASSABLE:
-					return candidate
-	return target
-
-
 ## 扫描桥图层，登记所有桥面 cell。敌人刷新点必须落在桥上。
 func _build_bridge_cells() -> void:
 	_bridge_cells.clear()
@@ -922,7 +910,7 @@ func _build_bridge_cells() -> void:
 			_bridge_cells[cell] = true
 
 
-## 从 target 螺旋搜索最近的桥面可通行 cell；找不到则回退给 _nearest_walkable。
+## 从 target 螺旋搜索最近的桥面可通行 cell；找不到则回退给 CellMath.nearest_walkable。
 func _nearest_bridge_cell(target: Vector2i) -> Vector2i:
 	if _bridge_cells.has(target) and movement_manager.get_movement_cost(target) != TileType.IMPASSABLE:
 		return target
@@ -934,39 +922,13 @@ func _nearest_bridge_cell(target: Vector2i) -> Vector2i:
 				var c := target + Vector2i(dx, dy)
 				if _bridge_cells.has(c) and movement_manager.get_movement_cost(c) != TileType.IMPASSABLE:
 					return c
-	push_warning("[Level1-3] _nearest_bridge_cell 找不到桥上可通行格，回退到 _nearest_walkable: %s" % target)
-	return _nearest_walkable(target)
-
-
-func _is_adjacent_or_same(a: Vector2i, b: Vector2i) -> bool:
-	return absi(a.x - b.x) + absi(a.y - b.y) <= 1
+	push_warning("[Level1-3] _nearest_bridge_cell 找不到桥上可通行格，回退到 CellMath.nearest_walkable: %s" % target)
+	return CellMath.nearest_walkable(movement_manager, target)
 
 
 func _is_adjacent_to_any(cell: Vector2i, targets: Array[Vector2i]) -> bool:
 	for target in targets:
-		if _is_adjacent_or_same(cell, target):
-			return true
-	return false
-
-
-## 2×2 判定区：anchor 为西北角，区域含 anchor / +(1,0) / +(0,1) / +(1,1) 四格。
-func _zone_cells(anchor: Vector2i) -> Array[Vector2i]:
-	return [
-		anchor,
-		anchor + Vector2i(1, 0),
-		anchor + Vector2i(0, 1),
-		anchor + Vector2i(1, 1),
-	]
-
-
-func _is_in_zone(cell: Vector2i, anchor: Vector2i) -> bool:
-	return cell.x >= anchor.x and cell.x <= anchor.x + 1 \
-		and cell.y >= anchor.y and cell.y <= anchor.y + 1
-
-
-func _is_in_any_zone(cell: Vector2i, anchors: Array[Vector2i]) -> bool:
-	for a in anchors:
-		if _is_in_zone(cell, a):
+		if CellMath.is_adjacent_or_same(cell, target):
 			return true
 	return false
 

@@ -262,7 +262,7 @@ func _setup_drafting_marker() -> void:
 
 
 func _spawn_boss() -> void:
-	var cell := _nearest_walkable(BOSS_CELL)
+	var cell := CellMath.nearest_walkable(movement_manager, BOSS_CELL, 6)
 	_boss = spawn_unit(_boss_data, cell, ENEMY_TEAM)
 	set_unit_skills(_boss, [])
 	setup_unit_stats(_boss, _boss_data.unit_name, _boss_data.max_hp, 0, 0, 99, Enums.Element.NONE, 0)
@@ -272,10 +272,10 @@ func _spawn_boss() -> void:
 
 
 func _spawn_initial_minions() -> void:
-	_spawn_minion(&"循旧匠首", _nearest_walkable(ENEMY_SPAWN_ANCHORS[0]))
-	_spawn_minion(&"高拱幻影", _nearest_walkable(ENEMY_SPAWN_ANCHORS[0] + Vector2i(1, 1)))
-	_spawn_minion(&"循旧匠首", _nearest_walkable(ENEMY_SPAWN_ANCHORS[1]))
-	_spawn_minion(&"重墩石像", _nearest_walkable(ENEMY_SPAWN_ANCHORS[1] + Vector2i(1, 1)))
+	_spawn_minion(&"循旧匠首", CellMath.nearest_walkable(movement_manager, ENEMY_SPAWN_ANCHORS[0], 6))
+	_spawn_minion(&"高拱幻影", CellMath.nearest_walkable(movement_manager, ENEMY_SPAWN_ANCHORS[0] + Vector2i(1, 1), 6))
+	_spawn_minion(&"循旧匠首", CellMath.nearest_walkable(movement_manager, ENEMY_SPAWN_ANCHORS[1], 6))
+	_spawn_minion(&"重墩石像", CellMath.nearest_walkable(movement_manager, ENEMY_SPAWN_ANCHORS[1] + Vector2i(1, 1), 6))
 
 
 # ─────────────────────────────────────────────
@@ -607,11 +607,11 @@ func _spawn_minion(kind: StringName, cell: Vector2i) -> Unit:
 func _random_enemy_spawn_cell() -> Vector2i:
 	var candidates: Array[Vector2i] = []
 	for anchor in ENEMY_SPAWN_ANCHORS:
-		candidates.append(_nearest_walkable(anchor))
-		candidates.append(_nearest_walkable(anchor + Vector2i(1, 0)))
-		candidates.append(_nearest_walkable(anchor + Vector2i(-1, 0)))
-		candidates.append(_nearest_walkable(anchor + Vector2i(0, 1)))
-		candidates.append(_nearest_walkable(anchor + Vector2i(1, 1)))
+		candidates.append(CellMath.nearest_walkable(movement_manager, anchor, 6))
+		candidates.append(CellMath.nearest_walkable(movement_manager, anchor + Vector2i(1, 0), 6))
+		candidates.append(CellMath.nearest_walkable(movement_manager, anchor + Vector2i(-1, 0), 6))
+		candidates.append(CellMath.nearest_walkable(movement_manager, anchor + Vector2i(0, 1), 6))
+		candidates.append(CellMath.nearest_walkable(movement_manager, anchor + Vector2i(1, 1), 6))
 	candidates.shuffle()
 	for cell in candidates:
 		if not _cell_occupied(cell):
@@ -635,18 +635,6 @@ func _skill_list_contains(list: Array, skill_id: String) -> bool:
 		if s is SkillData and (s as SkillData).skill_id == skill_id:
 			return true
 	return false
-
-
-func _nearest_walkable(target: Vector2i) -> Vector2i:
-	if movement_manager.get_movement_cost(target) != TileType.IMPASSABLE:
-		return target
-	for radius in range(1, 6):
-		for dx in range(-radius, radius + 1):
-			for dy in range(-radius, radius + 1):
-				var candidate := target + Vector2i(dx, dy)
-				if movement_manager.get_movement_cost(candidate) != TileType.IMPASSABLE:
-					return candidate
-	return target
 
 
 func _cell_occupied(cell: Vector2i) -> bool:
