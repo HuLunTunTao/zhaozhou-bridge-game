@@ -305,7 +305,9 @@ func _find_npc_at_cell(cell: Vector2i) -> Unit:
 func _dispatch_interaction(npc: Unit) -> void:
 	match _state(npc).role:
 		"persuade":
-			await _flow_persuade(npc)
+			var flow := PersuadeFlow.new()
+			flow.setup(self)
+			await flow.run(npc)
 		"qa":
 			await _flow_qa(npc)
 		"mentor":
@@ -315,49 +317,8 @@ func _dispatch_interaction(npc: Unit) -> void:
 
 
 # ─────────────────────────────────────────────
-# Flow 1：说服（同旧版，加 learned_csv 注入 + 头顶图标更新）
+# Flow 1：说服 — 流程骨架见 PersuadeFlow；LLM 生成与 apply 暂留此（2.16 再抽）
 # ─────────────────────────────────────────────
-
-func _flow_persuade(npc: Unit) -> void:
-	if _state(npc).is_done():
-		# 已说服的不再交互——给个轻提示就走
-		Notify.info("已说服 %s" % npc.unit_data.unit_name, 1.5)
-		return
-	var st := _state(npc)
-	var bridge_part: String = st.bridge_part
-	var opening: String = _pick_persuade_opening(npc)
-	if not opening.is_empty():
-		await _play_npc_line(npc, opening, true, "bridge_persuade_opening")
-	var panel: Node = _ArgumentInputPanelScene.instantiate()
-	add_child(panel)
-	var subtitle := bridge_part
-	if not opening.is_empty():
-		subtitle = "%s · 「%s」" % [bridge_part, opening]
-	panel.show_for(npc.unit_data.unit_name, subtitle)
-	panel.set_persuasion_goal(st.persuasion_goal)
-	panel.set_persuade_base_total(st.accum_score_total)
-	panel.set_learned_topics(_player_learned_topics, _player_used_topics)
-	panel.set_history(_history_with_npc_prompt(npc, opening))
-	var argument: String = await panel.argument_submitted
-	if argument.is_empty():
-		return
-	var thinking := _show_thinking("%s 正在思量……" % npc.unit_data.unit_name)
-	var ans: Dictionary = await _generate_persuade_answer(npc, argument)
-	_hide_thinking(thinking)
-	_apply_persuade_result(npc, ans)
-	var reply: String = String(ans.get("reply", ""))
-	var is_fallback: bool = bool(ans.get("is_fallback", false))
-	# 记入对话历史；fallback 文本仍记（让玩家看到"NPC 没接到话"），但 LLM 失败那条
-	# 后续不会被注入 prompt context（chatter_prompts.bridge_topic_answer 不读 dialogue_log）
-	if not is_fallback:
-		_append_dialogue_log(npc, argument, reply, String(ans.get("tone", "")), opening)
-	else:
-		_append_dialogue_log(npc, argument, reply, "fallback", opening)
-	# 邻居插话与第一句话 dialog 显示并发：先 fire LLM，再开 dialog（TTS 已流式或现在播），最后等邻居完成
-	var neighbor_spec := _start_neighbor_interject(npc, reply)
-	await _play_npc_line(npc, reply, not is_fallback)
-	await _play_pending_neighbor(neighbor_spec)
-
 
 func _pick_persuade_opening(npc: Unit) -> String:
 	var persona: Dictionary = _NpcPersonasScript.get_persona(npc.unit_data.unit_id, npc.unit_data.camp)
