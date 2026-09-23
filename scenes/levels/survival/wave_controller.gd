@@ -374,13 +374,10 @@ func _prompt_buff_choice() -> void:
 	panel.set("panel_title", "波间增益")
 	panel.set("options", options)
 	panel.set("required_selection_count", 1)
-	# 手动管 overlay：GrowthChoicePanel 的 options_confirmed 带参，不能走 _open_overlay 的自动连接
-	_level._active_overlay = BaseLevel.ActiveOverlay.GROWTH_CHOICE
-	_level.add_child(panel)
-	_level.overlay_opened.emit(BaseLevel.ActiveOverlay.GROWTH_CHOICE)
+	if not _level._open_overlay(BaseLevel.ActiveOverlay.GROWTH_CHOICE, panel, &"options_confirmed"):
+		panel.queue_free()
+		return
 	var ids: Array = await panel.options_confirmed
-	_level._active_overlay = BaseLevel.ActiveOverlay.NONE
-	_level.overlay_closed.emit(BaseLevel.ActiveOverlay.GROWTH_CHOICE)
 	if ids.is_empty():
 		return
 	for id in ids:

@@ -2,6 +2,7 @@ class_name DefeatPanel
 extends CanvasLayer
 ## 关卡失败弹窗。显示失败原因，提供重试/读档/返回主菜单。
 
+signal closed
 signal retry_pressed
 signal main_menu_pressed
 
@@ -28,6 +29,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _on_retry_pressed() -> void:
+	closed.emit()
 	retry_pressed.emit()
 	queue_free()
 
@@ -37,5 +39,6 @@ func _on_load_pressed() -> void:
 
 
 func _on_menu_pressed() -> void:
+	closed.emit()
 	main_menu_pressed.emit()
 	queue_free()

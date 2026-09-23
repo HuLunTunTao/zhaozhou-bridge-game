@@ -142,7 +142,7 @@ const ActiveOverlay = LevelStateMachine.ActiveOverlay
 ## 双轴状态机组件（RefCounted）。状态真源，BaseLevel 通过属性/方法委托。
 var _state: LevelStateMachine = null
 
-## 代理属性：保持旧字段名可读写（wave_controller 等外部直接写 _active_overlay）。
+## 代理属性：保持旧字段名可读。写入已全部走 _open_overlay / _close_overlay，setter 不再需要。
 var _level_phase: int:
 	get:
 		return _state.level_phase
@@ -152,8 +152,6 @@ var _level_phase: int:
 var _active_overlay: int:
 	get:
 		return _state.active_overlay
-	set(value):
-		_state.active_overlay = value
 
 ## 关卡主阶段切换（BRIEFING → PLAYING → ENDED）。子关卡订阅启动教程、开场演出等。
 signal phase_changed(new_phase: int)
@@ -185,8 +183,8 @@ func _init() -> void:
 		"add_child": func(node: Node) -> void: add_child(node),
 	})
 	_state.phase_changed.connect(func(p: int) -> void: phase_changed.emit(p))
-	_state.overlay_opened.connect(func(k: int) -> void: overlay_opened.emit(k))
-	_state.overlay_closed.connect(func(k: int) -> void: overlay_closed.emit(k))
+	_state.overlay_opened.connect(Callable(overlay_opened, "emit"))
+	_state.overlay_closed.connect(Callable(overlay_closed, "emit"))
 	_special_tile_registry = SpecialTileRegistry.new()
 	_special_tile_registry.setup({
 		"get_special_tiles_container": func() -> Node2D: return special_tiles_container,
@@ -239,24 +237,19 @@ func _close_overlay(kind: ActiveOverlay) -> void:
 
 
 ## 复玩问询：已看过教程的玩家进关时弹 yes/no 菜单，问要不要再听李春讲解一遍。
-## TopicMenuPanel 的 topic_picked 信号带 String 参，无法走 _open_overlay 的默认通道，
-## 这里手动管 _active_overlay 状态，复刻一份互斥语义。
+## TopicMenuPanel 是 ModalPanel，自带 closed 信号，走 _open_overlay 统一闸门。
 func _ask_tutorial_replay() -> bool:
-	if _active_overlay != ActiveOverlay.NONE:
-		return false
 	var menu_scene: PackedScene = preload("res://scenes/ui/topic_menu_panel.tscn")
 	var menu := menu_scene.instantiate() as TopicMenuPanel
-	_active_overlay = ActiveOverlay.TUTORIAL_PANEL
-	overlay_opened.emit(ActiveOverlay.TUTORIAL_PANEL)
-	add_child(menu)
+	if not _open_overlay(ActiveOverlay.TUTORIAL_PANEL, menu):
+		menu.queue_free()
+		return false
 	menu.show_yes_no(
 		"上次已经听过李春讲解，是否再听一遍？",
 		"再听一遍",
 		"跳过，直接开打",
 	)
 	var pick: String = await menu.topic_picked
-	_active_overlay = ActiveOverlay.NONE
-	overlay_closed.emit(ActiveOverlay.TUTORIAL_PANEL)
 	return pick == "再听一遍"
 
 
@@ -948,15 +941,13 @@ func _try_prompt_round_growth() -> bool:
 	panel.options = options
 	panel.required_selection_count = 3
 	panel.options_confirmed.connect(_on_round_growth_options_confirmed)
-	# panel 本身没有 closed 信号，我们自己在 options_confirmed 回调里关闭 overlay
-	_active_overlay = ActiveOverlay.GROWTH_CHOICE
-	add_child(panel)
-	overlay_opened.emit(ActiveOverlay.GROWTH_CHOICE)
+	if not _open_overlay(ActiveOverlay.GROWTH_CHOICE, panel, &"options_confirmed"):
+		panel.queue_free()
+		return false
 	return true
 
 
 func _on_round_growth_options_confirmed(option_ids: Array[String]) -> void:
-	_close_overlay(ActiveOverlay.GROWTH_CHOICE)
 	if round_number not in _round_growth_selected_rounds:
 		_round_growth_selected_rounds.append(round_number)
 	for option_id in option_ids:
@@ -1232,7 +1223,6 @@ func complete_level() -> void:
 		panel.options = growth_options
 		panel.required_selection_count = 3
 		panel.options_confirmed.connect(func(option_ids: Array[String]):
-			_close_overlay(ActiveOverlay.GROWTH_CHOICE)
 			Progress.complete_level(level, option_ids)
 			var chosen_names: Array[String] = []
 			for option_id in option_ids:
@@ -1241,10 +1231,10 @@ func complete_level() -> void:
 				Notify.success("已选择结算成长：%s" % "、".join(chosen_names), 3.0)
 			_continue_after_level_completion(level)
 		, CONNECT_ONE_SHOT)
-		# GrowthChoicePanel 没有 closed 信号，自行设置 overlay
-		_active_overlay = ActiveOverlay.GROWTH_CHOICE
-		add_child(panel)
-		overlay_opened.emit(ActiveOverlay.GROWTH_CHOICE)
+		if not _open_overlay(ActiveOverlay.GROWTH_CHOICE, panel, &"options_confirmed"):
+			panel.queue_free()
+			Progress.complete_level(level)
+			_continue_after_level_completion(level)
 		return
 	Progress.complete_level(level)
 	_continue_after_level_completion(level)
@@ -1271,10 +1261,9 @@ func defeat_level(reason: String = "任务失败") -> void:
 	panel.defeat_reason = reason
 	panel.retry_pressed.connect(_on_defeat_retry)
 	panel.main_menu_pressed.connect(_on_defeat_main_menu)
-	# DefeatPanel 没有 closed 信号（玩家只能点重试或主菜单，都会换场景），直接置为 overlay
-	_active_overlay = ActiveOverlay.DEFEAT_PANEL
-	add_child(panel)
-	overlay_opened.emit(ActiveOverlay.DEFEAT_PANEL)
+	if not _open_overlay(ActiveOverlay.DEFEAT_PANEL, panel):
+		panel.queue_free()
+		return
 
 
 func _on_defeat_retry() -> void:
