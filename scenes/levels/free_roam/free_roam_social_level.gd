@@ -71,7 +71,7 @@ var _camera_handle: CameraHandle = null
 ## 特殊地块注册表。register / get_at / 脉动标记工厂 / enter-leave 派发。
 var _special_tiles: SpecialTileRegistry = null
 ## 自由移动输入状态机（5 状态：IDLE / UNIT_SELECTED / TARGETING_MOVE / LOCKED / ANIMATING）。
-## 2.3 会接 MovementManager + MoveOverlay 做可达范围预览与路径执行。
+## 已接 MovementManager + MoveOverlay 做可达范围预览与路径执行（2.3）。
 var _input: FreeRoamInputController = null
 
 
@@ -320,14 +320,18 @@ func get_hero() -> Node2D:
 	return hero
 
 
-## 子类覆写：actor 被选中时。
-func _on_actor_selected(_actor) -> void:
-	pass
+## actor 被选中时：显示可达范围预览。子类覆写时调用 super 保留此行为。
+func _on_actor_selected(actor) -> void:
+	var u := actor as Unit
+	if u == null or move_overlay == null or tilemap == null:
+		return
+	move_overlay.show_range(tilemap, movement_manager, u.cell, u.movement_points)
 
 
-## 子类覆写：actor 取消选中时。
+## actor 取消选中时：清可达范围预览。子类覆写时调用 super 保留此行为。
 func _on_actor_deselected() -> void:
-	pass
+	if move_overlay != null:
+		move_overlay.clear_range()
 
 
 ## 子类覆写：actor 完成一次移动时。
@@ -340,10 +344,31 @@ func _on_actor_interact_requested(_actor, _target) -> void:
 	pass
 
 
-## 输入状态机请求移动（from_cell → to_cell）。2.3 会接 Unit.move_along_path 执行；
-## 当前先转给 _on_actor_move_completed 让子类感知"移动意图"（后续会被真正的移动完成回调替代）。
-func _on_move_requested(_from_cell: Vector2i, _to_cell: Vector2i) -> void:
-	pass
+## 输入状态机请求移动（from_cell → to_cell）。用 MoveOverlay 计算路径并执行 Unit.move_along_path；
+## 移动完成后通知 _on_actor_move_completed、AP 回满（自由移动语义）、状态回 IDLE、清预览。
+func _on_move_requested(_from_cell: Vector2i, to_cell: Vector2i) -> void:
+	var h := get_hero() as Unit
+	if h == null or move_overlay == null or tilemap == null:
+		if _input != null:
+			_input.set_state(FreeRoamInputController.S.IDLE)
+		if move_overlay != null:
+			move_overlay.clear_range()
+		return
+	var path: Array[Vector2i] = move_overlay.get_path_to_cell(to_cell)
+	if path.is_empty():
+		_input.set_state(FreeRoamInputController.S.IDLE)
+		move_overlay.clear_range()
+		return
+	_input.set_state(FreeRoamInputController.S.ANIMATING)
+	h.move_along_path(path, tilemap)
+	await h.move_finished
+	if is_phase_ended():
+		return
+	_on_actor_move_completed(h)
+	if h.combat_stats != null:
+		h.combat_stats.ap_current = h.combat_stats.ap_max
+	_input.set_state(FreeRoamInputController.S.IDLE)
+	move_overlay.clear_range()
 
 
 # ─────────────────────────────────────────────
