@@ -70,6 +70,9 @@ var _status_bar_bridge: StatusBarBridge = null
 var _camera_handle: CameraHandle = null
 ## 特殊地块注册表。register / get_at / 脉动标记工厂 / enter-leave 派发。
 var _special_tiles: SpecialTileRegistry = null
+## 自由移动输入状态机（5 状态：IDLE / UNIT_SELECTED / TARGETING_MOVE / LOCKED / ANIMATING）。
+## 2.3 会接 MovementManager + MoveOverlay 做可达范围预览与路径执行。
+var _input: FreeRoamInputController = null
 
 
 func _init() -> void:
@@ -102,6 +105,17 @@ func _init() -> void:
 		"get_movement_manager": func() -> Node: return movement_manager,
 		"get_teams": func() -> Array: return [],
 	})
+	_input = FreeRoamInputController.new()
+	_input.setup({
+		"can_accept_command": _can_accept_command,
+		"get_hero": get_hero,
+		"get_actors_at_cell": _get_actors_at_cell,
+		"get_cell_at_screen": _get_cell_at_screen,
+	})
+	_input.actor_selected.connect(func(a): _on_actor_selected(a))
+	_input.actor_deselected.connect(func(): _on_actor_deselected())
+	_input.move_requested.connect(func(from_cell, to_cell): _on_move_requested(from_cell, to_cell))
+	_input.interact_requested.connect(func(a, t): _on_actor_interact_requested(a, t))
 
 
 func _ready() -> void:
@@ -180,10 +194,14 @@ func _can_accept_command() -> bool:
 ## 用于对话 / 输入面板等需要暂时屏蔽世界输入的场景。
 func _begin_input_lock() -> void:
 	_state._begin_input_lock()
+	if _input != null:
+		_input.set_state(FreeRoamInputController.S.LOCKED)
 
 
 func _end_input_lock() -> void:
 	_state._end_input_lock()
+	if _input != null and _input.get_state() == FreeRoamInputController.S.LOCKED:
+		_input.set_state(FreeRoamInputController.S.IDLE)
 
 
 # ─────────────────────────────────────────────
@@ -307,6 +325,11 @@ func _on_actor_selected(_actor) -> void:
 	pass
 
 
+## 子类覆写：actor 取消选中时。
+func _on_actor_deselected() -> void:
+	pass
+
+
 ## 子类覆写：actor 完成一次移动时。
 func _on_actor_move_completed(_actor) -> void:
 	pass
@@ -315,6 +338,41 @@ func _on_actor_move_completed(_actor) -> void:
 ## 子类覆写：actor 请求与 target 交互时。
 func _on_actor_interact_requested(_actor, _target) -> void:
 	pass
+
+
+## 输入状态机请求移动（from_cell → to_cell）。2.3 会接 Unit.move_along_path 执行；
+## 当前先转给 _on_actor_move_completed 让子类感知"移动意图"（后续会被真正的移动完成回调替代）。
+func _on_move_requested(_from_cell: Vector2i, _to_cell: Vector2i) -> void:
+	pass
+
+
+# ─────────────────────────────────────────────
+# 输入辅助（FreeRoamInputController 注入用）
+# ─────────────────────────────────────────────
+
+## 世界坐标 → 格子坐标（考虑相机与 tilemap 的变换）。
+func _get_cell_at_screen(screen_pos: Vector2) -> Vector2i:
+	if tilemap == null:
+		return Vector2i.ZERO
+	var world: Vector2 = get_viewport().get_canvas_transform().affine_inverse() * screen_pos
+	return tilemap.local_to_map(tilemap.to_local(world))
+
+
+## 指定格子上的所有单位（自由移动栈用；Task 2.4 会换成 ActorRegistry）。
+func _get_actors_at_cell(cell: Vector2i) -> Array:
+	var out: Array = []
+	if obstacles_tilemap_layer == null:
+		return out
+	for child in obstacles_tilemap_layer.get_children():
+		if child is Unit and (child as Unit).cell == cell:
+			out.append(child)
+	return out
+
+
+## 转发到 FreeRoamInputController。
+func _unhandled_input(event: InputEvent) -> void:
+	if _input != null:
+		_input.handle_input(event)
 
 
 ## 子类覆写：返回本关目标文本。
