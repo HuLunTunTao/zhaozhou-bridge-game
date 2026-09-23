@@ -127,37 +127,31 @@ var _infinite_ally_actions_enabled := false
 enum InputState { IDLE, UNIT_SELECTED, TARGETING_MOVE, TARGETING_SKILL, ANIMATING, LOCKED }
 var _input_state: InputState = InputState.IDLE
 
-## _begin_input_lock / _end_input_lock 嵌套计数。0 表示未锁。
-var _input_lock_count: int = 0
-## 进入锁前 camera.input_enabled 的快照，解锁时恢复（不假设原值为 true）。
-var _saved_camera_input_enabled: bool = true
-
 # ─────────────────────────────────────────────
 # 关卡状态机（双轴：LevelPhase × ActiveOverlay）
 # ─────────────────────────────────────────────
 
 ## 关卡生命周期粗粒度时间线，单向转换 BRIEFING → PLAYING → ENDED。
-enum LevelPhase { BRIEFING, PLAYING, ENDED }
+const LevelPhase = LevelStateMachine.LevelPhase
 
 ## 当前独占前景的瞬态 UI。同时只能有一个非 NONE。统一替代原先 6 个独立 bool。
-enum ActiveOverlay {
-	NONE,
-	BRIEFING_OBJECTIVES,
-	DIALOGUE,
-	CUTSCENE,
-	OBJECTIVES_REVIEW,
-	SETTINGS,
-	PROGRESS,
-	TUTORIAL_PANEL,
-	GROWTH_CHOICE,
-	DEFEAT_PANEL,
-	KNOWLEDGE,
-	SOCIAL_DIALOG,
-	ARGUMENT_INPUT,
-}
+const ActiveOverlay = LevelStateMachine.ActiveOverlay
 
-var _level_phase: LevelPhase = LevelPhase.BRIEFING
-var _active_overlay: ActiveOverlay = ActiveOverlay.NONE
+## 双轴状态机组件（RefCounted）。状态真源，BaseLevel 通过属性/方法委托。
+var _state: LevelStateMachine = null
+
+## 代理属性：保持旧字段名可读写（wave_controller 等外部直接写 _active_overlay）。
+var _level_phase: int:
+	get:
+		return _state.level_phase
+	set(value):
+		_state.level_phase = value
+
+var _active_overlay: int:
+	get:
+		return _state.active_overlay
+	set(value):
+		_state.active_overlay = value
 
 ## 关卡主阶段切换（BRIEFING → PLAYING → ENDED）。子关卡订阅启动教程、开场演出等。
 signal phase_changed(new_phase: int)
@@ -171,16 +165,38 @@ signal selection_changed(unit: Node2D)
 signal unit_move_completed(unit: Unit)
 
 
+func _init() -> void:
+	_state = LevelStateMachine.new()
+	var lock_input := func() -> void:
+		if _input_state != InputState.ANIMATING:
+			_input_state = InputState.LOCKED
+	var unlock_input := func() -> void:
+		if _input_state == InputState.LOCKED:
+			_input_state = InputState.IDLE
+	_state.setup({
+		"get_tilemap": func() -> Variant: return tilemap,
+		"is_waiting_for_player_input": func() -> bool: return _waiting_for_player_input,
+		"is_input_blocked": func() -> bool: return _input_state == InputState.ANIMATING or _input_state == InputState.LOCKED,
+		"lock_world_input": lock_input,
+		"unlock_world_input": unlock_input,
+		"get_camera": func() -> Variant: return camera,
+		"add_child": func(node: Node) -> void: add_child(node),
+	})
+	_state.phase_changed.connect(func(p: int) -> void: phase_changed.emit(p))
+	_state.overlay_opened.connect(func(k: int) -> void: overlay_opened.emit(k))
+	_state.overlay_closed.connect(func(k: int) -> void: overlay_closed.emit(k))
+
+
 func is_phase_playing() -> bool:
-	return _level_phase == LevelPhase.PLAYING
+	return _state.is_phase_playing()
 
 
 func is_phase_ended() -> bool:
-	return _level_phase == LevelPhase.ENDED
+	return _state.is_phase_ended()
 
 
 func has_overlay() -> bool:
-	return _active_overlay != ActiveOverlay.NONE
+	return _state.has_overlay()
 
 
 func set_tutorial_onboarding_active(active: bool) -> void:
@@ -197,29 +213,18 @@ func is_tutorial_onboarding_active() -> bool:
 ## close_handler：可选自定义关闭 Callable，提供时替代默认关闭逻辑（需自行调用 _close_overlay）。
 ## 返回是否成功进入。
 func _open_overlay(kind: ActiveOverlay, node: Node, closed_signal: StringName = &"closed", close_handler: Callable = Callable()) -> bool:
-	if _active_overlay != ActiveOverlay.NONE:
-		return false
-	_active_overlay = kind
-	add_child(node)
-	if node.has_signal(closed_signal):
-		var handler: Callable = close_handler if close_handler.is_valid() else _on_overlay_closed_signal.bind(kind)
-		node.connect(closed_signal, handler, CONNECT_ONE_SHOT)
-	overlay_opened.emit(kind)
-	return true
+	return _state._open_overlay(kind, node, closed_signal, close_handler)
 
 
 ## overlay 关闭信号的通用接收器：吞掉任意 arity 的信号实参，只做 _close_overlay。
 ## bind(kind) 预填 kind 后剩余形参全带默认值，兼容 0–4 参关闭信号。
 func _on_overlay_closed_signal(kind: ActiveOverlay, _a = null, _b = null, _c = null, _d = null) -> void:
-	_close_overlay(kind)
+	_state._close_overlay(kind)
 
 
 ## 关闭当前 overlay。仅当 kind 匹配当前 active 时生效（防止竞态关错）。
 func _close_overlay(kind: ActiveOverlay) -> void:
-	if _active_overlay != kind:
-		return
-	_active_overlay = ActiveOverlay.NONE
-	overlay_closed.emit(kind)
+	_state._close_overlay(kind)
 
 
 ## 复玩问询：已看过教程的玩家进关时弹 yes/no 菜单，问要不要再听李春讲解一遍。
@@ -244,29 +249,8 @@ func _ask_tutorial_replay() -> bool:
 	return pick == "再听一遍"
 
 
-## LevelPhase 合法单向转换表：BRIEFING → PLAYING → ENDED，含 BRIEFING → ENDED 边缘情况。
-const _PHASE_TRANSITIONS := {
-	LevelPhase.BRIEFING: [LevelPhase.PLAYING, LevelPhase.ENDED],
-	LevelPhase.PLAYING: [LevelPhase.ENDED],
-	LevelPhase.ENDED: [],
-}
-
-
-## from → to 是否为合法单向转换（不含相同值短路，由 _set_phase 自行处理）。
-func _is_valid_phase_transition(from: LevelPhase, to: LevelPhase) -> bool:
-	return to in _PHASE_TRANSITIONS[from]
-
-
 func _set_phase(p: LevelPhase) -> void:
-	if _level_phase == p:
-		return
-	if not _is_valid_phase_transition(_level_phase, p):
-		push_warning("[BaseLevel] 非法阶段转换 %s → %s 已拒绝（单向 BRIEFING → PLAYING → ENDED）" % [
-			LevelPhase.keys()[_level_phase], LevelPhase.keys()[p],
-		])
-		return
-	_level_phase = p
-	phase_changed.emit(p)
+	_state._set_phase(p)
 ## 当前选中的技能（TARGETING_SKILL 状态时有效）。
 var _current_skill: SkillData = null
 ## 技能范围 Overlay（运行时动态创建）。
@@ -1611,38 +1595,17 @@ func _unhandled_input(event: InputEvent) -> void:
 
 ## 是否允许接收玩家命令。双轴状态机 + 既有子状态的联合闸门。
 func _can_accept_command() -> bool:
-	if _level_phase != LevelPhase.PLAYING:
-		return false
-	if _active_overlay != ActiveOverlay.NONE:
-		return false
-	if tilemap == null:
-		return false
-	if not _waiting_for_player_input:
-		return false
-	if _input_state == InputState.ANIMATING or _input_state == InputState.LOCKED:
-		return false
-	return true
+	return _state._can_accept_command()
 
 
 ## 进入"流程锁"。配对调用 _end_input_lock。支持嵌套（计数器）。
 ## 用于自由移动关卡的对话/输入面板等需要暂时屏蔽世界输入的场景。
 func _begin_input_lock() -> void:
-	if _input_lock_count == 0:
-		if camera != null and "input_enabled" in camera:
-			_saved_camera_input_enabled = camera.input_enabled
-			camera.input_enabled = false
-		if _input_state != InputState.ANIMATING:
-			_input_state = InputState.LOCKED
-	_input_lock_count += 1
+	_state._begin_input_lock()
 
 
 func _end_input_lock() -> void:
-	_input_lock_count = maxi(0, _input_lock_count - 1)
-	if _input_lock_count == 0:
-		if camera != null and "input_enabled" in camera:
-			camera.input_enabled = _saved_camera_input_enabled
-		if _input_state == InputState.LOCKED:
-			_input_state = InputState.IDLE
+	_state._end_input_lock()
 
 
 func preview_cell(cell: Vector2i) -> void:
