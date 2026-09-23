@@ -187,6 +187,15 @@ func _init() -> void:
 	_state.phase_changed.connect(func(p: int) -> void: phase_changed.emit(p))
 	_state.overlay_opened.connect(func(k: int) -> void: overlay_opened.emit(k))
 	_state.overlay_closed.connect(func(k: int) -> void: overlay_closed.emit(k))
+	_special_tile_registry = SpecialTileRegistry.new()
+	_special_tile_registry.setup({
+		"get_special_tiles_container": func() -> Node2D: return special_tiles_container,
+		"get_obstacles_tilemap_layer": func() -> TileMapLayer: return obstacles_tilemap_layer,
+		"get_tilemap": func() -> TileMapLayer: return tilemap,
+		"get_parent_for_marker": func() -> Node: return self,
+		"get_movement_manager": func() -> Node: return movement_manager,
+		"get_teams": func() -> Array: return teams,
+	})
 
 
 func is_phase_playing() -> bool:
@@ -310,10 +319,13 @@ var _waiting_for_player_input: bool = false
 ## 关卡脚本可在新手引导等流程中置为 true，暂停所有战场闲聊触发。
 var tutorial_onboarding_active: bool = false
 
-## 特殊地块：cell → SpecialTile
-var _special_tile_map: Dictionary = {}
-## 缓冲：entity → 最近进入的特殊地块 cell（用于区分抵达与经过）
-var _pending_special_enter: Dictionary = {}
+## 特殊地块注册表组件（RefCounted）。注册/查询/标记工厂/enter-leave 派发。
+var _special_tile_registry: SpecialTileRegistry = null
+
+## 代理属性：保持旧字段名可读（level1-1.gd 直接 .get() 查询）。
+var _special_tile_map: Dictionary:
+	get:
+		return _special_tile_registry.get_map() if _special_tile_registry else {}
 
 @onready var _turn_label: Label = $GUI/TurnLabel
 @onready var _round_label: Label = $GUI/RoundLabel
@@ -2511,93 +2523,28 @@ func query_skill_range() -> Dictionary:
 
 
 # ─────────────────────────────────────────────
-# 特殊地块
+# 特殊地块（委托 SpecialTileRegistry）
 # ─────────────────────────────────────────────
 
 func _setup_special_tiles() -> void:
-
-	if special_tiles_container == null:
-		return
-	for child in special_tiles_container.get_children():
-		if child is SpecialTile:
-			var snapped_cell := tilemap.local_to_map(tilemap.to_local(child.global_position))
-			child.cell = snapped_cell
-			if obstacles_tilemap_layer != null:
-				child.reparent(obstacles_tilemap_layer)
-			child.position = tilemap.map_to_local(snapped_cell)
-			_special_tile_map[snapped_cell] = child
-	movement_manager.tile_entered.connect(_on_special_tile_entered)
-	movement_manager.tile_exited.connect(_on_special_tile_exited)
-	# 连接所有单位的 move_finished 信号，用于判定"抵达"
-	for team: TeamData in teams:
-		for unit: Node2D in team.units:
-			unit.move_finished.connect(_on_unit_move_finished_special.bind(unit))
-
-
-func _on_special_tile_entered(cell: Vector2i, entity: Node2D) -> void:
-	if _get_special_tile_at(cell) != null:
-		_pending_special_enter[entity] = cell
-
-
-func _on_special_tile_exited(cell: Vector2i, entity: Node2D) -> void:
-	var tile := _get_special_tile_at(cell)
-	if tile == null:
-		return
-	if _pending_special_enter.get(entity) == cell:
-		# 进入后又离开 → 经过
-		tile._on_unit_pass(entity)
-		_pending_special_enter.erase(entity)
-	else:
-		# 没有对应的 pending enter → 从此格出发
-		tile._on_unit_depart(entity)
-
-
-func _on_unit_move_finished_special(entity: Node2D) -> void:
-	if entity in _pending_special_enter:
-		var cell: Vector2i = _pending_special_enter[entity]
-		var tile := _get_special_tile_at(cell)
-		if tile != null:
-			tile._on_unit_arrive(entity)
-		_pending_special_enter.erase(entity)
+	_special_tile_registry.scan_from_container()
 
 
 func _get_special_tile_at(cell: Vector2i) -> SpecialTile:
-	var tile = _special_tile_map.get(cell)
-	if tile == null:
-		return null
-	if not is_instance_valid(tile) or not (tile is SpecialTile):
-		_special_tile_map.erase(cell)
-		return null
-	return tile as SpecialTile
+	return _special_tile_registry.get_at(cell)
 
 
 ## 在 _on_level_ready() 中程序化注册一个 SpecialTile（跳过 _setup_special_tiles 自动扫描）。
 func register_special_tile(tile: SpecialTile, cell: Vector2i) -> void:
-	tile.cell = cell
-	if not tile.is_inside_tree():
-		special_tiles_container.add_child(tile)
-	if obstacles_tilemap_layer != null:
-		tile.reparent(obstacles_tilemap_layer)
-	tile.position = tilemap.map_to_local(cell)
-	_special_tile_map[cell] = tile
+	_special_tile_registry.register(tile, cell)
 
 
 ## 从统一派发表解除一个运行时特殊地格，避免 queue_free 后字典保留失效实例。
 func unregister_special_tile(tile: SpecialTile, cell: Vector2i) -> void:
-	if _special_tile_map.get(cell) == tile:
-		_special_tile_map.erase(cell)
+	_special_tile_registry.unregister(tile, cell)
 
 
-## 在指定地块上方挂一个统一的脉动强调标记（菱形光晕 + 下指箭头 + 可选文字）。
-## - cell：地块坐标。对 2×2 区域可传 NW 角并配合 local_offset = Vector2(0, 8) 居中。
-## - halo_color：光晕颜色（核心色会自动按 alpha 推导）。
-## - label_text：菱形上方的文字标签，留空则隐藏。
-## - local_offset：相对 tilemap.map_to_local(cell) 的额外位移，用于 2×2 居中或微调。
-## - node_name：可选节点名，便于调试 / 后续 queue_free。
-## - tile_z_index：halo / core / label 的绝对 z（Floater 始终 120）。默认 1：覆盖
-##   surface(0) 与 decoration(1)，被 obstacle z>=2 的角色覆盖。关卡若有更高 z 的
-##   建筑/桥面层（如 level1-3 的 building bridge z=2 + obstacle z=3），传 2 让 halo
-##   盖住桥面但仍处于角色之下。
+## 在指定地块上方挂一个统一的脉动强调标记。详见 SpecialTileRegistry.spawn_pulsing_marker。
 func spawn_tile_pulsing_marker(
 		cell: Vector2i,
 		halo_color: Color,
@@ -2605,16 +2552,8 @@ func spawn_tile_pulsing_marker(
 		local_offset: Vector2 = Vector2.ZERO,
 		node_name: String = "",
 		tile_z_index: int = 1) -> Marker2D:
-	const MARKER_SCENE: PackedScene = preload("res://scenes/levels/base_level/tile_pulsing_marker.tscn")
-	var marker: Marker2D = MARKER_SCENE.instantiate()
-	if node_name != "":
-		marker.name = node_name
-	marker.z_index = tile_z_index
-	marker.set("halo_color", halo_color)
-	marker.set("label_text", label_text)
-	add_child(marker)
-	marker.position = tilemap.map_to_local(cell) + local_offset
-	return marker
+	return _special_tile_registry.spawn_pulsing_marker(
+			cell, halo_color, label_text, local_offset, node_name, tile_z_index)
 
 
 # ─────────────────────────────────────────────
