@@ -283,6 +283,11 @@ const WALKABLE_LAYER_NAMES: Array[String] = [
 	"surface z=0", "Main tile map z=0", "WalkableMap",
 ]
 
+## 障碍层名字关键字（大小写不敏感，前缀匹配）。导出构建里 @export 引用可能丢失
+## （AGENTS Pitfalls #2），_find_obstacle_tilemap 用它们做运行时回退查找。
+## "railing" 对应 level1-4 / 验桥日的 "railing z=7"（那两关用栏杆层当 Y-Sort 父层）。
+const OBSTACLE_LAYER_KEYWORDS: Array[String] = ["obstacle", "障碍", "阻挡", "railing"]
+
 # ─────────────────────────────────────────────
 # 队伍 / 回合系统
 # ─────────────────────────────────────────────
@@ -1258,7 +1263,15 @@ func spawn_unit(unit_data: UnitData, cell: Vector2i, team_index: int, visual: Pa
 			var existing_name: String = (existing as Unit).unit_data.unit_name if (existing as Unit).unit_data else "<unknown>"
 			push_warning("spawn_unit: cell %s already occupied by %s; new unit will overlap" % [cell, existing_name])
 			break
-	obstacles_tilemap_layer.add_child(unit)
+	# @export 引用在导出构建里可能为 null（AGENTS Pitfalls #2），沿用 _find_*_tilemap
+	# 回退范式：@export → 运行时按名字查找 → 挂到关卡节点兜底，不崩。
+	var unit_parent: Node = obstacles_tilemap_layer
+	if unit_parent == null:
+		unit_parent = _find_obstacle_tilemap()
+	if unit_parent == null:
+		push_warning("obstacles_tilemap_layer is not set; spawning unit under level node")
+		unit_parent = self
+	unit_parent.add_child(unit)
 	unit.movement_manager = movement_manager
 	unit.set_cell(cell, tilemap)
 	if team_index >= 0 and team_index < teams.size():
@@ -2550,7 +2563,8 @@ func _setup_special_tiles() -> void:
 		if child is SpecialTile:
 			var snapped_cell := tilemap.local_to_map(tilemap.to_local(child.global_position))
 			child.cell = snapped_cell
-			child.reparent(obstacles_tilemap_layer)
+			if obstacles_tilemap_layer != null:
+				child.reparent(obstacles_tilemap_layer)
 			child.position = tilemap.map_to_local(snapped_cell)
 			_special_tile_map[snapped_cell] = child
 	movement_manager.tile_entered.connect(_on_special_tile_entered)
@@ -2603,7 +2617,8 @@ func register_special_tile(tile: SpecialTile, cell: Vector2i) -> void:
 	tile.cell = cell
 	if not tile.is_inside_tree():
 		special_tiles_container.add_child(tile)
-	tile.reparent(obstacles_tilemap_layer)
+	if obstacles_tilemap_layer != null:
+		tile.reparent(obstacles_tilemap_layer)
 	tile.position = tilemap.map_to_local(cell)
 	_special_tile_map[cell] = tile
 
@@ -2681,6 +2696,20 @@ func _find_walkable_tilemap() -> TileMapLayer:
 	for child in tilemap_container.get_children():
 		if child is TileMapLayer:
 			return child
+	return null
+
+
+## 导出构建里 @export obstacles_tilemap_layer 可能为 null（AGENTS Pitfalls #2），
+## 按节点名关键字模糊回退查找障碍层。用前缀匹配而非包含匹配，避免误命中
+## "unvisiable obstacle"（modulate.a == 0 的隐形碰撞层，挂上去单位会被隐掉）。
+func _find_obstacle_tilemap() -> TileMapLayer:
+	if tilemap_container == null:
+		return null
+	for node: Node in tilemap_container.find_children("*", "TileMapLayer", true, false):
+		var lname := String(node.name).to_lower()
+		for keyword in OBSTACLE_LAYER_KEYWORDS:
+			if lname.begins_with(keyword.to_lower()):
+				return node as TileMapLayer
 	return null
 
 
