@@ -5,6 +5,10 @@ extends Node2D
 ## 供验桥日这类「自由移动 + 实时社交交互」关卡使用；回合 / AI / 技能 / 元素系统一律不进入本栈。
 ## Shared Kernel 通过 setup(ctx) 注入 Callable 装配（风格与 LevelStateMachine.setup 一致）。
 ##
+## 单位模型决策（Task 2.5）：**不引入 GridActor 新基类**，沿用 `Unit` + 最小 `CombatStats`。
+## Unit 已有 move_along_path / set_cell / move_finished / refresh_overhead_bars，
+## 换基类需全量重实现，得不偿失；空 CombatStats 足够满足 bridge_tour 等处的 is_alive() 读取。
+##
 ## 子类职责：
 ##   - 场景提供 TileMaps / SpecialTiles / MoveOverlay / MovementManager / Camera2D / StatusBarScene
 ##   - _on_level_ready() 里布置主角（hero = ...）与 NPC
@@ -288,6 +292,8 @@ func _setup_special_tiles() -> void:
 
 ## 运行时生成一个单位（简化版）：只加到场景 + set_cell，不走 TeamData / faction / 无限行动力。
 ## 自动注册进 ActorRegistry（unit_data.unit_id / unit.name 双 key）。
+## 注意：不自动配 CombatStats（保守方案）——子类显式调 setup_free_roam_unit 或自行覆写，
+## 避免自动默认值覆盖子类定制数值（如 bridge_tour 的 setup_unit_stats）。
 func spawn_unit(unit_data: UnitData, cell: Vector2i, team_index: int, visual: PackedScene = null) -> Unit:
 	var UnitScene := preload("res://scenes/unit/unit.tscn")
 	var unit: Unit = UnitScene.instantiate()
@@ -308,6 +314,28 @@ func spawn_unit(unit_data: UnitData, cell: Vector2i, team_index: int, visual: Pa
 	unit.move_finished.connect(_special_tiles.on_unit_move_finished.bind(unit))
 	_actors.register(unit, unit_data.unit_id if unit_data != null else "", String(unit.name))
 	return unit
+
+
+## 为自由移动单位配最小 CombatStats（AP 无限、无攻、满血）。
+## 自由移动关卡无战斗，但 Unit 内部与外部约定仍读 combat_stats（如 is_alive / unit_name）。
+## 决策（Task 2.5）：不引入 GridActor 新基类，沿用 Unit + 最小 CombatStats——
+## Unit 已有 move_along_path / set_cell / move_finished / refresh_overhead_bars，
+## 换基类需全量重实现，得不偿失；空 CombatStats 足够满足 bridge_tour 等处的 is_alive() 读取。
+## 参数：
+##   unit: Unit
+##   display_name: String   — 显示名（CombatStats.unit_name）
+##   max_hp: int = 100
+##   move_cost: int = 6    — 每格移动消耗（自由移动下不影响，因 AP 无限）
+func setup_free_roam_unit(unit: Unit, display_name: String, max_hp: int = 100, move_cost: int = 6) -> void:
+	if unit == null or unit.combat_stats == null:
+		return
+	var cs := unit.combat_stats
+	cs.unit_name = display_name
+	cs.max_hp = max_hp
+	cs.current_hp = max_hp
+	cs.ap_max = 99999        # 自由移动无限 AP
+	cs.ap_current = 99999
+	cs.move_cost_per_tile = move_cost
 
 
 # ─────────────────────────────────────────────
