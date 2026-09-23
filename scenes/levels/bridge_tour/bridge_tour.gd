@@ -55,13 +55,6 @@ const CHEAT_WORDS: Array[String] = [
 	"天工开物",   # 引经据典（明代典籍名）
 ]
 
-# ── 头顶图标颜色 ──
-const _ICON_PERSUADE := Color(0.45, 0.7, 1.0)         # 蓝
-const _ICON_QA := Color(0.45, 0.95, 0.55)             # 绿
-const _ICON_MENTOR := Color(1.0, 0.85, 0.32)          # 黄
-const _ICON_DONE := Color(1.0, 0.85, 0.32)            # 完成态金（同 mentor）
-
-
 # ── 状态 ──
 var _npcs: Array[Unit] = []
 var _spawner: NpcSpawner = null
@@ -181,7 +174,7 @@ func _on_level_ready() -> void:
 	_mission_hud.set_targets(PERSUADE_TARGET, QA_TARGET)
 	for npc in _npcs:
 		var st := _state(npc)
-		var done: bool = _npc_done(npc)
+		var done: bool = _state(npc).is_done()
 		_mission_hud.add_npc(st.role, npc.unit_data.unit_name, done)
 		# persuade NPC 显示初始 stance；qa / mentor 静默忽略
 		if st.role == "persuade":
@@ -249,26 +242,7 @@ func _state(npc: Unit) -> NpcSocialState:
 
 ## 头顶姓名牌：role + 完成态决定颜色，替代 HP/AP 条。
 func _refresh_npc_name_label(unit: Unit) -> void:
-	var st := _state(unit)
-	var role: String = st.role
-	var done: bool = _npc_done(unit)
-	if done and role != "mentor":
-		unit.set_overhead_name_label(unit.unit_data.unit_name, _ICON_DONE)
-		return
-	match role:
-		"persuade":
-			unit.set_overhead_name_label(unit.unit_data.unit_name, _ICON_PERSUADE)
-		"qa":
-			unit.set_overhead_name_label(unit.unit_data.unit_name, _ICON_QA)
-		"mentor":
-			unit.set_overhead_name_label(unit.unit_data.unit_name, _ICON_MENTOR)
-		_:
-			unit.set_overhead_name_label(unit.unit_data.unit_name, Color.WHITE)
-
-
-## 该 NPC 是否完成了交互目标（persuade=已说服，qa=已解答；mentor 永不"完成"）。
-func _npc_done(unit: Unit) -> bool:
-	return _state(unit).is_done()
+	NpcBadgePresenter.refresh(unit, _state(unit))
 
 
 func get_interaction_target() -> Unit:
@@ -343,7 +317,7 @@ func _dispatch_interaction(npc: Unit) -> void:
 # ─────────────────────────────────────────────
 
 func _flow_persuade(npc: Unit) -> void:
-	if _npc_done(npc):
+	if _state(npc).is_done():
 		# 已说服的不再交互——给个轻提示就走
 		Notify.info("已说服 %s" % npc.unit_data.unit_name, 1.5)
 		return
@@ -523,7 +497,7 @@ func _normalize_persuade_scores(ans: Dictionary) -> void:
 # ─────────────────────────────────────────────
 
 func _flow_qa(npc: Unit) -> void:
-	if _npc_done(npc):
+	if _state(npc).is_done():
 		Notify.info("%s 的疑问已解" % npc.unit_data.unit_name, 1.5)
 		return
 	var st := _state(npc)
