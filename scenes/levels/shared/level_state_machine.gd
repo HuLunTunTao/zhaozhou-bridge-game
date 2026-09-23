@@ -40,8 +40,8 @@ var active_overlay: ActiveOverlay = ActiveOverlay.NONE
 
 ## _begin_input_lock / _end_input_lock 嵌套计数。0 表示未锁。
 var _input_lock_count: int = 0
-## 进入锁前 camera.input_enabled 的快照，解锁时恢复（不假设原值为 true）。
-var _saved_camera_input_enabled: bool = true
+## 承载 camera.input_enabled 快照/恢复（单层语义；嵌套由 _input_lock_count 把守）。
+var _camera_handle: CameraHandle = CameraHandle.new()
 
 # ─── 宿主上下文 Callable（由 setup 注入） ───
 var _get_tilemap: Callable = Callable()
@@ -64,6 +64,7 @@ func setup(ctx: Dictionary) -> void:
 	_unlock_world_input = ctx.get("unlock_world_input", Callable())
 	_get_camera = ctx.get("get_camera", Callable())
 	_add_child = ctx.get("add_child", Callable())
+	_camera_handle.setup(_get_camera)
 
 
 func is_phase_playing() -> bool:
@@ -145,11 +146,7 @@ func _can_accept_command() -> bool:
 ## 用于自由移动关卡的对话/输入面板等需要暂时屏蔽世界输入的场景。
 func _begin_input_lock() -> void:
 	if _input_lock_count == 0:
-		if _get_camera.is_valid():
-			var cam: Variant = _get_camera.call()
-			if cam != null and "input_enabled" in cam:
-				_saved_camera_input_enabled = cam.input_enabled
-				cam.input_enabled = false
+		_camera_handle.lock_input()
 		if _lock_world_input.is_valid():
 			_lock_world_input.call()
 	_input_lock_count += 1
@@ -158,9 +155,6 @@ func _begin_input_lock() -> void:
 func _end_input_lock() -> void:
 	_input_lock_count = maxi(0, _input_lock_count - 1)
 	if _input_lock_count == 0:
-		if _get_camera.is_valid():
-			var cam: Variant = _get_camera.call()
-			if cam != null and "input_enabled" in cam:
-				cam.input_enabled = _saved_camera_input_enabled
+		_camera_handle.unlock_input()
 		if _unlock_world_input.is_valid():
 			_unlock_world_input.call()
