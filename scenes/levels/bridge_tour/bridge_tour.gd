@@ -309,7 +309,9 @@ func _dispatch_interaction(npc: Unit) -> void:
 		"qa":
 			await _flow_qa(npc)
 		"mentor":
-			await _flow_mentor(npc)
+			var flow := MentorFlow.new()
+			flow.setup(self)
+			await flow.run(npc)
 
 
 # ─────────────────────────────────────────────
@@ -874,33 +876,8 @@ func _cheat_context_text(is_cheat: bool, cheat_word: String = "") -> String:
 
 
 # ─────────────────────────────────────────────
-# Flow 3：求教（mentor 给主题菜单 → 玩家选 → LLM 用一条知识讲解）
+# Flow 3：求教 — 流程骨架见 MentorFlow；LLM 生成与 apply 暂留此（2.16 再抽）
 # ─────────────────────────────────────────────
-
-func _flow_mentor(npc: Unit) -> void:
-	var topics: Array[String] = _state(npc).mentor_topics
-	var menu: Node = _TopicMenuPanelScene.instantiate()
-	add_child(menu)
-	menu.show_for(npc.unit_data.unit_name, topics)
-	var pick: String = await menu.topic_picked
-	if pick.is_empty():
-		return
-	var query: String = pick
-	if pick == "__free__":
-		var inp: Node = _ArgumentInputPanelScene.instantiate()
-		add_child(inp)
-		inp.show_for(npc.unit_data.unit_name, "向 %s 自由请教" % npc.unit_data.unit_name)
-		inp.set_learned_topics(_player_learned_topics, _player_used_topics)
-		query = await inp.argument_submitted
-		if query.is_empty():
-			return
-	var thinking := _show_thinking("%s 正在斟酌讲法……" % npc.unit_data.unit_name)
-	var lesson: Dictionary = await _generate_mentor_lesson(npc, query)
-	_hide_thinking(thinking)
-	_apply_mentor_lesson(npc, lesson)
-	var with_voice: bool = not bool(lesson.get("is_fallback", false))
-	await _play_npc_line(npc, String(lesson.get("reply", "")), with_voice)
-
 
 func _generate_mentor_lesson(npc: Unit, query: String) -> Dictionary:
 	var persona: Dictionary = _NpcPersonasScript.get_persona(npc.unit_data.unit_id, npc.unit_data.camp)
