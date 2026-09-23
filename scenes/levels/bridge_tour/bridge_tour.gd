@@ -16,7 +16,6 @@ const _UD_NPC_TEMPLATE := preload("res://data/units/craftsman_guard.tres")
 const _SK_INTERACT := preload("res://data/skills/bridge_tour_interact.tres")
 const _VISUAL_LI_CHUN := preload("res://scenes/unit/visual/human/li_chun/li_chun_visual.tscn")
 
-const _RoamingAIScript := preload("res://scripts/npc/roaming_ai.gd")
 const _NpcSpecLibraryScript := preload("res://scenes/levels/bridge_tour/npc_spec_library.gd")
 const _NpcPersonasScript := preload("res://scripts/llm/npc_personas.gd")
 const _PersonaFallbackScript := preload("res://scripts/llm/persona_fallback.gd")
@@ -45,8 +44,6 @@ const NEIGHBOR_INTERJECT_PROB := 0.4
 const NEIGHBOR_INTERJECT_RANGE := 5
 const HERO_INFINITE_AP := 99999
 const HERO_MOVE_PREVIEW_AP_BUDGET := 120 # 验桥日移动范围预览上限，避免无限 AP 把整张图 overlay 算出来
-const NPC_ROAM_INTERVAL_MIN := 6.0 # NPC 闲逛时间间隔下限
-const NPC_ROAM_INTERVAL_MAX := 10.0 # NPC 闲逛时间间隔上限
 ## 演示用作弊暗语：玩家输入只要包含其中任一短语，目标 NPC 任务立即通过。
 ## LLM 仍会被告知玩家"言中要害"，给出贴角色口吻的惊叹回应——所以观众察觉不到这是作弊。
 ## 这些都是 4 字短语，不会自然出现在玩家正常论点里。
@@ -67,6 +64,7 @@ const _ICON_DONE := Color(1.0, 0.85, 0.32)            # 完成态金（同 mento
 
 # ── 状态 ──
 var _npcs: Array[Unit] = []
+var _spawner: NpcSpawner = null
 var _interaction_target: Unit = null
 var _llm: Node = null
 var _voice: Node = null
@@ -170,14 +168,13 @@ func _on_level_ready() -> void:
 	li_chun.set_overhead_name_label("李春", _HERO_COLOR)
 	# 初始化 tscn 静态摆放的 NPC。
 	_npcs.clear()
+	_spawner = NpcSpawner.new()
+	_spawner.setup(self, _UD_NPC_TEMPLATE, _refresh_npc_name_label)
 	var npc_specs := _NpcSpecLibraryScript.get_specs()
-	for i in range(npc_specs.size()):
-		var spec := npc_specs[i]
-		var npc := _find_team_unit_by_node_name(1, String(spec.get("node_name", "")))
-		if npc == null:
-			push_error("BridgeTour: missing static NPC node '%s'" % String(spec.get("node_name", "")))
-			continue
-		_setup_npc(npc, spec)
+	for spec in npc_specs:
+		var npc := _spawner.spawn(spec)
+		if npc != null:
+			_npcs.append(npc)
 	# Mission HUD（左上）
 	_mission_hud = _MissionHudScene.instantiate()
 	add_child(_mission_hud)
@@ -248,75 +245,6 @@ func _enter_targeting_move() -> void:
 ## 读取 NPC 的类型化社交状态（挂在 unit.set_meta(NpcSocialState.META_KEY) 上）。
 func _state(npc: Unit) -> NpcSocialState:
 	return npc.get_meta(NpcSocialState.META_KEY, null) as NpcSocialState
-
-
-func _setup_npc(unit: Unit, spec: Dictionary) -> Unit:
-	var data: UnitData = _UD_NPC_TEMPLATE.duplicate()
-	data.resource_local_to_scene = true
-	data.unit_id = spec["unit_id"]
-	data.unit_name = spec["unit_name"]
-	data.skills = []
-	var visual: PackedScene = unit.visual_scene if unit.visual_scene != null else spec.get("visual", null)
-	var color: Color = spec.get("color", Color.WHITE)
-	unit.apply_runtime_setup(data, visual, color)
-	# NPC 社交状态（类型化 Resource，替代 16+ set_meta 字符串键）
-	var st := NpcSocialState.new()
-	st.role = String(spec.get("role", "persuade"))
-	st.bridge_part = String(spec.get("bridge_part", ""))
-	st.dialogue_log = [] as Array[Dictionary]
-	if st.role == "persuade":
-		var stance: int = int(spec.get("stance", 50))
-		st.stance = stance
-		st.accum_score_total = 0
-		st.last_accum_score = 0
-		st.last_round_score = 0
-		st.last_final_score = 0
-		st.persuaded = stance >= STANCE_PERSUADED
-		var goal: Variant = spec.get("persuasion_goal", {})
-		st.persuasion_goal = goal if goal is Dictionary else {}
-	elif st.role == "qa":
-		var persona: Dictionary = _NpcPersonasScript.get_persona(unit.unit_data.unit_id, unit.unit_data.camp)
-		st.qa_question = String(persona.get("qa_question", "我有一事相问，可解么？"))
-		var qa_kp: Array[Dictionary] = []
-		for p in spec.get("qa_key_points", []):
-			if p is Dictionary:
-				qa_kp.append(p)
-		st.qa_key_points = qa_kp
-		st.qa_solved = false
-	elif st.role == "mentor":
-		var topics_raw: Array = spec.get("mentor_topics", [])
-		var topics: Array[String] = []
-		for t in topics_raw:
-			topics.append(String(t))
-		st.mentor_topics = topics
-	unit.set_meta(NpcSocialState.META_KEY, st)
-	# RoamingAI
-	var ai := _RoamingAIScript.new()
-	ai.name = "RoamingAI"
-	ai.move_interval_min = float(spec.get("roam_interval_min", NPC_ROAM_INTERVAL_MIN))
-	ai.move_interval_max = float(spec.get("roam_interval_max", NPC_ROAM_INTERVAL_MAX))
-	ai.setup(unit, self, spec["roam_mode"], _build_waypoints(unit.cell, spec))
-	unit.add_child(ai)
-	_npcs.append(unit)
-	# 验桥日不显示战斗条，头顶用姓名牌承担识别与角色提示。
-	_refresh_npc_name_label(unit)
-	return unit
-
-
-func _build_waypoints(origin: Vector2i, spec: Dictionary) -> Array[Vector2i]:
-	var offsets: Array = spec.get("waypoint_offsets", [])
-	if not offsets.is_empty():
-		var result: Array[Vector2i] = []
-		for offset in offsets:
-			if offset is Vector2i:
-				result.append(origin + offset)
-		return result
-	var raw_waypoints: Array = spec.get("waypoints", [])
-	var waypoints: Array[Vector2i] = []
-	for point in raw_waypoints:
-		if point is Vector2i:
-			waypoints.append(point)
-	return waypoints
 
 
 ## 头顶姓名牌：role + 完成态决定颜色，替代 HP/AP 条。
