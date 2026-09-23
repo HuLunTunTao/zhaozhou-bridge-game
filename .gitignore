@@ -35,3 +35,5 @@ addons/godot_test_bridge
 docs/release
 .venv
 docs/final
+
+AGENTS.md
