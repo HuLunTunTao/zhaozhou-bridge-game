@@ -13,6 +13,7 @@ extends Node2D
 ##   - 场景提供 TileMaps / SpecialTiles / MoveOverlay / MovementManager / Camera2D / StatusBarScene
 ##   - _on_level_ready() 里布置主角（hero = ...）与 NPC
 ##   - 覆写 get_objectives_text / check_victory / check_defeat / _on_actor_* 等虚方法
+##   - 目标计数驱动的通关走 SocialLevelEndFlow（get_end_flow().add_goal / increment）
 ##
 ## 对外委托 API 与 BaseLevel 同名同签名，便于 bridge_tour 迁移（Task 2.24）。
 
@@ -79,6 +80,8 @@ var _actors: ActorRegistry = null
 ## 自由移动输入状态机（5 状态：IDLE / UNIT_SELECTED / TARGETING_MOVE / LOCKED / ANIMATING）。
 ## 已接 MovementManager + MoveOverlay 做可达范围预览与路径执行（2.3）。
 var _input: FreeRoamInputController = null
+## 目标计数驱动的通关流（Task 2.6）。子类 add_goal / increment 后自动 check_end_conditions。
+var _end_flow: SocialLevelEndFlow = SocialLevelEndFlow.new()
 
 
 func _init() -> void:
@@ -123,6 +126,7 @@ func _init() -> void:
 	_input.actor_deselected.connect(func(): _on_actor_deselected())
 	_input.move_requested.connect(func(from_cell, to_cell): _on_move_requested(from_cell, to_cell))
 	_input.interact_requested.connect(func(a, t): _on_actor_interact_requested(a, t))
+	_end_flow.all_goals_met.connect(_on_all_goals_met)
 
 
 func _ready() -> void:
@@ -453,16 +457,41 @@ func get_objectives_text() -> Dictionary:
 
 
 ## 子类覆写：检查是否满足胜利条件。
+## 约定（与 bridge_tour 一致）：可用 get_end_flow() 的目标计数，也可自行判据。
 func check_victory() -> bool:
-	return false
+	return _end_flow.is_all_met()
 
 
-## 子类覆写：检查是否满足失败条件。
-func check_defeat() -> bool:
-	return false
+## 子类覆写：检查是否满足失败条件。返回失败原因（"" 表示未失败）。
+## 签名统一为 -> String（与 bridge_tour 的 check_defeat 一致），调用点用非空判定。
+func check_defeat() -> String:
+	return ""
 
 
-## 关卡胜利收尾。幂等。Task 2.6 SocialLevelEndFlow 会细化结算触发流。
+## 目标 / 失败判据统一出口。子类每次进度推进后调（或走 get_end_flow().increment 自动触发）。
+## 幂等：complete_level / defeat_level 自身有 is_phase_ended 守卫。
+func check_end_conditions() -> void:
+	if is_phase_ended():
+		return
+	var defeat_reason := check_defeat()
+	if not defeat_reason.is_empty():
+		defeat_level(defeat_reason)
+		return
+	if check_victory():
+		complete_level()
+
+
+## 目标计数驱动的通关流。子类 add_goal / increment 用（Task 2.6）。
+func get_end_flow() -> SocialLevelEndFlow:
+	return _end_flow
+
+
+## all_goals_met 回调：目标全达标 → 通关。子类可覆写以插入横幅 / 延时等收尾。
+func _on_all_goals_met() -> void:
+	complete_level()
+
+
+## 关卡胜利收尾。幂等。
 func complete_level() -> void:
 	if is_phase_ended():
 		return
@@ -482,7 +511,7 @@ func _continue_after_level_completion(level: String) -> void:
 		GameState.transition_to_scene("res://scenes/menu/main_menu.tscn")
 
 
-## 关卡失败收尾。幂等。Task 2.6 会细化失败面板 / 重试流。
+## 关卡失败收尾。幂等。
 func defeat_level(reason: String = "任务失败") -> void:
 	if is_phase_ended():
 		return
