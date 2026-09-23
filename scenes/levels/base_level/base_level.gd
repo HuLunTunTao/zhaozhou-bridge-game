@@ -121,6 +121,8 @@ var _ai_busy := false
 var _chatter_scheduler: Node = null
 ## 对话桥接组件（Shared Kernel）。BaseLevel 通过同名委托方法转发调用。
 var _dialogue: DialogueBridge = null
+## 状态栏桥接组件（Shared Kernel）。BaseLevel 通过同名委托方法转发调用。
+var _status_bar_bridge: StatusBarBridge = null
 var _infinite_ally_actions_enabled := false
 
 ## 输入状态机。LOCKED 表示被外部流程显式锁定（例如自由移动关卡的对话流），与 ANIMATING（基类演出）正交。
@@ -326,6 +328,12 @@ func _ready() -> void:
 		"has_overlay": has_overlay,
 		"get_level_node": func() -> Node: return self,
 		"get_li_chun_portrait": func() -> Texture2D: return _LI_CHUN_PORTRAIT,
+	})
+	_status_bar_bridge = StatusBarBridge.new()
+	add_child(_status_bar_bridge)
+	_status_bar_bridge.setup({
+		"get_status_bar": func() -> Node: return status_bar,
+		"get_hero": func() -> Node2D: return hero,
 	})
 	Settings.settings_changed.connect(_refresh_debug_ui, CONNECT_REFERENCE_COUNTED)
 	Settings.difficulty_changed.connect(_on_difficulty_changed)
@@ -1175,16 +1183,12 @@ func _find_nearest_any_unit(local_mouse_pos: Vector2, max_dist: float = 24.0) ->
 
 ## 更新状态栏显示指定单位的信息。
 func _update_status_bar_for_unit(unit: Node2D, is_active: bool = false) -> void:
-	if status_bar and status_bar.has_method("show_unit"):
-		status_bar.show_unit(unit, is_active)
+	_status_bar_bridge.show_unit_for(unit, is_active)
 
 
 ## 状态栏回退显示主角。
 func _reset_status_bar() -> void:
-	if hero and status_bar and status_bar.has_method("show_unit"):
-		status_bar.show_unit(hero, false)
-	elif status_bar and status_bar.has_method("clear_unit"):
-		status_bar.clear_unit()
+	_status_bar_bridge.reset_to_hero()
 
 
 # ─────────────────────────────────────────────
