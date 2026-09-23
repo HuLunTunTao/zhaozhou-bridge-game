@@ -2,7 +2,8 @@ class_name FreeRoamSocialLevel
 extends Node2D
 
 ## 自由移动社交关卡基类（Social Stack）。**只继承 Node2D**，不继承 BaseLevel。
-## 供验桥日这类「自由移动 + 实时社交交互」关卡使用；回合 / AI / 技能 / 元素系统一律不进入本栈。
+## 供验桥日这类「自由移动 + 实时社交交互」关卡使用。
+## **AP 概念已删除**（点地即达）；回合 / AI / 技能结算 / 元素 / 成长 / prebattle 全部不存在。
 ## Shared Kernel 通过 setup(ctx) 注入 Callable 装配（风格与 LevelStateMachine.setup 一致）。
 ##
 ## 单位模型决策（Task 2.5）：**不引入 GridActor 新基类**，沿用 `Unit` + 最小 `CombatStats`。
@@ -320,7 +321,8 @@ func spawn_unit(unit_data: UnitData, cell: Vector2i, team_index: int, visual: Pa
 	return unit
 
 
-## 为自由移动单位配最小 CombatStats（AP 无限、无攻、满血）。
+## 为自由移动单位配最小 CombatStats（无攻、满血）。
+## **AP 概念已删除**（点地即达）；回合 / AI / 技能结算 / 元素 / 成长 / prebattle 全部不存在。
 ## 自由移动关卡无战斗，但 Unit 内部与外部约定仍读 combat_stats（如 is_alive / unit_name）。
 ## 决策（Task 2.5）：不引入 GridActor 新基类，沿用 Unit + 最小 CombatStats——
 ## Unit 已有 move_along_path / set_cell / move_finished / refresh_overhead_bars，
@@ -329,7 +331,7 @@ func spawn_unit(unit_data: UnitData, cell: Vector2i, team_index: int, visual: Pa
 ##   unit: Unit
 ##   display_name: String   — 显示名（CombatStats.unit_name）
 ##   max_hp: int = 100
-##   move_cost: int = 6    — 每格移动消耗（自由移动下不影响，因 AP 无限）
+##   move_cost: int = 6    — 保留参数签名，AP 已删除，此值不影响移动
 func setup_free_roam_unit(unit: Unit, display_name: String, max_hp: int = 100, move_cost: int = 6) -> void:
 	if unit == null or unit.combat_stats == null:
 		return
@@ -337,8 +339,6 @@ func setup_free_roam_unit(unit: Unit, display_name: String, max_hp: int = 100, m
 	cs.unit_name = display_name
 	cs.max_hp = max_hp
 	cs.current_hp = max_hp
-	cs.ap_max = 99999        # 自由移动无限 AP
-	cs.ap_current = 99999
 	cs.move_cost_per_tile = move_cost
 
 
@@ -397,7 +397,7 @@ func _on_actor_interact_requested(_actor, _target) -> void:
 
 
 ## 输入状态机请求移动（from_cell → to_cell）。用 MoveOverlay 计算路径并执行 Unit.move_along_path；
-## 移动完成后通知 _on_actor_move_completed、AP 回满（自由移动语义）、状态回 IDLE、清预览。
+## 移动完成后通知 _on_actor_move_completed、状态回 IDLE、清预览。AP 概念已删除，点地即达。
 func _on_move_requested(_from_cell: Vector2i, to_cell: Vector2i) -> void:
 	var h := get_hero() as Unit
 	if h == null or move_overlay == null or tilemap == null:
@@ -417,8 +417,6 @@ func _on_move_requested(_from_cell: Vector2i, to_cell: Vector2i) -> void:
 	if is_phase_ended():
 		return
 	_on_actor_move_completed(h)
-	if h.combat_stats != null:
-		h.combat_stats.ap_current = h.combat_stats.ap_max
 	_input.set_state(FreeRoamInputController.S.IDLE)
 	move_overlay.clear_range()
 
