@@ -173,8 +173,8 @@ func _on_level_ready() -> void:
 	add_child(_mission_hud)
 	_mission_hud.set_targets(PERSUADE_TARGET, QA_TARGET)
 	for npc in _npcs:
-		var st := _state(npc)
-		var done: bool = _state(npc).is_done()
+		var st := _npc_state(npc)
+		var done: bool = _npc_state(npc).is_done()
 		_mission_hud.add_npc(st.role, npc.unit_data.unit_name, done)
 		# persuade NPC 显示初始 stance；qa / mentor 静默忽略
 		if st.role == "persuade":
@@ -236,13 +236,13 @@ func _enter_targeting_move() -> void:
 
 
 ## 读取 NPC 的类型化社交状态（挂在 unit.set_meta(NpcSocialState.META_KEY) 上）。
-func _state(npc: Unit) -> NpcSocialState:
+func _npc_state(npc: Unit) -> NpcSocialState:
 	return npc.get_meta(NpcSocialState.META_KEY, null) as NpcSocialState
 
 
 ## 头顶姓名牌：role + 完成态决定颜色，替代 HP/AP 条。
 func _refresh_npc_name_label(unit: Unit) -> void:
-	NpcBadgePresenter.refresh(unit, _state(unit))
+	NpcBadgePresenter.refresh(unit, _npc_state(unit))
 
 
 func get_interaction_target() -> Unit:
@@ -303,7 +303,7 @@ func _find_npc_at_cell(cell: Vector2i) -> Unit:
 
 ## 主交互入口——按 NPC role 派发到三种流。
 func _dispatch_interaction(npc: Unit) -> void:
-	match _state(npc).role:
+	match _npc_state(npc).role:
 		"persuade":
 			var flow := PersuadeFlow.new()
 			flow.setup(self)
@@ -329,9 +329,9 @@ func _pick_persuade_opening(npc: Unit) -> String:
 		if raw is Array:
 			openings = raw
 	if openings.is_empty():
-		var goal: Dictionary = _state(npc).persuasion_goal
+		var goal: Dictionary = _npc_state(npc).persuasion_goal
 		return String(goal.get("objection", "")).strip_edges()
-	var st := _state(npc)
+	var st := _npc_state(npc)
 	var attempt: int = st.persuade_opening_attempt
 	st.persuade_opening_attempt = attempt + 1
 	return String(openings[attempt % openings.size()]).strip_edges()
@@ -346,7 +346,7 @@ func _generate_persuade_answer(npc: Unit, topic: String) -> Dictionary:
 	var cheat_word := _matched_cheat_word(topic)
 	var is_cheat := not cheat_word.is_empty()
 	var persona: Dictionary = _NpcPersonasScript.get_persona(npc.unit_data.unit_id, npc.unit_data.camp)
-	var st := _state(npc)
+	var st := _npc_state(npc)
 	var bridge_part: String = st.bridge_part
 	var stance: int = st.stance
 	var persuasion_goal: Dictionary = st.persuasion_goal
@@ -405,7 +405,7 @@ func _apply_persuade_result(npc: Unit, ans: Dictionary) -> void:
 		accum_score = 0
 		round_score = 0
 		final_score = 0
-	var st := _state(npc)
+	var st := _npc_state(npc)
 	var old_stance: int = st.stance
 	var new_stance: int = STANCE_PERSUADED if force_success else clampi(old_stance + final_score, 0, 100)
 	st.stance = new_stance
@@ -460,10 +460,10 @@ func _normalize_persuade_scores(ans: Dictionary) -> void:
 # ─────────────────────────────────────────────
 
 func _flow_qa(npc: Unit) -> void:
-	if _state(npc).is_done():
+	if _npc_state(npc).is_done():
 		Notify.info("%s 的疑问已解" % npc.unit_data.unit_name, 1.5)
 		return
-	var st := _state(npc)
+	var st := _npc_state(npc)
 	var bridge_part: String = st.bridge_part
 	var question: String = _pick_qa_question(npc)
 	# 先让 NPC 把问题抛给玩家——dialogue_box 显示 + TTS
@@ -495,7 +495,7 @@ func _flow_qa(npc: Unit) -> void:
 ## question 只在 QA 流程传入，用于在玩家答案前恢复 NPC 的提问。
 ## tone 字段可记 "fallback" / "qa" / LLM 给的 tone 标签，便于将来分类（当前未做特殊渲染）。
 func _append_dialogue_log(npc: Unit, player: String, npc_text: String, tone: String, question: String = "") -> void:
-	var st := _state(npc)
+	var st := _npc_state(npc)
 	var history: Array = st.dialogue_log
 	var entry := {
 		"player": player,
@@ -512,7 +512,7 @@ func _append_dialogue_log(npc: Unit, player: String, npc_text: String, tone: Str
 ## 给输入面板显示"当前 NPC 刚问的话"，但不立即写入持久历史；
 ## 玩家取消时不会留下半截对话，提交后由 _append_dialogue_log 保存完整问答。
 func _history_with_npc_prompt(npc: Unit, prompt_text: String) -> Array:
-	var history: Array = _state(npc).dialogue_log.duplicate()
+	var history: Array = _npc_state(npc).dialogue_log.duplicate()
 	var clean_prompt := prompt_text.strip_edges()
 	if clean_prompt.is_empty():
 		return history
@@ -529,7 +529,7 @@ func _history_with_npc_prompt(npc: Unit, prompt_text: String) -> Array:
 ## 选完后 state.qa_attempt += 1 写回，供下次轮换。
 func _pick_qa_question(npc: Unit) -> String:
 	var persona: Dictionary = _NpcPersonasScript.get_persona(npc.unit_data.unit_id, npc.unit_data.camp)
-	var st := _state(npc)
+	var st := _npc_state(npc)
 	var attempt: int = st.qa_attempt
 	var qs_raw: Variant = persona.get("qa_questions", [])
 	var qs: Array = qs_raw if qs_raw is Array else []
@@ -589,8 +589,8 @@ func _apply_qa_result(npc: Unit, eval: Dictionary) -> void:
 		if not key.is_empty() and not _player_used_topics.has(key):
 			_player_used_topics.append(key)
 	var is_correct: bool = bool(eval.get("is_correct", false))
-	if is_correct and not _state(npc).qa_solved:
-		_state(npc).qa_solved = true
+	if is_correct and not _npc_state(npc).qa_solved:
+		_npc_state(npc).qa_solved = true
 		Notify.notify("已解答 %s 的疑问" % npc.unit_data.unit_name, Notify.Position.TOP_RIGHT, Notify.Style.SUCCESS, 3.0)
 		_refresh_npc_name_label(npc)
 		_check_all_done_for_victory()
@@ -679,7 +679,7 @@ func _pick_persuade_success_feedback(npc: Unit, persona: Dictionary) -> String:
 	var lines := _fallback_lines_for(persona, "persuade_success")
 	if lines.is_empty():
 		return "这话说到点上了。"
-	var st := _state(npc)
+	var st := _npc_state(npc)
 	var attempt := st.persuade_success_attempt
 	st.persuade_success_attempt = attempt + 1
 	return String(lines[attempt % lines.size()]).strip_edges()
@@ -695,7 +695,7 @@ func _make_cheat_qa_eval(_npc: Unit) -> Dictionary:
 
 
 func _make_rule_qa_eval(npc: Unit, answer: String, persona: Dictionary) -> Dictionary:
-	var key_points: Array = _state(npc).qa_key_points
+	var key_points: Array = _npc_state(npc).qa_key_points
 	var matched: Array[String] = []
 	var missed: Array[String] = []
 	var knowledge_used: Array[String] = []
@@ -732,7 +732,7 @@ func _pick_qa_success_feedback(npc: Unit, persona: Dictionary) -> String:
 	var lines := _fallback_lines_for(persona, "qa_success")
 	if lines.is_empty():
 		return "这回说到点上了。"
-	var st := _state(npc)
+	var st := _npc_state(npc)
 	var attempt := st.qa_success_attempt
 	st.qa_success_attempt = attempt + 1
 	return String(lines[attempt % lines.size()]).strip_edges()
@@ -768,7 +768,7 @@ func _normalize_match_text(text: String) -> String:
 
 
 func _qa_key_points_text(npc: Unit) -> String:
-	var key_points: Array = _state(npc).qa_key_points
+	var key_points: Array = _npc_state(npc).qa_key_points
 	if key_points.is_empty():
 		return "（未配置；按问题语义宽松判断）"
 	var lines: Array[String] = []
@@ -1074,7 +1074,7 @@ func _build_npc_memory_memo(npc: Unit) -> String:
 
 
 func _build_bridge_context_json(npc: Unit, trigger_kind: String) -> String:
-	var st := _state(npc)
+	var st := _npc_state(npc)
 	var role := st.role
 	var context := {
 		"关卡": "验桥日",
@@ -1100,7 +1100,7 @@ func _build_bridge_context_json(npc: Unit, trigger_kind: String) -> String:
 
 
 func _dialogue_history_text(npc: Unit, max_entries: int = 4) -> String:
-	var history: Array = _state(npc).dialogue_log
+	var history: Array = _npc_state(npc).dialogue_log
 	if history.is_empty():
 		return ""
 	var lines: Array[String] = []
@@ -1121,7 +1121,7 @@ func _dialogue_history_text(npc: Unit, max_entries: int = 4) -> String:
 
 
 func _mission_context_text(npc: Unit) -> String:
-	var st := _state(npc)
+	var st := _npc_state(npc)
 	var role := st.role
 	var parts: Array[String] = [
 		"关卡目标：说服 %d/%d，解答 %d/%d。" % [_persuaded_count(), PERSUADE_TARGET, _qa_solved_count(), QA_TARGET],
@@ -1218,7 +1218,7 @@ func check_defeat() -> String:
 func _persuaded_count() -> int:
 	var n := 0
 	for npc in _npcs:
-		if is_instance_valid(npc) and _state(npc).role == "persuade" and _state(npc).persuaded:
+		if is_instance_valid(npc) and _npc_state(npc).role == "persuade" and _npc_state(npc).persuaded:
 			n += 1
 	return n
 
@@ -1226,7 +1226,7 @@ func _persuaded_count() -> int:
 func _qa_solved_count() -> int:
 	var n := 0
 	for npc in _npcs:
-		if is_instance_valid(npc) and _state(npc).role == "qa" and _state(npc).qa_solved:
+		if is_instance_valid(npc) and _npc_state(npc).role == "qa" and _npc_state(npc).qa_solved:
 			n += 1
 	return n
 

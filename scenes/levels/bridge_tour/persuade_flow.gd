@@ -14,7 +14,7 @@ var _subtitle: String = ""
 
 
 func _is_done(npc: Unit) -> bool:
-	return _level._state(npc).persuaded
+	return _level._npc_state(npc).persuaded
 
 
 func _done_message(npc: Unit) -> String:
@@ -23,7 +23,7 @@ func _done_message(npc: Unit) -> String:
 
 func _open_panel(npc: Unit) -> Node:
 	_npc = npc
-	var st: NpcSocialState = _level._state(npc)
+	var st: NpcSocialState = _level._npc_state(npc)
 	_opening = _level._pick_persuade_opening(npc)
 	_subtitle = st.bridge_part
 	if not _opening.is_empty():

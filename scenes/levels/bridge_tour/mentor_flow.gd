@@ -23,7 +23,7 @@ func _done_message(_npc: Unit) -> String:
 
 func _open_panel(npc: Unit) -> Node:
 	_npc = npc
-	var st: NpcSocialState = _level._state(npc)
+	var st: NpcSocialState = _level._npc_state(npc)
 	var menu: Node = _TopicMenuPanelScene.instantiate()
 	_level.add_child(menu)
 	menu.show_for(npc.unit_data.unit_name, st.mentor_topics)
