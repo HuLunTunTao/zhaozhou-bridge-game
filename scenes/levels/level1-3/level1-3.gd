@@ -262,9 +262,8 @@ func _on_phase_changed_for_onboarding(p: int) -> void:
 func _run_onboarding() -> void:
 	if Progress.has_seen_tutorial(TUTORIAL_ID):
 		if not await _ask_tutorial_replay():
-			Notify.notify(
-				"运石工取送石 +3；李春「墨绳校券」命中侧 +1、对侧 -1；保持差值 ≤1 才能有效击退偏载傀",
-				Notify.Position.TOP_CENTER, Notify.Style.INFO, 6.0,
+			Notify.hint(
+				"运石工取送石 +3；李春「墨绳校券」命中侧 +1、对侧 -1；保持差值 ≤1 才能有效击退偏载傀", 6.0,
 			)
 			return
 	await get_tree().create_timer(0.4).timeout
@@ -286,9 +285,8 @@ func _run_onboarding() -> void:
 	if is_phase_ended():
 		return
 	_tutorial_stone_picked = false
-	Notify.notify(
-		"选中运石工 → 移动到棕色石料场 2×2 区域；进格后会自动取石。",
-		Notify.Position.TOP_CENTER, Notify.Style.INFO, 14.0,
+	Notify.hint(
+		"选中运石工 → 移动到棕色石料场 2×2 区域；进格后会自动取石。", 14.0,
 	)
 	while not _tutorial_stone_picked:
 		await unit_move_completed
@@ -302,9 +300,8 @@ func _run_onboarding() -> void:
 	if is_phase_ended():
 		return
 	_tutorial_stone_delivered = false
-	Notify.notify(
-		"移动负石运石工 → 进入金/蓝券台 2×2 区域；交石后该侧券值 +3。",
-		Notify.Position.TOP_CENTER, Notify.Style.INFO, 14.0,
+	Notify.hint(
+		"移动负石运石工 → 进入金/蓝券台 2×2 区域；交石后该侧券值 +3。", 14.0,
 	)
 	while not _tutorial_stone_delivered:
 		await unit_move_completed
@@ -325,9 +322,8 @@ func _run_onboarding() -> void:
 	])
 	if is_phase_ended():
 		return
-	Notify.notify(
-		"选中李春 → 选「墨绳校券」→ 点券值较低一侧的券台 2×2 任意一格。",
-		Notify.Position.TOP_CENTER, Notify.Style.INFO, 14.0,
+	Notify.hint(
+		"选中李春 → 选「墨绳校券」→ 点券值较低一侧的券台 2×2 任意一格。", 14.0,
 	)
 	_tutorial_inkline_used = false
 	skill_executed.connect(_on_tutorial_skill_executed)
@@ -434,7 +430,7 @@ func _on_skill_executed(caster: Unit, skill: SkillData, cast_cell: Vector2i, exe
 		elif caster_name == "断索鬼":
 			_carrying_stone[key] = false
 			_set_carrier_loaded(target, false)
-			Notify.notify("%s 被断索鬼夺下石料" % target.combat_stats.unit_name, Notify.Position.TOP_RIGHT, Notify.Style.ERROR, 2.0)
+			Notify.error("%s 被断索鬼夺下石料" % target.combat_stats.unit_name, 2.0)
 
 
 func _on_stage_team_turn_started(team_index: int) -> void:
@@ -478,7 +474,7 @@ func _show_direct_damage_feedback(unit: Unit, old_hp: int, new_hp: int, message:
 	var popup := DamagePopup.new()
 	add_child(popup)
 	popup.show_at(unit.global_position, actual_damage)
-	Notify.notify(message, Notify.Position.TOP_RIGHT, Notify.Style.WARNING, 1.5)
+	Notify.warn(message, 1.5)
 	report_unit_damaged(unit, old_hp, new_hp)
 
 
@@ -563,9 +559,8 @@ func _update_crown_visibility() -> void:
 		_crown_marker.visible = should_show
 	if should_show and not _crown_activated:
 		_crown_activated = true
-		Notify.notify(
-			"拱冠合龙点已激活！李春用「墨绳校券」命中桥中央紫色拱冠点即胜利",
-			Notify.Position.TOP_CENTER, Notify.Style.SUCCESS, 5.0,
+		Notify.success(
+			"拱冠合龙点已激活！李春用「墨绳校券」命中桥中央紫色拱冠点即胜利", 5.0,
 		)
 
 
@@ -637,7 +632,7 @@ func _try_pick_or_deliver_stone(unit: Unit) -> void:
 		_carrying_stone[key] = true
 		_set_carrier_loaded(unit, true)
 		_tutorial_stone_picked = true
-		Notify.notify("%s 已取石" % unit.combat_stats.unit_name, Notify.Position.TOP_RIGHT, Notify.Style.INFO, 1.5)
+		Notify.info("%s 已取石" % unit.combat_stats.unit_name, 1.5)
 		return
 	if not _carrying_stone.get(key, false):
 		return
@@ -694,7 +689,7 @@ func _close_arch_via_skill() -> void:
 	if _crown_marker != null:
 		_crown_marker.visible = false
 	_update_status_panel()
-	Notify.notify("收缝合龙完成，安济桥成！", Notify.Position.TOP_CENTER, Notify.Style.SUCCESS, 3.0)
+	Notify.success("收缝合龙完成，安济桥成！", 3.0)
 
 
 func _shift_load() -> void:
@@ -814,7 +809,7 @@ func _resolve_enemy_pressure() -> void:
 			var ally: Unit = candidates[i].ally
 			ally.combat_stats.current_hp = maxi(ally.combat_stats.current_hp - press_damage, 0)
 			ally.refresh_overhead_bars()
-			Notify.notify("%s 被偏载傀压台击中（-%d HP）" % [ally.combat_stats.unit_name, press_damage], Notify.Position.TOP_RIGHT, Notify.Style.WARNING, 1.5)
+			Notify.warn("%s 被偏载傀压台击中（-%d HP）" % [ally.combat_stats.unit_name, press_damage], 1.5)
 
 	_update_status_panel()
 	_maybe_notify_balance_transition()
@@ -840,7 +835,7 @@ func _adjust_arch_value(is_left: bool, delta: int, reason: String) -> void:
 		_left_arch_value = clampi(_left_arch_value + delta, 0, 10)
 	else:
 		_right_arch_value = clampi(_right_arch_value + delta, 0, 10)
-	Notify.notify("%s  左券:%d 右券:%d 差值:%d" % [reason, _left_arch_value, _right_arch_value, _arch_gap()], Notify.Position.TOP_RIGHT, Notify.Style.INFO, 2.5)
+	Notify.info("%s  左券:%d 右券:%d 差值:%d" % [reason, _left_arch_value, _right_arch_value, _arch_gap()])
 	_update_crown_visibility()
 	_update_status_panel()
 
@@ -997,7 +992,7 @@ func _maybe_notify_balance_transition() -> void:
 		return
 	match new_state:
 		"均衡":
-			Notify.notify("左右回到均衡。", Notify.Position.TOP_CENTER, Notify.Style.SUCCESS, 2.5)
+			Notify.success("左右回到均衡。")
 		"偏衡":
 			Notify.notify("左右偏衡，偏载傀直接受到的伤害上限 10。", Notify.Position.TOP_CENTER, Notify.Style.WARNING, 3.0)
 		"失衡":

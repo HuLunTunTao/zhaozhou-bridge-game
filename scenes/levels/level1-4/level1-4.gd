@@ -384,7 +384,7 @@ func _on_level_ready() -> void:
 	round_started.connect(_on_stage_round_started)
 	phase_changed.connect(_on_phase_changed_for_onboarding)
 	_update_status_panel()
-	Notify.notify("李春与运石工可开启小拱；整桥稳定值 100 归零即败", Notify.Position.TOP_CENTER, Notify.Style.INFO, 3.0)
+	Notify.hint("李春与运石工可开启小拱；整桥稳定值 100 归零即败", 3.0)
 
 
 # 轻教学：进入 PLAYING 阶段后用 dialogue 流程做 P1 开局引导（仿 L1-1 风格）。
@@ -400,7 +400,7 @@ func _run_p1_tutorial() -> void:
 		_wants_tutorial_replay = await _ask_tutorial_replay()
 		if not _wants_tutorial_replay:
 			# 复玩跳过时给一条简短 Notify 提示玩法重点
-			Notify.notify("整桥稳定 100 归零即败；多打怒水/小怪可回血；工匠「捍作护行」豁免拍面", Notify.Position.TOP_CENTER, Notify.Style.INFO, 5.0)
+			Notify.hint("整桥稳定 100 归零即败；多打怒水/小怪可回血；工匠「捍作护行」豁免拍面", 5.0)
 			return
 	await get_tree().create_timer(0.4).timeout
 	if is_phase_ended():
@@ -420,9 +420,8 @@ func _run_p1_tutorial() -> void:
 	])
 	if is_phase_ended():
 		return
-	Notify.notify(
-		"选中李春 → 选技能 → 点桥心以北的水域（怒水的判定区覆盖到北侧 7 行内）",
-		Notify.Position.TOP_CENTER, Notify.Style.INFO, 14.0,
+	Notify.hint(
+		"选中李春 → 选技能 → 点桥心以北的水域（怒水的判定区覆盖到北侧 7 行内）", 14.0,
 	)
 	_p1_tutorial_hit_boss = false
 	skill_executed.connect(_on_p1_tutorial_skill_executed)
@@ -667,7 +666,7 @@ func _on_skill_executed(caster: Unit, skill: SkillData, cast_cell: Vector2i, _ex
 	if _watch_point in path:
 		_overall_stability = maxi(_overall_stability - 1, 0)
 		_update_status_panel()
-		Notify.notify("%s 冲撞桥心！整桥 −1 → %d" % [unit_name_str, _overall_stability], Notify.Position.TOP_RIGHT, Notify.Style.WARNING, 2.5)
+		Notify.warn("%s 冲撞桥心！整桥 −1 → %d" % [unit_name_str, _overall_stability])
 		_check_win_lose()
 
 	# 击退可能把单位推到激流桥缘上；_force_move_cell 直接改 cell 不走
@@ -719,7 +718,7 @@ func _cast_overturn_bridge() -> void:
 	# 桥稳压制现在统一在 _resolve_enemy_pressure（基于已开肩数）结算，本技保留：
 	# 桥面上下边缘生成激流桥缘 1 回合（位移陷阱）+ 视觉/语义上的 boss 大招感
 	_spawn_rapid_edges_for_overturn()
-	Notify.notify("怒水释放【翻潮压桥】（桥缘激流持续 1 回合）", Notify.Position.TOP_RIGHT, Notify.Style.WARNING, 2.5)
+	Notify.warn("怒水释放【翻潮压桥】（桥缘激流持续 1 回合）")
 	_check_win_lose()
 
 
@@ -748,7 +747,7 @@ func _boss_slam_deck() -> void:
 	if targets.is_empty():
 		Notify.notify("怒涛拍面：全员护持/无目标", Notify.Position.TOP_RIGHT, Notify.Style.SUCCESS, 2.0)
 		return
-	Notify.notify("怒水释放【怒涛拍面】（横扫桥心，敌我两伤）", Notify.Position.TOP_RIGHT, Notify.Style.WARNING, 2.5)
+	Notify.warn("怒水释放【怒涛拍面】（横扫桥心，敌我两伤）")
 	CombatLog.msg("怒涛拍面: 命中 %d 名（含敌方小怪）" % targets.size())
 	for target in targets:
 		var hit: CombatResolver.HitResult = CombatResolver.resolve_hit(_boss.combat_stats, target.combat_stats, _slam_deck, 0.5)
@@ -780,7 +779,7 @@ func _boss_topple_bank() -> void:
 		return CellMath.manhattan(a.cell, boss_cell) < CellMath.manhattan(b.cell, boss_cell)
 	)
 	var targets: Array = alive.slice(0, mini(2, alive.size()))
-	Notify.notify("怒水释放【翻岸压塌】", Notify.Position.TOP_RIGHT, Notify.Style.WARNING, 2.5)
+	Notify.warn("怒水释放【翻岸压塌】")
 	CombatLog.msg("翻岸压塌: 命中 %d 名最近单位" % targets.size())
 	for target in targets:
 		var hit: CombatResolver.HitResult = CombatResolver.resolve_hit(_boss.combat_stats, target.combat_stats, _topple_bank, 0.7)
@@ -910,7 +909,7 @@ func _show_next_round_preview() -> void:
 		label = "【怒涛拍面】（水，横扫桥心敌我两伤 0.5×+附水 1，击退 2 格）— 工匠「捍作护行」可豁免；boss 也会攻击自家小怪"
 	else:
 		label = "蓄力中（无周期被动；可推进开肩）"
-	Notify.notify("下回合怒水：%s" % label, Notify.Position.TOP_RIGHT, Notify.Style.INFO, 4.0)
+	Notify.info("下回合怒水：%s" % label, 4.0)
 
 
 # 洪锋·被动【涌锋】：本回合首次移动 +1 格。
@@ -1202,10 +1201,10 @@ func _try_mark_arch_interacted(arch_key: String) -> void:
 			hint = "此交互点尚未开放"
 		else:
 			hint = "二阶段仅外侧两肩可拆"
-		Notify.notify(hint, Notify.Position.TOP_RIGHT, Notify.Style.WARNING, 2.0)
+		Notify.warn(hint, 2.0)
 		return
 	if _phase_arch_skill_used.get(arch_key, false):
-		Notify.notify("此交互点本阶段已生效", Notify.Position.TOP_RIGHT, Notify.Style.INFO, 1.5)
+		Notify.info("此交互点本阶段已生效", 1.5)
 		return
 	var dr_before: float = _compute_boss_dr()
 	_phase_arch_skill_used[arch_key] = true
@@ -1215,9 +1214,8 @@ func _try_mark_arch_interacted(arch_key: String) -> void:
 	var label: String = ("易伤 %d%%" % int(round(-dr_after * 100))) if dr_after < 0.0 else ("免伤 %d%%" % int(round(dr_after * 100)))
 	if is_equal_approx(dr_before, dr_after):
 		# Phase 3 先打 1/4 时会到这里：标记登记成功，但 DR 还要等 2&3 都 done 才落地
-		Notify.notify(
-			"导汛开肩 → 已登记（怒水 %s，待中间两肩拆完后联动）" % label,
-			Notify.Position.TOP_RIGHT, Notify.Style.INFO, 2.5,
+		Notify.info(
+			"导汛开肩 → 已登记（怒水 %s，待中间两肩拆完后联动）" % label
 		)
 	else:
 		Notify.notify(
@@ -1278,11 +1276,10 @@ func _resolve_enemy_pressure() -> void:
 		_overall_stability = maxi(_overall_stability - total, 0)
 		_update_status_panel()
 
-	Notify.notify(
+	Notify.warn(
 		"整桥:%d 已拆肩:%d/4（怒水 -%d｜阶段 -%d｜邻桥心 -%d）" % [
 			_overall_stability, _open_arch_count(), alive_dmg, phase_dmg, event_dmg,
-		],
-		Notify.Position.TOP_RIGHT, Notify.Style.WARNING, 2.5,
+		]
 	)
 	_check_win_lose()
 

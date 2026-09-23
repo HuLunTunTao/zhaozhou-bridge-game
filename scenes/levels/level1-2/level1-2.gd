@@ -165,7 +165,7 @@ func _on_level_ready() -> void:
 	team_turn_started.connect(_on_stage_team_turn_started)
 	unit_move_completed.connect(_on_stage_unit_move_completed)
 
-	Notify.notify("派测量工到参数点 (-1, 2) 测定河宽 / 河床 / 汛位 3 项数据（「测尺取参」每回合不限），或李春「参数确认」补刀（每回合 1 次）。", Notify.Position.TOP_CENTER, Notify.Style.INFO, 4.0)
+	Notify.hint("派测量工到参数点 (-1, 2) 测定河宽 / 河床 / 汛位 3 项数据（「测尺取参」每回合不限），或李春「参数确认」补刀（每回合 1 次）。", 4.0)
 
 
 # ─────────────────────────────────────────────
@@ -318,10 +318,10 @@ func _handle_confirm_parameter(caster: Unit, cast_cell: Vector2i) -> void:
 
 func _register_parameter_use(caster_name: String) -> void:
 	if _parameter_use_count >= PARAMETER_REQUIRED_USES:
-		Notify.notify("参数点已完成三次取参，无需再施放。", Notify.Position.TOP_CENTER, Notify.Style.INFO, 2.0)
+		Notify.hint("参数点已完成三次取参，无需再施放。", 2.0)
 		return
 	_parameter_use_count += 1
-	Notify.notify("%s 取参成功 (%d/%d)" % [caster_name, _parameter_use_count, PARAMETER_REQUIRED_USES], Notify.Position.TOP_CENTER, Notify.Style.SUCCESS, 2.5)
+	Notify.success("%s 取参成功 (%d/%d)" % [caster_name, _parameter_use_count, PARAMETER_REQUIRED_USES])
 	_update_mission_hint()
 	_update_params_status_hint()
 	if _parameter_use_count >= PARAMETER_REQUIRED_USES:
@@ -413,7 +413,7 @@ func _update_params_status_hint() -> void:
 
 func _advance_to_task2() -> void:
 	_current_task = TaskState.TASK2_PLATFORM
-	Notify.notify("三处参数已成。请李春前往中央绘样台。", Notify.Position.TOP_CENTER, Notify.Style.SUCCESS, 3.5)
+	Notify.success("三处参数已成。请李春前往中央绘样台。", 3.5)
 	_update_mission_hint()
 	_show_objectives_if_not_open()
 	_spawn_task2_marker()
@@ -441,7 +441,7 @@ func _spawn_task2_marker() -> void:
 
 func _advance_to_task3() -> void:
 	_current_task = TaskState.TASK3_ARCH
-	Notify.notify("李春抵达绘样台！执行「执墨定拱」落定桥法。", Notify.Position.TOP_CENTER, Notify.Style.SUCCESS, 3.5)
+	Notify.success("李春抵达绘样台！执行「执墨定拱」落定桥法。", 3.5)
 	_update_mission_hint()
 	_show_objectives_if_not_open()
 
@@ -453,7 +453,7 @@ func _advance_to_task4() -> void:
 	if _task2_pulsing_marker != null and is_instance_valid(_task2_pulsing_marker):
 		_task2_pulsing_marker.queue_free()
 	_task2_pulsing_marker = null
-	Notify.notify("执墨定拱完成！李春解锁「绳准锁弧」（直线穿透+拖拽），用它清退 %d 名受驱役之敌。" % REQUIRED_DEFEATS, Notify.Position.TOP_CENTER, Notify.Style.SUCCESS, 4.0)
+	Notify.success("执墨定拱完成！李春解锁「绳准锁弧」（直线穿透+拖拽），用它清退 %d 名受驱役之敌。" % REQUIRED_DEFEATS, 4.0)
 	_update_mission_hint()
 	_show_objectives_if_not_open()
 
@@ -494,7 +494,7 @@ func _scan_platform_visits() -> void:
 			continue
 		_platform_visit_cache[id] = true
 		_pending_summon_bonus += 1
-		Notify.notify("%s 抵达绘样台！Boss 下回合召唤 +1。" % minion.combat_stats.unit_name, Notify.Position.TOP_RIGHT, Notify.Style.WARNING, 2.5)
+		Notify.warn("%s 抵达绘样台！Boss 下回合召唤 +1。" % minion.combat_stats.unit_name)
 
 
 func _boss_turn() -> void:
@@ -526,7 +526,7 @@ func _boss_turn() -> void:
 		_spawn_minion(summon_kind, _random_enemy_spawn_cell())
 		spawned += 1
 	if spawned > 0:
-		Notify.notify("旧制监工召唤了 %d 名受驱役之敌。" % spawned, Notify.Position.TOP_RIGHT, Notify.Style.WARNING, 2.0)
+		Notify.warn("旧制监工召唤了 %d 名受驱役之敌。" % spawned, 2.0)
 
 
 func _select_single_buff_target(minions: Array[Unit]) -> Unit:

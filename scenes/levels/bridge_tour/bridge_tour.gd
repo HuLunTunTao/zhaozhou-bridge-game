@@ -341,7 +341,7 @@ func is_free_roam_level() -> bool:
 func confirm_cell(cell: Vector2i) -> void:
 	if _input_state == InputState.IDLE or _input_state == InputState.UNIT_SELECTED:
 		if _is_cell_occupied_by_other(cell, hero):
-			Notify.notify("目标格已被占用", Notify.Position.TOP_RIGHT, Notify.Style.WARNING, 1.5)
+			Notify.warn("目标格已被占用", 1.5)
 			return
 	super.confirm_cell(cell)
 
@@ -621,7 +621,7 @@ func _dispatch_interaction(npc: Unit) -> void:
 func _flow_persuade(npc: Unit) -> void:
 	if _npc_done(npc):
 		# 已说服的不再交互——给个轻提示就走
-		Notify.notify("已说服 %s" % npc.unit_data.unit_name, Notify.Position.TOP_RIGHT, Notify.Style.INFO, 1.5)
+		Notify.info("已说服 %s" % npc.unit_data.unit_name, 1.5)
 		return
 	var bridge_part: String = String(npc.get_meta("npc_bridge_part", ""))
 	var opening: String = _pick_persuade_opening(npc)
@@ -767,7 +767,7 @@ func _apply_persuade_result(npc: Unit, ans: Dictionary) -> void:
 		_refresh_npc_name_label(npc)
 		_check_all_done_for_victory()
 	elif final_score < 0:
-		Notify.notify("%s 摇头：「此说不通」" % npc.unit_data.unit_name, Notify.Position.TOP_RIGHT, Notify.Style.WARNING, 2.5)
+		Notify.warn("%s 摇头：「此说不通」" % npc.unit_data.unit_name)
 	if _mission_hud:
 		_mission_hud.update_npc("persuade", npc.unit_data.unit_name, now_persuaded)
 		_mission_hud.update_npc_stance(npc.unit_data.unit_name, new_stance, STANCE_PERSUADED, accum_total, accum_score, round_score, final_score)
@@ -801,7 +801,7 @@ func _normalize_persuade_scores(ans: Dictionary) -> void:
 
 func _flow_qa(npc: Unit) -> void:
 	if _npc_done(npc):
-		Notify.notify("%s 的疑问已解" % npc.unit_data.unit_name, Notify.Position.TOP_RIGHT, Notify.Style.INFO, 1.5)
+		Notify.info("%s 的疑问已解" % npc.unit_data.unit_name, 1.5)
 		return
 	var bridge_part: String = String(npc.get_meta("npc_bridge_part", ""))
 	var question: String = _pick_qa_question(npc)
@@ -932,7 +932,7 @@ func _apply_qa_result(npc: Unit, eval: Dictionary) -> void:
 		_refresh_npc_name_label(npc)
 		_check_all_done_for_victory()
 	elif not is_correct:
-		Notify.notify("%s 摇头：尚有疑虑" % npc.unit_data.unit_name, Notify.Position.TOP_RIGHT, Notify.Style.WARNING, 2.5)
+		Notify.warn("%s 摇头：尚有疑虑" % npc.unit_data.unit_name)
 	if _mission_hud:
 		_mission_hud.update_npc("qa", npc.unit_data.unit_name, is_correct)
 
@@ -1608,9 +1608,8 @@ func _qa_solved_count() -> int:
 ## 任一进度推进后调，达标就显胜利横幅 + complete_level。
 func _check_all_done_for_victory() -> void:
 	if _persuaded_count() >= PERSUADE_TARGET and _qa_solved_count() >= QA_TARGET:
-		Notify.notify(
-			"桥成在望！群众心服口服。",
-			Notify.Position.TOP_CENTER, Notify.Style.SUCCESS, 5.0
+		Notify.success(
+			"桥成在望！群众心服口服。", 5.0
 		)
 		_check_win_lose.call_deferred()
 

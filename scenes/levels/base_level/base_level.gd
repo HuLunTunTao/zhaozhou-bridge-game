@@ -1104,7 +1104,7 @@ func _execute_ai_skill(unit: Unit, skill: SkillData, cast_cell: Vector2i) -> voi
 		CombatLog.msg("    技能: %s → %s" % [skill.skill_name, cast_cell])
 		# 技能释放播报
 		var caster_name: String = unit.combat_stats.unit_name if unit.combat_stats else unit.name
-		Notify.notify("%s 使用了【%s】！" % [caster_name, skill.skill_name], Notify.Position.TOP_RIGHT, Notify.Style.INFO, 3.0)
+		Notify.info("%s 使用了【%s】！" % [caster_name, skill.skill_name], 3.0)
 		_show_combat_feedback(exec_result, caster_name, skill)
 		# 额外效果播报
 		if skill.extra_effect_id != "":
@@ -1115,7 +1115,7 @@ func _execute_ai_skill(unit: Unit, skill: SkillData, cast_cell: Vector2i) -> voi
 					if tu is Unit and (tu as Unit).combat_stats:
 						target_names.append((tu as Unit).combat_stats.unit_name)
 				if not target_names.is_empty():
-					Notify.notify("%s 触发额外效果：%s" % ["、".join(target_names), effect_name], Notify.Position.TOP_RIGHT, Notify.Style.INFO, 3.0)
+					Notify.info("%s 触发额外效果：%s" % ["、".join(target_names), effect_name], 3.0)
 		unit.refresh_overhead_bars()
 		# 技能执行通知
 		skill_executed.emit(unit, skill, cast_cell)
@@ -1238,7 +1238,7 @@ func complete_level() -> void:
 			for option_id in option_ids:
 				chosen_names.append(Progress.get_growth_option_name(option_id))
 			if not chosen_names.is_empty():
-				Notify.notify("已选择结算成长：%s" % "、".join(chosen_names), Notify.Position.TOP_CENTER, Notify.Style.SUCCESS, 3.0)
+				Notify.success("已选择结算成长：%s" % "、".join(chosen_names), 3.0)
 			_continue_after_level_completion(level)
 		, CONNECT_ONE_SHOT)
 		# GrowthChoicePanel 没有 closed 信号，自行设置 overlay
@@ -1487,7 +1487,7 @@ func _call_ai_with_prompt(prompt: String) -> void:
 
 当前战场（自己心里有数，别复述给玩家）：
 %s""" % JSON.stringify(snapshot)
-	Notify.notify("AI 思考中...", Notify.Position.TOP_RIGHT, Notify.Style.INFO, 1.5)
+	Notify.info("AI 思考中...", 1.5)
 	var resp: Dictionary = await _llm_client.chat_completion([
 		{"role": "system", "content": system_msg},
 		{"role": "user", "content": prompt}
@@ -1498,7 +1498,7 @@ func _call_ai_with_prompt(prompt: String) -> void:
 	else:
 		# LLM 调用失败时不暴露报错给玩家，用老监工口吻的兜底台词糊过去
 		push_warning("[LLM] 调用失败 code=%d error=%s" % [resp.code, resp.error])
-		Notify.notify(LLMFallbackLinesScript.random(), Notify.Position.TOP_RIGHT, Notify.Style.INFO, 6.0)
+		Notify.info(LLMFallbackLinesScript.random(), 6.0)
 func _on_tutorial_button_pressed() -> void:
 	if has_overlay():
 		return
@@ -2010,7 +2010,7 @@ func _confirm_targeting_skill(cell: Vector2i) -> void:
 	var caster_name := ""
 	if selected_unit is Unit and (selected_unit as Unit).combat_stats:
 		caster_name = (selected_unit as Unit).combat_stats.unit_name
-	Notify.notify("%s 使用了【%s】！" % [caster_name, used_skill.skill_name], Notify.Position.TOP_RIGHT, Notify.Style.INFO, 3.0)
+	Notify.info("%s 使用了【%s】！" % [caster_name, used_skill.skill_name], 3.0)
 
 	# ── UI 反馈 ──
 	_show_combat_feedback(exec_result, caster_name, used_skill)
@@ -2026,7 +2026,7 @@ func _confirm_targeting_skill(cell: Vector2i) -> void:
 				if tu is Unit and (tu as Unit).combat_stats:
 					target_names.append((tu as Unit).combat_stats.unit_name)
 			if not target_names.is_empty():
-				Notify.notify("%s 触发额外效果：%s" % ["、".join(target_names), effect_name], Notify.Position.TOP_RIGHT, Notify.Style.INFO, 3.0)
+				Notify.info("%s 触发额外效果：%s" % ["、".join(target_names), effect_name], 3.0)
 
 	# ── 技能执行通知（关卡可响应副作用）──
 	skill_executed.emit(selected_unit as Unit, used_skill, cell)
@@ -2070,7 +2070,7 @@ func _show_combat_feedback(exec_result: SkillExecutor.ExecuteResult, _caster_nam
 				if tu is Unit:
 					(tu as Unit).refresh_overhead_bars()
 			return
-		Notify.notify("没有单位受到技能效果！", Notify.Position.TOP_RIGHT, Notify.Style.WARNING, 3.0)
+		Notify.warn("没有单位受到技能效果！", 3.0)
 		return
 	var showed_phase := false
 	for entry in exec_result.hit_results:
@@ -2093,12 +2093,12 @@ func _show_combat_feedback(exec_result: SkillExecutor.ExecuteResult, _caster_nam
 			popup.show_at(target_unit.global_position, actual_damage, phase_name)
 
 			if hit.is_kill:
-				Notify.notify("%s 受到 %d 点伤害，被击败了！" % [target_name, actual_damage], Notify.Position.TOP_RIGHT, Notify.Style.ERROR, 3.0)
+				Notify.error("%s 受到 %d 点伤害，被击败了！" % [target_name, actual_damage], 3.0)
 			else:
-				Notify.notify("%s 受到 %d 点伤害！" % [target_name, actual_damage], Notify.Position.TOP_RIGHT, Notify.Style.INFO, 3.0)
+				Notify.info("%s 受到 %d 点伤害！" % [target_name, actual_damage], 3.0)
 
 		if hit.damage_limit_message != "":
-			Notify.notify(hit.damage_limit_message, Notify.Position.TOP_RIGHT, Notify.Style.WARNING, 3.5)
+			Notify.warn(hit.damage_limit_message, 3.5)
 
 		# 刷新头顶状态条
 		if target_unit is Unit:
@@ -2115,7 +2115,7 @@ func _show_combat_feedback(exec_result: SkillExecutor.ExecuteResult, _caster_nam
 
 		for s_info: Dictionary in hit.statuses_to_apply:
 			var sname: String = _STATUS_NAMES.get(s_info["id"], s_info["id"])
-			Notify.notify("%s 被施加了【%s】！" % [target_name, sname], Notify.Position.TOP_RIGHT, Notify.Style.WARNING, 3.0)
+			Notify.warn("%s 被施加了【%s】！" % [target_name, sname], 3.0)
 
 		# 化势触发时的元素对比 popup（每个命中都显示）
 		if hit.phase_result and hit.phase_result.phase_data:
@@ -2134,7 +2134,7 @@ func _show_combat_feedback(exec_result: SkillExecutor.ExecuteResult, _caster_nam
 			var cat_name := "制势" if pd.category == Enums.PhaseCategory.DOMINANT else "承势"
 			if _phase_notification:
 				_phase_notification.show_phase(pd.phase_name, cat_name)
-			Notify.notify(_format_phase_details(pd, hit, cat_name), Notify.Position.TOP_RIGHT, Notify.Style.INFO, 4.0)
+			Notify.info(_format_phase_details(pd, hit, cat_name), 4.0)
 
 
 const _STATUS_NAMES: Dictionary = {

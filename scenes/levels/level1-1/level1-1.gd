@@ -234,7 +234,7 @@ func _on_phase_changed_for_onboarding(p: int) -> void:
 		return
 	if Progress.has_seen_tutorial(TUTORIAL_ID):
 		if not await _ask_tutorial_replay():
-			Notify.notify("任务目标一：派测量工前往 3 个勘测点施放「踏勘量址」。", Notify.Position.TOP_CENTER, Notify.Style.INFO, 4.0)
+			Notify.hint("任务目标一：派测量工前往 3 个勘测点施放「踏勘量址」。", 4.0)
 			return
 	_run_onboarding()
 
@@ -343,7 +343,7 @@ func _on_survey_point_completed(tile: SurveyPointTile) -> void:
 	if marker != null and is_instance_valid(marker):
 		marker.queue_free()
 		_survey_markers.erase(tile.cell)
-	Notify.notify("勘测点 %s 已完成！（%d/%d）" % [str(tile.cell), _survey_completed_count, SURVEY_CELLS.size()], Notify.Position.TOP_CENTER, Notify.Style.SUCCESS, 3.0)
+	Notify.success("勘测点 %s 已完成！（%d/%d）" % [str(tile.cell), _survey_completed_count, SURVEY_CELLS.size()], 3.0)
 	if _survey_completed_count >= SURVEY_CELLS.size():
 		_advance_to_task2()
 
@@ -358,7 +358,7 @@ func _advance_to_task2() -> void:
 		_lc_line("三处读数齐了。河心那一段水势最急，也最宜起拱——就是 (-1, 2) 那块。"),
 		_lc_line("我亲自过去走一趟，用「相水定址」把桥位落定。"),
 	])
-	Notify.notify("所有勘测点已完成！请李春前往勘测点 (-1, 2) 执行「相水定址」。", Notify.Position.TOP_CENTER, Notify.Style.SUCCESS, 4.0)
+	Notify.success("所有勘测点已完成！请李春前往勘测点 (-1, 2) 执行「相水定址」。", 4.0)
 	_show_objectives_if_not_open()
 	_focus_camera_after_delay(BRIDGE_CELL)
 
@@ -405,7 +405,7 @@ func _advance_to_task3() -> void:
 		_lc_line("桥位既定，剩下的是图纸的事。此地非久留之处——测量工带着读数先撤。"),
 		_lc_line("桥头的旗帜那里是撤离区，旗帜周围 3×3 都算。让至少一人进去，并在那里站到回合末，这趟就算成了。"),
 	])
-	Notify.notify("相水定址完成！请指挥测量工前往撤离区（桥头旗帜周围 3×3）。", Notify.Position.TOP_CENTER, Notify.Style.SUCCESS, 4.0)
+	Notify.success("相水定址完成！请指挥测量工前往撤离区（桥头旗帜周围 3×3）。", 4.0)
 	_show_objectives_if_not_open()
 	_focus_camera_after_delay(EVAC_CENTER_CELL)
 
@@ -446,7 +446,7 @@ func _on_skill_executed(caster: Unit, skill: SkillData, cast_cell: Vector2i, _ex
 			Notify.notify("此处不是勘测点，踏勘量址没有记录结果。", Notify.Position.TOP_CENTER, Notify.Style.WARNING, 2.5)
 			return
 		if tile.completed:
-			Notify.notify("该勘测点已经完成过了。", Notify.Position.TOP_CENTER, Notify.Style.INFO, 2.0)
+			Notify.hint("该勘测点已经完成过了。", 2.0)
 			return
 		tile.complete()
 
@@ -472,7 +472,7 @@ func _on_unit_moved() -> void:
 			_update_mission_hint()
 			if not _evac_notified:
 				_evac_notified = true
-				Notify.notify("测量工已抵达撤离区！", Notify.Position.TOP_CENTER, Notify.Style.SUCCESS, 3.0)
+				Notify.success("测量工已抵达撤离区！", 3.0)
 			_check_win_lose()
 		else:
 			_update_mission_hint()
@@ -512,7 +512,7 @@ func _run_onboarding() -> void:
 	if is_phase_ended():
 		_finish_onboarding()
 		return
-	Notify.notify("左键点击李春（或任意己方单位）。", Notify.Position.TOP_CENTER, Notify.Style.INFO, 8.0)
+	Notify.hint("左键点击李春（或任意己方单位）。", 8.0)
 	while selected_unit == null:
 		await selection_changed
 		if is_phase_ended():
@@ -527,7 +527,7 @@ func _run_onboarding() -> void:
 	if is_phase_ended():
 		_finish_onboarding()
 		return
-	Notify.notify("左键点击一个高亮格让单位走过去。", Notify.Position.TOP_CENTER, Notify.Style.INFO, 8.0)
+	Notify.hint("左键点击一个高亮格让单位走过去。", 8.0)
 	await unit_move_completed
 	if is_phase_ended():
 		_finish_onboarding()
@@ -542,7 +542,7 @@ func _run_onboarding() -> void:
 	if is_phase_ended():
 		_finish_onboarding()
 		return
-	Notify.notify("点技能图标 → 左键点目标（先试空地，再试敌人）。", Notify.Position.TOP_CENTER, Notify.Style.INFO, 12.0)
+	Notify.hint("点技能图标 → 左键点目标（先试空地，再试敌人）。", 12.0)
 	await skill_executed
 	if is_phase_ended():
 		_finish_onboarding()
@@ -556,7 +556,7 @@ func _run_onboarding() -> void:
 	if is_phase_ended():
 		_finish_onboarding()
 		return
-	Notify.notify("按右下角「结束回合」结束本回合。", Notify.Position.TOP_CENTER, Notify.Style.INFO, 12.0)
+	Notify.hint("按右下角「结束回合」结束本回合。", 12.0)
 	while true:
 		var team_idx: int = await team_turn_started
 		if is_phase_ended():
@@ -583,7 +583,7 @@ func _run_onboarding() -> void:
 		_finish_onboarding()
 		return
 
-	Notify.notify("任务目标一：派测量工前往 3 个勘测点施放「踏勘量址」。", Notify.Position.TOP_CENTER, Notify.Style.INFO, 4.0)
+	Notify.hint("任务目标一：派测量工前往 3 个勘测点施放「踏勘量址」。", 4.0)
 
 	Progress.mark_tutorial_seen(TUTORIAL_ID)
 	_finish_onboarding()
