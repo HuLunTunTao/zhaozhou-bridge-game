@@ -333,6 +333,8 @@ func check_victory() -> bool:
 # 注意：super.complete_level() 内部会调 Progress.complete_level 标记关卡完成并
 # 切场到 post 过场动画；本函数在它之前先把 summary 和 chapter flag 落盘。
 func complete_level() -> void:
+	if is_phase_ended():
+		return
 	_record_clear_summary()
 	Progress.set_chapter_flag("chapter_1", true)
 	super()
@@ -759,13 +761,11 @@ func _boss_slam_deck() -> void:
 		var old_hp: int = target.combat_stats.current_hp
 		CombatResolver.apply_hit(target.combat_stats, _slam_deck, hit)
 		target.refresh_overhead_bars()
-		unit_hp_changed.emit(target, old_hp, target.combat_stats.current_hp)
+		report_unit_damaged(target, old_hp, target.combat_stats.current_hp)
 		if target.combat_stats.current_hp <= 0:
-			unit_died.emit(target)
 			continue
 		_knockback_cells(target, _boss.cell, 2)
 	_apply_rapid_edge_if_present()
-	_check_win_lose()
 
 
 # 翻岸压塌：每 3 回合 1 次。对最近 2 名我方造成 0.7×土属性伤害（附土 2），击退 3 格。
@@ -793,15 +793,13 @@ func _boss_topple_bank() -> void:
 		var old_hp: int = target.combat_stats.current_hp
 		CombatResolver.apply_hit(target.combat_stats, _topple_bank, hit)
 		target.refresh_overhead_bars()
-		unit_hp_changed.emit(target, old_hp, target.combat_stats.current_hp)
+		report_unit_damaged(target, old_hp, target.combat_stats.current_hp)
 		if target.combat_stats.current_hp <= 0:
-			unit_died.emit(target)
 			continue
 		# 护持半减：击退 3 → 1（与设定文档「护持抗位移最多 1 格」一致）
 		var kb_dist: int = 1 if _has_guarding_status(target) else 3
 		_knockback_cells(target, _boss.cell, kb_dist)
 	_apply_rapid_edge_if_present()
-	_check_win_lose()
 
 
 # 朝"远离 from_cell"的方向逐格击退 target，最多 distance 格。地形不可走或被其他单位占据则提前停步。

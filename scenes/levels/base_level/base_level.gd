@@ -605,6 +605,35 @@ func _process_wave(round_num: int) -> Array[Unit]:
 	return spawned
 
 
+## 直接伤害/回复统一出口（不经 SkillExecutor 的 HP 变化必须走这里）。
+## 前置条件：伤害/回复已应用到 combat_stats。负责 emit unit_hp_changed / unit_died，
+## 并无条件调用 _check_win_lose（幂等：phase ENDED 后重复调用为 no-op）。
+func report_unit_damaged(unit: Unit, old_hp: int, new_hp: int) -> void:
+	if unit == null:
+		return
+	unit_hp_changed.emit(unit, old_hp, new_hp)
+	if new_hp <= 0:
+		unit_died.emit(unit)
+	_check_win_lose()
+
+
+## 直接伤害便捷入口：先扣减 combat_stats.current_hp，再走 report_unit_damaged 上报结算。
+## source 可选，非空时写入 CombatLog。仅用于关卡机制类固定伤害，不走 SkillExecutor。
+func apply_direct_damage(unit: Unit, damage: int, source: String = "") -> void:
+	if unit == null or unit.combat_stats == null or not unit.combat_stats.is_alive():
+		return
+	if damage <= 0:
+		return
+	var old_hp: int = unit.combat_stats.current_hp
+	unit.combat_stats.current_hp = maxi(old_hp - damage, 0)
+	unit.refresh_overhead_bars()
+	if source != "":
+		CombatLog.msg("    直接伤害: %s -%d（%s）" % [
+			unit.combat_stats.unit_name, old_hp - unit.combat_stats.current_hp, source,
+		])
+	report_unit_damaged(unit, old_hp, unit.combat_stats.current_hp)
+
+
 ## 执行胜负条件检查。在关键事件（倒下、回合开始）后自动调用。
 func _check_win_lose(_arg = null) -> void:
 	if is_phase_ended():
@@ -1181,7 +1210,10 @@ func play_mid_cutscene(pages: Array) -> void:
 
 
 ## Call when the level is won. Handles post-cutscene or returns to menu.
+## 幂等：phase 已 ENDED 时直接返回，防止重复副作用（Progress.complete_level / 切场景等）。
 func complete_level() -> void:
+	if is_phase_ended():
+		return
 	_set_phase(LevelPhase.ENDED)
 	UiSounds.play_victory()
 	var level := GameState.selected_level
@@ -1221,7 +1253,10 @@ func _continue_after_level_completion(level: String) -> void:
 
 ## 关卡失败。显示失败面板，玩家选择重试或返回主菜单。
 ## reason: 失败原因文本（显示在面板中）。
+## 幂等：phase 已 ENDED 时直接返回，防止重复弹失败面板。
 func defeat_level(reason: String = "任务失败") -> void:
+	if is_phase_ended():
+		return
 	_set_phase(LevelPhase.ENDED)
 	UiSounds.play_defeat()
 	var panel: Node = preload("res://scenes/ui/defeat_panel.tscn").instantiate()

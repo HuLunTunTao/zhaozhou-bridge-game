@@ -479,9 +479,7 @@ func _show_direct_damage_feedback(unit: Unit, old_hp: int, new_hp: int, message:
 	add_child(popup)
 	popup.show_at(unit.global_position, actual_damage)
 	Notify.notify(message, Notify.Position.TOP_RIGHT, Notify.Style.WARNING, 1.5)
-	unit_hp_changed.emit(unit, old_hp, new_hp)
-	if new_hp <= 0:
-		unit_died.emit(unit)
+	report_unit_damaged(unit, old_hp, new_hp)
 
 
 func _setup_anchor_cells() -> void:
