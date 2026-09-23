@@ -183,8 +183,8 @@ func _init() -> void:
 		"add_child": func(node: Node) -> void: add_child(node),
 	})
 	_state.phase_changed.connect(func(p: int) -> void: phase_changed.emit(p))
-	_state.overlay_opened.connect(Callable(overlay_opened, "emit"))
-	_state.overlay_closed.connect(Callable(overlay_closed, "emit"))
+	_state.overlay_opened.connect(func(k: int) -> void: overlay_opened.emit(k))
+	_state.overlay_closed.connect(func(k: int) -> void: overlay_closed.emit(k))
 	_special_tile_registry = SpecialTileRegistry.new()
 	_special_tile_registry.setup({
 		"get_special_tiles_container": func() -> Node2D: return special_tiles_container,
