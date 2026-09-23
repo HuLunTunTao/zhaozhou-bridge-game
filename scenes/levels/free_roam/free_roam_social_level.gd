@@ -53,7 +53,7 @@ signal overlay_closed(kind: int)
 @onready var status_bar: HBoxContainer = $StatusBarScene/PanelContainer/MarginContainer/StatusBar
 
 var tilemap: TileMapLayer
-## 兼容 BaseLevel 契约的主角（李春）。Task 2.5 起由 ActorRegistry 接管。
+## 兼容 BaseLevel 契约的主角（李春）。ActorRegistry 未设 hero 时的回落字段（静态摆放路径）。
 var hero: Node2D
 ## 当前是否等待玩家输入。自由移动关卡常开（无回合节拍）。
 var _waiting_for_player_input: bool = true
@@ -70,6 +70,8 @@ var _status_bar_bridge: StatusBarBridge = null
 var _camera_handle: CameraHandle = null
 ## 特殊地块注册表。register / get_at / 脉动标记工厂 / enter-leave 派发。
 var _special_tiles: SpecialTileRegistry = null
+## 单位注册表。spawn_unit 自动注册；按 id / node_name / role / cell 查询，不依赖 TeamData。
+var _actors: ActorRegistry = null
 ## 自由移动输入状态机（5 状态：IDLE / UNIT_SELECTED / TARGETING_MOVE / LOCKED / ANIMATING）。
 ## 已接 MovementManager + MoveOverlay 做可达范围预览与路径执行（2.3）。
 var _input: FreeRoamInputController = null
@@ -105,6 +107,7 @@ func _init() -> void:
 		"get_movement_manager": func() -> Node: return movement_manager,
 		"get_teams": func() -> Array: return [],
 	})
+	_actors = ActorRegistry.new()
 	_input = FreeRoamInputController.new()
 	_input.setup({
 		"can_accept_command": _can_accept_command,
@@ -284,7 +287,7 @@ func _setup_special_tiles() -> void:
 # ─────────────────────────────────────────────
 
 ## 运行时生成一个单位（简化版）：只加到场景 + set_cell，不走 TeamData / faction / 无限行动力。
-## Task 2.4/2.5 会由 ActorRegistry / GridActor 接管。
+## 自动注册进 ActorRegistry（unit_data.unit_id / unit.name 双 key）。
 func spawn_unit(unit_data: UnitData, cell: Vector2i, team_index: int, visual: PackedScene = null) -> Unit:
 	var UnitScene := preload("res://scenes/unit/unit.tscn")
 	var unit: Unit = UnitScene.instantiate()
@@ -303,6 +306,7 @@ func spawn_unit(unit_data: UnitData, cell: Vector2i, team_index: int, visual: Pa
 	unit.set_cell(cell, tilemap)
 	# 特殊地格 _on_unit_arrive 依赖 move_finished；本栈无 teams 名单，出生时直连
 	unit.move_finished.connect(_special_tiles.on_unit_move_finished.bind(unit))
+	_actors.register(unit, unit_data.unit_id if unit_data != null else "", String(unit.name))
 	return unit
 
 
@@ -315,9 +319,25 @@ func is_free_roam_level() -> bool:
 	return true
 
 
-## 返回主角。Task 2.5 会用 ActorRegistry 替换。
+## 返回主角。优先 ActorRegistry.get_hero()，未设置时回落 hero 字段（静态摆放的兼容路径）。
 func get_hero() -> Node2D:
-	return hero
+	var registered := _actors.get_hero()
+	return registered if registered != null else hero
+
+
+## 按 unit_id 查 actor（委托 ActorRegistry）。
+func get_actor_by_id(id: String) -> Node2D:
+	return _actors.get_by_id(id)
+
+
+## 按节点名查 actor（委托 ActorRegistry）。
+func get_actor_by_node_name(node_name: String) -> Node2D:
+	return _actors.get_by_node_name(node_name)
+
+
+## 所有 NPC（排除 hero）。委托 ActorRegistry。
+func get_npcs() -> Array:
+	return _actors.get_npcs()
 
 
 ## actor 被选中时：显示可达范围预览。子类覆写时调用 super 保留此行为。
@@ -383,14 +403,12 @@ func _get_cell_at_screen(screen_pos: Vector2) -> Vector2i:
 	return tilemap.local_to_map(tilemap.to_local(world))
 
 
-## 指定格子上的所有单位（自由移动栈用；Task 2.4 会换成 ActorRegistry）。
+## 指定格子上的所有 actor（ActorRegistry 查询）。
+## 未走 spawn_unit / register 的静态主角（hero 字段回落路径）同样参与点选，保持行为等价。
 func _get_actors_at_cell(cell: Vector2i) -> Array:
-	var out: Array = []
-	if obstacles_tilemap_layer == null:
-		return out
-	for child in obstacles_tilemap_layer.get_children():
-		if child is Unit and (child as Unit).cell == cell:
-			out.append(child)
+	var out: Array = _actors.get_at_cell(cell)
+	if is_instance_valid(hero) and not _actors.has_actor(hero) and "cell" in hero and hero.cell == cell:
+		out.append(hero)
 	return out
 
 
