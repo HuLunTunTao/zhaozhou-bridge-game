@@ -559,7 +559,7 @@ func _open_knowledge_panel() -> void:
 	if has_overlay():
 		return
 	var panel: Node = _KnowledgePanelScene.instantiate()
-	if not _open_overlay(ActiveOverlay.TUTORIAL_PANEL, panel, &"closed"):
+	if not _open_overlay(ActiveOverlay.KNOWLEDGE, panel, &"closed"):
 		panel.queue_free()
 		return
 	panel.set_state(_player_learned_topics, _player_used_topics)

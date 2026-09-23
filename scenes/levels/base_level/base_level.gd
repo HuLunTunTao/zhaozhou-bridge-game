@@ -151,6 +151,9 @@ enum ActiveOverlay {
 	TUTORIAL_PANEL,
 	GROWTH_CHOICE,
 	DEFEAT_PANEL,
+	KNOWLEDGE,
+	SOCIAL_DIALOG,
+	ARGUMENT_INPUT,
 }
 
 var _level_phase: LevelPhase = LevelPhase.BRIEFING
@@ -189,17 +192,26 @@ func is_tutorial_onboarding_active() -> bool:
 	return tutorial_onboarding_active
 
 
-## 进入一个 overlay。若已有 overlay 则拒绝（互斥），node 由本方法 add_child 并挂 closed 回调。
+## 进入一个 overlay。若已有 overlay 则拒绝（互斥），node 由本方法 add_child 并挂关闭回调。
+## closed_signal：关闭信号名（0 参或多参均可，实参会被忽略）。
+## close_handler：可选自定义关闭 Callable，提供时替代默认关闭逻辑（需自行调用 _close_overlay）。
 ## 返回是否成功进入。
-func _open_overlay(kind: ActiveOverlay, node: Node, closed_signal: StringName = &"closed") -> bool:
+func _open_overlay(kind: ActiveOverlay, node: Node, closed_signal: StringName = &"closed", close_handler: Callable = Callable()) -> bool:
 	if _active_overlay != ActiveOverlay.NONE:
 		return false
 	_active_overlay = kind
 	add_child(node)
 	if node.has_signal(closed_signal):
-		node.connect(closed_signal, _close_overlay.bind(kind), CONNECT_ONE_SHOT)
+		var handler: Callable = close_handler if close_handler.is_valid() else _on_overlay_closed_signal.bind(kind)
+		node.connect(closed_signal, handler, CONNECT_ONE_SHOT)
 	overlay_opened.emit(kind)
 	return true
+
+
+## overlay 关闭信号的通用接收器：吞掉任意 arity 的信号实参，只做 _close_overlay。
+## bind(kind) 预填 kind 后剩余形参全带默认值，兼容 0–4 参关闭信号。
+func _on_overlay_closed_signal(kind: ActiveOverlay, _a = null, _b = null, _c = null, _d = null) -> void:
+	_close_overlay(kind)
 
 
 ## 关闭当前 overlay。仅当 kind 匹配当前 active 时生效（防止竞态关错）。
