@@ -28,6 +28,11 @@ enum ActiveOverlay {
 	ARGUMENT_INPUT,
 }
 
+## 输入状态机。LOCKED 表示被外部流程显式锁定（如对话流），与 ANIMATING（基类演出）正交。
+## 两栈共享真源：Tactics Stack（BaseLevel）与 Social Stack（FreeRoamSocialLevel）均以此为准。
+## 枚举顺序与 BaseLevel 的历史定义一致（含 TARGETING_SKILL——验桥日交互复用该状态）。
+enum InputState { IDLE, UNIT_SELECTED, TARGETING_MOVE, TARGETING_SKILL, ANIMATING, LOCKED }
+
 ## LevelPhase 合法单向转换表：BRIEFING → PLAYING → ENDED，含 BRIEFING → ENDED 边缘情况。
 const _PHASE_TRANSITIONS := {
 	LevelPhase.BRIEFING: [LevelPhase.PLAYING, LevelPhase.ENDED],
