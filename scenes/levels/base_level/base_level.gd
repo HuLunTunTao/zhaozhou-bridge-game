@@ -244,8 +244,26 @@ func _ask_tutorial_replay() -> bool:
 	return pick == "再听一遍"
 
 
+## LevelPhase 合法单向转换表：BRIEFING → PLAYING → ENDED，含 BRIEFING → ENDED 边缘情况。
+const _PHASE_TRANSITIONS := {
+	LevelPhase.BRIEFING: [LevelPhase.PLAYING, LevelPhase.ENDED],
+	LevelPhase.PLAYING: [LevelPhase.ENDED],
+	LevelPhase.ENDED: [],
+}
+
+
+## from → to 是否为合法单向转换（不含相同值短路，由 _set_phase 自行处理）。
+func _is_valid_phase_transition(from: LevelPhase, to: LevelPhase) -> bool:
+	return to in _PHASE_TRANSITIONS[from]
+
+
 func _set_phase(p: LevelPhase) -> void:
 	if _level_phase == p:
+		return
+	if not _is_valid_phase_transition(_level_phase, p):
+		push_warning("[BaseLevel] 非法阶段转换 %s → %s 已拒绝（单向 BRIEFING → PLAYING → ENDED）" % [
+			LevelPhase.keys()[_level_phase], LevelPhase.keys()[p],
+		])
 		return
 	_level_phase = p
 	phase_changed.emit(p)
