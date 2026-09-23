@@ -105,8 +105,6 @@ const GrowthChoicePanelScript := preload("res://scenes/ui/growth_choice_panel.gd
 const LLMClientScript := preload("res://scripts/llm/llm_client.gd")
 const BattleContextScript := preload("res://scripts/llm/battle_context.gd")
 const LLMFallbackLinesScript := preload("res://scripts/llm/fallback_lines.gd")
-const NpcPersonasScript := preload("res://scripts/llm/npc_personas.gd")
-const PortraitResolverScript := preload("res://scripts/llm/portrait_resolver.gd")
 const ChatterSchedulerScript := preload("res://scripts/llm/chatter_scheduler.gd")
 const TutorialPanelScene := preload("res://scenes/ui/tutorial_panel.tscn")
 
@@ -121,6 +119,8 @@ var _llm_client: Node = null
 var _ai_busy := false
 ## 单位闲聊调度器（LLM 驱动）。BRIEFING 之后的战斗中监听 team_turn_ended / round_ended 触发对话。
 var _chatter_scheduler: Node = null
+## 对话桥接组件（Shared Kernel）。BaseLevel 通过同名委托方法转发调用。
+var _dialogue: DialogueBridge = null
 var _infinite_ally_actions_enabled := false
 
 ## 输入状态机。LOCKED 表示被外部流程显式锁定（例如自由移动关卡的对话流），与 ANIMATING（基类演出）正交。
@@ -319,6 +319,14 @@ var _pending_special_enter: Dictionary = {}
 
 
 func _ready() -> void:
+	_dialogue = DialogueBridge.new()
+	add_child(_dialogue)
+	_dialogue.setup({
+		"open_overlay": _open_overlay,
+		"has_overlay": has_overlay,
+		"get_level_node": func() -> Node: return self,
+		"get_li_chun_portrait": func() -> Texture2D: return _LI_CHUN_PORTRAIT,
+	})
 	Settings.settings_changed.connect(_refresh_debug_ui, CONNECT_REFERENCE_COUNTED)
 	Settings.difficulty_changed.connect(_on_difficulty_changed)
 	if infinite_ap_button_button and not infinite_ap_button_button.toggled.is_connected(_on_infinite_ap_button_toggled):
@@ -1324,62 +1332,22 @@ func _on_unit_died(unit: Unit) -> void:
 ## auto_dismiss=true 时走"打字机结束后自动飘过"，用于单位闲聊（chatter）；
 ## 默认 false 保持原有"点击/空格推进"行为，关卡剧情调用无需改动。
 func play_dialogue(lines: Array[DialogueLine], auto_dismiss: bool = false, dismiss_delay: float = 2.5) -> void:
-	var DialogueBoxScene := preload("res://scenes/ui/dialogue_box.tscn")
-	var box = DialogueBoxScene.instantiate()
-	if not _open_overlay(ActiveOverlay.DIALOGUE, box, &"dialogue_finished"):
-		box.queue_free()
-		return
-	box.start(lines, auto_dismiss, dismiss_delay)
-	await box.dialogue_finished
+	await _dialogue.play_dialogue(lines, auto_dismiss, dismiss_delay)
 
 
 ## 李春教程对话单行构造：自动带头像、左侧显示，并按当前关卡匹配预生成 TTS。
 func _lc_line(text: String, can_skip: bool = true) -> DialogueLine:
-	return DialogueLine.create(
-		"李春",
-		text,
-		_LI_CHUN_PORTRAIT,
-		"left",
-		null,
-		TutorialTtsIndex.get_audio(_tutorial_tts_level_id(), "hero_li_chun", text),
-		can_skip
-	)
+	return _dialogue._lc_line(text, can_skip)
 
 
 func _tutorial_tts_level_id() -> String:
-	var path := scene_file_path
-	if path.is_empty():
-		var script := get_script() as Script
-		if script != null:
-			path = script.resource_path
-	var basename := path.get_file().get_basename()
-	return basename if not basename.is_empty() else name
+	return _dialogue._tutorial_tts_level_id()
 
 
 ## 单行 chatter 对话的便捷入口。单位阵营决定头像左右，头像来自 PortraitResolver，自动飘过。
 ## 返回值：true 表示对话已播放完毕；false 表示被拒绝（已有 overlay 占用）。
 func play_chatter_dialogue(unit: Node, text: String, dismiss_delay: float = 2.5) -> bool:
-	if unit == null or not (unit is Unit) or text.is_empty():
-		return false
-	var u := unit as Unit
-	if u.unit_data == null:
-		return false
-	var persona: Dictionary = NpcPersonasScript.get_persona(
-		u.unit_data.unit_id,
-		u.unit_data.camp
-	)
-	var line := DialogueLine.create(
-		u.combat_stats.unit_name if u.combat_stats != null else u.unit_data.unit_name,
-		text,
-		PortraitResolverScript.get_portrait(u),
-		PortraitResolverScript.side_for_unit(u),
-		PortraitResolverScript.get_portrait_bg(u)
-	)
-	# 如果已有 overlay（别的对话/面板在跑），chatter 直接放弃本次
-	if has_overlay():
-		return false
-	await play_dialogue([line], true, dismiss_delay)
-	return true
+	return await _dialogue.play_chatter_dialogue(unit, text, dismiss_delay)
 
 
 ## 多行 chatter 对话（邻接对话的双人场景用）。每条 line 已由调用方准备好 portrait/side。
@@ -1389,18 +1357,7 @@ func play_chatter_dialogue(unit: Node, text: String, dismiss_delay: float = 2.5)
 ##   - ok=false 表示被拒绝（已有 overlay）；was_skipped 此时无意义
 ##   - was_skipped=true 表示玩家手动按键/点击关闭，false 表示 auto_dismiss 自然结束
 func play_chatter_lines(lines: Array[DialogueLine], dismiss_delay: float = 2.0, voice_handle: Node = null) -> Dictionary:
-	if lines.is_empty() or has_overlay():
-		return {"ok": false, "was_skipped": false}
-	var DialogueBoxScene := preload("res://scenes/ui/dialogue_box.tscn")
-	var box = DialogueBoxScene.instantiate()
-	if not _open_overlay(ActiveOverlay.DIALOGUE, box, &"dialogue_finished"):
-		box.queue_free()
-		return {"ok": false, "was_skipped": false}
-	box.start(lines, true, dismiss_delay, voice_handle)
-	await box.dialogue_finished
-	# emit 在 queue_free 前，节点本帧仍在树上；was_skipped 已被 _finish 写入。
-	var skipped: bool = box.was_skipped if is_instance_valid(box) else false
-	return {"ok": true, "was_skipped": skipped}
+	return await _dialogue.play_chatter_lines(lines, dismiss_delay, voice_handle)
 
 
 ## 授予单位一个新技能。幂等：若单位已有该技能则不做任何操作，不 emit 信号。
