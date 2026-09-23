@@ -4,7 +4,7 @@ extends RefCounted
 ## 单位注册表（Shared Kernel / Social Stack）：按 id / node_name / role / cell 注册与查询。
 ## 不依赖 TeamData / teams —— 自由移动社交关卡用（验桥日等），为 bridge_tour 迁移铺路。
 ## 约定：格子探测走鸭子类型 `cell: Vector2i` 属性（Unit 与伪 actor 皆然）；
-## role 读 meta "npc_role"（验桥日 convention）。
+## role 读 `NpcSocialState.META_KEY` 上的类型化 Resource（验桥日 convention）。
 
 signal actor_registered(actor: Node2D)
 signal actor_unregistered(actor: Node2D)
@@ -92,11 +92,14 @@ func get_at_cell(cell: Vector2i) -> Array[Node2D]:
 	return out
 
 
-## 按 meta "npc_role" 匹配 role 的 actor（验桥日 convention）。
+## 按 NpcSocialState.role 匹配 role 的 actor（验桥日 convention）。
 func get_by_role(role: String) -> Array[Node2D]:
 	var out: Array[Node2D] = []
 	for actor in _actors:
-		if is_instance_valid(actor) and String(actor.get_meta("npc_role", "")) == role:
+		if not is_instance_valid(actor):
+			continue
+		var st := actor.get_meta(NpcSocialState.META_KEY, null) as NpcSocialState
+		if st != null and st.role == role:
 			out.append(actor)
 	return out
 
