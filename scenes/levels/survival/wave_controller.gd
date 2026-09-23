@@ -290,9 +290,9 @@ func _run_between_waves() -> void:
 	# 2. 40% 概率召唤支援
 	if randf() < SUPPORT_PROB:
 		_spawn_support()
-	# 3. 等正在跑的 chatter / overlay 收尾
+	# 3. 等正在跑的 chatter / overlay 收尾（overlay_closed 信号唤醒，不再逐帧轮询）
 	while _level.has_overlay():
-		await get_tree().process_frame
+		await _level.overlay_closed
 		if _level.is_phase_ended():
 			_between_waves_running = false
 			return

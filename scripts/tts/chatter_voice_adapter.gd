@@ -273,7 +273,6 @@ func speak_streaming(
 	var chunker = StreamChunkerScript.new(chunk_mode)
 	var has_tts: bool = await start_stream(unit, trigger_kind)
 
-	var done := [false]
 	var ok_state := [true]
 	var err_state := [""]
 	var full_text := [""]
@@ -295,7 +294,6 @@ func speak_streaming(
 			feed_stream(tail)
 		if has_tts and _stream_active:
 			finish_stream()
-		done[0] = true
 
 	llm_client.stream_chunk_received.connect(on_chunk)
 	llm_client.stream_finished.connect(on_finished, CONNECT_ONE_SHOT)
@@ -309,12 +307,8 @@ func speak_streaming(
 			cancel()
 		return {"ok": false, "full_text": "", "error": "stream_chat_completion 启动失败"}
 
-	# 等 stream_finished 回调把 done 翻成 true。get_tree() 拿不到时退化成单帧 await。
-	while not done[0]:
-		var tree := get_tree()
-		if tree == null:
-			break
-		await tree.process_frame
+	# 等 stream_finished 回调（on_finished 先于本 await 恢复执行，副作用已就位）
+	await llm_client.stream_finished
 	if llm_client.stream_chunk_received.is_connected(on_chunk):
 		llm_client.stream_chunk_received.disconnect(on_chunk)
 

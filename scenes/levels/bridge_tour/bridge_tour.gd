@@ -1259,6 +1259,16 @@ func _apply_mentor_lesson(npc: Unit, lesson: Dictionary) -> void:
 # 邻居插话 + 通用工具
 # ─────────────────────────────────────────────
 
+class _NeighborGen extends RefCounted:
+	signal completed(text: String)
+	var done := false
+	var text := ""
+	func finish(t: String) -> void:
+		done = true
+		text = t
+		completed.emit(t)
+
+
 func _maybe_neighbor_interject(speaker: Unit, heard: String) -> void:
 	# 旧入口（同步：先 LLM 后播）。新代码请用 _start_neighbor_interject + _play_pending_neighbor，
 	# 把 LLM 与第一句话播放并发，省 1~2 秒等待。这里保留以便兼容。
@@ -1267,10 +1277,10 @@ func _maybe_neighbor_interject(speaker: Unit, heard: String) -> void:
 
 
 ## 在第一句话播放前调用。立即决定是否要邻居插话；如果要，立刻 fire-and-forget 跑邻居 LLM。
-## 返回 spec dict 给 _play_pending_neighbor 用：{neighbor: Unit?, pending: {done, text}}。
+## 返回 spec dict 给 _play_pending_neighbor 用：{neighbor: Unit?, gen: _NeighborGen?}。
 ## 这样邻居 LLM 与第一句 TTS 播放并发；轮到邻居说话时再走 TTS 流式播放。
 func _start_neighbor_interject(speaker: Unit, heard: String) -> Dictionary:
-	var spec: Dictionary = {"neighbor": null, "pending": {"done": false, "text": ""}}
+	var spec: Dictionary = {"neighbor": null, "gen": null}
 	if heard.is_empty():
 		return spec
 	if randf() >= NEIGHBOR_INTERJECT_PROB:
@@ -1278,8 +1288,10 @@ func _start_neighbor_interject(speaker: Unit, heard: String) -> Dictionary:
 	var neighbor: Unit = _pick_neighbor_for_interject(speaker)
 	if neighbor == null:
 		return spec
+	var gen := _NeighborGen.new()
 	spec["neighbor"] = neighbor
-	_spawn_neighbor_gen_async(neighbor, speaker, heard, spec["pending"])  # fire-and-forget
+	spec["gen"] = gen
+	_spawn_neighbor_gen_async(neighbor, speaker, heard, gen)  # fire-and-forget
 	return spec
 
 
@@ -1288,27 +1300,27 @@ func _play_pending_neighbor(spec: Dictionary) -> void:
 	var neighbor: Variant = spec.get("neighbor")
 	if neighbor == null:
 		return
-	var pending: Dictionary = spec.get("pending", {})
+	var g: _NeighborGen = spec.get("gen") as _NeighborGen
+	if g == null:
+		return
+	var text: String
 	var thinking: CanvasLayer = null
-	while not bool(pending.get("done", false)):
-		if thinking == null:
-			thinking = _show_thinking("%s 正在接话……" % (neighbor as Unit).unit_data.unit_name)
-		var tree := get_tree()
-		if tree == null:
-			break
-		await tree.process_frame
-	_hide_thinking(thinking)
-	var text: String = String(pending.get("text", "")).strip_edges()
+	if g.done:
+		text = g.text
+	else:
+		thinking = _show_thinking("%s 正在接话……" % (neighbor as Unit).unit_data.unit_name)
+		text = await g.completed
+		_hide_thinking(thinking)
+	text = text.strip_edges()
 	if text.is_empty():
 		return
 	await _play_npc_line(neighbor as Unit, text, true, "bridge_neighbor_interject")
 
 
-## fire-and-forget 协程：跑邻居 LLM，把结果写到 out["text"]，设 out["done"] = true。
-func _spawn_neighbor_gen_async(neighbor: Unit, speaker: Unit, heard: String, out: Dictionary) -> void:
+## fire-and-forget 协程：跑邻居 LLM，结束后调 gen.finish(t) 唤醒 _play_pending_neighbor。
+func _spawn_neighbor_gen_async(neighbor: Unit, speaker: Unit, heard: String, gen: _NeighborGen) -> void:
 	var t: String = await _generate_neighbor_line(neighbor, speaker, heard)
-	out["text"] = t
-	out["done"] = true
+	gen.finish(t)
 
 
 func _pick_neighbor_for_interject(speaker: Unit) -> Unit:

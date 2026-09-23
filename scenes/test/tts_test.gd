@@ -196,6 +196,11 @@ var _bidi_t0_msec: int = 0
 var _bidi_chunk_queue: Array[PackedByteArray] = []
 var _bidi_drain_running: bool = false
 
+## drain 收尾唤醒信号（_drain_bidi_chunks 结束 / 手动清理时 emit）。
+signal _bidi_drain_finished
+## _yield_frame 用的自信号。节点销毁时连接自动断开，协程静默死亡。
+signal _frame_woke
+
 
 func _on_bidi_pressed() -> void:
 	var text := text_edit.text.strip_edges()
@@ -254,16 +259,17 @@ func _drain_bidi_chunks() -> void:
 		var chunk: PackedByteArray = _bidi_chunk_queue.pop_front()
 		await _push_pcm(_bidi_playback, chunk)
 	_bidi_drain_running = false
+	_bidi_drain_finished.emit()
 
 
 func _on_bidi_finished(_sid: String) -> void:
 	var elapsed := (Time.get_ticks_msec() - _bidi_t0_msec) / 1000.0
 	_set_status("[双向 成功] 总耗时 %.1fs。session_id=%s" % [elapsed, _sid], Color(0.7, 1, 0.7))
 	# 等队列里剩余的 chunk 全部 push 完再清 playback
-	while _bidi_drain_running:
-		if not is_inside_tree():
-			break
-		await get_tree().process_frame
+	if _bidi_drain_running:
+		await _bidi_drain_finished
+	if not is_inside_tree():
+		return
 	_bidi_playback = null
 	_set_busy(false)
 
@@ -316,6 +322,7 @@ func _on_stop_pressed() -> void:
 	# _on_bidi_finished 永不触发，需要手动复位 _set_busy 与队列。
 	_bidi_chunk_queue.clear()
 	_bidi_drain_running = false
+	_bidi_drain_finished.emit()
 	_bidi_playback = null
 	_set_busy(false)
 	_set_status("已停止", Color(0.8, 0.8, 0.8))
@@ -334,6 +341,17 @@ func _on_back_pressed() -> void:
 
 
 # ───── 工具 ─────
+
+## 安全的单帧让出。把 process_frame 转发到自信号 _frame_woke：
+## 节点销毁时连接自动断开、协程静默死亡，避免在 freed 实例上恢复。
+func _yield_frame() -> void:
+	if not is_inside_tree():
+		return
+	var tree := get_tree()
+	if tree == null:
+		return
+	tree.process_frame.connect(_frame_woke.emit, CONNECT_ONE_SHOT)
+	await _frame_woke
 
 func _validate(text: String, voice: String) -> bool:
 	if text.is_empty():
@@ -368,7 +386,7 @@ func _push_pcm(pb: AudioStreamGeneratorPlayback, bytes: PackedByteArray) -> void
 			return
 		var avail := pb.get_frames_available()
 		if avail <= 0:
-			await get_tree().process_frame
+			await _yield_frame()
 			continue
 		var end := mini(idx + avail, frames.size())
 		var slice := frames.slice(idx, end)
