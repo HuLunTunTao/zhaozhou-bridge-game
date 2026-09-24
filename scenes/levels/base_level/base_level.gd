@@ -9,7 +9,6 @@ const LEVEL_BGM_BY_LEVEL := {
 }
 const DEBUG_INFINITE_AP_BUDGET := 9999
 ## Base class for all battle levels.
-const _AIBrain := preload("res://scripts/combat/ai_brain.gd")
 const _LI_CHUN_PORTRAIT := preload("res://assets/face/li_chun.png")
 ## Inherited scenes should add TileMapLayers under the TileMaps node,
 ## and place unit nodes under the Entities node.
@@ -282,6 +281,9 @@ const TeamData = TurnSystem.TeamData
 
 ## 回合系统组件（Tactics Stack）。回合流转 / 结束回合双击 / 回合成长问询的执行者。
 var _turn_system: TurnSystem = null
+
+## AI 回合执行组件（Tactics Stack）。AI 决策循环 / AI 技能执行 / 行动预算查询的执行者。
+var _ai_runner: AITurnRunner = null
 
 var teams: Array = []  # Array[TeamData]
 var current_team_index: int = -1
@@ -563,8 +565,9 @@ func get_objectives_text() -> Dictionary:
 
 ## 子类覆写：为 AI 提供关卡特有的上下文信息。
 ## 可包含 "escort_units"（护送目标）、"drift_directions"（浮木方向）等。
+## 默认实现体在 AITurnRunner.get_ai_context，此处薄壳转发（保留子类覆写钩子）。
 func _get_ai_context() -> Dictionary:
-	return {}
+	return _get_ai_runner().get_ai_context()
 
 
 ## 子类覆写：技能成功执行后的关卡机制钩子。
@@ -698,6 +701,14 @@ func _get_turn_system() -> TurnSystem:
 	return _turn_system
 
 
+## AI 回合执行组件懒加载（首调时 setup(self)）。
+func _get_ai_runner() -> AITurnRunner:
+	if _ai_runner == null:
+		_ai_runner = AITurnRunner.new()
+		_ai_runner.setup(self)
+	return _ai_runner
+
+
 ## 薄壳转发至 TurnSystem.init_turn_system（保留旧调用点零改动）。
 func _init_turn_system() -> void:
 	_get_turn_system().init_turn_system()
@@ -754,128 +765,19 @@ func _camera_focus_spawned(spawned: Array[Unit]) -> void:
 # AI 回合
 # ─────────────────────────────────────────────
 
-## AI 回合中每个单位行动前，镜头锁定并放大的倍率。
-const _AI_TURN_CAMERA_LOCK_ZOOM: float = 1.4
-## 镜头切到新单位后、该单位开始移动前的等待时间（秒），给玩家视线跟上的间隔。
-const _AI_TURN_CAMERA_FOCUS_DELAY: float = 0.3
-
-
+## 薄壳转发至 AITurnRunner.run_ai_turn（由 TurnSystem.start_team_turn call_deferred 触发）。
 func _run_ai_turn(team: TeamData) -> void:
-	var lv_camera := camera as LevelCamera
-	var context := _get_ai_context()
-	for unit: Node2D in team.units:
-		if is_phase_ended():
-			break
-		if not is_instance_valid(unit):
-			continue
-		if not unit is Unit:
-			continue
-		var u := unit as Unit
-		if u.combat_stats == null or not u.combat_stats.is_alive():
-			continue
-
-		# 镜头锁定
-		if lv_camera:
-			lv_camera.lock_on(unit, _AI_TURN_CAMERA_LOCK_ZOOM)
-			await get_tree().create_timer(_AI_TURN_CAMERA_FOCUS_DELAY).timeout
-
-		CombatLog.msg("  AI行动: %s 在%s" % [u.combat_stats.unit_name, u.cell])
-
-		# 决策
-		var enemies := _get_alive_enemies_of(u.faction)
-		var friendly_cells := _get_friendly_cells_except(u)
-		var enemy_cells := _get_enemy_cells_except(u)
-		var action := _AIBrain.decide_action(u, enemies, tilemap, movement_manager, friendly_cells, enemy_cells, context)
-
-		# 执行移动
-		if action["move_path"].size() >= 2:
-			var path: Array[Vector2i] = action["move_path"]
-			var from_cell := path[0]
-			u.move_along_path(path, tilemap)
-			await u.move_finished
-			if not u.combat_stats.has_infinite_actions():
-				u.combat_stats.ap_current -= action["move_cost"]
-			u.combat_stats.moves_used += 1
-			u.refresh_overhead_bars()
-			CombatLog.msg("    移动: %s → %s (消耗%dAP)" % [from_cell, u.cell, action["move_cost"]])
-
-		if is_phase_ended():
-			break
-
-		# 执行攻击
-		if action["skill"] != null:
-			await _execute_ai_skill(u, action["skill"], action["cast_cell"])
-
-		u.has_acted = true
-
-	if lv_camera:
-		lv_camera.unlock()
-	if not is_phase_ended():
-		_do_end_turn()
+	await _get_ai_runner().run_ai_turn(team)
 
 
-## AI 使用技能：镜头聚焦 + 执行 + 战斗反馈。
+## 薄壳转发至 AITurnRunner.execute_ai_skill（保留旧调用点零改动）。
 func _execute_ai_skill(unit: Unit, skill: SkillData, cast_cell: Vector2i) -> void:
-	var lv_camera := camera as LevelCamera
-	var focus_marker: Node2D = null
-
-	# 镜头聚焦到施法者与目标中点
-	if lv_camera:
-		var caster_pos: Vector2 = unit.global_position
-		var target_pos: Vector2 = tilemap.map_to_local(cast_cell) if tilemap else caster_pos
-		focus_marker = Node2D.new()
-		add_child(focus_marker)
-		focus_marker.global_position = (caster_pos + target_pos) * 0.5
-		lv_camera.lock_on(focus_marker, _SKILL_CAMERA_ZOOM)
-		await get_tree().create_timer(_SKILL_CAMERA_SETTLE_TIME).timeout
-
-	# 执行技能
-	unit.face_towards_cell(cast_cell)
-	var all_units: Array = _get_all_units()
-	var caster_faction: String = unit.faction if "faction" in unit else ""
-	var exec_result := SkillExecutor.execute(unit, skill, cast_cell, all_units, caster_faction, Callable(self, "_finalize_skill_hit_damage"))
-
-	if exec_result.success:
-		SfxManager.play_skill_cast(skill)
-		CombatLog.msg("    技能: %s → %s" % [skill.skill_name, cast_cell])
-		# 技能释放播报
-		var caster_name: String = unit.combat_stats.unit_name if unit.combat_stats else unit.name
-		Notify.info("%s 使用了【%s】！" % [caster_name, skill.skill_name], 3.0)
-		_show_combat_feedback(exec_result, caster_name, skill)
-		# 额外效果播报
-		if skill.extra_effect_id != "":
-			var effect_name: String = _EXTRA_EFFECT_NAMES.get(skill.extra_effect_id, "")
-			if effect_name != "":
-				var target_names: Array[String] = []
-				for tu in exec_result.targets:
-					if tu is Unit and (tu as Unit).combat_stats:
-						target_names.append((tu as Unit).combat_stats.unit_name)
-				if not target_names.is_empty():
-					Notify.info("%s 触发额外效果：%s" % ["、".join(target_names), effect_name], 3.0)
-		unit.refresh_overhead_bars()
-		# 技能执行通知
-		skill_executed.emit(unit, skill, cast_cell)
-		_check_win_lose()
-
-	# 镜头恢复
-	if lv_camera and focus_marker:
-		await get_tree().create_timer(_SKILL_CAMERA_LINGER_TIME).timeout
-		focus_marker.queue_free()
-		lv_camera.unlock()
-	elif focus_marker:
-		focus_marker.queue_free()
+	await _get_ai_runner().execute_ai_skill(unit, skill, cast_cell)
 
 
-## 获取指定阵营的所有存活敌对单位。
+## 薄壳转发至 AITurnRunner.get_alive_enemies_of。
 func _get_alive_enemies_of(faction: String) -> Array:
-	var result: Array = []
-	for t: TeamData in teams:
-		if t.faction == faction:
-			continue
-		for u: Node2D in t.units:
-			if u is Unit and u.combat_stats != null and u.combat_stats.is_alive():
-				result.append(u)
-	return result
+	return _get_ai_runner().get_alive_enemies_of(faction)
 
 
 func _is_cell_occupied(cell: Vector2i) -> bool:
@@ -1608,49 +1510,21 @@ func _get_friendly_cells_except(exclude: Node2D) -> Array[Vector2i]:
 	return result
 
 
+## 薄壳转发至 AITurnRunner.player_team_has_remaining_actions。
 ## 当前玩家队伍是否还有可行动单位（未 has_acted、未在移动中、还能移动或有技能能打到敌人）。
 func _player_team_has_remaining_actions() -> bool:
-	if current_team_index < 0 or current_team_index >= teams.size():
-		return false
-	var team: TeamData = teams[current_team_index]
-	if team.controller != "player":
-		return false
-	var enemy_cells := _get_enemy_cell_set(team.faction)
-	for unit: Node2D in team.units:
-		if not unit is Unit:
-			continue
-		var u := unit as Unit
-		if u.has_acted or u.is_moving:
-			continue
-		if u.combat_stats == null or not u.combat_stats.is_alive():
-			continue
-		var stats: CombatStats = u.combat_stats
-		if _has_action_budget(stats) and (stats.can_move() or _has_usable_attack(u, enemy_cells)):
-			return true
-	return false
+	return _get_ai_runner().player_team_has_remaining_actions()
 
 
+## 薄壳转发至 AITurnRunner.has_action_budget。
 func _has_action_budget(stats: CombatStats) -> bool:
-	return stats != null and (stats.has_infinite_actions() or stats.ap_current > 0)
+	return _get_ai_runner().has_action_budget(stats)
 
 
+## 薄壳转发至 AITurnRunner.has_usable_attack。
 ## 检查单位是否有攻击技能能够打到敌人（AP/次数够 + 范围内有敌人）。
 func _has_usable_attack(unit: Unit, enemy_cells: Dictionary) -> bool:
-	if unit.combat_stats == null or unit.unit_data == null:
-		return false
-	for skill: SkillData in unit.unit_data.skills:
-		if not unit.combat_stats.can_use_skill(skill):
-			continue
-		# 非攻击技能（辅助/交互）只需 AP 和次数足够即可使用
-		if skill.skill_type != Enums.SkillType.ATTACK:
-			return true
-		# 攻击技能需要敌人在施法+效果范围内
-		for cast_offset in skill.cast_offsets:
-			var cast_cell := unit.cell + cast_offset
-			for effect_offset in skill.effect_offsets:
-				if enemy_cells.has(cast_cell + effect_offset):
-					return true
-	return false
+	return _get_ai_runner().has_usable_attack(unit, enemy_cells)
 
 
 ## 收集指定阵营的所有存活敌方单位格子。
