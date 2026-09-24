@@ -114,7 +114,6 @@ var _phase_notification: PhaseNotification = null
 ## 兼容旧版：指向第一个玩家控制队伍的第一个单位（李春）。
 var hero: Node2D
 var unit_selected := false
-var _round_growth_selected_rounds: Array[int] = []
 var _llm_client: Node = null
 var _ai_busy := false
 ## 单位闲聊调度器（LLM 驱动）。BRIEFING 之后的战斗中监听 team_turn_ended / round_ended 触发对话。
@@ -261,9 +260,7 @@ var _current_skill: SkillData = null
 var _skill_targeting: Node2D = null
 ## 选中单位脚下的呼吸菱形指示器。
 var _selection_indicator: Line2D
-## 结束回合的待确认状态：第一次点击已登记，等待第二次确认。
-var _end_turn_pending_confirm: bool = false
-## 按钮默认 modulate，切换高亮状态时用来还原。
+## 按钮默认 modulate，切换高亮状态时用来还原（TurnSystem 高亮时读取）。
 var _end_turn_button_default_modulate: Color = Color.WHITE
 
 ## Names to search for the walkable tilemap layer
@@ -280,24 +277,11 @@ const OBSTACLE_LAYER_KEYWORDS: Array[String] = ["obstacle", "障碍", "阻挡", 
 # 队伍 / 回合系统
 # ─────────────────────────────────────────────
 
-## 单个队伍的运行时数据。
+## 单个队伍的运行时数据（真源在 TurnSystem，此处保留旧类型名供全文件注解使用）。
+const TeamData = TurnSystem.TeamData
 
-
-
-
-
-class TeamData:
-	var team_name: String
-	var faction: String
-	## "player" = 玩家操控；"ai" = 电脑操控。
-	var controller: String
-	var units: Array = []  # Array[Node2D]
-
-	func _init(n: String, f: String, c: String) -> void:
-		team_name = n
-		faction = f
-		controller = c
-		units = []
+## 回合系统组件（Tactics Stack）。回合流转 / 结束回合双击 / 回合成长问询的执行者。
+var _turn_system: TurnSystem = null
 
 var teams: Array = []  # Array[TeamData]
 var current_team_index: int = -1
@@ -706,83 +690,26 @@ func is_free_roam_level() -> bool:
 	return false
 
 
+## 回合系统组件懒加载（首调时 setup(self)）。
+func _get_turn_system() -> TurnSystem:
+	if _turn_system == null:
+		_turn_system = TurnSystem.new()
+		_turn_system.setup(self)
+	return _turn_system
+
+
+## 薄壳转发至 TurnSystem.init_turn_system（保留旧调用点零改动）。
 func _init_turn_system() -> void:
-	if is_free_roam_level():
-		return
-	# 若未通过 get_teams_config() 创建队伍，则将旧版 player 包装为单队伍
-	if teams.is_empty() and hero:
-		var team := TeamData.new("玩家", "", "player")
-		team.units.append(hero)
-		teams.append(team)
-
-	if teams.is_empty():
-		return
-
-	_start_team_turn(0)
+	_get_turn_system().init_turn_system()
 
 
 # ─────────────────────────────────────────────
 # 回合流转
 # ─────────────────────────────────────────────
 
+## 薄壳转发至 TurnSystem.start_team_turn（保留旧调用点零改动）。
 func _start_team_turn(index: int) -> void:
-	if is_phase_ended():
-		return
-	current_team_index = index
-	var team: TeamData = teams[index]
-	CombatLog.msg("═══ %s 的回合开始 ═══" % team.team_name)
-	team_turn_started.emit(index)
-	# 波次生成：在每大回合第一个队伍开始时处理
-	if index == 0:
-		var spawned := _process_wave(round_number)
-		# 第一回合不播镜头演出（初始敌人已在场）；后续波次刷新时聚焦新敌人
-		if not spawned.is_empty() and round_number > 1:
-			await _camera_focus_spawned(spawned)
-	for unit: Node2D in team.units:
-		unit.has_acted = false
-		if unit is Unit and unit.combat_stats != null:
-			unit.combat_stats.reset_turn_counters()
-			CombatLog.log_turn_start(team.team_name, unit.combat_stats.unit_name, unit.combat_stats.current_hp, unit.combat_stats.ap_current)
-			unit.combat_stats.process_turn_start()
-			(unit as Unit).refresh_overhead_bars()
-			if not unit.combat_stats.is_alive():
-				unit.has_acted = true
-	# _go_idle 已在 _do_end_turn 中调用，此处只需确保状态干净
-	move_overlay.clear_range()
-
-	_animate_turn_label(team.team_name)
-
-	if team.controller == "ai":
-		if _end_turn_button:
-			_end_turn_button.visible = false
-		_waiting_for_player_input = false
-		# 延迟一帧再执行 AI，确保 UI 更新后再开始移动
-		_run_ai_turn.call_deferred(team)
-	else:
-		if _end_turn_button:
-			_end_turn_button.visible = true
-		_end_turn_pending_confirm = false
-		_set_end_turn_button_highlight(false)
-		_waiting_for_player_input = true
-		UiSounds.play_turn_start()
-		# 玩家回合开始时把镜头平滑拉到主角，给本回合一个明确的起点。
-		_focus_camera_on_team(team)
-		# 玩家回合开始时刷新状态栏，确保显示 AP 恢复后的最新数据
-		_reset_status_bar()
-
-
-## 回合标签"弹入"动画：从 1.4 倍+透明缩放到正常+不透明。
-func _animate_turn_label(team_name: String) -> void:
-	if _turn_label == null:
-		return
-	_turn_label.text = "[ %s 的回合 ]" % team_name
-	_turn_label.pivot_offset = _turn_label.size / 2
-	_turn_label.scale = Vector2(1.4, 1.4)
-	_turn_label.modulate = Color(1, 1, 1, 0)
-	var tween := create_tween()
-	tween.tween_property(_turn_label, "modulate:a", 1.0, 0.2).set_ease(Tween.EASE_OUT)
-	tween.parallel().tween_property(_turn_label, "scale", Vector2.ONE, 0.35) \
-		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
+	_get_turn_system().start_team_turn(index)
 
 
 func _update_round_label(round_num: int) -> void:
@@ -791,216 +718,34 @@ func _update_round_label(round_num: int) -> void:
 	_round_label.text = "第 %d 回合" % round_num
 
 
-## 波次刷新敌人时的镜头演出：锁定到刷新单位的中心，拉近，停留后解锁。
-const _WAVE_CAMERA_ZOOM: float = 1.4
-const _WAVE_CAMERA_SETTLE_TIME: float = 0.4
-const _WAVE_CAMERA_LINGER_TIME: float = 0.8
-
-func _camera_focus_spawned(spawned: Array[Unit]) -> void:
-	var lv_camera := camera as LevelCamera
-	if lv_camera == null:
-		return
-	# 计算所有刷新单位的中心点
-	var center := Vector2.ZERO
-	var count := 0
-	for u in spawned:
-		if is_instance_valid(u):
-			center += u.global_position
-			count += 1
-	if count == 0:
-		return
-	center /= count
-	# 用临时节点作为锁定目标
-	var marker := Node2D.new()
-	add_child(marker)
-	marker.global_position = center
-	lv_camera.lock_on(marker, _WAVE_CAMERA_ZOOM)
-	await get_tree().create_timer(_WAVE_CAMERA_SETTLE_TIME).timeout
-	await get_tree().create_timer(_WAVE_CAMERA_LINGER_TIME).timeout
-	lv_camera.unlock()
-	marker.queue_free()
-
-
-## 把镜头平滑拉到队伍"代表单位"（优先 hero，否则队里第一个存活单位）。
-## 仅修改 target_position，不锁定相机，玩家仍可随时手动平移/缩放。
-func _focus_camera_on_team(team: TeamData) -> void:
-	if camera == null:
-		return
-	var lv_camera := camera as LevelCamera
-	if lv_camera == null:
-		return
-	var focus_unit: Node2D = null
-	if hero != null and is_instance_valid(hero) and hero in team.units:
-		var hu := hero as Unit
-		if hu == null or hu.combat_stats == null or hu.combat_stats.is_alive():
-			focus_unit = hero
-	if focus_unit == null:
-		for u: Node2D in team.units:
-			if not is_instance_valid(u):
-				continue
-			if u is Unit:
-				var us := (u as Unit).combat_stats
-				if us != null and not us.is_alive():
-					continue
-			focus_unit = u
-			break
-	if focus_unit == null:
-		return
-	lv_camera.target_position = focus_unit.global_position
-
-
-## 结束整个队伍的回合。UI"结束回合"按钮和 MCP 都调用此方法。
+## 薄壳转发至 TurnSystem.end_team_turn。UI"结束回合"按钮和 MCP 都调用此方法。
 func end_team_turn() -> void:
-	if current_team_index < 0 or current_team_index >= teams.size():
-		return
-	var team: TeamData = teams[current_team_index]
-	if team.controller == "player" and not _waiting_for_player_input:
-		return
-	if _active_overlay == ActiveOverlay.CUTSCENE:
-		return
-	_do_end_turn()
+	_get_turn_system().end_team_turn()
 
 
-## 回合结束的实际逻辑。内部和 AI 也调用此方法。
+## 薄壳转发至 TurnSystem.do_end_turn。回合结束的实际逻辑，内部和 AI 也调用此方法。
 func _do_end_turn() -> void:
-	_clear_end_turn_pending()
-	if current_team_index >= 0 and current_team_index < teams.size():
-		var team: TeamData = teams[current_team_index]
-		for unit: Node2D in team.units.duplicate():
-			if unit is Unit and unit.combat_stats != null and unit.combat_stats.is_alive():
-				var hp_before_dot: int = unit.combat_stats.current_hp
-				var dot: int = unit.combat_stats.process_turn_end()
-				var hp_after_dot: int = unit.combat_stats.current_hp
-				if dot > 0:
-					var popup := DamagePopup.new()
-					add_child(popup)
-					popup.show_at(unit.global_position, dot)
-					unit_hp_changed.emit(unit, hp_before_dot, hp_after_dot)
-					if hp_after_dot <= 0:
-						unit_died.emit(unit)
-				if team.controller == "player" and unit.combat_stats.is_alive():
-					var hp_before_rest: int = unit.combat_stats.current_hp
-					unit.combat_stats.rest_recovery()
-					var hp_after_rest: int = unit.combat_stats.current_hp
-					if hp_before_rest != hp_after_rest:
-						unit_hp_changed.emit(unit, hp_before_rest, hp_after_rest)
-				(unit as Unit).refresh_overhead_bars()
-		# 回合结束后恢复外观，避免进入对方回合时仍显示灰色
-		for unit: Node2D in team.units:
-			unit.has_acted = false
-	_go_idle()
-	_waiting_for_player_input = false
-	if _end_turn_button:
-		_end_turn_button.visible = false
-	var next_index := (current_team_index + 1) % teams.size()
-	# 先广播当前小回合结束，给 ChatterScheduler / 教程脚本等挂钩
-	team_turn_ended.emit(current_team_index)
-	if next_index == 0:
-		# 大回合也到头了：先 emit round_ended（旧回合号），再推进 round_number
-		round_ended.emit(round_number)
-		round_number += 1
-		round_started.emit(round_number)
-	_start_team_turn(next_index)
+	_get_turn_system().do_end_turn()
 
 
+## 薄壳转发至 TurnSystem.on_end_turn_button_pressed（base_level.tscn 信号目标）。
 func _on_end_turn_button_pressed() -> void:
-	# 队伍已经没得做了 → 直接结束，跳过确认
-	if not _player_team_has_remaining_actions():
-		_end_turn_pending_confirm = false
-		_set_end_turn_button_highlight(false)
-		end_team_turn()
-		return
-	# 第一次点击 → 进入待确认并高亮
-	if not _end_turn_pending_confirm:
-		_end_turn_pending_confirm = true
-		_set_end_turn_button_highlight(true)
-		return
-	# 第二次点击 → 真正结束
-	_end_turn_pending_confirm = false
-	_set_end_turn_button_highlight(false)
-	end_team_turn()
+	_get_turn_system().on_end_turn_button_pressed()
 
 
+## 薄壳转发至 TurnSystem.try_prompt_round_growth（保留旧调用点零改动）。
 func _try_prompt_round_growth() -> bool:
-	if _active_overlay == ActiveOverlay.GROWTH_CHOICE:
-		return true
-	if current_team_index < 0 or current_team_index >= teams.size():
-		return false
-	var team: TeamData = teams[current_team_index]
-	if team.controller != "player":
-		return false
-	if not _is_player_side_ending_turn():
-		return false
-	if round_number in _round_growth_selected_rounds:
-		return false
-	var options := get_round_growth_options()
-	if options.is_empty():
-		return false
-	var panel := GrowthChoicePanelScript.new()
-	panel.panel_title = "回合成长"
-	panel.options = options
-	panel.required_selection_count = 3
-	panel.options_confirmed.connect(_on_round_growth_options_confirmed)
-	if not _open_overlay(ActiveOverlay.GROWTH_CHOICE, panel, &"options_confirmed"):
-		panel.queue_free()
-		return false
-	return true
+	return _get_turn_system().try_prompt_round_growth()
 
 
-func _on_round_growth_options_confirmed(option_ids: Array[String]) -> void:
-	if round_number not in _round_growth_selected_rounds:
-		_round_growth_selected_rounds.append(round_number)
-	for option_id in option_ids:
-		apply_round_growth_option(option_id)
-	_do_end_turn()
-
-
-func _is_player_side_ending_turn() -> bool:
-	if current_team_index < 0 or current_team_index >= teams.size():
-		return false
-	var next_index := (current_team_index + 1) % teams.size()
-	if next_index < teams.size() and teams[next_index].controller == "player":
-		return false
-	return true
-
-
-## 结束回合按钮高亮配置（"待确认"态）。
-const _END_TURN_HIGHLIGHT_MODULATE: Color = Color(1.8, 1.1, 0.4, 1.0)
-## 边框颜色偏近白，被 modulate 乘完后正好变成更亮的暖橙，和按钮面形成层次。
-const _END_TURN_HIGHLIGHT_BORDER_COLOR: Color = Color(1.0, 0.95, 0.85, 1.0)
-const _END_TURN_HIGHLIGHT_BORDER_WIDTH: int = 3
-const _END_TURN_HIGHLIGHT_STATES: Array[String] = ["normal", "hover", "pressed", "focus"]
-
-
-func _set_end_turn_button_highlight(highlight: bool) -> void:
-	if _end_turn_button == null:
-		return
-	if highlight:
-		# 暖橙色 modulate + 各状态的 StyleBoxFlat 描边。两层叠加，底色再暗也看得见。
-		_end_turn_button.modulate = _END_TURN_HIGHLIGHT_MODULATE
-		for state in _END_TURN_HIGHLIGHT_STATES:
-			var base := _end_turn_button.get_theme_stylebox(state)
-			var style: StyleBoxFlat
-			if base is StyleBoxFlat:
-				style = (base as StyleBoxFlat).duplicate() as StyleBoxFlat
-			else:
-				style = StyleBoxFlat.new()
-				style.bg_color = Color(0.15, 0.15, 0.18, 0.95)
-				style.set_corner_radius_all(3)
-			style.border_color = _END_TURN_HIGHLIGHT_BORDER_COLOR
-			style.set_border_width_all(_END_TURN_HIGHLIGHT_BORDER_WIDTH)
-			_end_turn_button.add_theme_stylebox_override(state, style)
-	else:
-		_end_turn_button.modulate = _end_turn_button_default_modulate
-		for state in _END_TURN_HIGHLIGHT_STATES:
-			_end_turn_button.remove_theme_stylebox_override(state)
-
-
-## 取消"待确认结束回合"状态。被任何玩家的其他操作入口调用。
+## 薄壳转发至 TurnSystem.clear_end_turn_pending。取消"待确认结束回合"状态。
 func _clear_end_turn_pending() -> void:
-	if _end_turn_pending_confirm:
-		_end_turn_pending_confirm = false
-		_set_end_turn_button_highlight(false)
+	_get_turn_system().clear_end_turn_pending()
+
+
+## 薄壳转发至 TurnSystem._camera_focus_spawned（level1-3 的倾压之号召唤演出调用）。
+func _camera_focus_spawned(spawned: Array[Unit]) -> void:
+	await _get_turn_system()._camera_focus_spawned(spawned)
 
 
 
