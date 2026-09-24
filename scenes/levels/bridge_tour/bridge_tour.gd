@@ -60,6 +60,7 @@ var _interaction_target: Unit = null
 var _llm: Node = null
 var _llm_runner: LLMInteractionRunner = null
 var _llm_context_builder: LLMContextBuilder = null
+var _key_point_matcher: KeyPointMatcher = null
 var _voice: Node = null
 var _mission_hud: Node = null
 ## 玩家通过 mentor 学过的知识 key（来自 BridgeKnowledge.TOPICS）。
@@ -87,6 +88,13 @@ func _get_llm_context_builder() -> LLMContextBuilder:
 		_llm_context_builder = LLMContextBuilder.new()
 		_llm_context_builder.setup(self)
 	return _llm_context_builder
+
+
+func _get_key_point_matcher() -> KeyPointMatcher:
+	if _key_point_matcher == null:
+		_key_point_matcher = KeyPointMatcher.new()
+		_key_point_matcher.setup(self)
+	return _key_point_matcher
 
 
 func _get_voice() -> Node:
@@ -559,47 +567,7 @@ func _make_cheat_persuade_answer(_npc: Unit) -> Dictionary:
 
 
 func _make_rule_persuade_answer(npc: Unit, argument: String, persona: Dictionary, persuasion_goal: Dictionary) -> Dictionary:
-	var key_points: Array = _get_dict_array(persuasion_goal, "key_points")
-	var matched: Array[String] = []
-	var missed: Array[String] = []
-	var knowledge_used: Array[String] = []
-	for point_v in key_points:
-		if not (point_v is Dictionary):
-			continue
-		var point: Dictionary = point_v
-		var label := String(point.get("label", "")).strip_edges()
-		if label.is_empty():
-			continue
-		if _key_point_matches(argument, point):
-			matched.append(label)
-			var keys: Array = _get_dict_array(point, "knowledge_keys")
-			for key_v in keys:
-				var key := String(key_v).strip_edges()
-				if not key.is_empty() and not knowledge_used.has(key):
-					knowledge_used.append(key)
-		else:
-			missed.append(label)
-	var matched_count := matched.size()
-	var has_progress := matched_count > 0
-	var accum_score := 0
-	var round_score := 0
-	if has_progress:
-		accum_score = clampi(10 + matched_count * 2, PERSUADE_ACCUM_SCORE_MIN, PERSUADE_ACCUM_SCORE_MAX)
-		round_score = clampi(5 + matched_count * 4, PERSUADE_ROUND_SCORE_MIN, PERSUADE_ROUND_SCORE_MAX)
-	var reply := _pick_persuade_success_feedback(npc, persona) if has_progress else _PersonaFallbackScript.pick(persona, "persuade")
-	return {
-		"reply": reply,
-		"accum_score": accum_score,
-		"round_score": round_score,
-		"final_score": accum_score + round_score,
-		"tone": "松动" if has_progress else "沉默",
-		"knowledge_used": knowledge_used,
-		"matched_points": matched,
-		"missed_points": missed,
-		"is_fallback": true,
-		"allow_fallback_score": has_progress,
-		"fallback_reason": "rule_match",
-	}
+	return _get_key_point_matcher().make_rule_persuade_answer(npc, argument, persona, persuasion_goal)
 
 
 func _pick_persuade_success_feedback(npc: Unit, persona: Dictionary) -> String:
@@ -622,37 +590,7 @@ func _make_cheat_qa_eval(_npc: Unit) -> Dictionary:
 
 
 func _make_rule_qa_eval(npc: Unit, answer: String, persona: Dictionary) -> Dictionary:
-	var key_points: Array = _npc_state(npc).qa_key_points
-	var matched: Array[String] = []
-	var missed: Array[String] = []
-	var knowledge_used: Array[String] = []
-	for point_v in key_points:
-		if not (point_v is Dictionary):
-			continue
-		var point: Dictionary = point_v
-		var label := String(point.get("label", "")).strip_edges()
-		if label.is_empty():
-			continue
-		if _key_point_matches(answer, point):
-			matched.append(label)
-			var keys: Array = _get_dict_array(point, "knowledge_keys")
-			for key_v in keys:
-				var key := String(key_v).strip_edges()
-				if not key.is_empty() and not knowledge_used.has(key):
-					knowledge_used.append(key)
-		else:
-			missed.append(label)
-	var is_correct := not matched.is_empty()
-	var feedback := _pick_qa_success_feedback(npc, persona) if is_correct else _PersonaFallbackScript.pick(persona, "qa")
-	return {
-		"is_correct": is_correct,
-		"feedback": feedback,
-		"knowledge_used": knowledge_used,
-		"matched_points": matched,
-		"missed_points": missed,
-		"is_fallback": true,
-		"fallback_reason": "rule_match",
-	}
+	return _get_key_point_matcher().make_rule_qa_eval(npc, answer, persona)
 
 
 func _pick_qa_success_feedback(npc: Unit, persona: Dictionary) -> String:
@@ -666,72 +604,19 @@ func _pick_qa_success_feedback(npc: Unit, persona: Dictionary) -> String:
 
 
 func _key_point_matches(answer: String, point: Dictionary) -> bool:
-	var normalized := _normalize_match_text(answer)
-	if normalized.is_empty():
-		return false
-	var groups: Array = _get_dict_array(point, "groups")
-	if groups.is_empty():
-		return false
-	var hit_count := 0
-	for group_v in groups:
-		var alternatives: Array = group_v if group_v is Array else [group_v]
-		var hit := false
-		for keyword_v in alternatives:
-			var keyword := _normalize_match_text(String(keyword_v))
-			if not keyword.is_empty() and normalized.find(keyword) >= 0:
-				hit = true
-				break
-		if hit:
-			hit_count += 1
-	var required_hits: int = mini(groups.size(), maxi(2, groups.size() - 1))
-	return hit_count >= required_hits
+	return _get_key_point_matcher().key_point_matches(answer, point)
 
 
 func _normalize_match_text(text: String) -> String:
-	var out := text.strip_edges().to_lower()
-	for ch in [" ", "\n", "\t", "，", "。", "、", "？", "！", "：", "；", "“", "”", "「", "」", "（", "）", "(", ")", ",", ".", "?", "!", ":", ";"]:
-		out = out.replace(ch, "")
-	return out
+	return _get_key_point_matcher().normalize_match_text(text)
 
 
 func _qa_key_points_text(npc: Unit) -> String:
-	var key_points: Array = _npc_state(npc).qa_key_points
-	if key_points.is_empty():
-		return "（未配置；按问题语义宽松判断）"
-	var lines: Array[String] = []
-	for point_v in key_points:
-		if not (point_v is Dictionary):
-			continue
-		var point: Dictionary = point_v
-		var label := String(point.get("label", "")).strip_edges()
-		if label.is_empty():
-			continue
-		var keys: Array = _get_dict_array(point, "knowledge_keys")
-		var suffix := ""
-		if not keys.is_empty():
-			suffix = "；关联知识 key：" + "、".join(_string_array(keys))
-		lines.append("- %s%s" % [label, suffix])
-	return "\n".join(lines) if not lines.is_empty() else "（未配置；按问题语义宽松判断）"
+	return _get_key_point_matcher().qa_key_points_text(npc)
 
 
 func _persuade_key_points_text(persuasion_goal: Dictionary) -> String:
-	var key_points: Array = _get_dict_array(persuasion_goal, "key_points")
-	if key_points.is_empty():
-		return "（未配置；按说服目标语义宽松判断）"
-	var lines: Array[String] = []
-	for point_v in key_points:
-		if not (point_v is Dictionary):
-			continue
-		var point: Dictionary = point_v
-		var label := String(point.get("label", "")).strip_edges()
-		if label.is_empty():
-			continue
-		var keys: Array = _get_dict_array(point, "knowledge_keys")
-		var suffix := ""
-		if not keys.is_empty():
-			suffix = "；关联知识 key：" + "、".join(_string_array(keys))
-		lines.append("- %s%s" % [label, suffix])
-	return "\n".join(lines) if not lines.is_empty() else "（未配置；按说服目标语义宽松判断）"
+	return _get_key_point_matcher().persuade_key_points_text(persuasion_goal)
 
 
 func _fallback_lines_for(persona: Dictionary, kind: String) -> Array:
