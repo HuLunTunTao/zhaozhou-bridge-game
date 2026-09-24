@@ -59,6 +59,7 @@ var _spawner: NpcSpawner = null
 var _interaction_target: Unit = null
 var _llm: Node = null
 var _llm_runner: LLMInteractionRunner = null
+var _llm_context_builder: LLMContextBuilder = null
 var _voice: Node = null
 var _mission_hud: Node = null
 ## 玩家通过 mentor 学过的知识 key（来自 BridgeKnowledge.TOPICS）。
@@ -79,6 +80,13 @@ func _get_llm_runner() -> LLMInteractionRunner:
 		_llm_runner = LLMInteractionRunner.new()
 		_llm_runner.setup(self)
 	return _llm_runner
+
+
+func _get_llm_context_builder() -> LLMContextBuilder:
+	if _llm_context_builder == null:
+		_llm_context_builder = LLMContextBuilder.new()
+		_llm_context_builder.setup(self)
+	return _llm_context_builder
 
 
 func _get_voice() -> Node:
@@ -962,119 +970,31 @@ func _parse_object_json(text: String) -> Dictionary:
 
 
 func _build_npc_memory_memo(npc: Unit) -> String:
-	var parts: Array[String] = [_learned_memo()]
-	var dialogue := _dialogue_history_text(npc)
-	if dialogue.is_empty():
-		parts.append("与该 NPC 尚无历史问答。")
-	else:
-		parts.append("与该 NPC 的近几轮问答：\n%s" % dialogue)
-	return "\n\n".join(parts)
+	return _get_llm_context_builder().build_npc_memory_memo(npc)
 
 
 func _build_bridge_context_json(npc: Unit, trigger_kind: String) -> String:
-	var st := _npc_state(npc)
-	var role := st.role
-	var context := {
-		"关卡": "验桥日",
-		"触发": trigger_kind,
-		"当前NPC": npc.unit_data.unit_name,
-		"NPC类型": role,
-		"所在桥段": st.bridge_part,
-		"李春与NPC距离": _hero_distance_label(npc),
-		"任务进度": "%d/%d 说服，%d/%d 解答" % [_persuaded_count(), PERSUADE_TARGET, _qa_solved_count(), QA_TARGET],
-		"已学知识": _learned_title_list(),
-		"已用知识": _player_used_topics.duplicate(),
-	}
-	if role == "persuade":
-		context["当前说服进度"] = "%d/%d" % [st.stance, STANCE_PERSUADED]
-		context["累积分合计"] = st.accum_score_total
-		var goal: Dictionary = st.persuasion_goal
-		context["说服目标"] = goal.get("goal", "")
-		context["核心疑虑"] = goal.get("objection", "")
-		context["成功条件"] = goal.get("success_claim", "")
-	elif role == "qa":
-		context["已解答"] = st.qa_solved
-	return JSON.stringify(context)
+	return _get_llm_context_builder().build_bridge_context_json(npc, trigger_kind)
 
 
 func _dialogue_history_text(npc: Unit, max_entries: int = 4) -> String:
-	var history: Array = _npc_state(npc).dialogue_log
-	if history.is_empty():
-		return ""
-	var lines: Array[String] = []
-	var start: int = maxi(0, history.size() - max_entries)
-	for i in range(start, history.size()):
-		var entry: Dictionary = history[i] if history[i] is Dictionary else {}
-		var speaker := String(entry.get("npc_name", npc.unit_data.unit_name))
-		var question := _clip_text(String(entry.get("question", "")).strip_edges(), 80)
-		var player_text := _clip_text(String(entry.get("player", "")).strip_edges(), 90)
-		var npc_text := _clip_text(String(entry.get("npc", "")).strip_edges(), 90)
-		if not question.is_empty():
-			lines.append("%s问：%s" % [speaker, question])
-		if not player_text.is_empty():
-			lines.append("李春答：%s" % player_text)
-		if not npc_text.is_empty():
-			lines.append("%s回：%s" % [speaker, npc_text])
-	return "\n".join(lines)
+	return _get_llm_context_builder().dialogue_history_text(npc, max_entries)
 
 
 func _mission_context_text(npc: Unit) -> String:
-	var st := _npc_state(npc)
-	var role := st.role
-	var parts: Array[String] = [
-		"关卡目标：说服 %d/%d，解答 %d/%d。" % [_persuaded_count(), PERSUADE_TARGET, _qa_solved_count(), QA_TARGET],
-		"当前 NPC：%s，桥段：%s，距离：%s。" % [
-			npc.unit_data.unit_name,
-			st.bridge_part,
-			_hero_distance_label(npc),
-		],
-	]
-	if role == "persuade":
-		parts.append("当前说服进度：%d/%d。" % [st.stance, STANCE_PERSUADED])
-		parts.append("此前累积分合计：%d。" % st.accum_score_total)
-		var goal: Dictionary = st.persuasion_goal
-		parts.append("疑虑：%s" % String(goal.get("objection", "")))
-		parts.append("真正想听到：%s" % String(goal.get("success_claim", "")))
-	elif role == "qa":
-		parts.append("这是答疑目标，需判断李春是否切中问题。")
-	return "\n".join(parts)
+	return _get_llm_context_builder().mission_context_text(npc)
 
 
 func _hero_distance_label(npc: Unit) -> String:
-	if hero == null:
-		return "未知"
-	var d: Vector2i = npc.cell - hero.cell
-	var dist := absi(d.x) + absi(d.y)
-	if dist <= 1:
-		return "近在身旁"
-	if dist <= 3:
-		return "隔数步"
-	return "隔得较远"
+	return _get_llm_context_builder().hero_distance_label(npc)
 
 
 func _learned_title_list() -> Array[String]:
-	var titles: Array[String] = []
-	for k in _player_learned_topics:
-		var topic := _BridgeKnowledgeScript.get_topic(k)
-		if not topic.is_empty():
-			titles.append("%s:%s" % [k, String(topic.get("title", k))])
-	return titles
+	return _get_llm_context_builder().learned_title_list()
 
 
 func _learned_details_text() -> String:
-	if _player_learned_topics.is_empty():
-		return "（无。若李春没有引用具体工程知识，NPC 应保持疑虑。）"
-	var lines: Array[String] = []
-	for k in _player_learned_topics:
-		var topic := _BridgeKnowledgeScript.get_topic(k)
-		if topic.is_empty():
-			continue
-		lines.append("%s（%s）：%s" % [
-			k,
-			String(topic.get("title", k)),
-			_clip_text(String(topic.get("body", topic.get("summary", ""))), 220),
-		])
-	return "\n".join(lines) if not lines.is_empty() else "（无有效知识）"
+	return _get_llm_context_builder().learned_details_text()
 
 
 func _clip_text(text: String, max_len: int) -> String:
@@ -1085,20 +1005,11 @@ func _clip_text(text: String, max_len: int) -> String:
 
 ## 拼"已学知识"渲染给 LLM。空时给"（无）"。
 func _learned_memo() -> String:
-	if _player_learned_topics.is_empty():
-		return "（玩家尚未学过任何桥梁知识）"
-	var titles: Array[String] = []
-	for k in _player_learned_topics:
-		var topic := _BridgeKnowledgeScript.get_topic(k)
-		if not topic.is_empty():
-			titles.append(String(topic.get("title", k)))
-	return "玩家已学知识：" + "、".join(titles)
+	return _get_llm_context_builder().learned_memo()
 
 
 func _learned_csv() -> String:
-	if _player_learned_topics.is_empty():
-		return "（无）"
-	return ", ".join(_player_learned_topics)
+	return _get_llm_context_builder().learned_csv()
 
 
 # ─────────────────────────────────────────────
