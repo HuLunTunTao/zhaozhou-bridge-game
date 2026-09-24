@@ -3,11 +3,11 @@ extends RefCounted
 
 ## 验桥日 LLM prompt 上下文拼装：memory memo / context JSON / dialogue history /
 ## mission context / 距离标签 / 已学知识各视图。
-## 字符串格式与 JSON 字段名与拆分前逐字一致；_clip_text 等纯字符串工具留在 bridge_tour。
+## 字符串格式与 JSON 字段名与拆分前逐字一致。
 ##
-## _level 是 bridge_tour，对 _npc_state / _persuaded_count / _qa_solved_count /
-## _player_learned_topics / _player_used_topics / _clip_text / hero 及常量
-## PERSUADE_TARGET / QA_TARGET / STANCE_PERSUADED 保持鸭子调用（同 LLMInteractionRunner 模式）。
+## _level 是 bridge_tour，对 _npc_state / get_end_flow / _player_learned_topics /
+## _player_used_topics / hero 及常量 PERSUADE_TARGET / QA_TARGET / STANCE_PERSUADED
+## 保持鸭子调用；_clip_text 等纯字符串工具直接走 DictUtil。
 
 const _BridgeKnowledgeScript := preload("res://scripts/data/bridge_knowledge.gd")
 
@@ -38,7 +38,7 @@ func build_bridge_context_json(npc: Unit, trigger_kind: String) -> String:
 		"NPC类型": role,
 		"所在桥段": st.bridge_part,
 		"李春与NPC距离": hero_distance_label(npc),
-		"任务进度": "%d/%d 说服，%d/%d 解答" % [_level._persuaded_count(), _level.PERSUADE_TARGET, _level._qa_solved_count(), _level.QA_TARGET],
+		"任务进度": "%d/%d 说服，%d/%d 解答" % [persuaded_count(), _level.PERSUADE_TARGET, qa_solved_count(), _level.QA_TARGET],
 		"已学知识": learned_title_list(),
 		"已用知识": _level._player_used_topics.duplicate(),
 	}
@@ -63,9 +63,9 @@ func dialogue_history_text(npc: Unit, max_entries: int = 4) -> String:
 	for i in range(start, history.size()):
 		var entry: Dictionary = history[i] if history[i] is Dictionary else {}
 		var speaker := String(entry.get("npc_name", npc.unit_data.unit_name))
-		var question: String = _level._clip_text(String(entry.get("question", "")).strip_edges(), 80)
-		var player_text: String = _level._clip_text(String(entry.get("player", "")).strip_edges(), 90)
-		var npc_text: String = _level._clip_text(String(entry.get("npc", "")).strip_edges(), 90)
+		var question: String = DictUtil.clip_text(String(entry.get("question", "")).strip_edges(), 80)
+		var player_text: String = DictUtil.clip_text(String(entry.get("player", "")).strip_edges(), 90)
+		var npc_text: String = DictUtil.clip_text(String(entry.get("npc", "")).strip_edges(), 90)
 		if not question.is_empty():
 			lines.append("%s问：%s" % [speaker, question])
 		if not player_text.is_empty():
@@ -79,7 +79,7 @@ func mission_context_text(npc: Unit) -> String:
 	var st: NpcSocialState = _level._npc_state(npc)
 	var role := st.role
 	var parts: Array[String] = [
-		"关卡目标：说服 %d/%d，解答 %d/%d。" % [_level._persuaded_count(), _level.PERSUADE_TARGET, _level._qa_solved_count(), _level.QA_TARGET],
+		"关卡目标：说服 %d/%d，解答 %d/%d。" % [persuaded_count(), _level.PERSUADE_TARGET, qa_solved_count(), _level.QA_TARGET],
 		"当前 NPC：%s，桥段：%s，距离：%s。" % [
 			npc.unit_data.unit_name,
 			st.bridge_part,
@@ -129,7 +129,7 @@ func learned_details_text() -> String:
 		lines.append("%s（%s）：%s" % [
 			k,
 			String(topic.get("title", k)),
-			_level._clip_text(String(topic.get("body", topic.get("summary", ""))), 220),
+			DictUtil.clip_text(String(topic.get("body", topic.get("summary", ""))), 220),
 		])
 	return "\n".join(lines) if not lines.is_empty() else "（无有效知识）"
 
@@ -150,3 +150,12 @@ func learned_csv() -> String:
 	if _level._player_learned_topics.is_empty():
 		return "（无）"
 	return ", ".join(_level._player_learned_topics)
+
+
+## 目标计数（SocialLevelEndFlow 单一真相源）。
+func persuaded_count() -> int:
+	return _level.get_end_flow().get_progress("persuade")
+
+
+func qa_solved_count() -> int:
+	return _level.get_end_flow().get_progress("qa")

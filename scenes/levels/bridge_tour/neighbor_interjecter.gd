@@ -5,8 +5,9 @@ extends RefCounted
 ## 并发逻辑（NeighborGen 信号 + fire-and-forget LLM 生成）与 spec dict 结构
 ## {neighbor, gen}、thinking 文案、兜底与后处理均与拆分前逐字一致。
 ##
-## _level 是 bridge_tour，对 _get_llm_runner / _show_thinking / _hide_thinking /
-## _play_npc_line / _strip_quotes / _npcs 保持鸭子调用（同 KeyPointMatcher 模式）。
+## 对话呈现（show_thinking / hide_thinking / play_npc_line）由调用方
+## SocialInteractionFlow 作为 presenter 传入（2.24 自 bridge_tour 移入该基类）。
+## _level 是 bridge_tour，对 _get_llm_runner / _npcs / is_phase_ended 保持鸭子调用。
 
 const _PersonaFallbackScript := preload("res://scripts/llm/persona_fallback.gd")
 
@@ -30,11 +31,11 @@ class NeighborGen extends RefCounted:
 		completed.emit(t)
 
 
-func maybe_interject(speaker: Unit, heard: String) -> void:
-	# 旧入口（同步：先 LLM 后播）。新代码请用 start_interject + play_pending，
-	# 把 LLM 与第一句话播放并发，省 1~2 秒等待。这里保留以便兼容。
+## 旧入口（同步：先 LLM 后播）。新代码请用 start_interject + play_pending，
+## 把 LLM 与第一句话播放并发，省 1~2 秒等待。这里保留以便兼容。
+func maybe_interject(speaker: Unit, heard: String, presenter: SocialInteractionFlow = null) -> void:
 	var spec := start_interject(speaker, heard)
-	await play_pending(spec)
+	await play_pending(spec, presenter)
 
 
 ## 在第一句话播放前调用。立即决定是否要邻居插话；如果要，立刻 fire-and-forget 跑邻居 LLM。
@@ -57,7 +58,8 @@ func start_interject(speaker: Unit, heard: String) -> Dictionary:
 
 
 ## 配套 start_interject：第一句话播完后调，等邻居 LLM 收尾再播邻居台词。
-func play_pending(spec: Dictionary) -> void:
+## presenter 提供 show_thinking / hide_thinking / play_npc_line（SocialInteractionFlow）。
+func play_pending(spec: Dictionary, presenter: SocialInteractionFlow = null) -> void:
 	var neighbor: Variant = spec.get("neighbor")
 	if neighbor == null:
 		return
@@ -69,15 +71,16 @@ func play_pending(spec: Dictionary) -> void:
 	if g.done:
 		text = g.text
 	else:
-		thinking = _level._show_thinking("%s 正在接话……" % (neighbor as Unit).unit_data.unit_name)
+		thinking = presenter.show_thinking("%s 正在接话……" % (neighbor as Unit).unit_data.unit_name) if presenter != null else null
 		text = await g.completed
-		_level._hide_thinking(thinking)
+		if presenter != null:
+			presenter.hide_thinking(thinking)
 	if _level == null or _level.is_phase_ended():
 		return
 	text = text.strip_edges()
-	if text.is_empty():
+	if text.is_empty() or presenter == null:
 		return
-	await _level._play_npc_line(neighbor as Unit, text, true, "bridge_neighbor_interject")
+	await presenter.play_npc_line(neighbor as Unit, text, true, "bridge_neighbor_interject")
 
 
 ## fire-and-forget 协程：跑邻居 LLM，结束后调 gen.finish(t) 唤醒 play_pending。
@@ -111,4 +114,4 @@ func generate_line(neighbor: Unit, speaker: Unit, heard: String) -> String:
 		push_warning("[bridge_tour LLM] neighbor 调用失败 unit=%s code=%s err=%s" % [neighbor.unit_data.unit_id, result.get("code", "?"), result.get("error", "?")])
 		# LLM 失败 → 用 PersonaFallback 抽 neighbor 变体；空字符串则维持跳过插话
 		return _PersonaFallbackScript.pick(persona, "neighbor").strip_edges()
-	return _level._strip_quotes(String(result.get("text", ""))).strip_edges()
+	return DictUtil.strip_quotes(String(result.get("text", ""))).strip_edges()

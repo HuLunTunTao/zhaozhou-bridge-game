@@ -3,10 +3,9 @@ extends RefCounted
 
 ## 验桥日 LLM 交互胶水：persona 查表 → prompt 装配 → chat_completion → JSON 解析。
 ## persuade / qa / mentor / neighbor 四个调用点共用同一段装配；领域解析与 cheat /
-## rule 兜底留在 bridge_tour 各 _generate_xxx 薄壳里。
+## rule 兜底留在 PersuadeFlow / QaFlow / MentorFlow 与 KeyPointMatcher。
 ##
-## _level 是 bridge_tour，对 _build_npc_memory_memo / _build_bridge_context_json /
-## _get_llm / _parse_object_json 保持鸭子调用（同 SocialInteractionFlow 模式）。
+## _level 是 bridge_tour，对 _get_llm / _get_llm_context_builder 保持鸭子调用。
 
 const _ChatterPromptsScript := preload("res://scripts/llm/chatter_prompts.gd")
 
@@ -25,8 +24,8 @@ func run(npc: Unit, trigger_kind: String, role: String, extra: Dictionary, opts:
 	var sys: String = _ChatterPromptsScript.build_system_prompt(
 		persona,
 		trigger_kind,
-		_level._build_npc_memory_memo(npc),
-		_level._build_bridge_context_json(npc, role)
+		_level._get_llm_context_builder().build_npc_memory_memo(npc),
+		_level._get_llm_context_builder().build_bridge_context_json(npc, role)
 	)
 	var user: String = _ChatterPromptsScript.build_user_prompt(persona, trigger_kind, extra)
 	var resp: Dictionary = await _level._get_llm().chat_completion([
@@ -34,7 +33,7 @@ func run(npc: Unit, trigger_kind: String, role: String, extra: Dictionary, opts:
 		{"role": "user", "content": user},
 	], opts)
 	var text := String(resp.get("text", ""))
-	var parsed: Dictionary = _level._parse_object_json(text)
+	var parsed: Dictionary = DictUtil.parse_object_json(text)
 	var ok := bool(resp.get("ok", false))
 	if ok and not required_key.is_empty():
 		ok = not parsed.is_empty() and parsed.has(required_key)

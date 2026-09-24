@@ -6,10 +6,9 @@ extends RefCounted
 ## 匹配算法（groups / alternatives / hit_count 阈值）、标点替换表、scoring 公式、
 ## 返回 dict 结构与 key-point 列表文案均与拆分前逐字一致。
 ##
-## _level 是 bridge_tour，对 _get_dict_array / _string_array / _npc_state /
-## _pick_persuade_success_feedback / _pick_qa_success_feedback 及常量
-## PERSUADE_ACCUM_SCORE_MIN/MAX / PERSUADE_ROUND_SCORE_MIN/MAX 保持鸭子调用
-## （同 LLMInteractionRunner 模式）。
+## _level 是 bridge_tour，对 _npc_state / _persuade_flow / _qa_flow 及常量
+## PERSUADE_ACCUM_SCORE_MIN/MAX / PERSUADE_ROUND_SCORE_MIN/MAX 保持鸭子调用；
+## 纯字符串 / 字典工具直接走 DictUtil。
 
 const _PersonaFallbackScript := preload("res://scripts/llm/persona_fallback.gd")
 
@@ -24,7 +23,7 @@ func key_point_matches(answer: String, point: Dictionary) -> bool:
 	var normalized := normalize_match_text(answer)
 	if normalized.is_empty():
 		return false
-	var groups: Array = _level._get_dict_array(point, "groups")
+	var groups: Array = DictUtil.get_dict_array(point, "groups")
 	if groups.is_empty():
 		return false
 	var hit_count := 0
@@ -61,16 +60,16 @@ func qa_key_points_text(npc: Unit) -> String:
 		var label := String(point.get("label", "")).strip_edges()
 		if label.is_empty():
 			continue
-		var keys: Array = _level._get_dict_array(point, "knowledge_keys")
+		var keys: Array = DictUtil.get_dict_array(point, "knowledge_keys")
 		var suffix := ""
 		if not keys.is_empty():
-			suffix = "；关联知识 key：" + "、".join(_level._string_array(keys))
+			suffix = "；关联知识 key：" + "、".join(DictUtil.string_array(keys))
 		lines.append("- %s%s" % [label, suffix])
 	return "\n".join(lines) if not lines.is_empty() else "（未配置；按问题语义宽松判断）"
 
 
 func persuade_key_points_text(persuasion_goal: Dictionary) -> String:
-	var key_points: Array = _level._get_dict_array(persuasion_goal, "key_points")
+	var key_points: Array = DictUtil.get_dict_array(persuasion_goal, "key_points")
 	if key_points.is_empty():
 		return "（未配置；按说服目标语义宽松判断）"
 	var lines: Array[String] = []
@@ -81,16 +80,16 @@ func persuade_key_points_text(persuasion_goal: Dictionary) -> String:
 		var label := String(point.get("label", "")).strip_edges()
 		if label.is_empty():
 			continue
-		var keys: Array = _level._get_dict_array(point, "knowledge_keys")
+		var keys: Array = DictUtil.get_dict_array(point, "knowledge_keys")
 		var suffix := ""
 		if not keys.is_empty():
-			suffix = "；关联知识 key：" + "、".join(_level._string_array(keys))
+			suffix = "；关联知识 key：" + "、".join(DictUtil.string_array(keys))
 		lines.append("- %s%s" % [label, suffix])
 	return "\n".join(lines) if not lines.is_empty() else "（未配置；按说服目标语义宽松判断）"
 
 
 func make_rule_persuade_answer(npc: Unit, argument: String, persona: Dictionary, persuasion_goal: Dictionary) -> Dictionary:
-	var key_points: Array = _level._get_dict_array(persuasion_goal, "key_points")
+	var key_points: Array = DictUtil.get_dict_array(persuasion_goal, "key_points")
 	var matched: Array[String] = []
 	var missed: Array[String] = []
 	var knowledge_used: Array[String] = []
@@ -103,7 +102,7 @@ func make_rule_persuade_answer(npc: Unit, argument: String, persona: Dictionary,
 			continue
 		if key_point_matches(argument, point):
 			matched.append(label)
-			var keys: Array = _level._get_dict_array(point, "knowledge_keys")
+			var keys: Array = DictUtil.get_dict_array(point, "knowledge_keys")
 			for key_v in keys:
 				var key := String(key_v).strip_edges()
 				if not key.is_empty() and not knowledge_used.has(key):
@@ -117,7 +116,7 @@ func make_rule_persuade_answer(npc: Unit, argument: String, persona: Dictionary,
 	if has_progress:
 		accum_score = clampi(10 + matched_count * 2, _level.PERSUADE_ACCUM_SCORE_MIN, _level.PERSUADE_ACCUM_SCORE_MAX)
 		round_score = clampi(5 + matched_count * 4, _level.PERSUADE_ROUND_SCORE_MIN, _level.PERSUADE_ROUND_SCORE_MAX)
-	var reply: String = _level._pick_persuade_success_feedback(npc, persona) if has_progress else _PersonaFallbackScript.pick(persona, "persuade")
+	var reply: String = _level._persuade_flow.pick_success_feedback(npc, persona) if has_progress else _PersonaFallbackScript.pick(persona, "persuade")
 	return {
 		"reply": reply,
 		"accum_score": accum_score,
@@ -147,7 +146,7 @@ func make_rule_qa_eval(npc: Unit, answer: String, persona: Dictionary) -> Dictio
 			continue
 		if key_point_matches(answer, point):
 			matched.append(label)
-			var keys: Array = _level._get_dict_array(point, "knowledge_keys")
+			var keys: Array = DictUtil.get_dict_array(point, "knowledge_keys")
 			for key_v in keys:
 				var key := String(key_v).strip_edges()
 				if not key.is_empty() and not knowledge_used.has(key):
@@ -155,7 +154,7 @@ func make_rule_qa_eval(npc: Unit, answer: String, persona: Dictionary) -> Dictio
 		else:
 			missed.append(label)
 	var is_correct := not matched.is_empty()
-	var feedback: String = _level._pick_qa_success_feedback(npc, persona) if is_correct else _PersonaFallbackScript.pick(persona, "qa")
+	var feedback: String = _level._qa_flow.pick_success_feedback(npc, persona) if is_correct else _PersonaFallbackScript.pick(persona, "qa")
 	return {
 		"is_correct": is_correct,
 		"feedback": feedback,
