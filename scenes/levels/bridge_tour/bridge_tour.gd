@@ -42,16 +42,7 @@ const NEIGHBOR_INTERJECT_PROB := 0.4
 const NEIGHBOR_INTERJECT_RANGE := 5
 const HERO_INFINITE_AP := 99999
 const HERO_MOVE_PREVIEW_AP_BUDGET := 120 # 验桥日移动范围预览上限，避免无限 AP 把整张图 overlay 算出来
-## 演示用作弊暗语：玩家输入只要包含其中任一短语，目标 NPC 任务立即通过。
-## LLM 仍会被告知玩家"言中要害"，给出贴角色口吻的惊叹回应——所以观众察觉不到这是作弊。
-## 这些都是 4 字短语，不会自然出现在玩家正常论点里。
-const CHEAT_WORDS: Array[String] = [
-	"鲁班托梦",   # 神匠显梦指点
-	"墨线自明",   # 工匠墨线自行显准
-	"石龙点头",   # 桥石似有灵应
-	"洨水有灵",   # 本关河流神灵
-	"天工开物",   # 引经据典（明代典籍名）
-]
+const CHEAT_WORDS := CheatKeywordGate.CHEAT_WORDS
 
 # ── 状态 ──
 var _npcs: Array[Unit] = []
@@ -61,6 +52,7 @@ var _llm: Node = null
 var _llm_runner: LLMInteractionRunner = null
 var _llm_context_builder: LLMContextBuilder = null
 var _key_point_matcher: KeyPointMatcher = null
+var _cheat_gate: CheatKeywordGate = null
 var _voice: Node = null
 var _mission_hud: Node = null
 ## 玩家通过 mentor 学过的知识 key（来自 BridgeKnowledge.TOPICS）。
@@ -95,6 +87,13 @@ func _get_key_point_matcher() -> KeyPointMatcher:
 		_key_point_matcher = KeyPointMatcher.new()
 		_key_point_matcher.setup(self)
 	return _key_point_matcher
+
+
+func _get_cheat_gate() -> CheatKeywordGate:
+	if _cheat_gate == null:
+		_cheat_gate = CheatKeywordGate.new()
+		_cheat_gate.setup(self)
+	return _cheat_gate
 
 
 func _get_voice() -> Node:
@@ -361,7 +360,7 @@ func _pick_persuade_opening(npc: Unit) -> String:
 
 ## 检测玩家输入是否包含演示用作弊暗语。命中即整轮强制通过。
 func _argument_has_cheat(argument: String) -> bool:
-	return _is_cheat_text(argument)
+	return _get_cheat_gate().argument_has_cheat(argument)
 
 
 func _generate_persuade_answer(npc: Unit, topic: String) -> Dictionary:
@@ -536,34 +535,15 @@ func _generate_qa_eval(npc: Unit, question: String, answer: String) -> Dictionar
 
 
 func _is_cheat_text(text: String) -> bool:
-	return not _matched_cheat_word(text).is_empty()
+	return _get_cheat_gate().is_cheat_text(text)
 
 
 func _matched_cheat_word(text: String) -> String:
-	var normalized := text.strip_edges().to_lower()
-	if normalized.is_empty():
-		return ""
-	for word in CHEAT_WORDS:
-		var clean_word := String(word).strip_edges()
-		var normalized_word := clean_word.to_lower()
-		if not normalized_word.is_empty() and normalized.find(normalized_word) >= 0:
-			return clean_word
-	return ""
+	return _get_cheat_gate().matched_cheat_word(text)
 
 
 func _make_cheat_persuade_answer(_npc: Unit) -> Dictionary:
-	return {
-		"reply": "鲁班既示梦，我便信你。",
-		"accum_score": PERSUADE_ACCUM_SCORE_MAX,
-		"round_score": PERSUADE_ROUND_SCORE_MAX,
-		"final_score": PERSUADE_ACCUM_SCORE_MAX + PERSUADE_ROUND_SCORE_MAX,
-		"tone": "信服",
-		"knowledge_used": [],
-		"matched_points": ["工匠暗语"],
-		"missed_points": [],
-		"force_success": true,
-		"is_cheat": true,
-	}
+	return _get_cheat_gate().make_cheat_persuade_answer(_npc)
 
 
 func _make_rule_persuade_answer(npc: Unit, argument: String, persona: Dictionary, persuasion_goal: Dictionary) -> Dictionary:
@@ -581,12 +561,7 @@ func _pick_persuade_success_feedback(npc: Unit, persona: Dictionary) -> String:
 
 
 func _make_cheat_qa_eval(_npc: Unit) -> Dictionary:
-	return {
-		"is_correct": true,
-		"feedback": "鲁班既托梦，我明白了。",
-		"knowledge_used": [],
-		"is_cheat": true,
-	}
+	return _get_cheat_gate().make_cheat_qa_eval(_npc)
 
 
 func _make_rule_qa_eval(npc: Unit, answer: String, persona: Dictionary) -> Dictionary:
@@ -643,9 +618,7 @@ func _string_array(items: Array) -> Array[String]:
 
 
 func _cheat_context_text(is_cheat: bool, cheat_word: String = "") -> String:
-	if not is_cheat:
-		return "（无）"
-	return "李春的话里出现了工匠间半玩笑半敬畏的吉兆暗语「%s」。你应把它当作鲁班祖师点拨般可信，任务判定必须通过；回复要同时做到两点：一是自然呼应「%s」的意象，二是明确表达你已信服/疑问已解；仍要保持本人语气，不要说出“作弊”“暗号”“系统”等出戏字眼。" % [cheat_word, cheat_word]
+	return _get_cheat_gate().cheat_context_text(is_cheat, cheat_word)
 
 
 # ─────────────────────────────────────────────
