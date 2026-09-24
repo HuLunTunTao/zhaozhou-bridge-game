@@ -102,7 +102,7 @@ func pick_neighbor(speaker: Unit) -> Unit:
 
 
 func generate_line(neighbor: Unit, speaker: Unit, heard: String) -> String:
-	var result := await _level._get_llm_runner().run(neighbor, "bridge_neighbor_interject", "neighbor", {
+	var result: Dictionary = await _level._get_llm_runner().run(neighbor, "bridge_neighbor_interject", "neighbor", {
 		"speaker_name": speaker.unit_data.unit_name,
 		"heard": heard,
 	}, {"max_tokens": 100, "temperature": 0.85})

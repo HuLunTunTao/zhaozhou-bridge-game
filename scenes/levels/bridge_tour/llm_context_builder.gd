@@ -63,9 +63,9 @@ func dialogue_history_text(npc: Unit, max_entries: int = 4) -> String:
 	for i in range(start, history.size()):
 		var entry: Dictionary = history[i] if history[i] is Dictionary else {}
 		var speaker := String(entry.get("npc_name", npc.unit_data.unit_name))
-		var question := _level._clip_text(String(entry.get("question", "")).strip_edges(), 80)
-		var player_text := _level._clip_text(String(entry.get("player", "")).strip_edges(), 90)
-		var npc_text := _level._clip_text(String(entry.get("npc", "")).strip_edges(), 90)
+		var question: String = _level._clip_text(String(entry.get("question", "")).strip_edges(), 80)
+		var player_text: String = _level._clip_text(String(entry.get("player", "")).strip_edges(), 90)
+		var npc_text: String = _level._clip_text(String(entry.get("npc", "")).strip_edges(), 90)
 		if not question.is_empty():
 			lines.append("%s问：%s" % [speaker, question])
 		if not player_text.is_empty():
@@ -112,7 +112,7 @@ func hero_distance_label(npc: Unit) -> String:
 func learned_title_list() -> Array[String]:
 	var titles: Array[String] = []
 	for k in _level._player_learned_topics:
-		var topic := _BridgeKnowledgeScript.get_topic(k)
+		var topic: Dictionary = _BridgeKnowledgeScript.get_topic(k)
 		if not topic.is_empty():
 			titles.append("%s:%s" % [k, String(topic.get("title", k))])
 	return titles
@@ -123,7 +123,7 @@ func learned_details_text() -> String:
 		return "（无。若李春没有引用具体工程知识，NPC 应保持疑虑。）"
 	var lines: Array[String] = []
 	for k in _level._player_learned_topics:
-		var topic := _BridgeKnowledgeScript.get_topic(k)
+		var topic: Dictionary = _BridgeKnowledgeScript.get_topic(k)
 		if topic.is_empty():
 			continue
 		lines.append("%s（%s）：%s" % [
@@ -140,7 +140,7 @@ func learned_memo() -> String:
 		return "（玩家尚未学过任何桥梁知识）"
 	var titles: Array[String] = []
 	for k in _level._player_learned_topics:
-		var topic := _BridgeKnowledgeScript.get_topic(k)
+		var topic: Dictionary = _BridgeKnowledgeScript.get_topic(k)
 		if not topic.is_empty():
 			titles.append(String(topic.get("title", k)))
 	return "玩家已学知识：" + "、".join(titles)

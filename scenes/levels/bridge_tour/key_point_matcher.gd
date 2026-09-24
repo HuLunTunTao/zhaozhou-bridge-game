@@ -117,7 +117,7 @@ func make_rule_persuade_answer(npc: Unit, argument: String, persona: Dictionary,
 	if has_progress:
 		accum_score = clampi(10 + matched_count * 2, _level.PERSUADE_ACCUM_SCORE_MIN, _level.PERSUADE_ACCUM_SCORE_MAX)
 		round_score = clampi(5 + matched_count * 4, _level.PERSUADE_ROUND_SCORE_MIN, _level.PERSUADE_ROUND_SCORE_MAX)
-	var reply := _level._pick_persuade_success_feedback(npc, persona) if has_progress else _PersonaFallbackScript.pick(persona, "persuade")
+	var reply: String = _level._pick_persuade_success_feedback(npc, persona) if has_progress else _PersonaFallbackScript.pick(persona, "persuade")
 	return {
 		"reply": reply,
 		"accum_score": accum_score,
@@ -155,7 +155,7 @@ func make_rule_qa_eval(npc: Unit, answer: String, persona: Dictionary) -> Dictio
 		else:
 			missed.append(label)
 	var is_correct := not matched.is_empty()
-	var feedback := _level._pick_qa_success_feedback(npc, persona) if is_correct else _PersonaFallbackScript.pick(persona, "qa")
+	var feedback: String = _level._pick_qa_success_feedback(npc, persona) if is_correct else _PersonaFallbackScript.pick(persona, "qa")
 	return {
 		"is_correct": is_correct,
 		"feedback": feedback,
