@@ -24,7 +24,6 @@ const _PortraitResolverScript := preload("res://scripts/llm/portrait_resolver.gd
 const _BridgeKnowledgeScript := preload("res://scripts/data/bridge_knowledge.gd")
 const _ArgumentInputPanelScene := preload("res://scenes/ui/argument_input_panel.tscn")
 const _TopicMenuPanelScene := preload("res://scenes/ui/topic_menu_panel.tscn")
-const _KnowledgePanelScene := preload("res://scenes/ui/knowledge_panel.tscn")
 const _ThinkingOverlayScene := preload("res://scenes/ui/thinking_overlay.tscn")
 const _MissionHudScene := preload("res://scenes/levels/bridge_tour/mission_hud.tscn")
 
@@ -54,12 +53,15 @@ var _llm_context_builder: LLMContextBuilder = null
 var _key_point_matcher: KeyPointMatcher = null
 var _cheat_gate: CheatKeywordGate = null
 var _neighbor_interjecter: NeighborInterjecter = null
+var _learned_view: LearnedKnowledgeView = null
 var _voice: Node = null
 var _mission_hud: Node = null
-## 玩家通过 mentor 学过的知识 key（来自 BridgeKnowledge.TOPICS）。
-var _player_learned_topics: Array[String] = []
-## 玩家在 persuade / qa 中实际"用上了"的知识 key（在 prompt eval 时 LLM 标记的）。
-var _player_used_topics: Array[String] = []
+## 玩家通过 mentor 学过的知识 key（来自 BridgeKnowledge.TOPICS）。状态在 LearnedKnowledgeView，此处属性转发。
+var _player_learned_topics: Array[String]:
+	get: return _get_learned_view().learned_topics
+## 玩家在 persuade / qa 中实际"用上了"的知识 key（在 prompt eval 时 LLM 标记的）。同上转发。
+var _player_used_topics: Array[String]:
+	get: return _get_learned_view().used_topics
 
 
 func _get_llm() -> Node:
@@ -102,6 +104,13 @@ func _get_neighbor_interjecter() -> NeighborInterjecter:
 		_neighbor_interjecter = NeighborInterjecter.new()
 		_neighbor_interjecter.setup(self)
 	return _neighbor_interjecter
+
+
+func _get_learned_view() -> LearnedKnowledgeView:
+	if _learned_view == null:
+		_learned_view = LearnedKnowledgeView.new()
+		_learned_view.setup(self)
+	return _learned_view
 
 
 func _get_voice() -> Node:
@@ -284,13 +293,7 @@ func get_interaction_target() -> Unit:
 
 
 func _open_knowledge_panel() -> void:
-	if has_overlay():
-		return
-	var panel: Node = _KnowledgePanelScene.instantiate()
-	if not _open_overlay(ActiveOverlay.KNOWLEDGE, panel, &"closed"):
-		panel.queue_free()
-		return
-	panel.set_state(_player_learned_topics, _player_used_topics)
+	_get_learned_view().open_panel(self)
 
 
 # ─────────────────────────────────────────────
@@ -433,8 +436,8 @@ func _apply_persuade_result(npc: Unit, ans: Dictionary) -> void:
 	# LLM 引用过的知识 → 加入 used 集合，知识面板高亮
 	for k in ans.get("knowledge_used", []):
 		var key := String(k)
-		if not key.is_empty() and not _player_used_topics.has(key):
-			_player_used_topics.append(key)
+		if not key.is_empty():
+			_get_learned_view().add_used(key)
 	var was_persuaded: bool = st.persuaded
 	var now_persuaded: bool = new_stance >= STANCE_PERSUADED
 	if not was_persuaded and now_persuaded:
@@ -659,8 +662,7 @@ func _apply_mentor_lesson(npc: Unit, lesson: Dictionary) -> void:
 	var topic: Dictionary = _BridgeKnowledgeScript.get_topic(key)
 	if topic.is_empty():
 		return
-	if not _player_learned_topics.has(key):
-		_player_learned_topics.append(key)
+	if _get_learned_view().add_learned(key):
 		Notify.notify(
 			"向 %s 学到了「%s」" % [npc.unit_data.unit_name, topic.get("title", key)],
 			Notify.Position.TOP_RIGHT, Notify.Style.SUCCESS, 3.5
