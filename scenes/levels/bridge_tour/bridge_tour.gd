@@ -456,39 +456,13 @@ func _normalize_persuade_scores(ans: Dictionary) -> void:
 
 
 # ─────────────────────────────────────────────
-# Flow 2：解答（NPC 抛预设问题 → 玩家答 → LLM 判对错）
+# Flow 2：解答 — 流程骨架与状态更新见 QaFlow；LLM 判分与 cheat / rule 兜底暂留此（2.16 / 2.18 再抽）
 # ─────────────────────────────────────────────
 
 func _flow_qa(npc: Unit) -> void:
-	if _npc_state(npc).is_done():
-		Notify.info("%s 的疑问已解" % npc.unit_data.unit_name, 1.5)
-		return
-	var st := _npc_state(npc)
-	var bridge_part: String = st.bridge_part
-	var question: String = _pick_qa_question(npc)
-	# 先让 NPC 把问题抛给玩家——dialogue_box 显示 + TTS
-	await _play_npc_line(npc, question, true)
-	# 玩家输入答案；副标题用 NPC 名 + 桥部位
-	var panel: Node = _ArgumentInputPanelScene.instantiate()
-	add_child(panel)
-	panel.show_for(npc.unit_data.unit_name, "%s · 「%s」" % [bridge_part, question])
-	panel.set_learned_topics(_player_learned_topics, _player_used_topics)
-	panel.set_history(_history_with_npc_prompt(npc, question))
-	var answer: String = await panel.argument_submitted
-	if answer.is_empty():
-		return
-	var thinking := _show_thinking("%s 正在判断……" % npc.unit_data.unit_name)
-	var eval: Dictionary = await _generate_qa_eval(npc, question, answer)
-	_hide_thinking(thinking)
-	_apply_qa_result(npc, eval)
-	var feedback: String = String(eval.get("feedback", ""))
-	var is_fallback: bool = bool(eval.get("is_fallback", false))
-	# 记入对话历史。问题用本轮抛出的 question + 玩家答案 + NPC feedback 三段拼接：
-	# 历史每条同时保存 question，避免下次打开面板时丢掉 NPC 上轮问句。
-	_append_dialogue_log(npc, answer, feedback, "fallback" if is_fallback else "qa", question)
-	var neighbor_spec := _start_neighbor_interject(npc, feedback)
-	await _play_npc_line(npc, feedback, not is_fallback)
-	await _play_pending_neighbor(neighbor_spec)
+	var flow := QaFlow.new()
+	flow.setup(self)
+	await flow.run(npc)
 
 
 ## 把一轮交互写入 NPC 的 dialogue_log meta。供 set_history 显示给玩家看。
@@ -522,26 +496,6 @@ func _history_with_npc_prompt(npc: Unit, prompt_text: String) -> Array:
 		"tone": "question_preview",
 	})
 	return history
-
-
-## 取一句 QA 问题。优先用 persona.qa_questions 数组按尝试次数轮换；空时 fallback 到旧
-## qa_question 单字段；再空 fallback 到 spawn 时存的 state.qa_question；最终兜底固定句。
-## 选完后 state.qa_attempt += 1 写回，供下次轮换。
-func _pick_qa_question(npc: Unit) -> String:
-	var persona: Dictionary = _NpcPersonasScript.get_persona(npc.unit_data.unit_id, npc.unit_data.camp)
-	var st := _npc_state(npc)
-	var attempt: int = st.qa_attempt
-	var qs_raw: Variant = persona.get("qa_questions", [])
-	var qs: Array = qs_raw if qs_raw is Array else []
-	var picked: String = ""
-	if not qs.is_empty():
-		picked = String(qs[attempt % qs.size()])
-	else:
-		picked = String(persona.get("qa_question", ""))
-	if picked.is_empty():
-		picked = st.qa_question if not st.qa_question.is_empty() else "我有一事相问，可解么？"
-	st.qa_attempt = attempt + 1
-	return picked
 
 
 func _generate_qa_eval(npc: Unit, question: String, answer: String) -> Dictionary:
@@ -581,23 +535,6 @@ func _generate_qa_eval(npc: Unit, question: String, answer: String) -> Dictionar
 	if is_cheat:
 		return _make_cheat_qa_eval(npc)
 	return _make_rule_qa_eval(npc, answer, persona)
-
-
-func _apply_qa_result(npc: Unit, eval: Dictionary) -> void:
-	for k in eval.get("knowledge_used", []):
-		var key := String(k)
-		if not key.is_empty() and not _player_used_topics.has(key):
-			_player_used_topics.append(key)
-	var is_correct: bool = bool(eval.get("is_correct", false))
-	if is_correct and not _npc_state(npc).qa_solved:
-		_npc_state(npc).qa_solved = true
-		Notify.notify("已解答 %s 的疑问" % npc.unit_data.unit_name, Notify.Position.TOP_RIGHT, Notify.Style.SUCCESS, 3.0)
-		_refresh_npc_name_label(npc)
-		_check_all_done_for_victory()
-	elif not is_correct:
-		Notify.warn("%s 摇头：尚有疑虑" % npc.unit_data.unit_name)
-	if _mission_hud:
-		_mission_hud.update_npc("qa", npc.unit_data.unit_name, is_correct)
 
 
 func _is_cheat_text(text: String) -> bool:
