@@ -17,9 +17,7 @@ const _SK_INTERACT := preload("res://data/skills/bridge_tour_interact.tres")
 const _VISUAL_LI_CHUN := preload("res://scenes/unit/visual/human/li_chun/li_chun_visual.tscn")
 
 const _NpcSpecLibraryScript := preload("res://scenes/levels/bridge_tour/npc_spec_library.gd")
-const _NpcPersonasScript := preload("res://scripts/llm/npc_personas.gd")
 const _PersonaFallbackScript := preload("res://scripts/llm/persona_fallback.gd")
-const _ChatterPromptsScript := preload("res://scripts/llm/chatter_prompts.gd")
 const _LLMClientScript := preload("res://scripts/llm/llm_client.gd")
 const _ChatterVoiceScript := preload("res://scripts/tts/chatter_voice_adapter.gd")
 const _PortraitResolverScript := preload("res://scripts/llm/portrait_resolver.gd")
@@ -60,6 +58,7 @@ var _npcs: Array[Unit] = []
 var _spawner: NpcSpawner = null
 var _interaction_target: Unit = null
 var _llm: Node = null
+var _llm_runner: LLMInteractionRunner = null
 var _voice: Node = null
 var _mission_hud: Node = null
 ## 玩家通过 mentor 学过的知识 key（来自 BridgeKnowledge.TOPICS）。
@@ -73,6 +72,13 @@ func _get_llm() -> Node:
 		_llm = _LLMClientScript.new()
 		add_child(_llm)
 	return _llm
+
+
+func _get_llm_runner() -> LLMInteractionRunner:
+	if _llm_runner == null:
+		_llm_runner = LLMInteractionRunner.new()
+		_llm_runner.setup(self)
+	return _llm_runner
 
 
 func _get_voice() -> Node:
@@ -317,11 +323,11 @@ func _dispatch_interaction(npc: Unit) -> void:
 
 
 # ─────────────────────────────────────────────
-# Flow 1：说服 — 流程骨架见 PersuadeFlow；LLM 生成与 apply 暂留此（2.16 再抽）
+# Flow 1：说服 — 流程骨架见 PersuadeFlow；LLM 胶水见 LLMInteractionRunner，apply 暂留此
 # ─────────────────────────────────────────────
 
 func _pick_persuade_opening(npc: Unit) -> String:
-	var persona: Dictionary = _NpcPersonasScript.get_persona(npc.unit_data.unit_id, npc.unit_data.camp)
+	var persona: Dictionary = NpcPersonas.get_persona(npc.unit_data.unit_id, npc.unit_data.camp)
 	var fallback_lines: Variant = persona.get("fallback_lines", {})
 	var openings: Array = []
 	if fallback_lines is Dictionary:
@@ -345,21 +351,12 @@ func _argument_has_cheat(argument: String) -> bool:
 func _generate_persuade_answer(npc: Unit, topic: String) -> Dictionary:
 	var cheat_word := _matched_cheat_word(topic)
 	var is_cheat := not cheat_word.is_empty()
-	var persona: Dictionary = _NpcPersonasScript.get_persona(npc.unit_data.unit_id, npc.unit_data.camp)
 	var st := _npc_state(npc)
-	var bridge_part: String = st.bridge_part
-	var stance: int = st.stance
 	var persuasion_goal: Dictionary = st.persuasion_goal
-	var sys: String = _ChatterPromptsScript.build_system_prompt(
-		persona,
-		"bridge_topic_answer",
-		_build_npc_memory_memo(npc),
-		_build_bridge_context_json(npc, "persuade")
-	)
-	var user: String = _ChatterPromptsScript.build_user_prompt(persona, "bridge_topic_answer", {
+	var result := await _get_llm_runner().run(npc, "bridge_topic_answer", "persuade", {
 		"topic": topic,
-		"bridge_part": bridge_part,
-		"stance": stance,
+		"bridge_part": st.bridge_part,
+		"stance": st.stance,
 		"persuasion_goal": persuasion_goal,
 		"learned_csv": _learned_csv(),
 		"learned_details": _learned_details_text(),
@@ -368,27 +365,23 @@ func _generate_persuade_answer(npc: Unit, topic: String) -> Dictionary:
 		"cheat_context": _cheat_context_text(is_cheat, cheat_word),
 		"accum_total": st.accum_score_total,
 		"persuade_key_points": _persuade_key_points_text(persuasion_goal),
-	})
-	var resp: Dictionary = await _get_llm().chat_completion([
-		{"role": "system", "content": sys},
-		{"role": "user", "content": user},
-	], {"max_tokens": 260, "temperature": 0.85})
-	if resp.get("ok", false):
-		var parsed := _parse_object_json(String(resp.get("text", "")))
-		if not parsed.is_empty() and parsed.has("reply"):
-			if is_cheat:
-				parsed["accum_score"] = PERSUADE_ACCUM_SCORE_MAX
-				parsed["round_score"] = PERSUADE_ROUND_SCORE_MAX
-				parsed["final_score"] = PERSUADE_ACCUM_SCORE_MAX + PERSUADE_ROUND_SCORE_MAX
-				parsed["force_success"] = true
-				parsed["is_cheat"] = true
-			else:
-				_normalize_persuade_scores(parsed)
-			if not parsed.has("tone"): parsed["tone"] = ""
-			if not parsed.has("knowledge_used"): parsed["knowledge_used"] = []
-			if not parsed.has("matched_points"): parsed["matched_points"] = []
-			if not parsed.has("missed_points"): parsed["missed_points"] = []
-			return parsed
+	}, {"max_tokens": 260, "temperature": 0.85}, "reply")
+	var persona: Dictionary = result.get("persona", {})
+	if result.get("ok", false):
+		var parsed: Dictionary = result.get("parsed", {})
+		if is_cheat:
+			parsed["accum_score"] = PERSUADE_ACCUM_SCORE_MAX
+			parsed["round_score"] = PERSUADE_ROUND_SCORE_MAX
+			parsed["final_score"] = PERSUADE_ACCUM_SCORE_MAX + PERSUADE_ROUND_SCORE_MAX
+			parsed["force_success"] = true
+			parsed["is_cheat"] = true
+		else:
+			_normalize_persuade_scores(parsed)
+		if not parsed.has("tone"): parsed["tone"] = ""
+		if not parsed.has("knowledge_used"): parsed["knowledge_used"] = []
+		if not parsed.has("matched_points"): parsed["matched_points"] = []
+		if not parsed.has("missed_points"): parsed["missed_points"] = []
+		return parsed
 	if is_cheat:
 		return _make_cheat_persuade_answer(npc)
 	return _make_rule_persuade_answer(npc, topic, persona, persuasion_goal)
@@ -456,7 +449,7 @@ func _normalize_persuade_scores(ans: Dictionary) -> void:
 
 
 # ─────────────────────────────────────────────
-# Flow 2：解答 — 流程骨架与状态更新见 QaFlow；LLM 判分与 cheat / rule 兜底暂留此（2.16 / 2.18 再抽）
+# Flow 2：解答 — 流程骨架与状态更新见 QaFlow；LLM 判分薄壳与 cheat / rule 兜底暂留此（2.18 再抽）
 # ─────────────────────────────────────────────
 
 func _flow_qa(npc: Unit) -> void:
@@ -501,14 +494,7 @@ func _history_with_npc_prompt(npc: Unit, prompt_text: String) -> Array:
 func _generate_qa_eval(npc: Unit, question: String, answer: String) -> Dictionary:
 	var cheat_word := _matched_cheat_word(answer)
 	var is_cheat := not cheat_word.is_empty()
-	var persona: Dictionary = _NpcPersonasScript.get_persona(npc.unit_data.unit_id, npc.unit_data.camp)
-	var sys: String = _ChatterPromptsScript.build_system_prompt(
-		persona,
-		"bridge_qa_eval",
-		_build_npc_memory_memo(npc),
-		_build_bridge_context_json(npc, "qa")
-	)
-	var user: String = _ChatterPromptsScript.build_user_prompt(persona, "bridge_qa_eval", {
+	var result := await _get_llm_runner().run(npc, "bridge_qa_eval", "qa", {
 		"question": question,
 		"answer": answer,
 		"learned_csv": _learned_csv(),
@@ -517,21 +503,17 @@ func _generate_qa_eval(npc: Unit, question: String, answer: String) -> Dictionar
 		"mission_context": _mission_context_text(npc),
 		"cheat_context": _cheat_context_text(is_cheat, cheat_word),
 		"qa_key_points": _qa_key_points_text(npc),
-	})
-	var resp: Dictionary = await _get_llm().chat_completion([
-		{"role": "system", "content": sys},
-		{"role": "user", "content": user},
-	], {"max_tokens": 240, "temperature": 0.7})
-	if resp.get("ok", false):
-		var parsed := _parse_object_json(String(resp.get("text", "")))
-		if not parsed.is_empty() and parsed.has("feedback"):
-			if is_cheat:
-				parsed["is_correct"] = true
-				parsed["is_cheat"] = true
-			elif not parsed.has("is_correct"):
-				parsed["is_correct"] = false
-			if not parsed.has("knowledge_used"): parsed["knowledge_used"] = []
-			return parsed
+	}, {"max_tokens": 240, "temperature": 0.7}, "feedback")
+	var persona: Dictionary = result.get("persona", {})
+	if result.get("ok", false):
+		var parsed: Dictionary = result.get("parsed", {})
+		if is_cheat:
+			parsed["is_correct"] = true
+			parsed["is_cheat"] = true
+		elif not parsed.has("is_correct"):
+			parsed["is_correct"] = false
+		if not parsed.has("knowledge_used"): parsed["knowledge_used"] = []
+		return parsed
 	if is_cheat:
 		return _make_cheat_qa_eval(npc)
 	return _make_rule_qa_eval(npc, answer, persona)
@@ -774,31 +756,20 @@ func _cheat_context_text(is_cheat: bool, cheat_word: String = "") -> String:
 
 
 # ─────────────────────────────────────────────
-# Flow 3：求教 — 流程骨架见 MentorFlow；LLM 生成与 apply 暂留此（2.16 再抽）
+# Flow 3：求教 — 流程骨架见 MentorFlow；LLM 胶水见 LLMInteractionRunner，apply 暂留此
 # ─────────────────────────────────────────────
 
 func _generate_mentor_lesson(npc: Unit, query: String) -> Dictionary:
-	var persona: Dictionary = _NpcPersonasScript.get_persona(npc.unit_data.unit_id, npc.unit_data.camp)
-	var sys: String = _ChatterPromptsScript.build_system_prompt(
-		persona,
-		"bridge_knowledge_explain",
-		_build_npc_memory_memo(npc),
-		_build_bridge_context_json(npc, "mentor")
-	)
-	var user: String = _ChatterPromptsScript.build_user_prompt(persona, "bridge_knowledge_explain", {
+	var result := await _get_llm_runner().run(npc, "bridge_knowledge_explain", "mentor", {
 		"query": query,
 		"topics_csv": _BridgeKnowledgeScript.key_to_title_csv(),
-	})
-	var resp: Dictionary = await _get_llm().chat_completion([
-		{"role": "system", "content": sys},
-		{"role": "user", "content": user},
-	], {"max_tokens": 320, "temperature": 0.7})
-	if resp.get("ok", false):
-		var parsed := _parse_object_json(String(resp.get("text", "")))
-		if not parsed.is_empty() and parsed.has("reply"):
-			if not parsed.has("topic_key"):
-				parsed["topic_key"] = ""
-			return parsed
+	}, {"max_tokens": 320, "temperature": 0.7}, "reply")
+	var persona: Dictionary = result.get("persona", {})
+	if result.get("ok", false):
+		var parsed: Dictionary = result.get("parsed", {})
+		if not parsed.has("topic_key"):
+			parsed["topic_key"] = ""
+		return parsed
 	return {
 		"reply": _PersonaFallbackScript.pick(persona, "mentor"),
 		"topic_key": "",
@@ -906,26 +877,16 @@ func _pick_neighbor_for_interject(speaker: Unit) -> Unit:
 
 
 func _generate_neighbor_line(neighbor: Unit, speaker: Unit, heard: String) -> String:
-	var persona: Dictionary = _NpcPersonasScript.get_persona(neighbor.unit_data.unit_id, neighbor.unit_data.camp)
-	var sys: String = _ChatterPromptsScript.build_system_prompt(
-		persona,
-		"bridge_neighbor_interject",
-		_build_npc_memory_memo(neighbor),
-		_build_bridge_context_json(neighbor, "neighbor")
-	)
-	var user: String = _ChatterPromptsScript.build_user_prompt(persona, "bridge_neighbor_interject", {
+	var result := await _get_llm_runner().run(neighbor, "bridge_neighbor_interject", "neighbor", {
 		"speaker_name": speaker.unit_data.unit_name,
 		"heard": heard,
-	})
-	var resp: Dictionary = await _get_llm().chat_completion([
-		{"role": "system", "content": sys},
-		{"role": "user", "content": user},
-	], {"max_tokens": 100, "temperature": 0.85})
-	if not resp.get("ok", false):
-		push_warning("[bridge_tour LLM] neighbor 调用失败 unit=%s code=%s err=%s" % [neighbor.unit_data.unit_id, resp.get("code", "?"), resp.get("error", "?")])
+	}, {"max_tokens": 100, "temperature": 0.85})
+	var persona: Dictionary = result.get("persona", {})
+	if not result.get("ok", false):
+		push_warning("[bridge_tour LLM] neighbor 调用失败 unit=%s code=%s err=%s" % [neighbor.unit_data.unit_id, result.get("code", "?"), result.get("error", "?")])
 		# LLM 失败 → 用 PersonaFallback 抽 neighbor 变体；空字符串则维持跳过插话
 		return _PersonaFallbackScript.pick(persona, "neighbor").strip_edges()
-	return _strip_quotes(String(resp.get("text", ""))).strip_edges()
+	return _strip_quotes(String(result.get("text", ""))).strip_edges()
 
 
 func _strip_quotes(s: String) -> String:
