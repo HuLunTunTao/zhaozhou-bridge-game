@@ -38,8 +38,8 @@ const PERSUADE_ROUND_SCORE_MIN := -10
 const PERSUADE_ROUND_SCORE_MAX := 15
 const PERSUADE_TARGET := 3
 const QA_TARGET := 4
-const NEIGHBOR_INTERJECT_PROB := 0.4
-const NEIGHBOR_INTERJECT_RANGE := 5
+const NEIGHBOR_INTERJECT_PROB := NeighborInterjecter.NEIGHBOR_INTERJECT_PROB
+const NEIGHBOR_INTERJECT_RANGE := NeighborInterjecter.NEIGHBOR_INTERJECT_RANGE
 const HERO_INFINITE_AP := 99999
 const HERO_MOVE_PREVIEW_AP_BUDGET := 120 # 验桥日移动范围预览上限，避免无限 AP 把整张图 overlay 算出来
 const CHEAT_WORDS := CheatKeywordGate.CHEAT_WORDS
@@ -53,6 +53,7 @@ var _llm_runner: LLMInteractionRunner = null
 var _llm_context_builder: LLMContextBuilder = null
 var _key_point_matcher: KeyPointMatcher = null
 var _cheat_gate: CheatKeywordGate = null
+var _neighbor_interjecter: NeighborInterjecter = null
 var _voice: Node = null
 var _mission_hud: Node = null
 ## 玩家通过 mentor 学过的知识 key（来自 BridgeKnowledge.TOPICS）。
@@ -94,6 +95,13 @@ func _get_cheat_gate() -> CheatKeywordGate:
 		_cheat_gate = CheatKeywordGate.new()
 		_cheat_gate.setup(self)
 	return _cheat_gate
+
+
+func _get_neighbor_interjecter() -> NeighborInterjecter:
+	if _neighbor_interjecter == null:
+		_neighbor_interjecter = NeighborInterjecter.new()
+		_neighbor_interjecter.setup(self)
+	return _neighbor_interjecter
 
 
 func _get_voice() -> Node:
@@ -660,99 +668,27 @@ func _apply_mentor_lesson(npc: Unit, lesson: Dictionary) -> void:
 
 
 # ─────────────────────────────────────────────
-# 邻居插话 + 通用工具
+# 邻居插话（薄壳转发 NeighborInterjecter）+ 通用工具
 # ─────────────────────────────────────────────
 
-class _NeighborGen extends RefCounted:
-	signal completed(text: String)
-	var done := false
-	var text := ""
-	func finish(t: String) -> void:
-		done = true
-		text = t
-		completed.emit(t)
-
-
 func _maybe_neighbor_interject(speaker: Unit, heard: String) -> void:
-	# 旧入口（同步：先 LLM 后播）。新代码请用 _start_neighbor_interject + _play_pending_neighbor，
-	# 把 LLM 与第一句话播放并发，省 1~2 秒等待。这里保留以便兼容。
-	var spec := _start_neighbor_interject(speaker, heard)
-	await _play_pending_neighbor(spec)
+	await _get_neighbor_interjecter().maybe_interject(speaker, heard)
 
 
-## 在第一句话播放前调用。立即决定是否要邻居插话；如果要，立刻 fire-and-forget 跑邻居 LLM。
-## 返回 spec dict 给 _play_pending_neighbor 用：{neighbor: Unit?, gen: _NeighborGen?}。
-## 这样邻居 LLM 与第一句 TTS 播放并发；轮到邻居说话时再走 TTS 流式播放。
 func _start_neighbor_interject(speaker: Unit, heard: String) -> Dictionary:
-	var spec: Dictionary = {"neighbor": null, "gen": null}
-	if heard.is_empty():
-		return spec
-	if randf() >= NEIGHBOR_INTERJECT_PROB:
-		return spec
-	var neighbor: Unit = _pick_neighbor_for_interject(speaker)
-	if neighbor == null:
-		return spec
-	var gen := _NeighborGen.new()
-	spec["neighbor"] = neighbor
-	spec["gen"] = gen
-	_spawn_neighbor_gen_async(neighbor, speaker, heard, gen)  # fire-and-forget
-	return spec
+	return _get_neighbor_interjecter().start_interject(speaker, heard)
 
 
-## 配套 _start_neighbor_interject：第一句话播完后调，等邻居 LLM 收尾再播邻居台词。
 func _play_pending_neighbor(spec: Dictionary) -> void:
-	var neighbor: Variant = spec.get("neighbor")
-	if neighbor == null:
-		return
-	var g: _NeighborGen = spec.get("gen") as _NeighborGen
-	if g == null:
-		return
-	var text: String
-	var thinking: CanvasLayer = null
-	if g.done:
-		text = g.text
-	else:
-		thinking = _show_thinking("%s 正在接话……" % (neighbor as Unit).unit_data.unit_name)
-		text = await g.completed
-		_hide_thinking(thinking)
-	text = text.strip_edges()
-	if text.is_empty():
-		return
-	await _play_npc_line(neighbor as Unit, text, true, "bridge_neighbor_interject")
-
-
-## fire-and-forget 协程：跑邻居 LLM，结束后调 gen.finish(t) 唤醒 _play_pending_neighbor。
-func _spawn_neighbor_gen_async(neighbor: Unit, speaker: Unit, heard: String, gen: _NeighborGen) -> void:
-	var t: String = await _generate_neighbor_line(neighbor, speaker, heard)
-	gen.finish(t)
+	await _get_neighbor_interjecter().play_pending(spec)
 
 
 func _pick_neighbor_for_interject(speaker: Unit) -> Unit:
-	var candidates: Array[Unit] = []
-	for npc in _npcs:
-		if not is_instance_valid(npc) or npc == speaker:
-			continue
-		if npc.combat_stats != null and not npc.combat_stats.is_alive():
-			continue
-		var d: Vector2i = npc.cell - speaker.cell
-		if absi(d.x) + absi(d.y) <= NEIGHBOR_INTERJECT_RANGE:
-			candidates.append(npc)
-	if candidates.is_empty():
-		return null
-	return candidates[randi() % candidates.size()]
+	return _get_neighbor_interjecter().pick_neighbor(speaker)
 
 
 func _generate_neighbor_line(neighbor: Unit, speaker: Unit, heard: String) -> String:
-	var result := await _get_llm_runner().run(neighbor, "bridge_neighbor_interject", "neighbor", {
-		"speaker_name": speaker.unit_data.unit_name,
-		"heard": heard,
-	}, {"max_tokens": 100, "temperature": 0.85})
-	var persona: Dictionary = result.get("persona", {})
-	if not result.get("ok", false):
-		push_warning("[bridge_tour LLM] neighbor 调用失败 unit=%s code=%s err=%s" % [neighbor.unit_data.unit_id, result.get("code", "?"), result.get("error", "?")])
-		# LLM 失败 → 用 PersonaFallback 抽 neighbor 变体；空字符串则维持跳过插话
-		return _PersonaFallbackScript.pick(persona, "neighbor").strip_edges()
-	return _strip_quotes(String(result.get("text", ""))).strip_edges()
+	return await _get_neighbor_interjecter().generate_line(neighbor, speaker, heard)
 
 
 func _strip_quotes(s: String) -> String:
