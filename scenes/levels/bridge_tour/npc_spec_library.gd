@@ -19,6 +19,10 @@ const _VISUAL_FISHERMAN := preload("res://scenes/unit/visual/human/渔夫/渔夫
 
 const _RoamingAIScript := preload("res://scripts/npc/roaming_ai.gd")
 
+## 通关目标数（单一真相源）。
+const PERSUADE_TARGET := 3
+const QA_TARGET := 4
+
 
 ## NPC 配置表。3 persuade + 4 qa + 2 mentor = 9 人。
 static func get_specs() -> Array[Dictionary]:

@@ -35,8 +35,8 @@ const PERSUADE_ACCUM_SCORE_MIN := 6
 const PERSUADE_ACCUM_SCORE_MAX := 15
 const PERSUADE_ROUND_SCORE_MIN := -10
 const PERSUADE_ROUND_SCORE_MAX := 15
-const PERSUADE_TARGET := 3
-const QA_TARGET := 4
+const PERSUADE_TARGET := NpcSpecLibrary.PERSUADE_TARGET
+const QA_TARGET := NpcSpecLibrary.QA_TARGET
 const NEIGHBOR_INTERJECT_PROB := NeighborInterjecter.NEIGHBOR_INTERJECT_PROB
 const NEIGHBOR_INTERJECT_RANGE := NeighborInterjecter.NEIGHBOR_INTERJECT_RANGE
 const HERO_INFINITE_AP := 99999
@@ -217,6 +217,7 @@ func _on_level_ready() -> void:
 		# persuade NPC 显示初始 stance；qa / mentor 静默忽略
 		if st.role == "persuade":
 			_mission_hud.update_npc_stance(npc.unit_data.unit_name, st.stance, STANCE_PERSUADED)
+	_mission_hud.set_counts(_persuaded_count(), _qa_solved_count())
 
 	# 自由移动模式不走 _init_turn_system，但 _can_accept_command 仍要 _waiting_for_player_input=true
 	_waiting_for_player_input = true
@@ -450,6 +451,7 @@ func _apply_persuade_result(npc: Unit, ans: Dictionary) -> void:
 	if _mission_hud:
 		_mission_hud.update_npc("persuade", npc.unit_data.unit_name, now_persuaded)
 		_mission_hud.update_npc_stance(npc.unit_data.unit_name, new_stance, STANCE_PERSUADED, accum_total, accum_score, round_score, final_score)
+		_mission_hud.set_counts(_persuaded_count(), _qa_solved_count())
 
 
 func _normalize_persuade_scores(ans: Dictionary) -> void:

@@ -76,6 +76,7 @@ func _apply(npc: Unit, result: Dictionary) -> void:
 		Notify.warn("%s 摇头：尚有疑虑" % npc.unit_data.unit_name)
 	if _level._mission_hud:
 		_level._mission_hud.update_npc("qa", npc.unit_data.unit_name, is_correct)
+		_level._mission_hud.set_counts(_level._persuaded_count(), _level._qa_solved_count())
 
 
 func _log(npc: Unit, submission: String, result: Dictionary) -> void:
