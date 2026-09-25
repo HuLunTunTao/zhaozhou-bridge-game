@@ -40,7 +40,7 @@ func complete_level() -> void:
 	_level._set_phase(LevelPhase.ENDED)
 	UiSounds.play_victory()
 	var level := GameState.selected_level
-	var growth_options := _level.get_post_level_growth_options()
+	var growth_options: Array[Dictionary] = _level.get_post_level_growth_options()
 	if not growth_options.is_empty() and not Progress.has_level_growth_choices(level):
 		var panel := GrowthChoicePanelScript.new()
 		panel.panel_title = "结算成长"

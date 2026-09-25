@@ -160,7 +160,7 @@ func confirm_targeting_skill(cell: Vector2i) -> void:
 	var unit := _level.selected_unit as Unit
 	if unit and unit.combat_stats:
 		var stats := unit.combat_stats
-		var ec := _level._get_enemy_cell_set(unit.faction)
+		var ec: Dictionary = _level._get_enemy_cell_set(unit.faction)
 		if _level._has_action_budget(stats) and (stats.can_move() or _level._has_usable_attack(unit, ec)):
 			_level._input_state = InputState.UNIT_SELECTED
 			if stats.can_move():

@@ -158,7 +158,7 @@ func on_progress_button_pressed() -> void:
 func show_objectives() -> void:
 	if _level.has_overlay():
 		return
-	var obj := _level.get_objectives_text()
+	var obj: Dictionary = _level.get_objectives_text()
 	if obj["victory"].is_empty() and obj["defeat"].is_empty() and obj.get("details", []).is_empty():
 		return
 	var panel: ObjectivesPanel = _level.ObjectivesPanelScene.instantiate()
@@ -239,7 +239,7 @@ func refresh_difficulty_dependent_ui() -> void:
 				_level.move_overlay.clear_range()
 				_level._input_state = InputState.UNIT_SELECTED
 		InputState.TARGETING_SKILL:
-			var skill := _level._current_skill
+			var skill: SkillData = _level._current_skill
 			clear_skill_targeting()
 			if skill != null and stats.can_use_skill(skill):
 				_level._show_skill_targeting_for(unit, skill)
