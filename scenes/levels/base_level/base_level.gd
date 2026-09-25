@@ -81,9 +81,6 @@ const SettingsPanelScene := preload("res://scenes/ui/settings_panel.tscn")
 const ObjectivesPanelScene := preload("res://scenes/ui/objectives_panel.tscn")
 const ProgressPanelScene := preload("res://scenes/ui/progress_panel.tscn")
 const GrowthChoicePanelScript := preload("res://scenes/ui/growth_choice_panel.gd")
-const LLMClientScript := preload("res://scripts/llm/llm_client.gd")
-const BattleContextScript := preload("res://scripts/llm/battle_context.gd")
-const LLMFallbackLinesScript := preload("res://scripts/llm/fallback_lines.gd")
 const ChatterSchedulerScript := preload("res://scripts/llm/chatter_scheduler.gd")
 const TutorialPanelScene := preload("res://scenes/ui/tutorial_panel.tscn")
 
@@ -93,8 +90,12 @@ var _phase_notification: PhaseNotification = null
 ## 兼容旧版：指向第一个玩家控制队伍的第一个单位（李春）。
 var hero: Node2D
 var unit_selected := false
-var _llm_client: Node = null
-var _ai_busy := false
+## debug AI 闲聊忙锁。代理属性：真源在 LLMChatterBridge，保持旧字段名可读写。
+var _ai_busy: bool:
+	get:
+		return _get_chatter_bridge().ai_busy
+	set(value):
+		_get_chatter_bridge().ai_busy = value
 ## 单位闲聊调度器（LLM 驱动）。BRIEFING 之后的战斗中监听 team_turn_ended / round_ended 触发对话。
 var _chatter_scheduler: Node = null
 ## 对话桥接组件（Shared Kernel）。BaseLevel 通过同名委托方法转发调用。
@@ -289,6 +290,12 @@ var _unit_factory: UnitFactory = null
 
 ## 场景引导组件（Tactics Stack）。TileMapLayer 查找 / 实体重挂 / 地图边界 / 单位枚举的执行者。
 var _scene_bootstrap: SceneBootstrap = null
+
+## 查询接口组件（Tactics Stack）。网格占用 / 占位格子 / 行动预算 / MCP 查询与操作 / 单位查询的执行者。
+var _query_api: LevelQueryAPI = null
+
+## debug AI 闲聊桥接组件（Tactics Stack）。debug 闲聊请求 / LLM 客户端与忙锁状态的执行者。
+var _chatter_bridge: LLMChatterBridge = null
 
 var teams: Array = []  # Array[TeamData]
 var current_team_index: int = -1
@@ -706,6 +713,22 @@ func _get_scene_bootstrap() -> SceneBootstrap:
 	return _scene_bootstrap
 
 
+## 查询接口组件懒加载（首调时 setup(self)）。
+func _get_query_api() -> LevelQueryAPI:
+	if _query_api == null:
+		_query_api = LevelQueryAPI.new()
+		_query_api.setup(self)
+	return _query_api
+
+
+## debug AI 闲聊桥接组件懒加载（首调时 setup(self)）。
+func _get_chatter_bridge() -> LLMChatterBridge:
+	if _chatter_bridge == null:
+		_chatter_bridge = LLMChatterBridge.new()
+		_chatter_bridge.setup(self)
+	return _chatter_bridge
+
+
 ## 薄壳转发至 TurnSystem.init_turn_system（保留旧调用点零改动）。
 func _init_turn_system() -> void:
 	_get_turn_system().init_turn_system()
@@ -776,55 +799,26 @@ func _get_alive_enemies_of(faction: String) -> Array:
 	return _get_ai_runner().get_alive_enemies_of(faction)
 
 
+## 薄壳转发至 LevelQueryAPI.is_cell_occupied。
 func _is_cell_occupied(cell: Vector2i) -> bool:
-	for team: TeamData in teams:
-		for unit: Node2D in team.units:
-			if unit.cell == cell:
-				return true
-	return false
+	return _get_query_api().is_cell_occupied(cell)
 
 
+## 薄壳转发至 LevelQueryAPI.is_any_unit_moving。
 func _is_any_unit_moving() -> bool:
-	for team: TeamData in teams:
-		for unit: Node2D in team.units:
-			if unit.is_moving:
-				return true
-	return false
+	return _get_query_api().is_any_unit_moving()
 
 
+## 薄壳转发至 LevelQueryAPI.get_unit_at_cell。
 func _get_unit_at_cell(cell: Vector2i, team: TeamData) -> Node2D:
-	for unit: Node2D in team.units:
-		if unit.cell == cell:
-			return unit
-		if unit is Unit:
-			var u := unit as Unit
-			# 巨型单位可用 extra_target_cells 扩展受击区；点击这些格也应查看该单位。
-			for offset in u.extra_target_cells:
-				if u.cell + offset == cell:
-					return unit
-	return null
+	return _get_query_api().get_unit_at_cell(cell, team)
 
 
 
 ## 在点击位置附近查找任意队伍的单位（用于状态栏显示）。
+## 薄壳转发至 LevelQueryAPI.find_nearest_any_unit（保留旧调用点零改动）。
 func _find_nearest_any_unit(local_mouse_pos: Vector2, max_dist: float = 24.0) -> Node2D:
-	var clicked_cell := tilemap.local_to_map(local_mouse_pos)
-	# 先精确匹配
-	for team: TeamData in teams:
-		var exact := _get_unit_at_cell(clicked_cell, team)
-		if exact != null:
-			return exact
-	# 回退到像素距离
-	var best: Node2D = null
-	var best_dist := max_dist
-	for team: TeamData in teams:
-		for unit: Node2D in team.units:
-			var unit_pos := tilemap.map_to_local(unit.cell)
-			var dist := local_mouse_pos.distance_to(unit_pos)
-			if dist < best_dist:
-				best_dist = dist
-				best = unit
-	return best
+	return _get_query_api().find_nearest_any_unit(local_mouse_pos, max_dist)
 
 
 ## 更新状态栏显示指定单位的信息。薄壳转发至 LevelUIBridge.update_status_bar_for_unit。
@@ -969,53 +963,21 @@ func _on_settings_button_pressed() -> void:
 
 
 ## AI 支持按钮：临时调用 LLM 做一次测试请求。后续会替换为具体业务（旁白/调侃等）。
+## 薄壳转发至 LLMChatterBridge.on_ai_button_pressed。
 func _on_ai_button_pressed() -> void:
-	await _call_ai_with_prompt("老把式，你瞧这局怎么样？")
+	await _get_chatter_bridge().on_ai_button_pressed()
 
 
 ## 大回合开始信号回调：自动触发一次 AI（占位，后续替换为剧情/战况点评）。
+## 薄壳转发至 LLMChatterBridge.on_round_started_ai_call。
 func _on_round_started_ai_call(rn: int) -> void:
-	await _call_ai_with_prompt("第 %d 回合刚开锣，瞧瞧这阵势。" % rn)
+	await _get_chatter_bridge().on_round_started_ai_call(rn)
 
 
 ## 内部：拼请求 + 显示 toast。被按钮和回合开始两处复用。
+## 薄壳转发至 LLMChatterBridge.call_ai_with_prompt。
 func _call_ai_with_prompt(prompt: String) -> void:
-	if _ai_busy:
-		return
-	_ai_busy = true
-	if _llm_client == null:
-		_llm_client = LLMClientScript.new()
-		add_child(_llm_client)
-	var snapshot: Dictionary = BattleContextScript.build_snapshot(self)
-	var system_msg := """你不是教练，是《安济桥成》工坊里的"老监工"。隋代营造场，匠师李春带着工匠在筑赵州桥，半道撞上洪水、旧制等阻碍。你懂点五行（金木水火土相生相克），更懂"该干就干、该躲就躲"那点门道。
-
-请基于下方战场快照，用老把式的口气说**一句话**（30 字以内）。看势头：
-- 顺手时 → 催他们抓紧把本关任务办了，别磨蹭
-- 吃紧时 → 劝撤、劝守、劝先缓口气，别硬刚
-- 平淡时 → 发句牢骚、聊聊桥的旧事、或随口调侃几句也行
-
-**忌讳**：
-- 别指着说"用 X 技能打 Y 单位"，那是新手教程，老监工不干这种事
-- 别报数字（HP/AP/坐标这些都别说出口）
-- 别用"建议"、"综上"、"以下"这种教学体
-- 宁愿俏皮、带点人味儿，也别端着架子
-
-趣味第一，别把人当小学生教。
-
-当前战场（自己心里有数，别复述给玩家）：
-%s""" % JSON.stringify(snapshot)
-	Notify.info("AI 思考中...", 1.5)
-	var resp: Dictionary = await _llm_client.chat_completion([
-		{"role": "system", "content": system_msg},
-		{"role": "user", "content": prompt}
-	], {"max_tokens": 200, "temperature": 0.7})
-	_ai_busy = false
-	if resp.ok:
-		Notify.notify(resp.text, Notify.Position.TOP_RIGHT, Notify.Style.SUCCESS, 8.0)
-	else:
-		# LLM 调用失败时不暴露报错给玩家，用老监工口吻的兜底台词糊过去
-		push_warning("[LLM] 调用失败 code=%d error=%s" % [resp.code, resp.error])
-		Notify.info(LLMFallbackLinesScript.random(), 6.0)
+	await _get_chatter_bridge().call_ai_with_prompt(prompt)
 
 
 ## 薄壳转发至 LevelUIBridge.on_tutorial_button_pressed（base_level.tscn 信号目标）。
@@ -1117,67 +1079,44 @@ func _confirm_targeting_move(cell: Vector2i, local_mouse: Vector2, current_team:
 
 
 ## 获取除指定单位外所有被占据的格子。
+## 薄壳转发至 LevelQueryAPI.get_occupied_cells_except。
 func _get_occupied_cells_except(exclude: Node2D) -> Array[Vector2i]:
-	var result: Array[Vector2i] = []
-	for team: TeamData in teams:
-		for unit: Node2D in team.units:
-			if unit != exclude:
-				result.append(unit.cell)
-	return result
+	return _get_query_api().get_occupied_cells_except(exclude)
 
 
 ## 获取敌方占据的格子（faction 不同），排除指定单位。用于寻路阻挡。
+## 薄壳转发至 LevelQueryAPI.get_enemy_cells_except。
 func _get_enemy_cells_except(exclude: Node2D) -> Array[Vector2i]:
-	var exclude_faction: String = exclude.faction if exclude is Unit else ""
-	var result: Array[Vector2i] = []
-	for team: TeamData in teams:
-		if team.faction == exclude_faction:
-			continue
-		for unit: Node2D in team.units:
-			if unit != exclude and unit is Unit and unit.combat_stats and unit.combat_stats.is_alive():
-				result.append(unit.cell)
-	return result
+	return _get_query_api().get_enemy_cells_except(exclude)
 
 
 ## 获取友方占据的格子（faction 相同），排除指定单位。友方可穿越但不可停留。
+## 薄壳转发至 LevelQueryAPI.get_friendly_cells_except。
 func _get_friendly_cells_except(exclude: Node2D) -> Array[Vector2i]:
-	var exclude_faction: String = exclude.faction if exclude is Unit else ""
-	var result: Array[Vector2i] = []
-	for team: TeamData in teams:
-		if team.faction != exclude_faction:
-			continue
-		for unit: Node2D in team.units:
-			if unit != exclude and unit is Unit and unit.combat_stats and unit.combat_stats.is_alive():
-				result.append(unit.cell)
-	return result
+	return _get_query_api().get_friendly_cells_except(exclude)
 
 
-## 薄壳转发至 AITurnRunner.player_team_has_remaining_actions。
+## 薄壳转发至 LevelQueryAPI.player_team_has_remaining_actions（真源在 AITurnRunner）。
 ## 当前玩家队伍是否还有可行动单位（未 has_acted、未在移动中、还能移动或有技能能打到敌人）。
 func _player_team_has_remaining_actions() -> bool:
-	return _get_ai_runner().player_team_has_remaining_actions()
+	return _get_query_api().player_team_has_remaining_actions()
 
 
-## 薄壳转发至 AITurnRunner.has_action_budget。
+## 薄壳转发至 LevelQueryAPI.has_action_budget（真源在 AITurnRunner）。
 func _has_action_budget(stats: CombatStats) -> bool:
-	return _get_ai_runner().has_action_budget(stats)
+	return _get_query_api().has_action_budget(stats)
 
 
-## 薄壳转发至 AITurnRunner.has_usable_attack。
+## 薄壳转发至 LevelQueryAPI.has_usable_attack（真源在 AITurnRunner）。
 ## 检查单位是否有攻击技能能够打到敌人（AP/次数够 + 范围内有敌人）。
 func _has_usable_attack(unit: Unit, enemy_cells: Dictionary) -> bool:
-	return _get_ai_runner().has_usable_attack(unit, enemy_cells)
+	return _get_query_api().has_usable_attack(unit, enemy_cells)
 
 
 ## 收集指定阵营的所有存活敌方单位格子。
+## 薄壳转发至 LevelQueryAPI.get_enemy_cell_set。
 func _get_enemy_cell_set(faction: String) -> Dictionary:
-	var result: Dictionary = {}
-	for t: TeamData in teams:
-		if t.faction != faction:
-			for eu: Node2D in t.units:
-				if eu is Unit and eu.combat_stats and eu.combat_stats.is_alive():
-					result[eu.cell] = true
-	return result
+	return _get_query_api().get_enemy_cell_set(faction)
 
 
 # ─────────────────────────────────────────────
@@ -1271,91 +1210,37 @@ func _refresh_difficulty_dependent_ui() -> void:
 # ─────────────────────────────────────────────
 
 ## 通过技能索引选择技能（0~4）。UI 按钮和 MCP 都调用此方法。
+## 薄壳转发至 LevelQueryAPI.select_skill_by_index（真源在 InputController）。
 func select_skill_by_index(index: int) -> bool:
-	return _get_input_controller().select_skill_by_index(index)
+	return _get_query_api().select_skill_by_index(index)
 
 
 ## 进入移动模式。UI 移动按钮和 MCP 都调用此方法。
+## 薄壳转发至 LevelQueryAPI.start_move（真源在 InputController）。
 func start_move() -> bool:
-	return _get_input_controller().start_move()
+	return _get_query_api().start_move()
 
 
 ## 查询当前游戏状态。返回字典，所有值为原始类型。
+## 薄壳转发至 LevelQueryAPI.query_state。
 func query_state() -> Dictionary:
-	var state_names := ["IDLE", "UNIT_SELECTED", "TARGETING_MOVE", "TARGETING_SKILL", "ANIMATING"]
-	var team_name := ""
-	if current_team_index >= 0 and current_team_index < teams.size():
-		team_name = teams[current_team_index].team_name
-	var sel_name := ""
-	if selected_unit is Unit and selected_unit.combat_stats:
-		sel_name = selected_unit.combat_stats.unit_name
-	return {
-		"input_state": state_names[_input_state] if _input_state < state_names.size() else "UNKNOWN",
-		"team_name": team_name,
-		"team_index": current_team_index,
-		"selected_unit": sel_name,
-		"waiting_for_input": _waiting_for_player_input,
-	}
+	return _get_query_api().query_state()
 
 
 ## 查询所有单位信息。返回字典数组，所有值为原始类型。
+## 薄壳转发至 LevelQueryAPI.query_units。
 func query_units() -> Array:
-	var result: Array = []
-	for ti in range(teams.size()):
-		var team: TeamData = teams[ti]
-		for ui in range(team.units.size()):
-			var unit: Node2D = team.units[ui]
-			var info: Dictionary = {
-				"name": unit.name,
-				"cell": [unit.cell.x, unit.cell.y],
-				"team_index": ti,
-				"team_name": team.team_name,
-				"faction": team.faction,
-				"has_acted": unit.has_acted,
-			}
-			if unit is Unit and unit.combat_stats:
-				var s: CombatStats = unit.combat_stats
-				info["hp"] = s.current_hp
-				info["max_hp"] = s.max_hp
-				info["ap"] = s.ap_current
-				info["ap_max"] = s.ap_max
-				info["base_atk"] = s.base_atk
-				info["element"] = s.current_element
-				info["element_amount"] = s.current_element_amount
-				info["is_hero"] = s.is_hero
-				info["statuses"] = []
-				for st in s.statuses:
-					info["statuses"].append({"id": st.status_id, "turns": st.remaining_turns})
-				# 技能列表
-				var skills_info: Array = []
-				if unit.unit_data:
-					for si in range(unit.unit_data.skills.size()):
-						var sk: SkillData = unit.unit_data.skills[si]
-						skills_info.append({
-							"index": si,
-							"id": sk.skill_id,
-							"name": sk.skill_name,
-							"ap_cost": sk.ap_cost,
-							"can_use": s.can_use_skill(sk),
-						})
-				info["skills"] = skills_info
-			result.append(info)
-	return result
+	return _get_query_api().query_units()
 
 
+## 薄壳转发至 LevelQueryAPI.get_friendly_units。
 func get_friendly_units() -> Array[Unit]:
-	var result: Array[Unit] = []
-	for team in teams:
-		if team.controller != "player":
-			continue
-		for unit in team.units:
-			if unit is Unit and unit.combat_stats != null and unit.combat_stats.is_alive():
-				result.append(unit)
-	return result
+	return _get_query_api().get_friendly_units()
 
 
+## 薄壳转发至 LevelQueryAPI.get_hero_unit。
 func get_hero_unit() -> Unit:
-	return hero as Unit if hero is Unit else null
+	return _get_query_api().get_hero_unit()
 
 
 func apply_unit_growth_bonus(unit: Unit, hp_delta: int = 0, atk_delta: int = 0, ap_delta: int = 0) -> void:
@@ -1410,26 +1295,15 @@ func add_skill_to_unit(unit: Unit, skill: SkillData, replace_candidates: Array[S
 
 
 ## 查询当前可移动范围（TARGETING_MOVE 时有效）。
+## 薄壳转发至 LevelQueryAPI.query_move_range。
 func query_move_range() -> Array:
-	if _input_state != InputState.TARGETING_MOVE:
-		return []
-	var result: Array = []
-	for c in move_overlay.cells:
-		result.append([c.x, c.y])
-	return result
+	return _get_query_api().query_move_range()
 
 
 ## 查询技能释放/影响范围（TARGETING_SKILL 时有效）。
+## 薄壳转发至 LevelQueryAPI.query_skill_range。
 func query_skill_range() -> Dictionary:
-	if _input_state != InputState.TARGETING_SKILL or _skill_targeting == null:
-		return {"cast_cells": [], "effect_cells": []}
-	var cast: Array = []
-	for c in _skill_targeting._cast_cells:
-		cast.append([c.x, c.y])
-	var effect: Array = []
-	for c in _skill_targeting._effect_cells:
-		effect.append([c.x, c.y])
-	return {"cast_cells": cast, "effect_cells": effect}
+	return _get_query_api().query_skill_range()
 
 
 # ─────────────────────────────────────────────
