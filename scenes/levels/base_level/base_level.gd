@@ -303,6 +303,9 @@ var _turn_system: TurnSystem = null
 ## AI 回合执行组件（Tactics Stack）。AI 决策循环 / AI 技能执行 / 行动预算查询的执行者。
 var _ai_runner: AITurnRunner = null
 
+## 技能施放与战斗反馈组件（Tactics Stack）。技能目标确认执行 / 战斗反馈 UI / 直接伤害上报的执行者。
+var _skill_cast_controller: SkillCastController = null
+
 var teams: Array = []  # Array[TeamData]
 var current_team_index: int = -1
 ## 大回合计数（所有队伍各轮一次为一个大回合）。第一大回合 = 1。
@@ -598,13 +601,15 @@ func _get_ai_context() -> Dictionary:
 
 
 ## 子类覆写：技能成功执行后的关卡机制钩子。
+## 默认实现体在 SkillCastController.on_skill_executed（空实现），此处薄壳转发（保留子类覆写钩子）。
 func _on_skill_executed(_caster: Unit, _skill: SkillData, _cast_cell: Vector2i, _exec_result: SkillExecutor.ExecuteResult) -> void:
-	pass
+	_get_skill_cast_controller().on_skill_executed(_caster, _skill, _cast_cell, _exec_result)
 
 
 ## 子类覆写：在战斗反馈显示前修正单次命中的最终 HP / 实际伤害。
+## 默认实现体在 SkillCastController.finalize_skill_hit_damage（空实现），此处薄壳转发（保留子类覆写钩子）。
 func _finalize_skill_hit_damage(_caster: Unit, _skill: SkillData, _target: Unit, _hit: CombatResolver.HitResult) -> void:
-	pass
+	_get_skill_cast_controller().finalize_skill_hit_damage(_caster, _skill, _target, _hit)
 
 
 ## 处理波次生成。在每大回合开始时调用。
@@ -624,33 +629,19 @@ func _process_wave(round_num: int) -> Array[Unit]:
 	return spawned
 
 
+## 薄壳转发至 SkillCastController.report_unit_damaged（保留旧调用点零改动）。
 ## 直接伤害/回复统一出口（不经 SkillExecutor 的 HP 变化必须走这里）。
 ## 前置条件：伤害/回复已应用到 combat_stats。负责 emit unit_hp_changed / unit_died，
 ## 并无条件调用 _check_win_lose（幂等：phase ENDED 后重复调用为 no-op）。
 func report_unit_damaged(unit: Unit, old_hp: int, new_hp: int) -> void:
-	if unit == null:
-		return
-	unit_hp_changed.emit(unit, old_hp, new_hp)
-	if new_hp <= 0:
-		unit_died.emit(unit)
-	_check_win_lose()
+	_get_skill_cast_controller().report_unit_damaged(unit, old_hp, new_hp)
 
 
+## 薄壳转发至 SkillCastController.apply_direct_damage（保留旧调用点零改动）。
 ## 直接伤害便捷入口：先扣减 combat_stats.current_hp，再走 report_unit_damaged 上报结算。
 ## source 可选，非空时写入 CombatLog。仅用于关卡机制类固定伤害，不走 SkillExecutor。
 func apply_direct_damage(unit: Unit, damage: int, source: String = "") -> void:
-	if unit == null or unit.combat_stats == null or not unit.combat_stats.is_alive():
-		return
-	if damage <= 0:
-		return
-	var old_hp: int = unit.combat_stats.current_hp
-	unit.combat_stats.current_hp = maxi(old_hp - damage, 0)
-	unit.refresh_overhead_bars()
-	if source != "":
-		CombatLog.msg("    直接伤害: %s -%d（%s）" % [
-			unit.combat_stats.unit_name, old_hp - unit.combat_stats.current_hp, source,
-		])
-	report_unit_damaged(unit, old_hp, unit.combat_stats.current_hp)
+	_get_skill_cast_controller().apply_direct_damage(unit, damage, source)
 
 
 ## 执行胜负条件检查。在关键事件（倒下、回合开始）后自动调用。
@@ -742,6 +733,14 @@ func _get_ai_runner() -> AITurnRunner:
 		_ai_runner = AITurnRunner.new()
 		_ai_runner.setup(self)
 	return _ai_runner
+
+
+## 技能施放与战斗反馈组件懒加载（首调时 setup(self)）。
+func _get_skill_cast_controller() -> SkillCastController:
+	if _skill_cast_controller == null:
+		_skill_cast_controller = SkillCastController.new()
+		_skill_cast_controller.setup(self)
+	return _skill_cast_controller
 
 
 ## 薄壳转发至 TurnSystem.init_turn_system（保留旧调用点零改动）。
@@ -1363,242 +1362,34 @@ func _clear_skill_targeting() -> void:
 	_get_input_controller().clear_skill_targeting()
 
 
-## 技能攻击镜头参数
-const _SKILL_CAMERA_ZOOM: float = 1.8
-const _SKILL_CAMERA_SETTLE_TIME: float = 0.35
-const _SKILL_CAMERA_PAUSE_TIME: float = 0.25
-const _SKILL_CAMERA_LINGER_TIME: float = 0.45
+## 技能攻击镜头参数（真源在 SkillCastController，AITurnRunner 经 _level._xxx 引用此处常量名）。
+const _SKILL_CAMERA_ZOOM: float = SkillCastController._SKILL_CAMERA_ZOOM
+const _SKILL_CAMERA_SETTLE_TIME: float = SkillCastController._SKILL_CAMERA_SETTLE_TIME
+const _SKILL_CAMERA_PAUSE_TIME: float = SkillCastController._SKILL_CAMERA_PAUSE_TIME
+const _SKILL_CAMERA_LINGER_TIME: float = SkillCastController._SKILL_CAMERA_LINGER_TIME
 
 
+## 薄壳转发至 SkillCastController.confirm_targeting_skill（input_controller.confirm_cell 调用）。
 func _confirm_targeting_skill(cell: Vector2i) -> void:
-	_clear_end_turn_pending()
-	if selected_unit == null or _current_skill == null or _skill_targeting == null:
-		_go_idle()
-		return
-
-	if not _skill_targeting.has_cast_cell(cell):
-		_go_idle()
-		return
-
-	_input_state = InputState.ANIMATING
-
-	# ── 镜头拉近 ──
-	var lv_camera := camera as LevelCamera
-	var focus_marker: Node2D = null
-	if lv_camera:
-		var caster_pos: Vector2 = selected_unit.global_position
-		var target_pos: Vector2 = tilemap.map_to_local(cell) if tilemap else caster_pos
-		focus_marker = Node2D.new()
-		add_child(focus_marker)
-		focus_marker.global_position = (caster_pos + target_pos) * 0.5
-		lv_camera.lock_on(focus_marker, _SKILL_CAMERA_ZOOM)
-		await get_tree().create_timer(_SKILL_CAMERA_SETTLE_TIME).timeout
-		await get_tree().create_timer(_SKILL_CAMERA_PAUSE_TIME).timeout
-
-	# ── 执行技能 ──
-	var all_units: Array = _get_all_units()
-	var caster_faction: String = selected_unit.faction if "faction" in selected_unit else ""
-
-	selected_unit.face_towards_cell(cell)
-	var exec_result := SkillExecutor.execute(selected_unit, _current_skill, cell, all_units, caster_faction, Callable(self, "_finalize_skill_hit_damage"))
-	var used_skill: SkillData = _current_skill
-	_clear_skill_targeting()
-
-	if not exec_result.success:
-		push_warning("技能执行失败: %s" % exec_result.error)
-		if focus_marker:
-			focus_marker.queue_free()
-		if lv_camera:
-			lv_camera.unlock()
-		_go_idle()
-		return
-
-	SfxManager.play_skill_cast(used_skill)
-
-	# ── 技能释放播报 ──
-	var caster_name := ""
-	if selected_unit is Unit and (selected_unit as Unit).combat_stats:
-		caster_name = (selected_unit as Unit).combat_stats.unit_name
-	Notify.info("%s 使用了【%s】！" % [caster_name, used_skill.skill_name], 3.0)
-
-	# ── UI 反馈 ──
-	_show_combat_feedback(exec_result, caster_name, used_skill)
-	if selected_unit is Unit:
-		_on_skill_executed(selected_unit as Unit, used_skill, cell, exec_result)
-
-	# ── 额外效果播报 ──
-	if used_skill.extra_effect_id != "":
-		var effect_name: String = _EXTRA_EFFECT_NAMES.get(used_skill.extra_effect_id, "")
-		if effect_name != "":
-			var target_names: Array[String] = []
-			for tu in exec_result.targets:
-				if tu is Unit and (tu as Unit).combat_stats:
-					target_names.append((tu as Unit).combat_stats.unit_name)
-			if not target_names.is_empty():
-				Notify.info("%s 触发额外效果：%s" % ["、".join(target_names), effect_name], 3.0)
-
-	# ── 技能执行通知（关卡可响应副作用）──
-	skill_executed.emit(selected_unit as Unit, used_skill, cell)
-	_check_win_lose()
-
-	# 镜头停留片刻后恢复
-	if lv_camera and focus_marker:
-		await get_tree().create_timer(_SKILL_CAMERA_LINGER_TIME).timeout
-		focus_marker.queue_free()
-		lv_camera.unlock()
-
-	# 更新状态栏
-	_update_status_bar_for_unit(selected_unit, true)
-	# 刷新攻击者头顶状态条（AP 消耗后）
-	if selected_unit is Unit:
-		(selected_unit as Unit).refresh_overhead_bars()
-
-	# AP 剩余且还能行动？
-	var unit := selected_unit as Unit
-	if unit and unit.combat_stats:
-		var stats := unit.combat_stats
-		var ec := _get_enemy_cell_set(unit.faction)
-		if _has_action_budget(stats) and (stats.can_move() or _has_usable_attack(unit, ec)):
-			_input_state = InputState.UNIT_SELECTED
-			if stats.can_move():
-				_enter_targeting_move()
-			return
-
-	if selected_unit:
-		selected_unit.has_acted = true
-	_go_idle()
+	await _get_skill_cast_controller().confirm_targeting_skill(cell)
 
 
+## 薄壳转发至 SkillCastController.show_combat_feedback（AITurnRunner 与本文件调用）。
 ## 显示战斗 UI 反馈：伤害弹字 + 血条刷新 + 化势提示。
 func _show_combat_feedback(exec_result: SkillExecutor.ExecuteResult, _caster_name: String = "", skill: SkillData = null) -> void:
-	if exec_result.hit_results.is_empty():
-		# 辅助技能没有伤害结算，但效果已通过额外效果系统生效，不显示警告
-		if skill != null and skill.skill_type == Enums.SkillType.ASSIST:
-			# 刷新目标头顶状态条以反映新状态
-			for tu in exec_result.targets:
-				if tu is Unit:
-					(tu as Unit).refresh_overhead_bars()
-			return
-		Notify.warn("没有单位受到技能效果！", 3.0)
-		return
-	var showed_phase := false
-	for entry in exec_result.hit_results:
-		var target_unit: Node2D = entry["unit"]
-		var hit: CombatResolver.HitResult = entry["hit"]
-
-		var target_name := ""
-		if target_unit is Unit and (target_unit as Unit).combat_stats:
-			target_name = (target_unit as Unit).combat_stats.unit_name
-
-		var actual_damage: int = hit.actual_damage if hit.actual_damage >= 0 else hit.damage
-
-		# 伤害弹字
-		if actual_damage > 0:
-			var phase_name := ""
-			if hit.phase_result and hit.phase_result.phase_data:
-				phase_name = hit.phase_result.phase_data.phase_name
-			var popup := DamagePopup.new()
-			add_child(popup)
-			popup.show_at(target_unit.global_position, actual_damage, phase_name)
-
-			if hit.is_kill:
-				Notify.error("%s 受到 %d 点伤害，被击败了！" % [target_name, actual_damage], 3.0)
-			else:
-				Notify.info("%s 受到 %d 点伤害！" % [target_name, actual_damage], 3.0)
-
-		if hit.damage_limit_message != "":
-			Notify.warn(hit.damage_limit_message, 3.5)
-
-		# 刷新头顶状态条
-		if target_unit is Unit:
-			(target_unit as Unit).refresh_overhead_bars()
-
-		# 关卡事件信号：HP 变化 + 倒下
-		if target_unit is Unit and actual_damage > 0:
-			var stats := (target_unit as Unit).combat_stats
-			var new_hp: int = stats.current_hp
-			var old_hp: int = hit.hp_before if hit.hp_before >= 0 else new_hp + actual_damage
-			unit_hp_changed.emit(target_unit, old_hp, new_hp)
-			if hit.is_kill:
-				unit_died.emit(target_unit)
-
-		for s_info: Dictionary in hit.statuses_to_apply:
-			var sname: String = _STATUS_NAMES.get(s_info["id"], s_info["id"])
-			Notify.warn("%s 被施加了【%s】！" % [target_name, sname], 3.0)
-
-		# 化势触发时的元素对比 popup（每个命中都显示）
-		if hit.phase_result and hit.phase_result.phase_data:
-			var elem_popup := PhaseElementPopup.new()
-			add_child(elem_popup)
-			elem_popup.show_at(
-				target_unit.global_position,
-				hit.skill_attach_element, hit.skill_attach_amount,
-				hit.pre_target_element, hit.pre_target_amount
-			)
-
-		# 化势提示（整次施法只一次）
-		if not showed_phase and hit.phase_result and hit.phase_result.phase_data:
-			showed_phase = true
-			var pd: PhaseData = hit.phase_result.phase_data
-			var cat_name := "制势" if pd.category == Enums.PhaseCategory.DOMINANT else "承势"
-			if _phase_notification:
-				_phase_notification.show_phase(pd.phase_name, cat_name)
-			Notify.info(_format_phase_details(pd, hit, cat_name), 4.0)
+	_get_skill_cast_controller().show_combat_feedback(exec_result, _caster_name, skill)
 
 
-const _STATUS_NAMES: Dictionary = {
-	"rend": "裂伤",
-	"fracture_step": "陷裂",
-	"silt_lock": "壅水",
-	"weakened": "攻衰",
-	"brittle": "脆裂",
-	"scorch_mark": "灼痕",
-	"overgrow_bind": "蔓缚",
-	"cold_damp": "湿寒",
-	"smothered": "闷熄",
-	"open_fissure": "开隙",
-	"steady_step": "稳步",
-	"slowed_step": "迟步",
-	"hindered_step": "迟滞",
-	"guarded_cover": "护持",
-	"knockback_immune": "抗击退",
-}
+## 状态 / 额外效果中文名表（真源在 SkillCastController，AITurnRunner 经 _level._xxx 引用此处常量名）。
+const _STATUS_NAMES: Dictionary = SkillCastController._STATUS_NAMES
 
-const _EXTRA_EFFECT_NAMES: Dictionary = {
-	"knockback_1": "击退1格",
-	"pull_1": "拖拽1格",
-	"guarded_cover": "护持",
-	"hindered_cross": "十字迟滞",
-	"line_bind": "蔓缚",
-	"read_water": "相水定址",
-	"stage_balance_arch": "校券",
-	"stage_open_arch": "启肩泄洪",
-	"complete_survey": "踏勘量址",
-	"non_element_bonus": "无属性加成",
-}
+const _EXTRA_EFFECT_NAMES: Dictionary = SkillCastController._EXTRA_EFFECT_NAMES
 
 
+## 薄壳转发至 SkillCastController.format_phase_details。
 ## 拼接化势详情 BBCode 富文本，供 Notify 右上角显示。
 func _format_phase_details(pd: PhaseData, hit: CombatResolver.HitResult, cat_name: String) -> String:
-	var lines: Array[String] = []
-	lines.append("【%s·%s】" % [cat_name, pd.phase_name])
-
-	var atk_str := "%s×%d" % [ElementDefs.element_name(hit.skill_attach_element), hit.skill_attach_amount]
-	var tgt_str := "%s×%d" % [ElementDefs.element_name(hit.pre_target_element), hit.pre_target_amount]
-	lines.append("%s → %s" % [
-		ElementDefs.bbcode(hit.skill_attach_element, atk_str),
-		ElementDefs.bbcode(hit.pre_target_element, tgt_str),
-	])
-
-	if not is_equal_approx(pd.damage_multiplier, 1.0):
-		lines.append("伤害倍率 ×%.2f" % pd.damage_multiplier)
-	if hit.phase_bonus_damage > 0:
-		lines.append("附加伤害 %d" % hit.phase_bonus_damage)
-	if pd.apply_status_id != "":
-		var sname: String = _STATUS_NAMES.get(pd.apply_status_id, pd.apply_status_id)
-		lines.append("施加【%s】%d回合" % [sname, pd.status_duration])
-
-	return "\n".join(lines)
+	return _get_skill_cast_controller().format_phase_details(pd, hit, cat_name)
 
 
 func _on_skill_button_pressed(index: int) -> void:
