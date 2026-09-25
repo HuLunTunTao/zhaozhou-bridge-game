@@ -216,13 +216,14 @@ func has_overlay() -> bool:
 	return _state.has_overlay()
 
 
+## 薄壳转发至 TutorialRunner.set_tutorial_onboarding_active（保留旧调用点零改动）。
 func set_tutorial_onboarding_active(active: bool) -> void:
-	tutorial_onboarding_active = active
-	set_meta("tutorial/onboarding_active", active)
+	_get_tutorial_runner().set_tutorial_onboarding_active(active)
 
 
+## 薄壳转发至 TutorialRunner.is_tutorial_onboarding_active（保留旧调用点零改动）。
 func is_tutorial_onboarding_active() -> bool:
-	return tutorial_onboarding_active
+	return _get_tutorial_runner().is_tutorial_onboarding_active()
 
 
 ## 进入一个 overlay。若已有 overlay 则拒绝（互斥），node 由本方法 add_child 并挂关闭回调。
@@ -244,21 +245,9 @@ func _close_overlay(kind: ActiveOverlay) -> void:
 	_state._close_overlay(kind)
 
 
-## 复玩问询：已看过教程的玩家进关时弹 yes/no 菜单，问要不要再听李春讲解一遍。
-## TopicMenuPanel 是 ModalPanel，自带 closed 信号，走 _open_overlay 统一闸门。
+## 薄壳转发至 TutorialRunner.ask_tutorial_replay（保留旧调用点零改动）。
 func _ask_tutorial_replay() -> bool:
-	var menu_scene: PackedScene = preload("res://scenes/ui/topic_menu_panel.tscn")
-	var menu := menu_scene.instantiate() as TopicMenuPanel
-	if not _open_overlay(ActiveOverlay.TUTORIAL_PANEL, menu):
-		menu.queue_free()
-		return false
-	menu.show_yes_no(
-		"上次已经听过李春讲解，是否再听一遍？",
-		"再听一遍",
-		"跳过，直接开打",
-	)
-	var pick: String = await menu.topic_picked
-	return pick == "再听一遍"
+	return await _get_tutorial_runner().ask_tutorial_replay()
 
 
 func _set_phase(p: LevelPhase) -> void:
@@ -328,8 +317,14 @@ var _waiting_for_player_input: bool:
 		return _get_input_controller()._waiting_for_player_input
 	set(value):
 		_get_input_controller()._waiting_for_player_input = value
-## 关卡脚本可在新手引导等流程中置为 true，暂停所有战场闲聊触发。
-var tutorial_onboarding_active: bool = false
+## 教程运行器组件（Shared Kernel）。新手引导开关 / 重玩问询 / 李春教程对话构造的执行者。
+var _tutorial_runner: TutorialRunner = null
+## 关卡脚本可在新手引导等流程中置为 true，暂停所有战场闲聊触发。代理属性：真源在 TutorialRunner。
+var tutorial_onboarding_active: bool:
+	get:
+		return _get_tutorial_runner().tutorial_onboarding_active
+	set(value):
+		_get_tutorial_runner().tutorial_onboarding_active = value
 
 ## 特殊地块注册表组件（RefCounted）。注册/查询/标记工厂/enter-leave 派发。
 var _special_tile_registry: SpecialTileRegistry = null
@@ -712,6 +707,14 @@ func _get_ui_bridge() -> LevelUIBridge:
 	return _ui_bridge
 
 
+## 教程运行器组件懒加载（首调时 setup(self)）。
+func _get_tutorial_runner() -> TutorialRunner:
+	if _tutorial_runner == null:
+		_tutorial_runner = TutorialRunner.new()
+		_tutorial_runner.setup(self)
+	return _tutorial_runner
+
+
 ## 薄壳转发至 TurnSystem.init_turn_system（保留旧调用点零改动）。
 func _init_turn_system() -> void:
 	_get_turn_system().init_turn_system()
@@ -992,12 +995,14 @@ func play_dialogue(lines: Array[DialogueLine], auto_dismiss: bool = false, dismi
 
 
 ## 李春教程对话单行构造：自动带头像、左侧显示，并按当前关卡匹配预生成 TTS。
+## 薄壳转发至 TutorialRunner.lc_line（保留旧调用点零改动）。
 func _lc_line(text: String, can_skip: bool = true) -> DialogueLine:
-	return _dialogue._lc_line(text, can_skip)
+	return _get_tutorial_runner().lc_line(text, can_skip)
 
 
+## 薄壳转发至 TutorialRunner.tutorial_tts_level_id（保留旧调用点零改动）。
 func _tutorial_tts_level_id() -> String:
-	return _dialogue._tutorial_tts_level_id()
+	return _get_tutorial_runner().tutorial_tts_level_id()
 
 
 ## 单行 chatter 对话的便捷入口。单位阵营决定头像左右，头像来自 PortraitResolver，自动飘过。
