@@ -306,6 +306,9 @@ var _ai_runner: AITurnRunner = null
 ## 技能施放与战斗反馈组件（Tactics Stack）。技能目标确认执行 / 战斗反馈 UI / 直接伤害上报的执行者。
 var _skill_cast_controller: SkillCastController = null
 
+## UI 桥接组件（Tactics Stack）。状态栏联动 / 按钮回调 / debug UI / BGM / 技能 targeting 管理的执行者。
+var _ui_bridge: LevelUIBridge = null
+
 var teams: Array = []  # Array[TeamData]
 var current_team_index: int = -1
 ## 大回合计数（所有队伍各轮一次为一个大回合）。第一大回合 = 1。
@@ -444,60 +447,29 @@ func _on_initial_briefing_done() -> void:
 	_init_turn_system()
 
 
+## 薄壳转发至 LevelUIBridge.play_level_bgm。
 func _play_level_bgm() -> void:
-	var path: String = LEVEL_BGM_BY_LEVEL.get(GameState.selected_level, "")
-	if path.is_empty() or not ResourceLoader.exists(path, "AudioStream"):
-		return
-	var stream: AudioStream = load(path)
-	if stream != null:
-		BgmManager.play(stream)
+	_get_ui_bridge().play_level_bgm()
 
 
+## 薄壳转发至 LevelUIBridge.refresh_debug_ui（Settings.settings_changed 信号目标）。
 func _refresh_debug_ui() -> void:
-	if win_button:
-		win_button.visible = Settings.debug_mode
-	if infinite_ap_button_label:
-		infinite_ap_button_label.visible = Settings.debug_mode
-	if infinite_ap_button_button:
-		infinite_ap_button_button.disabled = not Settings.debug_mode
-		if not Settings.debug_mode and _infinite_ally_actions_enabled:
-			infinite_ap_button_button.set_pressed_no_signal(false)
-			_set_infinite_ally_actions_enabled(false)
+	_get_ui_bridge().refresh_debug_ui()
 
 
+## 薄壳转发至 LevelUIBridge.on_infinite_ap_button_toggled（按钮 toggled 信号目标）。
 func _on_infinite_ap_button_toggled(enabled: bool) -> void:
-	if not Settings.debug_mode:
-		if infinite_ap_button_button:
-			infinite_ap_button_button.set_pressed_no_signal(false)
-		return
-	_set_infinite_ally_actions_enabled(enabled)
+	_get_ui_bridge().on_infinite_ap_button_toggled(enabled)
 
 
+## 薄壳转发至 LevelUIBridge.set_infinite_ally_actions_enabled。
 func _set_infinite_ally_actions_enabled(enabled: bool) -> void:
-	if _infinite_ally_actions_enabled == enabled:
-		return
-	_infinite_ally_actions_enabled = enabled
-	for unit in _get_all_units():
-		if unit is Unit:
-			_apply_infinite_ally_actions_to_unit(unit)
-	_refresh_difficulty_dependent_ui()
-	Notify.notify(
-		"友方无限AP已%s" % ("开启" if enabled else "关闭"),
-		Notify.Position.TOP_CENTER,
-		Notify.Style.SUCCESS if enabled else Notify.Style.INFO,
-		2.0,
-	)
+	_get_ui_bridge().set_infinite_ally_actions_enabled(enabled)
 
 
+## 薄壳转发至 LevelUIBridge.apply_infinite_ally_actions_to_unit。
 func _apply_infinite_ally_actions_to_unit(unit: Unit) -> void:
-	if unit == null or unit.combat_stats == null:
-		return
-	var stats: CombatStats = unit.combat_stats
-	stats.debug_infinite_actions = _infinite_ally_actions_enabled and stats.camp == Enums.Camp.ALLY
-	if stats.has_infinite_actions():
-		stats.ap_current = stats.ap_max
-	if unit.has_method("refresh_overhead_bars"):
-		unit.refresh_overhead_bars()
+	_get_ui_bridge().apply_infinite_ally_actions_to_unit(unit)
 
 
 func _process(_delta: float) -> void:
@@ -510,20 +482,9 @@ func _process(_delta: float) -> void:
 			_selection_indicator.visible = false
 
 
+## 薄壳转发至 LevelUIBridge.setup_selection_indicator。
 func _setup_selection_indicator() -> void:
-	_selection_indicator = Line2D.new()
-	# 放大菱形尺寸（原 16→24），线条加粗，颜色更亮
-	_selection_indicator.points = PackedVector2Array([-24, 0, 0, 12, 24, 0, 0, -12, -24, 0])
-	_selection_indicator.width = 2.5
-	_selection_indicator.default_color = Color(1.0, 0.95, 0.3, 1.0)
-	_selection_indicator.z_index = -1
-	_selection_indicator.visible = false
-	add_child(_selection_indicator)
-	var tween := create_tween().set_loops()
-	tween.tween_property(_selection_indicator, "modulate:a", 0.45, 0.5) \
-		.set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_SINE)
-	tween.tween_property(_selection_indicator, "modulate:a", 1.0, 0.5) \
-		.set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_SINE)
+	_get_ui_bridge().setup_selection_indicator()
 
 
 # ─────────────────────────────────────────────
@@ -658,9 +619,9 @@ func _check_win_lose(_arg = null) -> void:
 	if check_victory():
 		complete_level()
 
-# 用于测试的一键胜利按钮
+# 用于测试的一键胜利按钮。薄壳转发至 LevelUIBridge.on_win_button_pressed。
 func _on_win_button_pressed() -> void:
-	complete_level()
+	_get_ui_bridge().on_win_button_pressed()
 
 # ─────────────────────────────────────────────
 # 队伍初始化（读取场景已有节点）
@@ -743,6 +704,14 @@ func _get_skill_cast_controller() -> SkillCastController:
 	return _skill_cast_controller
 
 
+## UI 桥接组件懒加载（首调时 setup(self)）。
+func _get_ui_bridge() -> LevelUIBridge:
+	if _ui_bridge == null:
+		_ui_bridge = LevelUIBridge.new()
+		_ui_bridge.setup(self)
+	return _ui_bridge
+
+
 ## 薄壳转发至 TurnSystem.init_turn_system（保留旧调用点零改动）。
 func _init_turn_system() -> void:
 	_get_turn_system().init_turn_system()
@@ -757,10 +726,9 @@ func _start_team_turn(index: int) -> void:
 	_get_turn_system().start_team_turn(index)
 
 
+## 薄壳转发至 LevelUIBridge.update_round_label（round_started 信号目标）。
 func _update_round_label(round_num: int) -> void:
-	if _round_label == null:
-		return
-	_round_label.text = "第 %d 回合" % round_num
+	_get_ui_bridge().update_round_label(round_num)
 
 
 ## 薄壳转发至 TurnSystem.end_team_turn。UI"结束回合"按钮和 MCP 都调用此方法。
@@ -865,14 +833,14 @@ func _find_nearest_any_unit(local_mouse_pos: Vector2, max_dist: float = 24.0) ->
 	return best
 
 
-## 更新状态栏显示指定单位的信息。
+## 更新状态栏显示指定单位的信息。薄壳转发至 LevelUIBridge.update_status_bar_for_unit。
 func _update_status_bar_for_unit(unit: Node2D, is_active: bool = false) -> void:
-	_status_bar_bridge.show_unit_for(unit, is_active)
+	_get_ui_bridge().update_status_bar_for_unit(unit, is_active)
 
 
-## 状态栏回退显示主角。
+## 状态栏回退显示主角。薄壳转发至 LevelUIBridge.reset_status_bar。
 func _reset_status_bar() -> void:
-	_status_bar_bridge.reset_to_hero()
+	_get_ui_bridge().reset_status_bar()
 
 
 # ─────────────────────────────────────────────
@@ -947,12 +915,14 @@ func defeat_level(reason: String = "任务失败") -> void:
 		return
 
 
+## 薄壳转发至 LevelUIBridge.on_defeat_retry（defeat_panel.retry_pressed 信号目标）。
 func _on_defeat_retry() -> void:
-	get_tree().reload_current_scene()
+	_get_ui_bridge().on_defeat_retry()
 
 
+## 薄壳转发至 LevelUIBridge.on_defeat_main_menu（defeat_panel.main_menu_pressed 信号目标）。
 func _on_defeat_main_menu() -> void:
-	GameState.transition_to_scene("res://scenes/menu/main_menu.tscn")
+	_get_ui_bridge().on_defeat_main_menu()
 
 
 ## 运行时生成一个单位。加入指定队伍，放置在指定 cell 的脚下。
@@ -1113,12 +1083,9 @@ func setup_unit_stats(unit: Unit, uname: String, hp: int, atk: int,
 		unit.apply_faction_outline()
 
 
+## 薄壳转发至 LevelUIBridge.on_settings_button_pressed（base_level.tscn 信号目标）。
 func _on_settings_button_pressed() -> void:
-	if has_overlay():
-		return
-	var panel: SettingsPanel = SettingsPanelScene.instantiate()
-	panel.show_back_to_menu = true
-	_open_overlay(ActiveOverlay.SETTINGS, panel)
+	_get_ui_bridge().on_settings_button_pressed()
 
 
 ## AI 支持按钮：临时调用 LLM 做一次测试请求。后续会替换为具体业务（旁白/调侃等）。
@@ -1169,38 +1136,26 @@ func _call_ai_with_prompt(prompt: String) -> void:
 		# LLM 调用失败时不暴露报错给玩家，用老监工口吻的兜底台词糊过去
 		push_warning("[LLM] 调用失败 code=%d error=%s" % [resp.code, resp.error])
 		Notify.info(LLMFallbackLinesScript.random(), 6.0)
+
+
+## 薄壳转发至 LevelUIBridge.on_tutorial_button_pressed（base_level.tscn 信号目标）。
 func _on_tutorial_button_pressed() -> void:
-	if has_overlay():
-		return
-	var panel: Node = TutorialPanelScene.instantiate()
-	_open_overlay(ActiveOverlay.TUTORIAL_PANEL, panel)
+	_get_ui_bridge().on_tutorial_button_pressed()
 
 
+## 薄壳转发至 LevelUIBridge.on_objectives_button_pressed（base_level.tscn 信号目标）。
 func _on_objectives_button_pressed() -> void:
-	show_objectives()
+	_get_ui_bridge().on_objectives_button_pressed()
 
 
+## 薄壳转发至 LevelUIBridge.on_progress_button_pressed（base_level.tscn 信号目标）。
 func _on_progress_button_pressed() -> void:
-	if has_overlay():
-		return
-	var panel: Node = ProgressPanelScene.instantiate()
-	panel.set("show_debug_controls", Settings.debug_mode)
-	_open_overlay(ActiveOverlay.PROGRESS, panel)
-	UiSounds.play_popup()
+	_get_ui_bridge().on_progress_button_pressed()
 
 
-## 弹出本关目标面板（战斗中按 🎯 按钮查看）。初始 BRIEFING 的面板由 _begin_initial_briefing 负责。
+## 弹出本关目标面板（战斗中按 🎯 按钮查看）。薄壳转发至 LevelUIBridge.show_objectives。
 func show_objectives() -> void:
-	if has_overlay():
-		return
-	var obj := get_objectives_text()
-	if obj["victory"].is_empty() and obj["defeat"].is_empty() and obj.get("details", []).is_empty():
-		return
-	var panel: ObjectivesPanel = ObjectivesPanelScene.instantiate()
-	panel.victory_lines = obj["victory"]
-	panel.defeat_lines = obj["defeat"]
-	panel.detail_lines = obj.get("details", [])
-	_open_overlay(ActiveOverlay.OBJECTIVES_REVIEW, panel)
+	_get_ui_bridge().show_objectives()
 
 
 # ─────────────────────────────────────────────
@@ -1349,17 +1304,19 @@ func _get_enemy_cell_set(faction: String) -> Dictionary:
 # 技能释放
 # ─────────────────────────────────────────────
 
+## 薄壳转发至 LevelUIBridge.setup_skill_targeting。
 func _setup_skill_targeting() -> void:
-	_get_input_controller().setup_skill_targeting()
+	_get_ui_bridge().setup_skill_targeting()
 
 
+## 薄壳转发至 LevelUIBridge.setup_phase_notification。
 func _setup_phase_notification() -> void:
-	_phase_notification = PhaseNotification.new()
-	gui.add_child(_phase_notification)
+	_get_ui_bridge().setup_phase_notification()
 
 
+## 薄壳转发至 LevelUIBridge.clear_skill_targeting。
 func _clear_skill_targeting() -> void:
-	_get_input_controller().clear_skill_targeting()
+	_get_ui_bridge().clear_skill_targeting()
 
 
 ## 技能攻击镜头参数（真源在 SkillCastController，AITurnRunner 经 _level._xxx 引用此处常量名）。
@@ -1440,65 +1397,14 @@ func _is_cell_walkable_and_empty(cell: Vector2i) -> bool:
 
 
 ## 难度变化时，按比例重算所有存活单位的 max_hp / ap_max / base_atk。
-## 自由移动关卡（验桥日）跳过——hero 的 HERO_INFINITE_AP 不能被系数缩水。
+## 薄壳转发至 LevelUIBridge.on_difficulty_changed（Settings.difficulty_changed 信号目标）。
 func _on_difficulty_changed(_id: String) -> void:
-	if is_free_roam_level():
-		return
-	for unit in _get_all_units():
-		if unit == null or not is_instance_valid(unit):
-			continue
-		var stats: CombatStats = unit.combat_stats
-		if stats == null:
-			continue
-		stats.apply_difficulty_multipliers()
-		if unit.has_method("refresh_overhead_bars"):
-			unit.refresh_overhead_bars()
-	_refresh_difficulty_dependent_ui()
+	_get_ui_bridge().on_difficulty_changed(_id)
 
 
+## 薄壳转发至 LevelUIBridge.refresh_difficulty_dependent_ui。
 func _refresh_difficulty_dependent_ui() -> void:
-	var display_unit: Node2D = null
-	if selected_unit != null and is_instance_valid(selected_unit):
-		display_unit = selected_unit
-	elif status_bar and status_bar.has_method("get_current_unit"):
-		display_unit = status_bar.get_current_unit()
-
-	var selected_is_active := false
-	if selected_unit != null and is_instance_valid(selected_unit) and selected_unit is Unit:
-		var selected_stats: CombatStats = (selected_unit as Unit).combat_stats
-		selected_is_active = selected_stats != null and selected_stats.is_alive() and _input_state != InputState.IDLE
-
-	if display_unit != null and is_instance_valid(display_unit):
-		_update_status_bar_for_unit(display_unit, display_unit == selected_unit and selected_is_active)
-	else:
-		_reset_status_bar()
-
-	if selected_unit == null or not is_instance_valid(selected_unit) or not (selected_unit is Unit):
-		move_overlay.clear_range()
-		_clear_skill_targeting()
-		return
-
-	var unit := selected_unit as Unit
-	var stats: CombatStats = unit.combat_stats
-	if stats == null or not stats.is_alive():
-		move_overlay.clear_range()
-		_clear_skill_targeting()
-		return
-
-	match _input_state:
-		InputState.TARGETING_MOVE:
-			if stats.can_move():
-				_enter_targeting_move()
-			else:
-				move_overlay.clear_range()
-				_input_state = InputState.UNIT_SELECTED
-		InputState.TARGETING_SKILL:
-			var skill := _current_skill
-			_clear_skill_targeting()
-			if skill != null and stats.can_use_skill(skill):
-				_show_skill_targeting_for(unit, skill)
-			else:
-				_input_state = InputState.UNIT_SELECTED
+	_get_ui_bridge().refresh_difficulty_dependent_ui()
 
 
 # ─────────────────────────────────────────────
