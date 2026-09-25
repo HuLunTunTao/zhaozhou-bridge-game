@@ -19,32 +19,12 @@ const _LI_CHUN_PORTRAIT := preload("res://assets/face/li_chun.png")
 ##   - 若不覆盖 get_teams_config()，则沿用旧的单玩家行为。
 
 ## 敌方名称 → Visual 场景映射表。spawn_unit 会根据 unit_data.unit_name 自动应用外观。
-const MONSTER_VISUALS: Dictionary = {
-	"暗涌": preload("res://scenes/unit/visual/monster/暗涌/暗涌_visual.tscn"),
-	"水旋": preload("res://scenes/unit/visual/monster/水旋/水旋_visual.tscn"),
-	"坍岸泥流": preload("res://scenes/unit/visual/monster/泥沙魇/泥沙魇_visual.tscn"),
-	"浮木群": preload("res://scenes/unit/visual/monster/浮木群/浮木群_visual.tscn"),
-	"洪峰": preload("res://scenes/unit/visual/monster/洪峰/洪峰_visual.tscn"),
-	"洪锋": preload("res://scenes/unit/visual/monster/洪峰/洪峰_visual.tscn"),
-	"断索风": preload("res://scenes/unit/visual/monster/断索鬼/断索鬼_visual.tscn"),
-	"桥台侵蚀": preload("res://scenes/unit/visual/monster/桥台噬者/桥台噬者_visual.tscn"),
-	"桥台噬者": preload("res://scenes/unit/visual/monster/桥台噬者/桥台噬者_visual.tscn"),
-	"泥沙魇": preload("res://scenes/unit/visual/monster/泥沙魇/泥沙魇_visual.tscn"),
-	"脱缝潮": preload("res://scenes/unit/visual/monster/脱缝鬼/脱缝鬼_visual.tscn"),
-	"旧制监工": preload("res://scenes/unit/visual/monster/旧制监工/旧制监工_visual.tscn"),
-	"循旧匠首": preload("res://scenes/unit/visual/monster/守法匠首/守法匠首_visual.tscn"),
-	"重墩石像": preload("res://scenes/unit/visual/monster/重墩石像/重墩石像_visual.tscn"),
-	"裂石兽": preload("res://scenes/unit/visual/monster/裂石兽/裂石兽_visual.tscn"),
-	"错券兵": preload("res://scenes/unit/visual/monster/错券兵/错券兵_visual.tscn"),
-	"漂木群·洪水版": preload("res://scenes/unit/visual/monster/漂木群洪水版/漂木群洪水版_visual.tscn"),
-}
+## （真源在 UnitFactory，此处保留别名。）
+const MONSTER_VISUALS: Dictionary = UnitFactory.MONSTER_VISUALS
 
 ## 友方名称 → Visual 场景映射表。spawn_unit 在 MONSTER_VISUALS 未命中时回落到这里。
-const HUMAN_VISUALS: Dictionary = {
-	"李春": preload("res://scenes/unit/visual/human/li_chun/li_chun_visual.tscn"),
-	"工匠": preload("res://scenes/unit/visual/human/工匠/工匠_visual.tscn"),
-	"测量工": preload("res://scenes/unit/visual/human/测量工/测量工_visual.tscn"),
-}
+## （真源在 UnitFactory，此处保留别名。）
+const HUMAN_VISUALS: Dictionary = UnitFactory.HUMAN_VISUALS
 
 @export var obstacles_tilemap_layer: TileMapLayer  # 障碍物所在的层，必须在编辑器中指定
 ## AI 回合中每个敌人一轮内最多走几步（每步 = 向相邻格移动一次）。
@@ -270,14 +250,14 @@ var _selection_indicator: Line2D
 var _end_turn_button_default_modulate: Color = Color.WHITE
 
 ## Names to search for the walkable tilemap layer
-const WALKABLE_LAYER_NAMES: Array[String] = [
-	"surface z=0", "Main tile map z=0", "WalkableMap",
-]
+## （真源在 SceneBootstrap，此处保留别名。）
+const WALKABLE_LAYER_NAMES: Array[String] = SceneBootstrap.WALKABLE_LAYER_NAMES
 
 ## 障碍层名字关键字（大小写不敏感，前缀匹配）。导出构建里 @export 引用可能丢失
 ## （AGENTS Pitfalls #2），_find_obstacle_tilemap 用它们做运行时回退查找。
 ## "railing" 对应 level1-4 / 验桥日的 "railing z=7"（那两关用栏杆层当 Y-Sort 父层）。
-const OBSTACLE_LAYER_KEYWORDS: Array[String] = ["obstacle", "障碍", "阻挡", "railing"]
+## （真源在 SceneBootstrap，此处保留别名。）
+const OBSTACLE_LAYER_KEYWORDS: Array[String] = SceneBootstrap.OBSTACLE_LAYER_KEYWORDS
 
 # ─────────────────────────────────────────────
 # 队伍 / 回合系统
@@ -303,6 +283,12 @@ var _objectives_tracker: ObjectivesTracker = null
 
 ## 关卡胜负流程组件（Tactics Stack）。中场剧情 / 通关结算 / 失败面板的执行者。
 var _level_flow: LevelFlow = null
+
+## 单位工厂 + 队伍编成组件（Tactics Stack）。单位生成 / 技能授予收回 / 战斗数值覆写 / 队伍编成的执行者。
+var _unit_factory: UnitFactory = null
+
+## 场景引导组件（Tactics Stack）。TileMapLayer 查找 / 实体重挂 / 地图边界 / 单位枚举的执行者。
+var _scene_bootstrap: SceneBootstrap = null
 
 var teams: Array = []  # Array[TeamData]
 var current_team_index: int = -1
@@ -619,42 +605,18 @@ func _on_win_button_pressed() -> void:
 # 队伍初始化（读取场景已有节点）
 # ─────────────────────────────────────────────
 
+## 薄壳转发至 UnitFactory.setup_teams_from_config（保留旧调用点零改动）。
 func _setup_teams_from_config(configs: Array) -> void:
-	for i in range(configs.size()):
-		var cfg: Dictionary = configs[i]
-		var team := TeamData.new(
-			cfg.get("name", "队伍%d" % i),
-			cfg.get("faction", ""),
-			cfg.get("controller", "ai")
-		)
-		for unit: Node2D in cfg.get("units", []):
-			unit.team_index = i
-			unit.faction = team.faction
-			unit.movement_manager = movement_manager
-			# 从节点在编辑器中的位置推算所在格子并对齐到格子中心
-			var snapped_cell := tilemap.local_to_map(tilemap.to_local(unit.global_position))
-			unit.set_cell(snapped_cell, tilemap)
-			team.units.append(unit)
-		teams.append(team)
-
-	# 向后兼容：hero 指向第一个玩家控制队伍的第一个单位
-	for team: TeamData in teams:
-		if team.controller == "player" and not team.units.is_empty():
-			hero = team.units[0]
-			break
+	_get_unit_factory().setup_teams_from_config(configs)
 
 
 # ─────────────────────────────────────────────
 # 回合系统初始化
 # ─────────────────────────────────────────────
 
+## 薄壳转发至 SceneBootstrap.apply_tilemap_texture_filter（保留旧调用点零改动）。
 func _apply_tilemap_texture_filter() -> void:
-	if tilemap_container == null:
-		return
-	tilemap_container.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	for node: Node in tilemap_container.find_children("*", "TileMapLayer", true):
-		if node is TileMapLayer:
-			node.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_get_scene_bootstrap().apply_tilemap_texture_filter()
 
 
 ## 子类覆写：返回 true 表示这是"自由移动 / 实时"关卡，跳过回合系统。
@@ -726,6 +688,22 @@ func _get_level_flow() -> LevelFlow:
 		_level_flow = LevelFlow.new()
 		_level_flow.setup(self)
 	return _level_flow
+
+
+## 单位工厂组件懒加载（首调时 setup(self)）。
+func _get_unit_factory() -> UnitFactory:
+	if _unit_factory == null:
+		_unit_factory = UnitFactory.new()
+		_unit_factory.setup(self)
+	return _unit_factory
+
+
+## 场景引导组件懒加载（首调时 setup(self)）。
+func _get_scene_bootstrap() -> SceneBootstrap:
+	if _scene_bootstrap == null:
+		_scene_bootstrap = SceneBootstrap.new()
+		_scene_bootstrap.setup(self)
+	return _scene_bootstrap
 
 
 ## 薄壳转发至 TurnSystem.init_turn_system（保留旧调用点零改动）。
@@ -901,44 +879,9 @@ func _on_defeat_main_menu() -> void:
 
 ## 运行时生成一个单位。加入指定队伍，放置在指定 cell 的脚下。
 ## visual 可选：传入 PackedScene 直接指定外观，否则根据 unit_data.unit_name 自动查表。
+## 薄壳转发至 UnitFactory.spawn_unit（保留旧调用点零改动）。
 func spawn_unit(unit_data: UnitData, cell: Vector2i, team_index: int, visual: PackedScene = null) -> Unit:
-	var UnitScene := preload("res://scenes/unit/unit.tscn")
-	var unit: Unit = UnitScene.instantiate()
-	unit.unit_data = unit_data
-	# 应用外观：优先使用传入的 visual，否则根据名称自动查表（先怪后人）
-	var visual_to_use: PackedScene = visual
-	if visual_to_use == null and unit_data:
-		if MONSTER_VISUALS.has(unit_data.unit_name):
-			visual_to_use = MONSTER_VISUALS[unit_data.unit_name]
-		elif HUMAN_VISUALS.has(unit_data.unit_name):
-			visual_to_use = HUMAN_VISUALS[unit_data.unit_name]
-	if visual_to_use:
-		unit.visual_scene = visual_to_use
-	# 占位诊断：若目标格已有单位 → 输出 warning（不阻断；静态布局作者意图保留）
-	for existing in _get_all_units():
-		if is_instance_valid(existing) and existing is Unit and (existing as Unit).cell == cell:
-			var existing_name: String = (existing as Unit).unit_data.unit_name if (existing as Unit).unit_data else "<unknown>"
-			push_warning("spawn_unit: cell %s already occupied by %s; new unit will overlap" % [cell, existing_name])
-			break
-	# @export 引用在导出构建里可能为 null（AGENTS Pitfalls #2），沿用 _find_*_tilemap
-	# 回退范式：@export → 运行时按名字查找 → 挂到关卡节点兜底，不崩。
-	var unit_parent: Node = obstacles_tilemap_layer
-	if unit_parent == null:
-		unit_parent = _find_obstacle_tilemap()
-	if unit_parent == null:
-		push_warning("obstacles_tilemap_layer is not set; spawning unit under level node")
-		unit_parent = self
-	unit_parent.add_child(unit)
-	unit.movement_manager = movement_manager
-	unit.set_cell(cell, tilemap)
-	if team_index >= 0 and team_index < teams.size():
-		var team: TeamData = teams[team_index]
-		unit.team_index = team_index
-		unit.faction = team.faction
-		team.units.append(unit)
-	_apply_infinite_ally_actions_to_unit(unit)
-	unit.apply_faction_outline()
-	return unit
+	return _get_unit_factory().spawn_unit(unit_data, cell, team_index, visual)
 
 
 ## 单位倒下处理：从队伍名单中移除，取消选中，播放退场动画。
@@ -993,70 +936,31 @@ func play_chatter_lines(lines: Array[DialogueLine], dismiss_delay: float = 2.0, 
 
 
 ## 授予单位一个新技能。幂等：若单位已有该技能则不做任何操作，不 emit 信号。
+## 薄壳转发至 UnitFactory.grant_skill（保留旧调用点零改动）。
 func grant_skill(unit: Unit, skill: SkillData) -> void:
-	if unit == null or unit.unit_data == null or skill == null:
-		return
-	# 确保 unit_data 已 duplicate，避免污染磁盘资源
-	if not unit.unit_data.resource_local_to_scene:
-		unit.unit_data = unit.unit_data.duplicate()
-		unit.unit_data.resource_local_to_scene = true
-	if skill in unit.unit_data.skills:
-		return
-	unit.unit_data.skills.append(skill)
-	unit_gained_skill.emit(unit, skill)
-	# 若正是当前选中单位，刷新状态栏
-	if selected_unit == unit:
-		_update_status_bar_for_unit(unit, true)
+	_get_unit_factory().grant_skill(unit, skill)
 
 
 ## 收回单位的一个技能。若单位没有该技能则不做任何操作，不 emit 信号。
+## 薄壳转发至 UnitFactory.revoke_skill（保留旧调用点零改动）。
 func revoke_skill(unit: Unit, skill: SkillData) -> void:
-	if unit == null or unit.unit_data == null or skill == null:
-		return
-	if not skill in unit.unit_data.skills:
-		return
-	unit.unit_data.skills.erase(skill)
-	unit_lost_skill.emit(unit, skill)
-	if selected_unit == unit:
-		_update_status_bar_for_unit(unit, true)
+	_get_unit_factory().revoke_skill(unit, skill)
 
 
 ## 替换单位的全部技能列表。会 duplicate unit_data 避免修改共享资源。
+## 薄壳转发至 UnitFactory.set_unit_skills（保留旧调用点零改动）。
 func set_unit_skills(unit: Unit, skills: Array) -> void:
-	if unit == null or unit.unit_data == null:
-		return
-	if not unit.unit_data.resource_local_to_scene:
-		unit.unit_data = unit.unit_data.duplicate()
-		unit.unit_data.resource_local_to_scene = true
-	unit.unit_data.skills.clear()
-	for s in skills:
-		unit.unit_data.skills.append(s)
-		unit_gained_skill.emit(unit, s)
-	if selected_unit == unit:
-		_update_status_bar_for_unit(unit, true)
+	_get_unit_factory().set_unit_skills(unit, skills)
 
 
 ## 在运行时覆写单位的战斗数值。修改后自动刷新头顶 UI。
 ## 注：hp / atk / ap 是"设计师视角的基线值"，会在 CombatStats.set_base_stats() 里
 ## 按当前难度系数烤进实际属性。这样难度切换对脚本生成的单位也生效。
+## 薄壳转发至 UnitFactory.setup_unit_stats（保留旧调用点零改动）。
 func setup_unit_stats(unit: Unit, uname: String, hp: int, atk: int,
 		ap: int, move_cost: int, elem: Enums.Element = Enums.Element.NONE,
 		elem_amt: int = 0, is_hero_flag: bool = false) -> void:
-	if unit == null or unit.combat_stats == null:
-		return
-	var s := unit.combat_stats
-	s.unit_name = uname
-	s.set_base_stats(hp, atk, ap)
-	s.move_cost_per_tile = move_cost
-	s.innate_element = elem
-	s.innate_element_amount = elem_amt
-	s.current_element = elem
-	s.current_element_amount = elem_amt
-	s.is_hero = is_hero_flag
-	_apply_infinite_ally_actions_to_unit(unit)
-	unit.refresh_overhead_bars()
-	if unit.has_method("apply_faction_outline"):
-		unit.apply_faction_outline()
+	_get_unit_factory().setup_unit_stats(unit, uname, hp, atk, ap, move_cost, elem, elem_amt, is_hero_flag)
 
 
 ## 薄壳转发至 LevelUIBridge.on_settings_button_pressed（base_level.tscn 信号目标）。
@@ -1333,43 +1237,22 @@ func _on_move_button_pressed() -> void:
 	_get_input_controller().on_move_button_pressed()
 
 
+## 薄壳转发至 SceneBootstrap.get_all_units（保留旧调用点零改动）。
 func _get_all_units() -> Array:
-	var result: Array = []
-	for team: TeamData in teams:
-		for unit: Node2D in team.units:
-			result.append(unit)
-	return result
+	return _get_scene_bootstrap().get_all_units()
 
 
 ## 找一个"空且可走"的格。同心方环外扩搜索，max_radius 控制最大半径。
 ## 找不到时返回 target 本身（不静默崩；调用方可以看到 spawn_unit 的 push_warning）。
 ## 复用 movement_manager.get_movement_cost 判地形 + _get_all_units 判占位。
+## 薄壳转发至 SceneBootstrap.find_empty_walkable_cell（保留旧调用点零改动）。
 func _find_empty_walkable_cell(target: Vector2i, max_radius: int = 4) -> Vector2i:
-	if _is_cell_walkable_and_empty(target):
-		return target
-	for radius in range(1, max_radius + 1):
-		# 只扫方环边界（内部已在前一轮试过）
-		for dx in range(-radius, radius + 1):
-			for dy in range(-radius, radius + 1):
-				if absi(dx) != radius and absi(dy) != radius:
-					continue
-				var candidate := target + Vector2i(dx, dy)
-				if _is_cell_walkable_and_empty(candidate):
-					return candidate
-	return target
+	return _get_scene_bootstrap().find_empty_walkable_cell(target, max_radius)
 
 
+## 薄壳转发至 SceneBootstrap.is_cell_walkable_and_empty（保留旧调用点零改动）。
 func _is_cell_walkable_and_empty(cell: Vector2i) -> bool:
-	if movement_manager == null:
-		return false
-	if movement_manager.get_movement_cost(cell) < 0:
-		return false
-	for unit in _get_all_units():
-		if not is_instance_valid(unit):
-			continue
-		if unit is Unit and (unit as Unit).cell == cell:
-			return false
-	return true
+	return _get_scene_bootstrap().is_cell_walkable_and_empty(cell)
 
 
 ## 难度变化时，按比例重算所有存活单位的 max_hp / ap_max / base_atk。
@@ -1516,50 +1399,14 @@ func _apply_persistent_growth_effects() -> void:
 				apply_unit_growth_bonus(unit, 0, 0, 5)
 
 
+## 薄壳转发至 UnitFactory.modify_unit_skill（保留旧调用点零改动）。
 func modify_unit_skill(unit: Unit, skill_id: String, changes: Dictionary) -> bool:
-	if unit == null or unit.unit_data == null:
-		return false
-	for i in range(unit.unit_data.skills.size()):
-		var skill := unit.unit_data.skills[i] as SkillData
-		if skill == null or skill.skill_id != skill_id:
-			continue
-		var local_skill := skill.duplicate(true) as SkillData
-		local_skill.resource_local_to_scene = true
-		if changes.has("ap_cost"):
-			local_skill.ap_cost = maxi(int(changes["ap_cost"]), 0)
-		if changes.has("damage_ratio"):
-			local_skill.damage_ratio = float(changes["damage_ratio"])
-		if changes.has("duration_turns"):
-			local_skill.duration_turns = maxi(int(changes["duration_turns"]), 0)
-		if changes.has("cooldown_turns"):
-			local_skill.cooldown_turns = maxi(int(changes["cooldown_turns"]), 0)
-		unit.unit_data.skills[i] = local_skill
-		if selected_unit == unit:
-			_update_status_bar_for_unit(unit, true)
-		return true
-	return false
+	return _get_unit_factory().modify_unit_skill(unit, skill_id, changes)
 
 
+## 薄壳转发至 UnitFactory.add_skill_to_unit（保留旧调用点零改动）。
 func add_skill_to_unit(unit: Unit, skill: SkillData, replace_candidates: Array[String] = []) -> void:
-	if unit == null or unit.unit_data == null or skill == null:
-		return
-	for existing in unit.unit_data.skills:
-		var existing_skill := existing as SkillData
-		if existing_skill != null and existing_skill.skill_id == skill.skill_id:
-			return
-	var new_skills: Array[SkillData] = []
-	for existing in unit.unit_data.skills:
-		new_skills.append(existing)
-	if new_skills.size() >= 5:
-		for replace_skill_id in replace_candidates:
-			for i in range(new_skills.size()):
-				if new_skills[i].skill_id == replace_skill_id:
-					new_skills.remove_at(i)
-					break
-			if new_skills.size() < 5:
-				break
-	new_skills.append(skill)
-	set_unit_skills(unit, new_skills)
+	_get_unit_factory().add_skill_to_unit(unit, skill, replace_candidates)
 
 
 ## 查询当前可移动范围（TARGETING_MOVE 时有效）。
@@ -1623,77 +1470,29 @@ func spawn_tile_pulsing_marker(
 # 场景辅助
 # ─────────────────────────────────────────────
 
+## 薄壳转发至 SceneBootstrap.reparent_entities_to_obstacles（保留旧调用点零改动）。
 func _reparent_entities_to_obstacles() -> void:
-	if obstacles_tilemap_layer == null:
-		push_error("obstacles_tilemap_layer is not set; cannot reparent entities")
-		return
-	var entities: Node2D = $Entities
-	for container in entities.get_children():
-		for entity in container.get_children():
-			# keep_global_transform=true (default) preserves world position
-			entity.reparent(obstacles_tilemap_layer)
-			# Snap to nearest tile cell so cell property matches visual position
-			if tilemap != null:
-				var nearest_cell := tilemap.local_to_map(
-						tilemap.to_local(entity.global_position))
-				if entity.has_method("set_cell"):
-					entity.set_cell(nearest_cell, tilemap)
-				else:
-					entity.global_position = tilemap.to_global(
-							tilemap.map_to_local(nearest_cell))
-					if "cell" in entity:
-						entity.cell = nearest_cell
-	obstacles_tilemap_layer.y_sort_enabled = true
-	for child in obstacles_tilemap_layer.get_children():
-		if child is Node2D:
-			child.y_sort_enabled = true
+	_get_scene_bootstrap().reparent_entities_to_obstacles()
 
 
+## 薄壳转发至 SceneBootstrap.find_walkable_tilemap（保留旧调用点零改动）。
 func _find_walkable_tilemap() -> TileMapLayer:
-	for layer_name in WALKABLE_LAYER_NAMES:
-		var node: Node = tilemap_container.find_child(layer_name, true, false)
-		if node is TileMapLayer:
-			return node
-	for child in tilemap_container.get_children():
-		if child is TileMapLayer:
-			return child
-	return null
+	return _get_scene_bootstrap().find_walkable_tilemap()
 
 
 ## 导出构建里 @export obstacles_tilemap_layer 可能为 null（AGENTS Pitfalls #2），
 ## 按节点名关键字模糊回退查找障碍层。用前缀匹配而非包含匹配，避免误命中
 ## "unvisiable obstacle"（modulate.a == 0 的隐形碰撞层，挂上去单位会被隐掉）。
+## 薄壳转发至 SceneBootstrap.find_obstacle_tilemap（保留旧调用点零改动）。
 func _find_obstacle_tilemap() -> TileMapLayer:
-	if tilemap_container == null:
-		return null
-	for node: Node in tilemap_container.find_children("*", "TileMapLayer", true, false):
-		var lname := String(node.name).to_lower()
-		for keyword in OBSTACLE_LAYER_KEYWORDS:
-			if lname.begins_with(keyword.to_lower()):
-				return node as TileMapLayer
-	return null
+	return _get_scene_bootstrap().find_obstacle_tilemap()
 
 
+## 薄壳转发至 SceneBootstrap.find_hero（保留旧调用点零改动）。
 func _find_hero() -> Node2D:
-	for child in units_container.get_children():
-		return child
-	return null
+	return _get_scene_bootstrap().find_hero()
 
 
+## 薄壳转发至 SceneBootstrap.get_tilemap_bounds（保留旧调用点零改动）。
 func get_tilemap_bounds() -> Rect2:
-	var has_bounds := false
-	var res_bounds := Rect2()
-
-	for child in tilemap_container.get_children():
-		if child is TileMapLayer:
-			var bounds := Utils.get_tilemap_layer_bounds(child)
-			if bounds.size == Vector2.ZERO:
-				continue
-			if not has_bounds:
-				res_bounds = bounds
-				has_bounds = true
-				continue
-			res_bounds = res_bounds.expand(bounds.position)
-			res_bounds = res_bounds.expand(bounds.end)
-
-	return res_bounds
+	return _get_scene_bootstrap().get_tilemap_bounds()
