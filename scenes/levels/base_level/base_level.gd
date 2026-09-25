@@ -298,6 +298,12 @@ var _skill_cast_controller: SkillCastController = null
 ## UI 桥接组件（Tactics Stack）。状态栏联动 / 按钮回调 / debug UI / BGM / 技能 targeting 管理的执行者。
 var _ui_bridge: LevelUIBridge = null
 
+## 目标跟踪组件（Tactics Stack）。胜负条件检查分发（先 defeat 后 victory）的执行者。
+var _objectives_tracker: ObjectivesTracker = null
+
+## 关卡胜负流程组件（Tactics Stack）。中场剧情 / 通关结算 / 失败面板的执行者。
+var _level_flow: LevelFlow = null
+
 var teams: Array = []  # Array[TeamData]
 var current_team_index: int = -1
 ## 大回合计数（所有队伍各轮一次为一个大回合）。第一大回合 = 1。
@@ -601,18 +607,9 @@ func apply_direct_damage(unit: Unit, damage: int, source: String = "") -> void:
 
 
 ## 执行胜负条件检查。在关键事件（倒下、回合开始）后自动调用。
+## 薄壳转发至 ObjectivesTracker.check_win_lose（保留旧调用点与信号连接零改动）。
 func _check_win_lose(_arg = null) -> void:
-	if is_phase_ended():
-		return
-	await get_tree().process_frame
-	if is_phase_ended():
-		return
-	var defeat_reason: String = check_defeat()
-	if defeat_reason != "":
-		defeat_level(defeat_reason)
-		return
-	if check_victory():
-		complete_level()
+	await _get_objectives_tracker().check_win_lose(_arg)
 
 # 用于测试的一键胜利按钮。薄壳转发至 LevelUIBridge.on_win_button_pressed。
 func _on_win_button_pressed() -> void:
@@ -713,6 +710,22 @@ func _get_tutorial_runner() -> TutorialRunner:
 		_tutorial_runner = TutorialRunner.new()
 		_tutorial_runner.setup(self)
 	return _tutorial_runner
+
+
+## 目标跟踪组件懒加载（首调时 setup(self)）。
+func _get_objectives_tracker() -> ObjectivesTracker:
+	if _objectives_tracker == null:
+		_objectives_tracker = ObjectivesTracker.new()
+		_objectives_tracker.setup(self)
+	return _objectives_tracker
+
+
+## 关卡胜负流程组件懒加载（首调时 setup(self)）。
+func _get_level_flow() -> LevelFlow:
+	if _level_flow == null:
+		_level_flow = LevelFlow.new()
+		_level_flow.setup(self)
+	return _level_flow
 
 
 ## 薄壳转发至 TurnSystem.init_turn_system（保留旧调用点零改动）。
@@ -851,71 +864,29 @@ func _reset_status_bar() -> void:
 # ─────────────────────────────────────────────
 
 ## Play a mid-battle cutscene as an overlay. Blocks until finished.
+## 薄壳转发至 LevelFlow.play_mid_cutscene（保留旧调用点零改动）。
 func play_mid_cutscene(pages: Array) -> void:
-	var cutscene: CutscenePlayer = preload("res://scenes/cutscene/cutscene_player.tscn").instantiate()
-	cutscene.setup(pages)
-	if not _open_overlay(ActiveOverlay.CUTSCENE, cutscene, &"cutscene_finished"):
-		cutscene.queue_free()
-		return
-	await cutscene.cutscene_finished
+	await _get_level_flow().play_mid_cutscene(pages)
 
 
 ## Call when the level is won. Handles post-cutscene or returns to menu.
 ## 幂等：phase 已 ENDED 时直接返回，防止重复副作用（Progress.complete_level / 切场景等）。
+## 薄壳转发至 LevelFlow.complete_level（保留旧调用点与子类 super() 覆写零改动）。
 func complete_level() -> void:
-	if is_phase_ended():
-		return
-	_set_phase(LevelPhase.ENDED)
-	UiSounds.play_victory()
-	var level := GameState.selected_level
-	var growth_options := get_post_level_growth_options()
-	if not growth_options.is_empty() and not Progress.has_level_growth_choices(level):
-		var panel := GrowthChoicePanelScript.new()
-		panel.panel_title = "结算成长"
-		panel.options = growth_options
-		panel.required_selection_count = 3
-		panel.options_confirmed.connect(func(option_ids: Array[String]):
-			Progress.complete_level(level, option_ids)
-			var chosen_names: Array[String] = []
-			for option_id in option_ids:
-				chosen_names.append(Progress.get_growth_option_name(option_id))
-			if not chosen_names.is_empty():
-				Notify.success("已选择结算成长：%s" % "、".join(chosen_names), 3.0)
-			_continue_after_level_completion(level)
-		, CONNECT_ONE_SHOT)
-		if not _open_overlay(ActiveOverlay.GROWTH_CHOICE, panel, &"options_confirmed"):
-			panel.queue_free()
-			Progress.complete_level(level)
-			_continue_after_level_completion(level)
-		return
-	Progress.complete_level(level)
-	_continue_after_level_completion(level)
+	_get_level_flow().complete_level()
 
 
+## 薄壳转发至 LevelFlow.continue_after_level_completion（保留旧调用点零改动）。
 func _continue_after_level_completion(level: String) -> void:
-	if GameState.has_cutscene(level, "post"):
-		GameState.pending_cutscene_pages = GameState.get_cutscene_pages(level, "post")
-		GameState.pending_next_scene = "res://scenes/menu/main_menu.tscn"
-		GameState.transition_to_scene("res://scenes/cutscene/cutscene_scene.tscn")
-	else:
-		GameState.transition_to_scene("res://scenes/menu/main_menu.tscn")
+	_get_level_flow().continue_after_level_completion(level)
 
 
 ## 关卡失败。显示失败面板，玩家选择重试或返回主菜单。
 ## reason: 失败原因文本（显示在面板中）。
 ## 幂等：phase 已 ENDED 时直接返回，防止重复弹失败面板。
+## 薄壳转发至 LevelFlow.defeat_level（保留旧调用点零改动）。
 func defeat_level(reason: String = "任务失败") -> void:
-	if is_phase_ended():
-		return
-	_set_phase(LevelPhase.ENDED)
-	UiSounds.play_defeat()
-	var panel: Node = preload("res://scenes/ui/defeat_panel.tscn").instantiate()
-	panel.defeat_reason = reason
-	panel.retry_pressed.connect(_on_defeat_retry)
-	panel.main_menu_pressed.connect(_on_defeat_main_menu)
-	if not _open_overlay(ActiveOverlay.DEFEAT_PANEL, panel):
-		panel.queue_free()
-		return
+	_get_level_flow().defeat_level(reason)
 
 
 ## 薄壳转发至 LevelUIBridge.on_defeat_retry（defeat_panel.retry_pressed 信号目标）。
