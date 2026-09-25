@@ -90,12 +90,13 @@ var _phase_notification: PhaseNotification = null
 ## 兼容旧版：指向第一个玩家控制队伍的第一个单位（李春）。
 var hero: Node2D
 var unit_selected := false
-## debug AI 闲聊忙锁。代理属性：真源在 LLMChatterBridge，保持旧字段名可读写。
+## debug AI 闲聊忙锁。代理属性：真源在 LLMChatterBridge，保持旧字段名可读写（debug 降级：未启用时读 false / 写忽略）。
 var _ai_busy: bool:
 	get:
-		return _get_chatter_bridge().ai_busy
+		return _is_debug_ai_enabled() and _get_chatter_bridge().ai_busy
 	set(value):
-		_get_chatter_bridge().ai_busy = value
+		if _is_debug_ai_enabled():
+			_get_chatter_bridge().ai_busy = value
 ## 单位闲聊调度器（LLM 驱动）。BRIEFING 之后的战斗中监听 team_turn_ended / round_ended 触发对话。
 var _chatter_scheduler: Node = null
 ## 对话桥接组件（Shared Kernel）。BaseLevel 通过同名委托方法转发调用。
@@ -397,8 +398,9 @@ func _ready() -> void:
 	# 回合计数器
 	round_started.connect(_update_round_label)
 	_update_round_label(round_number)
-	# 每个大回合开始（玩家→友方→敌人 跑完一圈后）自动触发一次 AI
-	round_started.connect(_on_round_started_ai_call)
+	# 每个大回合开始（玩家→友方→敌人 跑完一圈后）自动触发一次 AI（debug 降级：仅 debug 构建 / Settings 隐藏开关时挂载）
+	if _is_debug_ai_enabled():
+		round_started.connect(_on_round_started_ai_call)
 	# LLM 单位闲聊：ChatterScheduler 内部订阅 skill_executed / team_turn_ended / round_ended
 	_chatter_scheduler = ChatterSchedulerScript.new()
 	add_child(_chatter_scheduler)
@@ -962,21 +964,32 @@ func _on_settings_button_pressed() -> void:
 	_get_ui_bridge().on_settings_button_pressed()
 
 
+## debug AI 闲聊是否启用：debug 构建或 Settings 隐藏调试开关打开时才放行（debug 降级）。
+func _is_debug_ai_enabled() -> bool:
+	return OS.is_debug_build() or Settings.debug_mode
+
+
 ## AI 支持按钮：临时调用 LLM 做一次测试请求。后续会替换为具体业务（旁白/调侃等）。
 ## 薄壳转发至 LLMChatterBridge.on_ai_button_pressed。
 func _on_ai_button_pressed() -> void:
+	if not _is_debug_ai_enabled():
+		return
 	await _get_chatter_bridge().on_ai_button_pressed()
 
 
 ## 大回合开始信号回调：自动触发一次 AI（占位，后续替换为剧情/战况点评）。
 ## 薄壳转发至 LLMChatterBridge.on_round_started_ai_call。
 func _on_round_started_ai_call(rn: int) -> void:
+	if not _is_debug_ai_enabled():
+		return
 	await _get_chatter_bridge().on_round_started_ai_call(rn)
 
 
 ## 内部：拼请求 + 显示 toast。被按钮和回合开始两处复用。
 ## 薄壳转发至 LLMChatterBridge.call_ai_with_prompt。
 func _call_ai_with_prompt(prompt: String) -> void:
+	if not _is_debug_ai_enabled():
+		return
 	await _get_chatter_bridge().call_ai_with_prompt(prompt)
 
 

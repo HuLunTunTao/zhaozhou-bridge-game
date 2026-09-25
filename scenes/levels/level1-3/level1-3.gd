@@ -475,7 +475,7 @@ func _show_direct_damage_feedback(unit: Unit, old_hp: int, new_hp: int, message:
 	add_child(popup)
 	popup.show_at(unit.global_position, actual_damage)
 	Notify.warn(message, 1.5)
-	report_unit_damaged(unit, old_hp, new_hp)
+	_get_skill_cast_controller().report_unit_damaged(unit, old_hp, new_hp)
 
 
 func _setup_anchor_cells() -> void:
@@ -509,13 +509,13 @@ func _setup_platform_markers() -> void:
 	for c in CellMath.zone2x2_se(_left_platform):
 		var t := _make_platform_tile(COLOR_LEFT_PLATFORM)
 		t.name = "LeftArchTile_%d_%d" % [c.x, c.y]
-		register_special_tile(t, c)
+		_special_tile_registry.register(t, c)
 	_left_platform_marker = get_node("Markers/LeftArchMarker")
 
 	for c in CellMath.zone2x2_se(_right_platform):
 		var t := _make_platform_tile(COLOR_RIGHT_PLATFORM)
 		t.name = "RightArchTile_%d_%d" % [c.x, c.y]
-		register_special_tile(t, c)
+		_special_tile_registry.register(t, c)
 	_right_platform_marker = get_node("Markers/RightArchMarker")
 
 
@@ -526,7 +526,7 @@ func _setup_stone_yard_markers() -> void:
 		for c in CellMath.zone2x2_se(anchor):
 			var tile := _make_platform_tile(COLOR_STONE_YARD)
 			tile.name = "StoneYardTile_%d_%d_%d" % [i, c.x, c.y]
-			register_special_tile(tile, c)
+			_special_tile_registry.register(tile, c)
 		_stone_yard_markers.append(get_node("Markers/StoneYardMarker_%d" % i))
 
 
@@ -536,7 +536,7 @@ func _setup_stone_yard_markers() -> void:
 func _setup_crown_marker() -> void:
 	var tile := _make_platform_tile(COLOR_CROWN_PLATFORM)
 	tile.name = "CrownTile_%d_%d" % [_crown_point.x, _crown_point.y]
-	register_special_tile(tile, _crown_point)
+	_special_tile_registry.register(tile, _crown_point)
 	tile.visible = false
 	_crown_tile = tile
 	if has_node("Markers/CrownMarker"):
@@ -575,8 +575,8 @@ func _make_platform_tile(color: Color) -> SpecialTile:
 
 
 func _setup_li_chun() -> void:
-	set_unit_skills(_li_chun, Progress.get_battle_skill_resources(GameState.selected_level))
-	setup_unit_stats(_li_chun, "李春", 130, 24, 100, 8, Enums.Element.NONE, 0, true)
+	_get_unit_factory().set_unit_skills(_li_chun, Progress.get_battle_skill_resources(GameState.selected_level))
+	_get_unit_factory().setup_unit_stats(_li_chun, "李春", 130, 24, 100, 8, Enums.Element.NONE, 0, true)
 
 
 func _setup_allies_from_scene() -> void:
@@ -585,16 +585,16 @@ func _setup_allies_from_scene() -> void:
 	# 同时在两石料场旁各动态生成 1 名额外运石工，加速运石节奏。
 	_spawn_extra_carriers()
 	for craftsman in _craftsmen:
-		set_unit_skills(craftsman, [_mallet, _guard])
-		setup_unit_stats(craftsman, "工匠", 118, 20, 92, 9)
+		_get_unit_factory().set_unit_skills(craftsman, [_mallet, _guard])
+		_get_unit_factory().setup_unit_stats(craftsman, "工匠", 118, 20, 92, 9)
 	for carrier in _stone_carriers:
-		set_unit_skills(carrier, [_staff])
-		setup_unit_stats(carrier, "运石工", 88, 13, 100, 8)
+		_get_unit_factory().set_unit_skills(carrier, [_staff])
+		_get_unit_factory().setup_unit_stats(carrier, "运石工", 88, 13, 100, 8)
 		_carrier_base_move_cost[carrier.get_instance_id()] = carrier.combat_stats.move_cost_per_tile
 	_apply_persistent_growth_effects()
 	# 墨绳校券改为无 CD 的「左右调拨」式机制（命中侧 +1 / 对侧 -1），
 	# 在所有成长应用之后强制覆盖一次以确保 CD=0（防止以后再加成长项时被改回）。
-	modify_unit_skill(_li_chun, "lc_inkline_balance_arch", {"cooldown_turns": 0})
+	_get_unit_factory().modify_unit_skill(_li_chun, "lc_inkline_balance_arch", {"cooldown_turns": 0})
 
 
 ## 在两个石料场旁各生成 1 名额外运石工。让运石节奏跟得上敌方扣券速度。
@@ -607,7 +607,7 @@ func _spawn_extra_carriers() -> void:
 	]
 	for target in spawn_targets:
 		var cell := CellMath.nearest_walkable(movement_manager, target)
-		var carrier := spawn_unit(carrier_data, cell, PLAYER_TEAM, _visual_carrier)
+		var carrier := _get_unit_factory().spawn_unit(carrier_data, cell, PLAYER_TEAM, _visual_carrier)
 		_stone_carriers.append(carrier)
 
 
@@ -770,7 +770,7 @@ func _unlock_boss() -> void:
 	_boss.combat_stats.ap_max = 90
 	_boss.combat_stats.ap_current = _boss.combat_stats.ap_max
 	_boss.refresh_overhead_bars()
-	set_unit_skills(_boss, [_crush])
+	_get_unit_factory().set_unit_skills(_boss, [_crush])
 
 
 func _resolve_enemy_pressure() -> void:
@@ -813,7 +813,7 @@ func _resolve_enemy_pressure() -> void:
 
 	_update_status_panel()
 	_maybe_notify_balance_transition()
-	_check_win_lose()
+	_get_objectives_tracker().check_win_lose()
 
 
 ## Boss 受击伤害上限：和"平衡状态"挂钩，玩家必须维持左右差值才能高效打 Boss。
@@ -869,9 +869,9 @@ func _set_runtime_status(stats: CombatStats, status_id: String, enabled: bool) -
 func _spawn_enemy(data: UnitData, cell: Vector2i, skills: Array[SkillData], visual: PackedScene = null) -> Unit:
 	# 敌人必须落在桥上（避免刷到桥下水里）；外部通常已经过 _nearest_bridge_cell，
 	# 这里再保一次兜底，防止新调用点遗漏。
-	var unit := spawn_unit(data, _nearest_bridge_cell(cell), ENEMY_TEAM, visual)
-	set_unit_skills(unit, skills)
-	setup_unit_stats(unit, data.unit_name, data.max_hp, data.base_atk, data.ap_max, data.move_cost_per_tile, data.innate_element, data.innate_element_amount)
+	var unit := _get_unit_factory().spawn_unit(data, _nearest_bridge_cell(cell), ENEMY_TEAM, visual)
+	_get_unit_factory().set_unit_skills(unit, skills)
+	_get_unit_factory().setup_unit_stats(unit, data.unit_name, data.max_hp, data.base_atk, data.ap_max, data.move_cost_per_tile, data.innate_element, data.innate_element_amount)
 	return unit
 
 

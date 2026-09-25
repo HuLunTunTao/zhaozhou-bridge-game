@@ -179,8 +179,8 @@ func _setup_li_chun() -> void:
 	for mandatory in [_confirm_parameter, _ink_set_arch, _divider_arc]:
 		if not _skill_list_contains(skills, mandatory.skill_id):
 			skills.append(mandatory)
-	set_unit_skills(_li_chun, skills)
-	setup_unit_stats(_li_chun, "李春", 130, 24, 100, 8, Enums.Element.NONE, 0, true)
+	_get_unit_factory().set_unit_skills(_li_chun, skills)
+	_get_unit_factory().setup_unit_stats(_li_chun, "李春", 130, 24, 100, 8, Enums.Element.NONE, 0, true)
 
 
 func _setup_allies_from_scene() -> void:
@@ -188,11 +188,11 @@ func _setup_allies_from_scene() -> void:
 	# （基类 _reparent_entities_to_obstacles 会按 global_position 吸附到最近格）。
 	# 这里只补齐 skills / 数值。
 	for sw in _survey_workers:
-		set_unit_skills(sw, [_staff, _take_parameters])
-		setup_unit_stats(sw, "测量工", 80, 12, 85, 10)
+		_get_unit_factory().set_unit_skills(sw, [_staff, _take_parameters])
+		_get_unit_factory().setup_unit_stats(sw, "测量工", 80, 12, 85, 10)
 	for craftsman in _craftsmen:
-		set_unit_skills(craftsman, [_mallet, _guard])
-		setup_unit_stats(craftsman, "工匠", 110, 18, 90, 9)
+		_get_unit_factory().set_unit_skills(craftsman, [_mallet, _guard])
+		_get_unit_factory().setup_unit_stats(craftsman, "工匠", 110, 18, 90, 9)
 
 
 func _setup_parameter_tiles() -> void:
@@ -200,7 +200,7 @@ func _setup_parameter_tiles() -> void:
 	tile.name = "ParameterPoint_%d_%d" % [PARAMETER_CELL.x, PARAMETER_CELL.y]
 	tile.parameter_key = &"坡度"
 	tile.parameter_label = "坡度"
-	register_special_tile(tile, PARAMETER_CELL)
+	_special_tile_registry.register(tile, PARAMETER_CELL)
 	_parameter_tile = tile
 	_spawn_parameter_flag(PARAMETER_CELL)
 
@@ -263,9 +263,9 @@ func _setup_drafting_marker() -> void:
 
 func _spawn_boss() -> void:
 	var cell := CellMath.nearest_walkable(movement_manager, BOSS_CELL, 6)
-	_boss = spawn_unit(_boss_data, cell, ENEMY_TEAM)
-	set_unit_skills(_boss, [])
-	setup_unit_stats(_boss, _boss_data.unit_name, _boss_data.max_hp, 0, 0, 99, Enums.Element.NONE, 0)
+	_boss = _get_unit_factory().spawn_unit(_boss_data, cell, ENEMY_TEAM)
+	_get_unit_factory().set_unit_skills(_boss, [])
+	_get_unit_factory().setup_unit_stats(_boss, _boss_data.unit_name, _boss_data.max_hp, 0, 0, 99, Enums.Element.NONE, 0)
 	# Boss 每回合固定开口（prob=1.0），对话伙伴池放开到全地图（boss 在角落）
 	_boss.chatter_round_prob = 1.0
 	_boss.chatter_full_map_range = true
@@ -429,7 +429,7 @@ func _spawn_task2_marker() -> void:
 			+ tilemap.map_to_local(DRAFTING_CELLS[2])
 			+ tilemap.map_to_local(DRAFTING_CELLS[3])) / 4.0
 	var base_local := tilemap.map_to_local(DRAFTING_CELLS[0])
-	_task2_pulsing_marker = spawn_tile_pulsing_marker(
+	_task2_pulsing_marker = _special_tile_registry.spawn_pulsing_marker(
 		DRAFTING_CELLS[0],
 		Color(0.4, 0.85, 1.0, 0.55),
 		"中央绘样台",
@@ -460,7 +460,7 @@ func _advance_to_task4() -> void:
 
 func _show_objectives_if_not_open() -> void:
 	if not has_overlay():
-		show_objectives()
+		_get_ui_bridge().show_objectives()
 
 
 func _on_stage_unit_move_completed(unit: Unit) -> void:
@@ -569,7 +569,7 @@ func _on_stage_unit_died(unit: Unit) -> void:
 	_minion_kills += 1
 	Notify.notify("击退受驱役之敌 (%d/%d)" % [_minion_kills, REQUIRED_DEFEATS], Notify.Position.TOP_RIGHT, Notify.Style.SUCCESS, 2.0)
 	_update_mission_hint()
-	_check_win_lose()
+	_get_objectives_tracker().check_win_lose()
 
 
 func _on_stage_hp_changed(unit: Unit, old_hp: int, new_hp: int) -> void:
@@ -620,9 +620,9 @@ func _random_enemy_spawn_cell() -> Vector2i:
 
 
 func _spawn_enemy(base: UnitData, uname: String, hp: int, atk: int, ap: int, move_cost: int, cell: Vector2i, skills: Array[SkillData], visual: PackedScene = null, element: Enums.Element = Enums.Element.NONE, element_amount: int = 0) -> Unit:
-	var unit := spawn_unit(base, _find_empty_walkable_cell(cell), ENEMY_TEAM, visual)
-	set_unit_skills(unit, skills)
-	setup_unit_stats(unit, uname, hp, atk, ap, move_cost, element, element_amount)
+	var unit := _get_unit_factory().spawn_unit(base, _get_scene_bootstrap().find_empty_walkable_cell(cell), ENEMY_TEAM, visual)
+	_get_unit_factory().set_unit_skills(unit, skills)
+	_get_unit_factory().setup_unit_stats(unit, uname, hp, atk, ap, move_cost, element, element_amount)
 	return unit
 
 
@@ -638,7 +638,7 @@ func _skill_list_contains(list: Array, skill_id: String) -> bool:
 
 
 func _cell_occupied(cell: Vector2i) -> bool:
-	for unit in _get_all_units():
+	for unit in _get_scene_bootstrap().get_all_units():
 		if unit is Unit and (unit as Unit).combat_stats and (unit as Unit).combat_stats.is_alive() and (unit as Unit).cell == cell:
 			return true
 	return false

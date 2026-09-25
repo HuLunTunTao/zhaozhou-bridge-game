@@ -504,7 +504,7 @@ func _run_p3_tutorial() -> void:
 # z_index 走基类默认 1：halo/core/label 浮在地表上但被角色覆盖；Floater(120) 仍抢 top。
 func _setup_arch_tiles() -> void:
 	for arch_key in _side_arch_cells.keys():
-		var marker := spawn_tile_pulsing_marker(
+		var marker := _special_tile_registry.spawn_pulsing_marker(
 			_side_arch_cells[arch_key],
 			SmallArchTile.COLOR_CLOSED,
 			"肩",
@@ -631,14 +631,14 @@ func _expire_transient_tiles() -> void:
 		var tile: SiltTile = _silt_tiles[cell]
 		if tile == null or not is_instance_valid(tile) or tile.is_expired(round_now):
 			if is_instance_valid(tile):
-				unregister_special_tile(tile, cell)
+				_special_tile_registry.unregister(tile, cell)
 				tile.queue_free()
 			_silt_tiles.erase(cell)
 	for cell in _rapid_edge_tiles.keys().duplicate():
 		var tile: RapidEdgeTile = _rapid_edge_tiles[cell]
 		if tile == null or not is_instance_valid(tile) or tile.is_expired(round_now):
 			if is_instance_valid(tile):
-				unregister_special_tile(tile, cell)
+				_special_tile_registry.unregister(tile, cell)
 				tile.queue_free()
 			_rapid_edge_tiles.erase(cell)
 
@@ -667,7 +667,7 @@ func _on_skill_executed(caster: Unit, skill: SkillData, cast_cell: Vector2i, _ex
 		_overall_stability = maxi(_overall_stability - 1, 0)
 		_update_status_panel()
 		Notify.warn("%s 冲撞桥心！整桥 −1 → %d" % [unit_name_str, _overall_stability])
-		_check_win_lose()
+		_get_objectives_tracker().check_win_lose()
 
 	# 击退可能把单位推到激流桥缘上；_force_move_cell 直接改 cell 不走
 	# tile_entered 信号，所以这里统一扫一遍所有单位。
@@ -690,7 +690,7 @@ func _apply_rapid_edge_if_present() -> void:
 			if tile == null or not is_instance_valid(tile):
 				continue
 			tile.apply_knockback_damage(u)
-	_check_win_lose()
+	_get_objectives_tracker().check_win_lose()
 
 
 # 从冲撞发起格到目标格的直线覆盖单元（不含起始格，含目标格）。
@@ -719,7 +719,7 @@ func _cast_overturn_bridge() -> void:
 	# 桥面上下边缘生成激流桥缘 1 回合（位移陷阱）+ 视觉/语义上的 boss 大招感
 	_spawn_rapid_edges_for_overturn()
 	Notify.warn("怒水释放【翻潮压桥】（桥缘激流持续 1 回合）")
-	_check_win_lose()
+	_get_objectives_tracker().check_win_lose()
 
 
 func _boss_slam_deck() -> void:
@@ -729,7 +729,7 @@ func _boss_slam_deck() -> void:
 	#   • 友方未护持单位（玩家可用工匠「捍作护行」豁免）
 	#   • 敌方所有小怪（boss 自己除外）— 友军伤害平衡设计：boss 召唤越多怪自己被打越多
 	var targets: Array = []
-	for ally in get_friendly_units():
+	for ally in _get_query_api().get_friendly_units():
 		if ally == null or ally.combat_stats == null or not ally.combat_stats.is_alive():
 			continue
 		if _has_guarding_status(ally):
@@ -754,7 +754,7 @@ func _boss_slam_deck() -> void:
 		var old_hp: int = target.combat_stats.current_hp
 		CombatResolver.apply_hit(target.combat_stats, _slam_deck, hit)
 		target.refresh_overhead_bars()
-		report_unit_damaged(target, old_hp, target.combat_stats.current_hp)
+		_get_skill_cast_controller().report_unit_damaged(target, old_hp, target.combat_stats.current_hp)
 		if target.combat_stats.current_hp <= 0:
 			continue
 		_knockback_cells(target, _boss.cell, 2)
@@ -768,7 +768,7 @@ func _boss_topple_bank() -> void:
 	if _boss == null or _boss.combat_stats == null or not _boss.combat_stats.is_alive():
 		return
 	var alive: Array = []
-	for ally in get_friendly_units():
+	for ally in _get_query_api().get_friendly_units():
 		if ally == null or ally.combat_stats == null or not ally.combat_stats.is_alive():
 			continue
 		alive.append(ally)
@@ -786,7 +786,7 @@ func _boss_topple_bank() -> void:
 		var old_hp: int = target.combat_stats.current_hp
 		CombatResolver.apply_hit(target.combat_stats, _topple_bank, hit)
 		target.refresh_overhead_bars()
-		report_unit_damaged(target, old_hp, target.combat_stats.current_hp)
+		_get_skill_cast_controller().report_unit_damaged(target, old_hp, target.combat_stats.current_hp)
 		if target.combat_stats.current_hp <= 0:
 			continue
 		# 护持半减：击退 3 → 1（与设定文档「护持抗位移最多 1 格」一致）
@@ -1112,19 +1112,19 @@ func _setup_anchor_cells() -> void:
 
 
 func _setup_li_chun() -> void:
-	set_unit_skills(_li_chun, Progress.get_battle_skill_resources(GameState.selected_level))
-	setup_unit_stats(_li_chun, "李春", 138, 26, 105, 8, Enums.Element.NONE, 0, true)
+	_get_unit_factory().set_unit_skills(_li_chun, Progress.get_battle_skill_resources(GameState.selected_level))
+	_get_unit_factory().setup_unit_stats(_li_chun, "李春", 138, 26, 105, 8, Enums.Element.NONE, 0, true)
 
 
 # 友方 / 敌方均在 .tscn 里预置（unit_data + visual_scene + position 都已配齐）；
 # 这里只补技能 + 战斗数值。setup_unit_stats 会覆盖 combat_stats 的基线。
 func _setup_allies_from_scene() -> void:
 	for craftsman in _craftsmen:
-		set_unit_skills(craftsman, [_mallet, _guard])
-		setup_unit_stats(craftsman, "工匠", 120, 20, 95, 9)
+		_get_unit_factory().set_unit_skills(craftsman, [_mallet, _guard])
+		_get_unit_factory().setup_unit_stats(craftsman, "工匠", 120, 20, 95, 9)
 	for carrier in _stone_carriers:
-		set_unit_skills(carrier, [_staff, _sw_open_arch])
-		setup_unit_stats(carrier, "运石工", 92, 14, 95, 9)
+		_get_unit_factory().set_unit_skills(carrier, [_staff, _sw_open_arch])
+		_get_unit_factory().setup_unit_stats(carrier, "运石工", 92, 14, 95, 9)
 	_apply_persistent_growth_effects()
 
 
@@ -1136,23 +1136,23 @@ func _setup_enemies_from_scene() -> void:
 	# TileMaps/boss_hit_area 这层 TileMap 定义——设计师在编辑器里画哪些桥面格
 	# 算"打到 Boss"。运行时把这些绝对格子转成相对偏移塞进 extra_target_cells，
 	# 让 base_level 的 targeting overlay + skill_executor 的命中判定都直接复用。
-	setup_unit_stats(_boss, "怒水", 600, 24, 1, 99, Enums.Element.WATER, 2)
+	_get_unit_factory().setup_unit_stats(_boss, "怒水", 600, 24, 1, 99, Enums.Element.WATER, 2)
 	_apply_permanent_status(_boss, STATUS_KNOCKBACK_IMMUNE)
-	set_unit_skills(_boss, [_overturn_bridge])
+	_get_unit_factory().set_unit_skills(_boss, [_overturn_bridge])
 	_populate_boss_hit_area()
 
-	setup_unit_stats(_flood_spear_1, "洪锋", 70, 21, 90, 10, Enums.Element.WATER, 2)
-	set_unit_skills(_flood_spear_1, [_torrent_ram])
+	_get_unit_factory().setup_unit_stats(_flood_spear_1, "洪锋", 70, 21, 90, 10, Enums.Element.WATER, 2)
+	_get_unit_factory().set_unit_skills(_flood_spear_1, [_torrent_ram])
 
-	setup_unit_stats(_flood_spear_2, "洪锋", 70, 21, 90, 10, Enums.Element.WATER, 2)
-	set_unit_skills(_flood_spear_2, [_torrent_ram])
+	_get_unit_factory().setup_unit_stats(_flood_spear_2, "洪锋", 70, 21, 90, 10, Enums.Element.WATER, 2)
+	_get_unit_factory().set_unit_skills(_flood_spear_2, [_torrent_ram])
 
 	# 与 wave 系统保持一致：开局两只洪锋也从地图东西两端登场，而不是 .tscn 里的预置点。
 	_relocate_unit_to_edge(_flood_spear_1, "map_west_edge")
 	_relocate_unit_to_edge(_flood_spear_2, "map_east_edge")
 
-	setup_unit_stats(_siltmare, "泥沙魇", 105, 15, 90, 10, Enums.Element.EARTH, 2)
-	set_unit_skills(_siltmare, [_mire_steps])
+	_get_unit_factory().setup_unit_stats(_siltmare, "泥沙魇", 105, 15, 90, 10, Enums.Element.EARTH, 2)
+	_get_unit_factory().set_unit_skills(_siltmare, [_mire_steps])
 
 
 func _apply_permanent_status(unit: Unit, status_id: String) -> void:
@@ -1174,7 +1174,7 @@ func _relocate_unit_to_edge(unit: Unit, hint: String) -> void:
 	if unit == null or tilemap == null:
 		return
 	var target := _resolve_cell_hint(hint)
-	var cell := _find_empty_walkable_cell(target)
+	var cell := _get_scene_bootstrap().find_empty_walkable_cell(target)
 	unit.set_cell(cell, tilemap)
 
 
@@ -1281,7 +1281,7 @@ func _resolve_enemy_pressure() -> void:
 			_overall_stability, _open_arch_count(), alive_dmg, phase_dmg, event_dmg,
 		]
 	)
-	_check_win_lose()
+	_get_objectives_tracker().check_win_lose()
 
 
 # 阶段相关肩压力。归位规则镜像 boss DR 的进程，给玩家一致的"拆肩 = 减压"反馈。
@@ -1319,7 +1319,7 @@ func _build_priority_targets() -> Dictionary:
 	var priorities: Dictionary = {}
 
 	var alive_allies: Array = []
-	for a in get_friendly_units():
+	for a in _get_query_api().get_friendly_units():
 		if a is Unit and a.combat_stats != null and a.combat_stats.is_alive():
 			alive_allies.append(a)
 
@@ -1383,7 +1383,7 @@ func _spawn_silt_at(cell: Vector2i) -> void:
 			return
 	var tile: SiltTile = _make_silt_tile()
 	tile.configure(round_number, "泥沙魇")
-	register_special_tile(tile, cell)
+	_special_tile_registry.register(tile, cell)
 	_silt_tiles[cell] = tile
 	CombatLog.msg("  淤泥格生成: %s (2 回合)" % [cell])
 
@@ -1412,7 +1412,7 @@ func _spawn_rapid_edge_at(cell: Vector2i) -> void:
 			return
 	var tile: RapidEdgeTile = _make_rapid_edge_tile()
 	tile.configure(round_number)
-	register_special_tile(tile, cell)
+	_special_tile_registry.register(tile, cell)
 	_rapid_edge_tiles[cell] = tile
 
 
@@ -1426,9 +1426,9 @@ func _open_arch_count() -> int:
 
 
 func _spawn_enemy(data: UnitData, cell: Vector2i, skills: Array[SkillData], visual: PackedScene = null) -> Unit:
-	var unit := spawn_unit(data, _find_empty_walkable_cell(cell), ENEMY_TEAM, visual)
-	set_unit_skills(unit, skills)
-	setup_unit_stats(
+	var unit := _get_unit_factory().spawn_unit(data, _get_scene_bootstrap().find_empty_walkable_cell(cell), ENEMY_TEAM, visual)
+	_get_unit_factory().set_unit_skills(unit, skills)
+	_get_unit_factory().setup_unit_stats(
 			unit,
 			data.unit_name,
 			data.max_hp,

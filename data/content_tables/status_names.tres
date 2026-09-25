@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="ContentTable" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scenes/levels/base_level/content_table.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+entries = {
+"rend": "裂伤",
+"fracture_step": "陷裂",
+"silt_lock": "壅水",
+"weakened": "攻衰",
+"brittle": "脆裂",
+"scorch_mark": "灼痕",
+"overgrow_bind": "蔓缚",
+"cold_damp": "湿寒",
+"smothered": "闷熄",
+"open_fissure": "开隙",
+"steady_step": "稳步",
+"slowed_step": "迟步",
+"hindered_step": "迟滞",
+"guarded_cover": "护持",
+"knockback_immune": "抗击退"
+}

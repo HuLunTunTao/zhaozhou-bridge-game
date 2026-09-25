@@ -201,22 +201,22 @@ func _is_surveyor_at_evac() -> bool:
 func _on_level_ready() -> void:
 
 	# ── 李春 ──
-	set_unit_skills(_li_chun as Unit, Progress.get_battle_skill_resources(GameState.selected_level))
-	setup_unit_stats(_li_chun as Unit, "李春", 130, 24, 100, 6, Enums.Element.NONE, 0, true)
+	_get_unit_factory().set_unit_skills(_li_chun as Unit, Progress.get_battle_skill_resources(GameState.selected_level))
+	_get_unit_factory().setup_unit_stats(_li_chun as Unit, "李春", 130, 24, 100, 6, Enums.Element.NONE, 0, true)
 
 	# ── 测量工 ──
-	set_unit_skills(_survey_a as Unit, [_sk_staff, _sk_survey])
-	setup_unit_stats(_survey_a as Unit, "测量工", 80, 12, 85, 9)
+	_get_unit_factory().set_unit_skills(_survey_a as Unit, [_sk_staff, _sk_survey])
+	_get_unit_factory().setup_unit_stats(_survey_a as Unit, "测量工", 80, 12, 85, 9)
 
-	set_unit_skills(_survey_b as Unit, [_sk_staff, _sk_survey])
-	setup_unit_stats(_survey_b as Unit, "测量工", 80, 12, 85, 9)
+	_get_unit_factory().set_unit_skills(_survey_b as Unit, [_sk_staff, _sk_survey])
+	_get_unit_factory().setup_unit_stats(_survey_b as Unit, "测量工", 80, 12, 85, 9)
 
 	# ── 工匠 ──
-	set_unit_skills(_craftsman_a as Unit, [_sk_mallet, _sk_guard])
-	setup_unit_stats(_craftsman_a as Unit, "工匠", 110, 18, 90, 8)
+	_get_unit_factory().set_unit_skills(_craftsman_a as Unit, [_sk_mallet, _sk_guard])
+	_get_unit_factory().setup_unit_stats(_craftsman_a as Unit, "工匠", 110, 18, 90, 8)
 
-	set_unit_skills(_craftsman_b as Unit, [_sk_mallet, _sk_guard])
-	setup_unit_stats(_craftsman_b as Unit, "工匠", 110, 18, 90, 8)
+	_get_unit_factory().set_unit_skills(_craftsman_b as Unit, [_sk_mallet, _sk_guard])
+	_get_unit_factory().setup_unit_stats(_craftsman_b as Unit, "工匠", 110, 18, 90, 8)
 	_apply_persistent_growth_effects()
 
 	# ── 关卡机制初始化 ──
@@ -247,7 +247,7 @@ func _setup_survey_points() -> void:
 		var cell := SURVEY_CELLS[i]
 		var tile := _make_survey_point_tile()
 		tile.name = "SurveyPoint_%d_%d" % [cell.x, cell.y]
-		register_special_tile(tile, cell)
+		_special_tile_registry.register(tile, cell)
 		_survey_points.append(tile)
 		tile.survey_completed.connect(_on_survey_point_completed)
 		_survey_markers[cell] = get_node("Markers/" + marker_names[i])
@@ -369,7 +369,7 @@ func _spawn_bridge_tile() -> void:
 		old_tile.queue_free()
 	_bridge_tile = _make_bridge_tile()
 	_bridge_tile.name = "BridgeSiteTile"
-	register_special_tile(_bridge_tile, BRIDGE_CELL)
+	_special_tile_registry.register(_bridge_tile, BRIDGE_CELL)
 	_spawn_bridge_marker()
 
 
@@ -412,7 +412,7 @@ func _advance_to_task3() -> void:
 
 func _show_objectives_if_not_open() -> void:
 	if not has_overlay():
-		show_objectives()
+		_get_ui_bridge().show_objectives()
 
 
 func _focus_camera_after_delay(cell: Vector2i) -> void:
@@ -473,7 +473,7 @@ func _on_unit_moved() -> void:
 			if not _evac_notified:
 				_evac_notified = true
 				Notify.success("测量工已抵达撤离区！", 3.0)
-			_check_win_lose()
+			_get_objectives_tracker().check_win_lose()
 		else:
 			_update_mission_hint()
 

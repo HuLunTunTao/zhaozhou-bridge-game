@@ -10,32 +10,12 @@ extends RefCounted
 const TeamData = TurnSystem.TeamData
 
 ## 敌方名称 → Visual 场景映射表。spawn_unit 会根据 unit_data.unit_name 自动应用外观。
-const MONSTER_VISUALS: Dictionary = {
-	"暗涌": preload("res://scenes/unit/visual/monster/暗涌/暗涌_visual.tscn"),
-	"水旋": preload("res://scenes/unit/visual/monster/水旋/水旋_visual.tscn"),
-	"坍岸泥流": preload("res://scenes/unit/visual/monster/泥沙魇/泥沙魇_visual.tscn"),
-	"浮木群": preload("res://scenes/unit/visual/monster/浮木群/浮木群_visual.tscn"),
-	"洪峰": preload("res://scenes/unit/visual/monster/洪峰/洪峰_visual.tscn"),
-	"洪锋": preload("res://scenes/unit/visual/monster/洪峰/洪峰_visual.tscn"),
-	"断索风": preload("res://scenes/unit/visual/monster/断索鬼/断索鬼_visual.tscn"),
-	"桥台侵蚀": preload("res://scenes/unit/visual/monster/桥台噬者/桥台噬者_visual.tscn"),
-	"桥台噬者": preload("res://scenes/unit/visual/monster/桥台噬者/桥台噬者_visual.tscn"),
-	"泥沙魇": preload("res://scenes/unit/visual/monster/泥沙魇/泥沙魇_visual.tscn"),
-	"脱缝潮": preload("res://scenes/unit/visual/monster/脱缝鬼/脱缝鬼_visual.tscn"),
-	"旧制监工": preload("res://scenes/unit/visual/monster/旧制监工/旧制监工_visual.tscn"),
-	"循旧匠首": preload("res://scenes/unit/visual/monster/守法匠首/守法匠首_visual.tscn"),
-	"重墩石像": preload("res://scenes/unit/visual/monster/重墩石像/重墩石像_visual.tscn"),
-	"裂石兽": preload("res://scenes/unit/visual/monster/裂石兽/裂石兽_visual.tscn"),
-	"错券兵": preload("res://scenes/unit/visual/monster/错券兵/错券兵_visual.tscn"),
-	"漂木群·洪水版": preload("res://scenes/unit/visual/monster/漂木群洪水版/漂木群洪水版_visual.tscn"),
-}
+## （真源外置 data/content_tables/monster_visuals.tres，此处 preload 读取。）
+const MONSTER_VISUALS: Dictionary = preload("res://data/content_tables/monster_visuals.tres").entries
 
 ## 友方名称 → Visual 场景映射表。spawn_unit 在 MONSTER_VISUALS 未命中时回落到这里。
-const HUMAN_VISUALS: Dictionary = {
-	"李春": preload("res://scenes/unit/visual/human/li_chun/li_chun_visual.tscn"),
-	"工匠": preload("res://scenes/unit/visual/human/工匠/工匠_visual.tscn"),
-	"测量工": preload("res://scenes/unit/visual/human/测量工/测量工_visual.tscn"),
-}
+## （真源外置 data/content_tables/human_visuals.tres，此处 preload 读取。）
+const HUMAN_VISUALS: Dictionary = preload("res://data/content_tables/human_visuals.tres").entries
 
 var _level: Node = null   # BaseLevel 宿主
 

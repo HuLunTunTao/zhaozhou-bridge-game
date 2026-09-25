@@ -99,30 +99,30 @@ func _on_level_ready() -> void:
 
 
 func _spawn_initial_player_team() -> void:
-	var li_chun := spawn_unit(_UD_LI_CHUN, _HERO_CELL, 0)
+	var li_chun := _get_unit_factory().spawn_unit(_UD_LI_CHUN, _HERO_CELL, 0)
 	li_chun.unit_color = _HERO_COLOR
 	# 李春技能：优先用玩家在 prebattle_setup 选好的；为空时兜底起手两技
 	var hero_skills: Array[SkillData] = Progress.get_battle_skill_resources(GameState.selected_level)
 	if hero_skills.is_empty():
 		hero_skills = [_SK_LC_RULE, _SK_LC_LINE_LOCK]
-	set_unit_skills(li_chun, hero_skills)
-	setup_unit_stats(li_chun, "李春", 130, 24, 100, 6, Enums.Element.NONE, 0, true)
+	_get_unit_factory().set_unit_skills(li_chun, hero_skills)
+	_get_unit_factory().setup_unit_stats(li_chun, "李春", 130, 24, 100, 6, Enums.Element.NONE, 0, true)
 	hero = li_chun
 
-	var c_a := spawn_unit(_UD_CRAFTSMAN, _CRAFTSMAN_A_CELL, 0)
+	var c_a := _get_unit_factory().spawn_unit(_UD_CRAFTSMAN, _CRAFTSMAN_A_CELL, 0)
 	c_a.unit_color = _CRAFTSMAN_COLOR
-	set_unit_skills(c_a, [_SK_MALLET, _SK_GUARD])
-	setup_unit_stats(c_a, "工匠", 110, 18, 90, 8)
+	_get_unit_factory().set_unit_skills(c_a, [_SK_MALLET, _SK_GUARD])
+	_get_unit_factory().setup_unit_stats(c_a, "工匠", 110, 18, 90, 8)
 
-	var c_b := spawn_unit(_UD_CRAFTSMAN, _CRAFTSMAN_B_CELL, 0)
+	var c_b := _get_unit_factory().spawn_unit(_UD_CRAFTSMAN, _CRAFTSMAN_B_CELL, 0)
 	c_b.unit_color = _CRAFTSMAN_COLOR
-	set_unit_skills(c_b, [_SK_MALLET, _SK_GUARD])
-	setup_unit_stats(c_b, "工匠", 110, 18, 90, 8)
+	_get_unit_factory().set_unit_skills(c_b, [_SK_MALLET, _SK_GUARD])
+	_get_unit_factory().setup_unit_stats(c_b, "工匠", 110, 18, 90, 8)
 
-	var sw := spawn_unit(_UD_SURVEY, _SURVEY_CELL, 0)
+	var sw := _get_unit_factory().spawn_unit(_UD_SURVEY, _SURVEY_CELL, 0)
 	sw.unit_color = _SURVEY_COLOR
-	set_unit_skills(sw, [_SK_STAFF, _SK_SURVEY])
-	setup_unit_stats(sw, "测量工", 80, 12, 85, 9)
+	_get_unit_factory().set_unit_skills(sw, [_SK_STAFF, _SK_SURVEY])
+	_get_unit_factory().setup_unit_stats(sw, "测量工", 80, 12, 85, 9)
 
 
 func _build_learnable_skills() -> Array[SkillData]:

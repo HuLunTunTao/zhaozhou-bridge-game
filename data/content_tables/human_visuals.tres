@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="ContentTable" load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scenes/levels/base_level/content_table.gd" id="1"]
+[ext_resource type="PackedScene" path="res://scenes/unit/visual/human/li_chun/li_chun_visual.tscn" id="2"]
+[ext_resource type="PackedScene" path="res://scenes/unit/visual/human/工匠/工匠_visual.tscn" id="3"]
+[ext_resource type="PackedScene" path="res://scenes/unit/visual/human/测量工/测量工_visual.tscn" id="4"]
+
+[resource]
+script = ExtResource("1")
+entries = {
+"李春": ExtResource("2"),
+"工匠": ExtResource("3"),
+"测量工": ExtResource("4")
+}

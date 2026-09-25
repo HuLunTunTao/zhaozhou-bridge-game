@@ -16,36 +16,11 @@ const _SKILL_CAMERA_SETTLE_TIME: float = 0.35
 const _SKILL_CAMERA_PAUSE_TIME: float = 0.25
 const _SKILL_CAMERA_LINGER_TIME: float = 0.45
 
-const _STATUS_NAMES: Dictionary = {
-	"rend": "裂伤",
-	"fracture_step": "陷裂",
-	"silt_lock": "壅水",
-	"weakened": "攻衰",
-	"brittle": "脆裂",
-	"scorch_mark": "灼痕",
-	"overgrow_bind": "蔓缚",
-	"cold_damp": "湿寒",
-	"smothered": "闷熄",
-	"open_fissure": "开隙",
-	"steady_step": "稳步",
-	"slowed_step": "迟步",
-	"hindered_step": "迟滞",
-	"guarded_cover": "护持",
-	"knockback_immune": "抗击退",
-}
+## 状态 ID → 显示名。（真源外置 data/content_tables/status_names.tres，此处 preload 读取。）
+const _STATUS_NAMES: Dictionary = preload("res://data/content_tables/status_names.tres").entries
 
-const _EXTRA_EFFECT_NAMES: Dictionary = {
-	"knockback_1": "击退1格",
-	"pull_1": "拖拽1格",
-	"guarded_cover": "护持",
-	"hindered_cross": "十字迟滞",
-	"line_bind": "蔓缚",
-	"read_water": "相水定址",
-	"stage_balance_arch": "校券",
-	"stage_open_arch": "启肩泄洪",
-	"complete_survey": "踏勘量址",
-	"non_element_bonus": "无属性加成",
-}
+## 额外效果 ID → 显示名。（真源外置 data/content_tables/extra_effect_names.tres，此处 preload 读取。）
+const _EXTRA_EFFECT_NAMES: Dictionary = preload("res://data/content_tables/extra_effect_names.tres").entries
 
 var _level: Node = null   # BaseLevel 宿主
 

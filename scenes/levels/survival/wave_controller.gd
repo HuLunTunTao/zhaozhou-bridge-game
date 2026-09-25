@@ -230,7 +230,7 @@ func _occupied_cells() -> Array[Vector2i]:
 
 
 func _spawn_one(unit_data: UnitData, cell: Vector2i, color: Color, wave: int, is_boss: bool) -> Unit:
-	var unit := _level.spawn_unit(unit_data, cell, AI_TEAM)
+	var unit := _level._get_unit_factory().spawn_unit(unit_data, cell, AI_TEAM)
 	if unit == null:
 		return null
 	unit.unit_color = color
@@ -248,7 +248,7 @@ func _spawn_one(unit_data: UnitData, cell: Vector2i, color: Color, wave: int, is
 		unit.refresh_overhead_bars()
 	var enemy_skills: Array = _ENEMY_SKILLS.get(unit_data.unit_id, [])
 	if not enemy_skills.is_empty():
-		_level.set_unit_skills(unit, enemy_skills)
+		_level._get_unit_factory().set_unit_skills(unit, enemy_skills)
 	return unit
 
 
@@ -328,12 +328,12 @@ func _heal_player_team() -> void:
 func _spawn_support() -> void:
 	var data: UnitData = _SUPPORT_POOL[randi() % _SUPPORT_POOL.size()]
 	var cell := _pick_support_cell()
-	var unit := _level.spawn_unit(data, cell, PLAYER_TEAM)
+	var unit := _level._get_unit_factory().spawn_unit(data, cell, PLAYER_TEAM)
 	if unit == null:
 		return
 	var skills: Array = _SUPPORT_SKILLS.get(data.unit_id, [])
 	if not skills.is_empty():
-		_level.set_unit_skills(unit, skills)
+		_level._get_unit_factory().set_unit_skills(unit, skills)
 	Notify.notify("支援抵达：%s" % data.unit_name, Notify.Position.TOP_RIGHT, Notify.Style.SUCCESS, 4.0)
 
 
@@ -482,6 +482,6 @@ func _apply_buff(opt: Dictionary) -> void:
 		"grant_skill":
 			var sk: SkillData = opt.get("_skill", null)
 			if sk:
-				_level.grant_skill(hero_unit, sk)
+				_level._get_unit_factory().grant_skill(hero_unit, sk)
 	if _hud:
 		_hud.add_buff(String(opt.get("_label", opt.get("name", ""))))
