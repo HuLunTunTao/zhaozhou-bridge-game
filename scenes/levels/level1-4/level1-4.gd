@@ -122,6 +122,8 @@ var _arch_tiles: Dictionary = {}          # arch_key → SmallArchTile
 var _silt_tiles: Dictionary = {}          # cell → SiltTile
 var _rapid_edge_tiles: Dictionary = {}    # cell → RapidEdgeTile
 var _status_panel: RichTextLabel = null
+# 小拱开肩交互派发表（InteractionTile 参数化，stage_open_arch 技能触发）
+var _interactions: Array[InteractionTile] = []
 
 
 func get_teams_config() -> Array:
@@ -503,7 +505,19 @@ func _setup_arch_tiles() -> void:
 		) as TilePulsingMarker
 		marker.show_label = true
 		_arch_tiles[arch_key] = marker
+		_interactions.append(_make_arch_interaction(arch_key))
 	_refresh_arch_visuals()
+
+
+## 小拱交互点：stage_open_arch 命中该肩 2×2 任意格 → 拆肩登记（旧 _on_skill_executed 路由逐字）。
+func _make_arch_interaction(arch_key: String) -> InteractionTile:
+	return InteractionTile.create(
+		_arch_cells_for(arch_key), &"stage_open_arch",
+		Callable(), self._on_arch_interacted.bind(arch_key), false)
+
+
+func _on_arch_interacted(_tile: InteractionTile, _caster: Unit, _target_cell: Vector2i, arch_key: String) -> void:
+	_try_mark_arch_interacted(arch_key)
 
 
 func _setup_status_panel() -> void:
@@ -624,11 +638,8 @@ func _on_unit_moved() -> void:
 
 
 func _on_skill_executed(caster: Unit, skill: SkillData, cast_cell: Vector2i, _exec_result: SkillExecutor.ExecuteResult) -> void:
-	if skill != null and skill.extra_effect_id == "stage_open_arch":
-		for arch_key in _side_arch_cells.keys():
-			if cast_cell in _arch_cells_for(arch_key):
-				_try_mark_arch_interacted(arch_key)
-				break
+	# 小拱开肩（stage_open_arch）走 InteractionTile 参数化派发
+	if InteractionTile.dispatch_skill(_interactions, caster, skill, cast_cell):
 		return
 
 	# 洪锋 / 漂木群·洪水版 的冲撞线命中桥心 watch_point → 整桥 -1

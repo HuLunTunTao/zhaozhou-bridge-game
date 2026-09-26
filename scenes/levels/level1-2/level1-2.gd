@@ -5,8 +5,6 @@ extends BaseLevel
 ## 仿 1-1 使用 SpecialTile + 技能施放式交互。
 ## 旧制监工为唯一 Boss：不动、不攻击、完全免疫，只做按回合召唤 + 督令增益。
 
-const ParameterPointTile := preload("res://scenes/levels/base_level/parameter_point_tile.gd")
-
 const ENEMY_TEAM := 1
 const REQUIRED_DEFEATS := 8
 const ENEMY_FIELD_CAP := 5
@@ -62,7 +60,7 @@ var _craftsmen: Array[Unit] = []
 var _boss: Unit
 
 # ── 关卡机制 ──
-var _parameter_tile: ParameterPointTile = null
+var _parameter_tile: InteractionTile = null
 var _parameter_use_count: int = 0
 var _li_chun_parameter_round: int = -1
 var _finalized: bool = false
@@ -74,6 +72,10 @@ var _drafting_marker: Node2D = null
 var _task2_pulsing_marker: TilePulsingMarker = null
 var _mission_hint_label: Label = null
 var _params_status_label: Label = null
+# 参数点交互派发表（InteractionTile：测尺取参 + 参数确认，同格两条规则）
+var _interactions: Array[InteractionTile] = []
+const COLOR_PARAM_INCOMPLETE := Color(0.95, 0.72, 0.2, 0.55)
+const COLOR_PARAM_COMPLETE := Color(0.3, 0.85, 0.4, 0.55)
 
 
 func get_teams_config() -> Array:
@@ -230,12 +232,26 @@ func _setup_allies_from_scene() -> void:
 
 
 func _setup_parameter_tiles() -> void:
-	var tile := _make_parameter_tile()
+	# 交互条件（测尺取参 / 测量工 / 可重复三次）参数化进 InteractionTile。
+	var tile := InteractionTile.create(
+		[PARAMETER_CELL], &"take_parameter", _take_parameter_filter,
+		_on_take_parameter_effect, false)
 	tile.name = "ParameterPoint_%d_%d" % [PARAMETER_CELL.x, PARAMETER_CELL.y]
-	tile.parameter_key = &"坡度"
-	tile.parameter_label = "坡度"
+	tile.tile_color = COLOR_PARAM_INCOMPLETE
+	var visual := Polygon2D.new()
+	visual.name = "Visual"
+	visual.polygon = PackedVector2Array([0, -16, 16, -8, 0, 0, -16, -8])
+	tile.add_child(visual)
+	tile.on_cell_miss = _parameter_cell_miss
 	_special_tile_registry.register(tile, PARAMETER_CELL)
 	_parameter_tile = tile
+	_interactions.append(tile)
+	# 「参数确认」（李春补刀，每回合 1 次）是同格第二条交互规则：纯逻辑点，不占视觉位。
+	var confirm := InteractionTile.create(
+		[PARAMETER_CELL], &"confirm_parameter", _confirm_parameter_filter,
+		_on_confirm_parameter_effect, false)
+	confirm.on_cell_miss = _parameter_cell_miss
+	_interactions.append(confirm)
 	_spawn_parameter_flag(PARAMETER_CELL)
 
 
@@ -261,15 +277,6 @@ func _spawn_parameter_flag(cell: Vector2i) -> void:
 	var tween := create_tween().set_loops()
 	tween.tween_property(marker, "position:y", marker.position.y - 4.0, 0.9).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	tween.tween_property(marker, "position:y", marker.position.y, 0.9).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-
-
-func _make_parameter_tile() -> ParameterPointTile:
-	var tile: ParameterPointTile = ParameterPointTile.new()
-	var visual := Polygon2D.new()
-	visual.name = "Visual"
-	visual.polygon = PackedVector2Array([0, -16, 16, -8, 0, 0, -16, -8])
-	tile.add_child(visual)
-	return tile
 
 
 func _setup_drafting_marker() -> void:
@@ -313,41 +320,47 @@ func _spawn_initial_minions() -> void:
 
 
 # ─────────────────────────────────────────────
-# 技能执行响应：关卡交互
+# 技能执行响应：关卡交互（参数点走 InteractionTile 参数化派发）
 # ─────────────────────────────────────────────
 
 func _on_skill_executed(caster: Unit, skill: SkillData, cast_cell: Vector2i, _exec_result: SkillExecutor.ExecuteResult) -> void:
-	match skill.extra_effect_id:
-		"take_parameter":
-			_handle_take_parameter(caster, cast_cell)
-		"confirm_parameter":
-			_handle_confirm_parameter(caster, cast_cell)
-		"ink_set_arch":
-			_handle_ink_set_arch(caster, cast_cell)
+	if InteractionTile.dispatch_skill(_interactions, caster, skill, cast_cell):
+		return
+	if skill.extra_effect_id == "ink_set_arch":
+		_handle_ink_set_arch(caster, cast_cell)
 
 
-func _handle_take_parameter(caster: Unit, cast_cell: Vector2i) -> void:
+## 「测尺取参」闸门：仅测量工（旧 _handle_take_parameter 前半逐字）。
+func _take_parameter_filter(caster: Unit) -> bool:
 	if not (caster in _survey_workers):
 		Notify.notify("只有测量工可以使用「测尺取参」。", Notify.Position.TOP_CENTER, Notify.Style.WARNING, 2.0)
-		return
-	if cast_cell != PARAMETER_CELL:
-		Notify.notify("此处不是参数点。", Notify.Position.TOP_CENTER, Notify.Style.WARNING, 2.0)
-		return
+		return false
+	return true
+
+
+func _on_take_parameter_effect(_tile: InteractionTile, caster: Unit, _cell: Vector2i) -> void:
 	_register_parameter_use(caster.combat_stats.unit_name)
 
 
-func _handle_confirm_parameter(caster: Unit, cast_cell: Vector2i) -> void:
+## 「参数确认」闸门：仅李春（旧 _handle_confirm_parameter 前半逐字）。
+func _confirm_parameter_filter(caster: Unit) -> bool:
 	if caster != _li_chun:
 		Notify.notify("只有李春可以使用「参数确认」。", Notify.Position.TOP_CENTER, Notify.Style.WARNING, 2.0)
-		return
-	if cast_cell != PARAMETER_CELL:
-		Notify.notify("此处不是参数点。", Notify.Position.TOP_CENTER, Notify.Style.WARNING, 2.0)
-		return
+		return false
+	return true
+
+
+func _on_confirm_parameter_effect(_tile: InteractionTile, caster: Unit, _cell: Vector2i) -> void:
+	# 每回合 1 次的补刀限次（旧分支顺序：人 → 格 → 限次，逐字保留）
 	if _li_chun_parameter_round == round_number:
 		Notify.notify("李春本回合已确认过一次参数。", Notify.Position.TOP_CENTER, Notify.Style.WARNING, 2.0)
 		return
 	_li_chun_parameter_round = round_number
 	_register_parameter_use(caster.combat_stats.unit_name)
+
+
+func _parameter_cell_miss() -> void:
+	Notify.notify("此处不是参数点。", Notify.Position.TOP_CENTER, Notify.Style.WARNING, 2.0)
 
 
 func _register_parameter_use(caster_name: String) -> void:
@@ -361,6 +374,7 @@ func _register_parameter_use(caster_name: String) -> void:
 	if _parameter_use_count >= PARAMETER_REQUIRED_USES:
 		if _parameter_tile != null and not _parameter_tile.completed:
 			_parameter_tile.complete()
+			_parameter_tile.tile_color = COLOR_PARAM_COMPLETE
 		if _task_chain.is_at_id(&"parameters"):
 			_task_chain.advance_next()
 

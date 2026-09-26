@@ -38,11 +38,13 @@ var _craftsman_b: Node2D
 # ── 关卡任务链（TaskChain：survey → bridge → evac）──
 var _task_chain: TaskChain = TaskChain.new()
 
-# ── 勘测点 ──
-var _survey_points: Array[SurveyPointTile] = []
+# ── 勘测点（InteractionTile 参数化交互）──
+var _interactions: Array[InteractionTile] = []
 var _survey_markers: Dictionary = {}  # cell → Marker2D
 var _survey_completed_count: int = 0
 const SURVEY_CELLS: Array[Vector2i] = [Vector2i(-11, 12), Vector2i(-1, 2), Vector2i(10, -10)]
+const COLOR_SURVEY_INCOMPLETE := Color(0.9, 0.8, 0.2, 0.6)
+const COLOR_SURVEY_COMPLETE := Color(0.2, 0.85, 0.3, 0.6)
 
 # ── 候选桥位 ──
 var _bridge_confirmed: bool = false
@@ -267,24 +269,47 @@ func _on_phase_changed_for_onboarding(p: int) -> void:
 func _setup_survey_points() -> void:
 	# 勘测点标记已在 level1-1.tscn 的 Markers 节点下预置（%SurveyMarker_A/B/C）。
 	# 这里按 SURVEY_CELLS 顺序把节点映射回 cell，便于完成时 queue_free。
+	# 交互条件（踏勘量址 / 测量工 / 一次性）已参数化进 InteractionTile。
 	var marker_names := ["SurveyMarker_A", "SurveyMarker_B", "SurveyMarker_C"]
 	for i in SURVEY_CELLS.size():
 		var cell := SURVEY_CELLS[i]
-		var tile := _make_survey_point_tile()
+		var tile := InteractionTile.create(
+			[cell], &"complete_survey", _survey_unit_filter, _on_survey_completed_effect)
 		tile.name = "SurveyPoint_%d_%d" % [cell.x, cell.y]
+		tile.tile_color = COLOR_SURVEY_INCOMPLETE
+		var visual := Polygon2D.new()
+		visual.name = "Visual"
+		visual.polygon = PackedVector2Array([0, -16, 16, -8, 0, 0, -16, -8])
+		tile.add_child(visual)
+		tile.on_cell_miss = _survey_cell_miss
+		tile.on_already = _survey_already_done
 		_special_tile_registry.register(tile, cell)
-		_survey_points.append(tile)
-		tile.survey_completed.connect(_on_survey_point_completed)
+		_interactions.append(tile)
 		_survey_markers[cell] = get_node("Markers/" + marker_names[i])
 
 
-func _make_survey_point_tile() -> SurveyPointTile:
-	var tile := SurveyPointTile.new()
-	var visual := Polygon2D.new()
-	visual.name = "Visual"
-	visual.polygon = PackedVector2Array([0, -16, 16, -8, 0, 0, -16, -8])
-	tile.add_child(visual)
-	return tile
+## 勘测点交互闸门：仅「勘测」任务阶段的测量工可用（旧 _on_skill_executed 分支逐字）。
+func _survey_unit_filter(caster: Unit) -> bool:
+	if not _task_chain.is_at_id(&"survey"):
+		return false
+	if caster.combat_stats.unit_name != "测量工":
+		Notify.notify("只有测量工可以完成勘测点。", Notify.Position.TOP_CENTER, Notify.Style.WARNING, 2.0)
+		return false
+	return true
+
+
+func _survey_cell_miss() -> void:
+	Notify.notify("此处不是勘测点，踏勘量址没有记录结果。", Notify.Position.TOP_CENTER, Notify.Style.WARNING, 2.5)
+
+
+func _survey_already_done() -> void:
+	Notify.hint("该勘测点已经完成过了。", 2.0)
+
+
+## 勘测点完成效果（旧 tile.complete() 变色 + _on_survey_point_completed）。
+func _on_survey_completed_effect(tile: InteractionTile, _caster: Unit, _cell: Vector2i) -> void:
+	tile.tile_color = COLOR_SURVEY_COMPLETE
+	_on_survey_point_completed(tile)
 
 
 func _setup_evac_tile() -> void:
@@ -324,14 +349,14 @@ func _update_survey_points_hint() -> void:
 		return
 	var lines: Array[String] = ["已勘测点位："]
 	for cell in SURVEY_CELLS:
-		var tile := _special_tile_map.get(cell) as SurveyPointTile
+		var tile := _special_tile_map.get(cell) as InteractionTile
 		var done := tile != null and tile.completed
 		var prefix := "[已完成]" if done else "[未完成]"
 		lines.append("%s (%d, %d)" % [prefix, cell.x, cell.y])
 	_survey_points_label.text = "\n".join(lines)
 
 
-func _on_survey_point_completed(tile: SurveyPointTile) -> void:
+func _on_survey_point_completed(tile: InteractionTile) -> void:
 	_survey_completed_count += 1
 	_update_mission_hint()
 	_update_survey_points_hint()
@@ -431,22 +456,11 @@ func _focus_camera_on_cell(cell: Vector2i, zoom: float = 1.3, duration: float = 
 
 
 func _on_skill_executed(caster: Unit, skill: SkillData, cast_cell: Vector2i, _exec_result: SkillExecutor.ExecuteResult) -> void:
-	if skill.extra_effect_id == "complete_survey":
-		if not _task_chain.is_at_id(&"survey"):
-			return
-		var tile := _special_tile_map.get(cast_cell) as SurveyPointTile
-		if caster.combat_stats.unit_name != "测量工":
-			Notify.notify("只有测量工可以完成勘测点。", Notify.Position.TOP_CENTER, Notify.Style.WARNING, 2.0)
-			return
-		if tile == null:
-			Notify.notify("此处不是勘测点，踏勘量址没有记录结果。", Notify.Position.TOP_CENTER, Notify.Style.WARNING, 2.5)
-			return
-		if tile.completed:
-			Notify.hint("该勘测点已经完成过了。", 2.0)
-			return
-		tile.complete()
+	# 勘测点交互（complete_survey）走 InteractionTile 参数化派发
+	if InteractionTile.dispatch_skill(_interactions, caster, skill, cast_cell):
+		return
 
-	elif skill.extra_effect_id == "read_water":
+	if skill.extra_effect_id == "read_water":
 		if not _task_chain.is_at_id(&"bridge"):
 			return
 		if caster != _li_chun:

@@ -40,6 +40,8 @@ var _crown_point: Vector2i
 var _stone_yard_cells: Array[Vector2i] = []
 var _joint_cells: Array[Vector2i] = []
 var _bridge_cells: Dictionary = {}  # 桥面可落脚 cell 集合（敌人刷新必须在桥上）
+# 石料场 / 券台的取石·交石交互派发表（InteractionTile 参数化，落格触发）
+var _interactions: Array[InteractionTile] = []
 
 var _craftsman_data: UnitData = preload("res://data/units/craftsman_guard.tres")
 var _mud_data: UnitData = preload("res://data/units/bank_mud_wraith.tres")
@@ -47,7 +49,7 @@ var _dark_data: UnitData = preload("res://data/units/dark_current.tres")
 
 # 教程引导（L1-1 / L1-4 同款 dialogue 流程）。
 const TUTORIAL_ID := "level1-3"
-# 教程"亲手取 / 交一次石"的同步态：_try_pick_or_deliver_stone 置位，教程谓词消费。
+# 教程"亲手取 / 交一次石"的同步态：取 / 交石交互效果置位，教程谓词消费。
 var _tutorial_stone_picked: bool = false
 var _tutorial_stone_delivered: bool = false
 
@@ -236,6 +238,7 @@ func _on_level_ready() -> void:
 	# 会按 global_position 吸附到最近 cell。桥面固定锚点走 _setup_anchor_cells 常量。
 	_build_bridge_cells()
 	_setup_anchor_cells()
+	_setup_stone_interactions()
 	_setup_li_chun()
 	_setup_allies_from_scene()
 	_spawn_enemies()
@@ -326,8 +329,58 @@ func _build_onboarding_steps() -> Array[TutorialStep]:
 func _on_unit_moved() -> void:
 	if selected_unit == null or not (selected_unit is Unit):
 		return
-	var unit := selected_unit as Unit
-	_try_pick_or_deliver_stone(unit)
+	InteractionTile.dispatch_touch(_interactions, selected_unit as Unit, (selected_unit as Unit).cell)
+
+
+## 石料场 / 券台的取石·交石交互点（旧 _try_pick_or_deliver_stone 的条件骨架参数化）。
+## 触发顺序与旧版逐字一致：先「运石工」闸门，再取石（空手进石料场）→ 交石（负石进券台）。
+func _setup_stone_interactions() -> void:
+	var yard_cells: Array[Vector2i] = []
+	for anchor in _stone_yard_cells:
+		yard_cells.append_array(CellMath.zone2x2_se(anchor))
+	# 取石：任一石料场 2×2 落格 → 自动取石
+	_interactions.append(InteractionTile.create(
+		yard_cells, &"", _carrier_filter, _on_pick_stone_effect, false))
+	# 交石：金 / 蓝券台 2×2 落格 → 自动卸石 + 对应侧 +3
+	_interactions.append(InteractionTile.create(
+		CellMath.zone2x2_se(_left_platform), &"", _carrier_filter, _on_deliver_stone_left, false))
+	_interactions.append(InteractionTile.create(
+		CellMath.zone2x2_se(_right_platform), &"", _carrier_filter, _on_deliver_stone_right, false))
+
+
+## 取 / 交石闸门：仅运石工（旧分支首行 `unit not in _stone_carriers` 逐字，静默拒绝）。
+func _carrier_filter(unit: Unit) -> bool:
+	return unit in _stone_carriers
+
+
+func _on_pick_stone_effect(_tile: InteractionTile, unit: Unit, _cell: Vector2i) -> void:
+	var key := unit.get_instance_id()
+	if _carrying_stone.get(key, false):
+		return
+	_carrying_stone[key] = true
+	_set_carrier_loaded(unit, true)
+	_tutorial_stone_picked = true
+	Notify.info("%s 已取石" % unit.combat_stats.unit_name, 1.5)
+
+
+func _on_deliver_stone_left(_tile: InteractionTile, unit: Unit, _cell: Vector2i) -> void:
+	var key := unit.get_instance_id()
+	if not _carrying_stone.get(key, false):
+		return
+	_adjust_arch_value(true, 3, "%s 运石入左券" % unit.combat_stats.unit_name)
+	_carrying_stone[key] = false
+	_set_carrier_loaded(unit, false)
+	_tutorial_stone_delivered = true
+
+
+func _on_deliver_stone_right(_tile: InteractionTile, unit: Unit, _cell: Vector2i) -> void:
+	var key := unit.get_instance_id()
+	if not _carrying_stone.get(key, false):
+		return
+	_adjust_arch_value(false, 3, "%s 运石入右券" % unit.combat_stats.unit_name)
+	_carrying_stone[key] = false
+	_set_carrier_loaded(unit, false)
+	_tutorial_stone_delivered = true
 
 
 func _on_skill_executed(caster: Unit, skill: SkillData, cast_cell: Vector2i, exec_result: SkillExecutor.ExecuteResult) -> void:
@@ -588,32 +641,6 @@ func _spawn_enemies() -> void:
 	_spawn_enemy(_make_unit_data(_craftsman_data, "错券兵", 77, 17, 90, 9), _nearest_bridge_cell(_left_platform + Vector2i(-1, -1)), [_mallet], _visual_misaligned)
 	_spawn_enemy(_make_unit_data(_craftsman_data, "错券兵", 77, 17, 90, 9), _nearest_bridge_cell(_right_platform + Vector2i(1, 1)), [_mallet], _visual_misaligned)
 	_spawn_enemy(_make_unit_data(_mud_data, "裂石兽", 95, 22, 90, 10, Enums.Element.EARTH, 2), _nearest_bridge_cell(_crown_point + Vector2i(0, 1)), [_crush], _visual_stone_split)
-
-
-func _try_pick_or_deliver_stone(unit: Unit) -> void:
-	if unit not in _stone_carriers:
-		return
-	var key := unit.get_instance_id()
-	# 取石：进入 2×2 石料场区域且空手 → 自动取石（不再扣 AP）
-	if CellMath.is_in_any_zone2x2(unit.cell, _stone_yard_cells) and not _carrying_stone.get(key, false):
-		_carrying_stone[key] = true
-		_set_carrier_loaded(unit, true)
-		_tutorial_stone_picked = true
-		Notify.info("%s 已取石" % unit.combat_stats.unit_name, 1.5)
-		return
-	if not _carrying_stone.get(key, false):
-		return
-	# 交石：载石时进入 2×2 券台区域 → 自动卸石 + 对应侧 +1（不再扣 AP）
-	if CellMath.is_in_zone2x2(unit.cell, _left_platform):
-		_adjust_arch_value(true, 3, "%s 运石入左券" % unit.combat_stats.unit_name)
-		_carrying_stone[key] = false
-		_set_carrier_loaded(unit, false)
-		_tutorial_stone_delivered = true
-	elif CellMath.is_in_zone2x2(unit.cell, _right_platform):
-		_adjust_arch_value(false, 3, "%s 运石入右券" % unit.combat_stats.unit_name)
-		_carrying_stone[key] = false
-		_set_carrier_loaded(unit, false)
-		_tutorial_stone_delivered = true
 
 
 func _close_arch_conditions_met() -> bool:
