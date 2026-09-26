@@ -1,0 +1,117 @@
+[gd_resource type="Resource" script_class="SurvivalWaveConfig" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/survival_wave_config.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/data/wave_buff_def.gd" id="2"]
+[ext_resource type="Resource" uid="uid://cqyu6wf3v1tt4" path="res://data/skills/lc_inkline_balance_arch.tres" id="3"]
+[ext_resource type="Resource" uid="uid://douyi50eh2ik6" path="res://data/skills/lc_ink_set_arch.tres" id="4"]
+[ext_resource type="Resource" uid="uid://dggmh8d04grg7" path="res://data/skills/lc_divider_mark_arc.tres" id="5"]
+[ext_resource type="Resource" path="res://data/skills/lc_link_wedges_arch.tres" id="6"]
+[ext_resource type="Resource" uid="uid://bsy5265fvvub4" path="res://data/skills/lc_pile_bind_wave.tres" id="7"]
+[ext_resource type="Resource" path="res://data/skills/lc_guide_flood_open_arch.tres" id="8"]
+[ext_resource type="Resource" path="res://data/skills/lc_wedge_bank_probe.tres" id="9"]
+[ext_resource type="Resource" path="res://data/skills/lc_cast_stone_arrest_flow.tres" id="10"]
+
+[sub_resource type="Resource" id="Buff_hp_small"]
+script = ExtResource("2")
+id = "hp_cap_small"
+display_name = "强身（+15 HP 上限）"
+description = "李春最大 HP +15，并立即回满"
+kind = "hp_cap"
+amount = 15
+unlock_wave = 0
+element = 0
+label = "+15 HP"
+
+[sub_resource type="Resource" id="Buff_hp_big"]
+script = ExtResource("2")
+id = "hp_cap_big"
+display_name = "砥柱（+30 HP 上限）"
+description = "李春最大 HP +30，并立即回满"
+kind = "hp_cap"
+amount = 30
+unlock_wave = 5
+element = 0
+label = "+30 HP"
+
+[sub_resource type="Resource" id="Buff_ap"]
+script = ExtResource("2")
+id = "ap_cap"
+display_name = "锐意（+1 AP 上限）"
+description = "李春每回合 AP 上限 +1（约+10 行动力）"
+kind = "ap_cap"
+amount = 10
+unlock_wave = 0
+element = 0
+label = "+10 AP"
+
+[sub_resource type="Resource" id="Buff_elt_wood"]
+script = ExtResource("2")
+id = "element_attach_2"
+display_name = "染木（附着 木势）"
+description = "李春当前 木势 附着，下 3 次出招带元素"
+kind = "element_attach"
+amount = 3
+unlock_wave = 0
+element = 2
+label = "染木"
+
+[sub_resource type="Resource" id="Buff_elt_fire"]
+script = ExtResource("2")
+id = "element_attach_4"
+display_name = "染火（附着 火势）"
+description = "李春当前 火势 附着，下 3 次出招带元素"
+kind = "element_attach"
+amount = 3
+unlock_wave = 0
+element = 4
+label = "染火"
+
+[sub_resource type="Resource" id="Buff_elt_earth"]
+script = ExtResource("2")
+id = "element_attach_5"
+display_name = "染土（附着 土势）"
+description = "李春当前 土势 附着，下 3 次出招带元素"
+kind = "element_attach"
+amount = 3
+unlock_wave = 0
+element = 5
+label = "染土"
+
+[sub_resource type="Resource" id="Buff_elt_metal"]
+script = ExtResource("2")
+id = "element_attach_1"
+display_name = "染金（附着 金势）"
+description = "李春当前 金势 附着，下 3 次出招带元素"
+kind = "element_attach"
+amount = 3
+unlock_wave = 0
+element = 1
+label = "染金"
+
+[sub_resource type="Resource" id="Buff_elt_water"]
+script = ExtResource("2")
+id = "element_attach_3"
+display_name = "染水（附着 水势）"
+description = "李春当前 水势 附着，下 3 次出招带元素"
+kind = "element_attach"
+amount = 3
+unlock_wave = 0
+element = 3
+label = "染水"
+
+[resource]
+script = ExtResource("1")
+heal_min_ratio = 0.3
+heal_max_ratio = 0.6
+support_prob = 0.4
+boss_every = 5
+boss_hp_mult = 1.3
+boss_minion_divisor = 10
+boss_pack_bonus_divisor = 10
+scaling_start_wave = 10
+scaling_per_wave = 0.1
+pack_base = 2
+pack_grow_divisor = 3
+pack_max = 6
+buffs = [SubResource("Buff_hp_small"), SubResource("Buff_hp_big"), SubResource("Buff_ap"), SubResource("Buff_elt_wood"), SubResource("Buff_elt_fire"), SubResource("Buff_elt_earth"), SubResource("Buff_elt_metal"), SubResource("Buff_elt_water")]
+learnable_skills = [ExtResource("3"), ExtResource("4"), ExtResource("5"), ExtResource("6"), ExtResource("7"), ExtResource("8"), ExtResource("9"), ExtResource("10")]

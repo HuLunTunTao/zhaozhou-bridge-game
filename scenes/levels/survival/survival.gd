@@ -26,15 +26,9 @@ const _SK_SURVEY := preload("res://data/skills/sw_field_measure_site.tres")
 # ── 李春起手技能 ──
 const _SK_LC_RULE := preload("res://data/skills/lc_rule_strike.tres")
 const _SK_LC_LINE_LOCK := preload("res://data/skills/lc_line_lock_arc.tres")
-# ── 李春可学池（buff 抽卡候选） ──
-const _SK_LC_INKLINE := preload("res://data/skills/lc_inkline_balance_arch.tres")
-const _SK_LC_INK_SET := preload("res://data/skills/lc_ink_set_arch.tres")
-const _SK_LC_DIVIDER := preload("res://data/skills/lc_divider_mark_arc.tres")
-const _SK_LC_LINK := preload("res://data/skills/lc_link_wedges_arch.tres")
-const _SK_LC_PILE_BIND := preload("res://data/skills/lc_pile_bind_wave.tres")
-const _SK_LC_GUIDE_FLOOD := preload("res://data/skills/lc_guide_flood_open_arch.tres")
-const _SK_LC_WEDGE_BANK := preload("res://data/skills/lc_wedge_bank_probe.tres")
-const _SK_LC_CAST_STONE := preload("res://data/skills/lc_cast_stone_arrest_flow.tres")
+
+# ── 波次配置（节奏公式 + buff 池 + 李春可学池），真源 data/stages/survival/wave_config.tres ──
+var _wave_config: SurvivalWaveConfig = preload("res://data/stages/survival/wave_config.tres")
 
 # ── 起手放置位置（基于 level1-1 中心区域可走格） ──
 const _HERO_CELL := Vector2i(-1, 2)
@@ -97,7 +91,7 @@ func _on_level_ready() -> void:
 	# 3. WaveController
 	_wave_controller = _WaveControllerScript.new()
 	add_child(_wave_controller)
-	_wave_controller.setup(self, _hud, _build_learnable_skills())
+	_wave_controller.setup(self, _hud, _wave_config)
 
 
 func _spawn_initial_player_team() -> void:
@@ -125,20 +119,6 @@ func _spawn_initial_player_team() -> void:
 	sw.unit_color = _SURVEY_COLOR
 	_get_unit_factory().set_unit_skills(sw, [_SK_STAFF, _SK_SURVEY])
 	_get_unit_factory().setup_unit_stats_from_roster(sw, _ROSTER.find("测量工"))
-
-
-func _build_learnable_skills() -> Array[SkillData]:
-	# 李春可学池（已学的 _SK_LC_RULE / _SK_LC_LINE_LOCK 不重复入池；buff 系统会再过滤）
-	return [
-		_SK_LC_INKLINE,
-		_SK_LC_INK_SET,
-		_SK_LC_DIVIDER,
-		_SK_LC_LINK,
-		_SK_LC_PILE_BIND,
-		_SK_LC_GUIDE_FLOOD,
-		_SK_LC_WEDGE_BANK,
-		_SK_LC_CAST_STONE,
-	]
 
 
 # ─────────────────────────────────────────────
