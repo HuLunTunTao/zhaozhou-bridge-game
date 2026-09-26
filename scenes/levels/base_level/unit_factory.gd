@@ -244,27 +244,45 @@ func setup_unit_stats(unit: Unit, uname: String, hp: int, atk: int,
 # ─────────────────────────────────────────────
 
 ## 英雄装配：Progress 技能池 + 强制补入缺失的核心交互技能 + 战斗数值覆写（is_hero=true）。
-## 数值由各关传入（关卡间不同）；技能表缺省取当前选中关卡的 Progress 配装。
-func setup_hero_unit(unit: Unit, uname: String, hp: int, atk: int, ap: int,
-		move_cost: int, mandatory_skills: Array = []) -> void:
+## 属性取自 roster 行（data/units/roster_*.tres，Step 4.8）；
+## 技能表缺省取当前选中关卡的 Progress 配装。
+func setup_hero_unit(unit: Unit, roster: RosterEntry, mandatory_skills: Array = []) -> void:
+	if roster == null:
+		push_warning("setup_hero_unit: roster 行缺失")
+		return
 	var skills: Array[SkillData] = Progress.get_battle_skill_resources(GameState.selected_level)
 	for m in mandatory_skills:
 		var skill := m as SkillData
 		if skill != null and not skill_list_contains(skills, skill.skill_id):
 			skills.append(skill)
 	set_unit_skills(unit, skills)
-	setup_unit_stats(unit, uname, hp, atk, ap, move_cost, Enums.Element.NONE, 0, true)
+	setup_unit_stats(unit, roster.unit_name, roster.max_hp, roster.base_atk, roster.ap_max,
+			roster.move_cost, Enums.Element.NONE, 0, true)
 
 
-## 批量装配队友：统一技能表 + 战斗数值。数值由各关传入（关卡间不同）。
-func setup_ally_group(units: Array, skills: Array, uname: String, hp: int, atk: int,
-		ap: int, move_cost: int) -> void:
+## 批量装配队友：统一技能表 + 战斗数值（属性取自 roster 行）。
+func setup_ally_group(units: Array, skills: Array, roster: RosterEntry) -> void:
+	if roster == null:
+		push_warning("setup_ally_group: roster 行缺失")
+		return
 	for u in units:
 		var unit := u as Unit
 		if unit == null:
 			continue
 		set_unit_skills(unit, skills)
-		setup_unit_stats(unit, uname, hp, atk, ap, move_cost)
+		setup_unit_stats(unit, roster.unit_name, roster.max_hp, roster.base_atk, roster.ap_max,
+				roster.move_cost)
+
+
+## 按 roster 行覆写战斗数值的便捷入口（survival / test 等走 setup_unit_stats 的调用点用）。
+func setup_unit_stats_from_roster(unit: Unit, roster: RosterEntry,
+		elem: Enums.Element = Enums.Element.NONE, elem_amt: int = 0,
+		is_hero_flag: bool = false) -> void:
+	if roster == null:
+		push_warning("setup_unit_stats_from_roster: roster 行缺失")
+		return
+	setup_unit_stats(unit, roster.unit_name, roster.max_hp, roster.base_atk, roster.ap_max,
+			roster.move_cost, elem, elem_amt, is_hero_flag)
 
 
 ## 技能表里是否已有指定 skill_id。

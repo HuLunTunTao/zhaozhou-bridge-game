@@ -132,6 +132,9 @@ func get_teams_config() -> Array:
 # 波次表（WaveSpawns，Step 4.7）：节奏模板外置 data/stages/chapter1_stage3/wave_spawns.tres。
 var _wave_spawns: WaveSpawns = preload("res://data/stages/chapter1_stage3/wave_spawns.tres")
 
+# 我方属性表（Step 4.8）：李春 / 工匠 / 运石工 的数值外置 data/units/roster_level1-3.tres。
+var _roster: UnitRoster = preload("res://data/units/roster_level1-3.tres")
+
 
 func get_wave_config() -> Dictionary:
 	# 节奏：前 25 回合自然刷怪（9 波，单只与双只混合），r25 之后不再刷怪，
@@ -604,7 +607,8 @@ func _make_platform_tile(color: Color) -> SpecialTile:
 
 
 func _setup_li_chun() -> void:
-	_get_unit_factory().setup_hero_unit(_li_chun, "李春", 130, 24, 100, 8)
+	# 属性外置 data/units/roster_level1-3.tres。
+	_get_unit_factory().setup_hero_unit(_li_chun, _roster.find("李春"))
 
 
 func _setup_allies_from_scene() -> void:
@@ -613,8 +617,9 @@ func _setup_allies_from_scene() -> void:
 	# 同时在两石料场旁各动态生成 1 名额外运石工，加速运石节奏。
 	_spawn_extra_carriers()
 	var factory := _get_unit_factory()
-	factory.setup_ally_group(_craftsmen, [_mallet, _guard], "工匠", 118, 20, 92, 9)
-	factory.setup_ally_group(_stone_carriers, [_staff], "运石工", 88, 13, 100, 8)
+	# 数值外置 data/units/roster_level1-3.tres。
+	factory.setup_ally_group(_craftsmen, [_mallet, _guard], _roster.find("工匠"))
+	factory.setup_ally_group(_stone_carriers, [_staff], _roster.find("运石工"))
 	for carrier in _stone_carriers:
 		_carrier_base_move_cost[carrier.get_instance_id()] = carrier.combat_stats.move_cost_per_tile
 	_apply_persistent_growth_effects()

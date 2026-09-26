@@ -16,6 +16,9 @@ var _sk_lunge: SkillData = preload("res://data/skills/dc_hidden_current_lunge.tr
 var _sk_pull: SkillData = preload("res://data/skills/wp_spiral_pull.tres")
 var _sk_crush: SkillData = preload("res://data/skills/bmw_crumbling_bank_crush.tres")
 
+# ── 李春 / 工匠 / 测量工属性（数值.md 正式数据，与 1-2 同值共用 roster 表）──
+var _roster: UnitRoster = preload("res://data/units/roster_level1-2.tres")
+
 # ── 保存节点引用（get_teams_config 在 reparent 之前调用）──
 var _player: Node2D
 var _playerB: Node2D
@@ -72,10 +75,10 @@ func _on_level_ready() -> void:
 	_get_unit_factory().set_unit_skills(_enemy3 as Unit, [_sk_crush])
 	_get_unit_factory().set_unit_skills(_enemy4 as Unit, [_sk_lunge])
 
-	# ── 覆盖属性值（数值.md 正式数据）──
-	_get_unit_factory().setup_unit_stats(_player as Unit, "李春", 130, 24, 100, 8, Enums.Element.NONE, 0, true)
-	_get_unit_factory().setup_unit_stats(_playerB as Unit, "工匠", 110, 18, 90, 9, Enums.Element.NONE, 0, false)
-	_get_unit_factory().setup_unit_stats(_playerC as Unit, "测量工", 80, 12, 85, 10, Enums.Element.NONE, 0, false)
+	# ── 覆盖属性值（数值外置 data/units/roster_level1-2.tres）──
+	_get_unit_factory().setup_unit_stats_from_roster(_player as Unit, _roster.find("李春"), Enums.Element.NONE, 0, true)
+	_get_unit_factory().setup_unit_stats_from_roster(_playerB as Unit, _roster.find("工匠"))
+	_get_unit_factory().setup_unit_stats_from_roster(_playerC as Unit, _roster.find("测量工"))
 	_get_unit_factory().setup_unit_stats(_ally1 as Unit, "队友", 100, 10, 100, 10, Enums.Element.METAL, 0, false)
 	_get_unit_factory().setup_unit_stats(_ally2 as Unit, "队友2", 100, 10, 100, 10, Enums.Element.WOOD, 0, false)
 	_get_unit_factory().setup_unit_stats(_enemy1 as Unit, "暗涌", 68, 17, 100, 10, Enums.Element.WATER, 2, false)

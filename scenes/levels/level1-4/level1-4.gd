@@ -99,6 +99,9 @@ var _stability_config: BridgeStabilityConfig = preload("res://data/stages/chapte
 var _side_arch_config: SideArchConfig = preload("res://data/stages/chapter1_stage4/side_arch_config.tres")
 var _wave_spawns: WaveSpawns = preload("res://data/stages/chapter1_stage4/wave_spawns.tres")
 
+# 我方属性表（Step 4.8）：李春 / 工匠 / 运石工 的数值外置 data/units/roster_level1-4.tres。
+var _roster: UnitRoster = preload("res://data/units/roster_level1-4.tres")
+
 # 教程引导（L1-1 同款 dialogue 流程，分三段挂在 boss 阶段切换上）。
 const TUTORIAL_ID_P1 := "level1-4_p1"
 const TUTORIAL_ID_P2 := "level1-4_p2"
@@ -1102,15 +1105,17 @@ func _setup_anchor_cells() -> void:
 
 
 func _setup_li_chun() -> void:
-	_get_unit_factory().setup_hero_unit(_li_chun, "李春", 138, 26, 105, 8)
+	# 属性外置 data/units/roster_level1-4.tres。
+	_get_unit_factory().setup_hero_unit(_li_chun, _roster.find("李春"))
 
 
 # 友方 / 敌方均在 .tscn 里预置（unit_data + visual_scene + position 都已配齐）；
-# 这里只补技能 + 战斗数值。setup_unit_stats 会覆盖 combat_stats 的基线。
+# 这里只补技能 + 战斗数值（数值外置 data/units/roster_level1-4.tres）。
+# setup_unit_stats 会覆盖 combat_stats 的基线。
 func _setup_allies_from_scene() -> void:
 	var factory := _get_unit_factory()
-	factory.setup_ally_group(_craftsmen, [_mallet, _guard], "工匠", 120, 20, 95, 9)
-	factory.setup_ally_group(_stone_carriers, [_staff, _sw_open_arch], "运石工", 92, 14, 95, 9)
+	factory.setup_ally_group(_craftsmen, [_mallet, _guard], _roster.find("工匠"))
+	factory.setup_ally_group(_stone_carriers, [_staff, _sw_open_arch], _roster.find("运石工"))
 	_apply_persistent_growth_effects()
 
 

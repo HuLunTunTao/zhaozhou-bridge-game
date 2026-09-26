@@ -15,6 +15,8 @@ const _WaveControllerScript := preload("res://scenes/levels/survival/wave_contro
 const _UD_LI_CHUN := preload("res://data/units/hero_li_chun.tres")
 const _UD_CRAFTSMAN := preload("res://data/units/craftsman_guard.tres")
 const _UD_SURVEY := preload("res://data/units/survey_worker.tres")
+# ── 起手属性（与 1-1 同值，共用 data/units/roster_level1-1.tres，Step 4.8）──
+const _ROSTER := preload("res://data/units/roster_level1-1.tres")
 
 # ── 起手技能（参考 level1-1 配置） ──
 const _SK_MALLET := preload("res://data/skills/cg_mallet_strike.tres")
@@ -106,23 +108,23 @@ func _spawn_initial_player_team() -> void:
 	if hero_skills.is_empty():
 		hero_skills = [_SK_LC_RULE, _SK_LC_LINE_LOCK]
 	_get_unit_factory().set_unit_skills(li_chun, hero_skills)
-	_get_unit_factory().setup_unit_stats(li_chun, "李春", 130, 24, 100, 6, Enums.Element.NONE, 0, true)
+	_get_unit_factory().setup_unit_stats_from_roster(li_chun, _ROSTER.find("李春"), Enums.Element.NONE, 0, true)
 	hero = li_chun
 
 	var c_a := _get_unit_factory().spawn_unit(_UD_CRAFTSMAN, _CRAFTSMAN_A_CELL, 0)
 	c_a.unit_color = _CRAFTSMAN_COLOR
 	_get_unit_factory().set_unit_skills(c_a, [_SK_MALLET, _SK_GUARD])
-	_get_unit_factory().setup_unit_stats(c_a, "工匠", 110, 18, 90, 8)
+	_get_unit_factory().setup_unit_stats_from_roster(c_a, _ROSTER.find("工匠"))
 
 	var c_b := _get_unit_factory().spawn_unit(_UD_CRAFTSMAN, _CRAFTSMAN_B_CELL, 0)
 	c_b.unit_color = _CRAFTSMAN_COLOR
 	_get_unit_factory().set_unit_skills(c_b, [_SK_MALLET, _SK_GUARD])
-	_get_unit_factory().setup_unit_stats(c_b, "工匠", 110, 18, 90, 8)
+	_get_unit_factory().setup_unit_stats_from_roster(c_b, _ROSTER.find("工匠"))
 
 	var sw := _get_unit_factory().spawn_unit(_UD_SURVEY, _SURVEY_CELL, 0)
 	sw.unit_color = _SURVEY_COLOR
 	_get_unit_factory().set_unit_skills(sw, [_SK_STAFF, _SK_SURVEY])
-	_get_unit_factory().setup_unit_stats(sw, "测量工", 80, 12, 85, 9)
+	_get_unit_factory().setup_unit_stats_from_roster(sw, _ROSTER.find("测量工"))
 
 
 func _build_learnable_skills() -> Array[SkillData]:

@@ -35,6 +35,8 @@ var _task_chain: TaskChain = TaskChain.new()
 var _stage_hooks: StageHooks = StageHooks.new()
 
 # ── 预加载 ──
+# 我方属性表（Step 4.8）：李春 / 测量工 / 工匠 的数值外置 data/units/roster_level1-2.tres。
+var _roster: UnitRoster = preload("res://data/units/roster_level1-2.tres")
 var _hero_data: UnitData = preload("res://data/units/hero_li_chun.tres")
 var _hero_visual: PackedScene = preload("res://scenes/unit/visual/human/li_chun/li_chun_visual.tscn")
 var _rule_guard_data: UnitData = preload("res://data/units/rule_guard_head.tres")
@@ -227,16 +229,17 @@ func _hint_hunt() -> String:
 func _setup_li_chun() -> void:
 	_li_chun.apply_runtime_setup(_hero_data, _hero_visual, Color(1, 0.85, 0, 1))
 	# 关卡核心交互 & 分规定弧 默认写入李春技能池（若 Progress 没提供）。
-	_get_unit_factory().setup_hero_unit(_li_chun, "李春", 130, 24, 100, 8, [_confirm_parameter, _ink_set_arch, _divider_arc])
+	# 属性外置 data/units/roster_level1-2.tres。
+	_get_unit_factory().setup_hero_unit(_li_chun, _roster.find("李春"), [_confirm_parameter, _ink_set_arch, _divider_arc])
 
 
 func _setup_allies_from_scene() -> void:
 	# 场景里已放好 SurveyWorker*/CraftsmanA-C 节点；位置由场景 position 决定
 	# （基类 _reparent_entities_to_obstacles 会按 global_position 吸附到最近格）。
-	# 这里只补齐 skills / 数值。
+	# 这里只补齐 skills / 数值（数值外置 data/units/roster_level1-2.tres）。
 	var factory := _get_unit_factory()
-	factory.setup_ally_group(_survey_workers, [_staff, _take_parameters], "测量工", 80, 12, 85, 10)
-	factory.setup_ally_group(_craftsmen, [_mallet, _guard], "工匠", 110, 18, 90, 9)
+	factory.setup_ally_group(_survey_workers, [_staff, _take_parameters], _roster.find("测量工"))
+	factory.setup_ally_group(_craftsmen, [_mallet, _guard], _roster.find("工匠"))
 
 
 func _setup_parameter_tiles() -> void:

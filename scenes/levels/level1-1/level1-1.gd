@@ -93,6 +93,9 @@ func get_teams_config() -> Array:
 # 整体展开到 r20，避免早期扎堆也不会拖到新手无事可做。
 var _wave_spawns: WaveSpawns = preload("res://data/stages/chapter1_stage1/wave_spawns.tres")
 
+# 我方属性表（Step 4.8）：李春 / 测量工 / 工匠 的数值外置 data/units/roster_level1-1.tres。
+var _roster: UnitRoster = preload("res://data/units/roster_level1-1.tres")
+
 
 func get_wave_config() -> Dictionary:
 	var waves: Dictionary = {}
@@ -184,11 +187,11 @@ func _on_level_ready() -> void:
 	_task_chain.setup(self)
 	_task_chain.configure(_build_task_chain_tasks())
 
-	# ── 李春 / 测量工 / 工匠（数值为本关设计师配平，走共享装配底座）──
+	# ── 李春 / 测量工 / 工匠（属性外置 data/units/roster_level1-1.tres，走共享装配底座）──
 	var factory := _get_unit_factory()
-	factory.setup_hero_unit(_li_chun as Unit, "李春", 130, 24, 100, 6)
-	factory.setup_ally_group([_survey_a, _survey_b], [_sk_staff, _sk_survey], "测量工", 80, 12, 85, 9)
-	factory.setup_ally_group([_craftsman_a, _craftsman_b], [_sk_mallet, _sk_guard], "工匠", 110, 18, 90, 8)
+	factory.setup_hero_unit(_li_chun as Unit, _roster.find("李春"))
+	factory.setup_ally_group([_survey_a, _survey_b], [_sk_staff, _sk_survey], _roster.find("测量工"))
+	factory.setup_ally_group([_craftsman_a, _craftsman_b], [_sk_mallet, _sk_guard], _roster.find("工匠"))
 	_apply_persistent_growth_effects()
 
 	# ── 关卡机制初始化 ──

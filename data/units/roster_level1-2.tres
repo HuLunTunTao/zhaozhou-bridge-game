@@ -1,0 +1,32 @@
+[gd_resource type="Resource" script_class="UnitRoster" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/unit_roster.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/data/roster_entry.gd" id="2"]
+
+[sub_resource type="Resource" id="R_LI_CHUN"]
+script = ExtResource("2")
+unit_name = "李春"
+max_hp = 130
+base_atk = 24
+ap_max = 100
+move_cost = 8
+
+[sub_resource type="Resource" id="R_SURVEY"]
+script = ExtResource("2")
+unit_name = "测量工"
+max_hp = 80
+base_atk = 12
+ap_max = 85
+move_cost = 10
+
+[sub_resource type="Resource" id="R_CRAFT"]
+script = ExtResource("2")
+unit_name = "工匠"
+max_hp = 110
+base_atk = 18
+ap_max = 90
+move_cost = 9
+
+[resource]
+script = ExtResource("1")
+entries = Array[Resource]([SubResource("R_LI_CHUN"), SubResource("R_SURVEY"), SubResource("R_CRAFT")])
