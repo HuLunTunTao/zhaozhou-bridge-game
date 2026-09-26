@@ -126,6 +126,8 @@ var _rapid_edge_tiles: Dictionary = {}    # cell → RapidEdgeTile
 var _status_panel: RichTextLabel = null
 # 小拱开肩交互派发表（InteractionTile 参数化，stage_open_arch 技能触发）
 var _interactions: Array[InteractionTile] = []
+# 阶段接线器（Step 4.6）
+var _stage_hooks: StageHooks = StageHooks.new()
 
 
 func get_teams_config() -> Array:
@@ -378,11 +380,15 @@ func _on_level_ready() -> void:
 	_setup_li_chun()
 	_setup_allies_from_scene()
 	_setup_enemies_from_scene()
-	team_turn_started.connect(_on_stage_team_turn_started)
-	unit_hp_changed.connect(_on_stage_hp_changed)
-	unit_died.connect(_on_stage_unit_died)
-	round_started.connect(_on_stage_round_started)
-	phase_changed.connect(_on_phase_changed_for_onboarding)
+	# 阶段接线（StageHooks 声明式）
+	_stage_hooks.setup(self)
+	_stage_hooks.connect_all({
+		"team_turn_started": _on_stage_team_turn_started,
+		"unit_hp_changed": _on_stage_hp_changed,
+		"unit_died": _on_stage_unit_died,
+		"round_started": _on_stage_round_started,
+		"phase_changed": _on_phase_changed_for_onboarding,
+	})
 	_update_status_panel()
 	Notify.hint("李春与运石工可开启小拱；整桥稳定值 100 归零即败", 3.0)
 

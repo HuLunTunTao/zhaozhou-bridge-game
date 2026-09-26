@@ -31,6 +31,8 @@ const COLOR_BOSS := Color(0.8, 0.25, 0.25)
 
 # ── 关卡任务链（TaskChain：parameters → platform → arch → hunt）──
 var _task_chain: TaskChain = TaskChain.new()
+# 阶段接线器（Step 4.6）
+var _stage_hooks: StageHooks = StageHooks.new()
 
 # ── 预加载 ──
 var _hero_data: UnitData = preload("res://data/units/hero_li_chun.tres")
@@ -142,10 +144,14 @@ func _on_level_ready() -> void:
 	_setup_mission_hint()
 	_setup_params_status_hint()
 
-	unit_died.connect(_on_stage_unit_died)
-	unit_hp_changed.connect(_on_stage_hp_changed)
-	team_turn_started.connect(_on_stage_team_turn_started)
-	unit_move_completed.connect(_on_stage_unit_move_completed)
+	# 阶段接线（StageHooks 声明式）
+	_stage_hooks.setup(self)
+	_stage_hooks.connect_all({
+		"unit_died": _on_stage_unit_died,
+		"unit_hp_changed": _on_stage_hp_changed,
+		"team_turn_started": _on_stage_team_turn_started,
+		"unit_move_completed": _on_stage_unit_move_completed,
+	})
 
 	Notify.hint("派测量工到参数点 (-1, 2) 测定河宽 / 河床 / 汛位 3 项数据（「测尺取参」每回合不限），或李春「参数确认」补刀（每回合 1 次）。", 4.0)
 

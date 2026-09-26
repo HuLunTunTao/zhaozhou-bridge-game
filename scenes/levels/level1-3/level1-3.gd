@@ -44,6 +44,8 @@ var _bridge_cells: Dictionary = {}  # 桥面可落脚 cell 集合（敌人刷新
 var _interactions: Array[InteractionTile] = []
 # Boss 减伤策略（Step 4.4）：CAP 模式 → 单次伤害上限随左右差值现算（_boss_damage_cap）
 var _boss_dr: BossDRPolicy = null
+# 阶段接线器（Step 4.6）
+var _stage_hooks: StageHooks = StageHooks.new()
 
 var _craftsman_data: UnitData = preload("res://data/units/craftsman_guard.tres")
 var _mud_data: UnitData = preload("res://data/units/bank_mud_wraith.tres")
@@ -245,11 +247,15 @@ func _on_level_ready() -> void:
 	_setup_allies_from_scene()
 	_spawn_enemies()
 	_setup_status_panel()
-	team_turn_started.connect(_on_stage_team_turn_started)
-	unit_hp_changed.connect(_on_stage_hp_changed)
-	round_started.connect(_on_stage_round_started)
-	# 教程对话不能在 BRIEFING 阶段就跑（会和初始目标面板抢输入），等 PLAYING 之后再触发。
-	phase_changed.connect(_on_phase_changed_for_onboarding)
+	# 阶段接线（StageHooks 声明式）
+	_stage_hooks.setup(self)
+	_stage_hooks.connect_all({
+		"team_turn_started": _on_stage_team_turn_started,
+		"unit_hp_changed": _on_stage_hp_changed,
+		"round_started": _on_stage_round_started,
+		# 教程对话不能在 BRIEFING 阶段就跑（会和初始目标面板抢输入），等 PLAYING 之后再触发。
+		"phase_changed": _on_phase_changed_for_onboarding,
+	})
 	_update_status_panel()
 	_update_crown_visibility()
 	_prev_balance_state = _balance_state()
