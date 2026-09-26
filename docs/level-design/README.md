@@ -15,6 +15,7 @@
 5. **[04-关卡参数 § 6.1](04-level-parameters.md#61-队伍配置get_teams_config)** — 编写最简关卡脚本
 6. **[07-测试与调试 § 7.1](07-testing.md#71-运行关卡)** — 按 F6 测试你的关卡
 7. **[09-事件-响应系统](09-event-response.md)** — 进阶：让关卡对死亡/回合/位置等事件做出反应（剧情/胜负判定）
+8. **[10-组件使用指南](10-component-guide.md)** — 进阶：用 TutorialStep / TaskChain / InteractionTile 写关卡，不复制粘贴骨架
 
 最重要的两个按键：**`Ctrl+S` 保存**、**`F6` 运行当前场景**。
 
@@ -33,6 +34,7 @@
 | 07 | [测试与调试](07-testing.md) | 运行关卡 · 渲染层级 · 化势反馈 · 常见问题排查 |
 | 08 | [关卡集成](08-integration.md) | 将关卡接入主菜单和战役流程 |
 | 09 | [事件-响应系统](09-event-response.md) | 用 GDScript 钩子让关卡对死亡/回合/位置/HP/技能等事件做出反应 |
+| 10 | [组件使用指南](10-component-guide.md) | 关卡组件清单 · TutorialStep / TaskChain / InteractionTile 编写规范 · StageHooks / WaveSpawns / UnitRoster |
 | A | [地形参考表](appendix-tileset-reference.md) | 全部地形类型、移动消耗、Terrain 名称速查 |
 | B | [单位与技能参考表](appendix-creature-reference.md) | 全部单位数据、技能数据、状态数据、ElementColors 用法 |
 
@@ -84,3 +86,4 @@
 | 2026-04-09 | v4.1 | 新增 Godot 编辑器首次使用入门（01 § 2.0）；新增代码编辑器与 GDScript 基础（04 § 6.0）；扩展 Unit 原点约定与脚下对齐示例（03 § 4.2）；新增化势反馈三层 UI 与渲染层级速查（07 § 7.3 / § 7.3b）；新增 Notify.notify 调用示例（04 § 6.11）；新增 ElementColors 全局颜色类使用指南（附录 B § B.13）；修正 HP 条 Y 偏移（-40）、TestBridge autoload |
 | 2026-04-09 | v4.2 | 新增 09 事件-响应系统专题文档：6 个关卡事件信号（unit_died / unit_hp_changed / round_started / team_turn_started / unit_gained_skill / unit_lost_skill）+ 5 个新增响应方法（defeat_level / spawn_unit / play_dialogue / grant_skill / revoke_skill）；中场过场动画用法说明；常见模式速查；完整关卡示例 |
 | 2026-04-10 | v4.3 | 附录 B 新增 B.11a「新增化势的完整流程」：创建 PhaseData .tres 文件 + 在 phase_table.gd 中注册路径的两步必做流程；说明 DirAccess 在导出版中无法扫描目录的技术背景；B.6 节头部新增注册提醒 |
+| 2026-09-26 | v5.0 | 新增 10-组件使用指南：关卡组件清单（战棋栈 / 共享内核 / 声明式数据组件）；TutorialStep / TaskChain / InteractionTile 三个编写规范（含时序与异步纪律）；StageHooks / WaveSpawns / UnitRoster / BossDRPolicy / TransientTile 速查；新增组件自查清单 |
