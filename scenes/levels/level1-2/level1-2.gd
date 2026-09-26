@@ -74,6 +74,8 @@ var _mission_hint_label: Label = null
 var _params_status_label: Label = null
 # 参数点交互派发表（InteractionTile：测尺取参 + 参数确认，同格两条规则）
 var _interactions: Array[InteractionTile] = []
+# Boss 减伤策略（Step 4.4）：CAP 模式，上限恒 0 = 旧制监工完全免伤
+var _boss_dr: BossDRPolicy = null
 const COLOR_PARAM_INCOMPLETE := Color(0.95, 0.72, 0.2, 0.55)
 const COLOR_PARAM_COMPLETE := Color(0.3, 0.85, 0.4, 0.55)
 
@@ -310,6 +312,13 @@ func _spawn_boss() -> void:
 	# Boss 每回合固定开口（prob=1.0），对话伙伴池放开到全地图（boss 在角落）
 	_boss.chatter_round_prob = 1.0
 	_boss.chatter_full_map_range = true
+	# Boss 减伤策略：单次伤害上限恒 0（完全免伤）
+	_boss_dr = BossDRPolicy.cap(_boss, self._boss_damage_cap)
+
+
+## 旧制监工完全免伤：单次伤害上限恒 0（BossDRPolicy CAP 模式）。
+func _boss_damage_cap() -> int:
+	return 0
 
 
 func _spawn_initial_minions() -> void:
@@ -596,13 +605,12 @@ func _on_stage_hp_changed(unit: Unit, old_hp: int, new_hp: int) -> void:
 
 
 func _finalize_skill_hit_damage(_caster: Unit, _skill: SkillData, target: Unit, hit: CombatResolver.HitResult) -> void:
-	if target != _boss or hit.actual_damage <= 0:
+	# BossDRPolicy（CAP 模式，上限 0）：旧制监工伤害归零，HP 回到命中前
+	var info := _boss_dr.limit_hit(target, hit)
+	if not info.get("changed", false):
 		return
-	var raw_damage := hit.actual_damage
-	target.combat_stats.current_hp = hit.hp_before
-	target.refresh_overhead_bars()
 	hit.damage_limit_message = "旧制监工不可被直接击退，请优先完成本关任务目标。"
-	CombatLog.msg("    关卡机制: %s（原伤害 %d → 实际 0）" % [hit.damage_limit_message, raw_damage])
+	CombatLog.msg("    关卡机制: %s（原伤害 %d → 实际 0）" % [hit.damage_limit_message, info["raw"]])
 
 
 # ─────────────────────────────────────────────

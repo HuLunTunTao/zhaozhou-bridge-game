@@ -41,6 +41,8 @@ const STATUS_KNOCKBACK_IMMUNE := "knockback_immune"
 var _boss_phase: int = 1
 var _phase_arch_skill_used: Dictionary = {}   # arch_key → bool；_enter_phase 重置
 var _arch_blocked_overlay: Dictionary = {}    # arch_key → bool；transient (敌人占位)
+# Boss 减伤策略（Step 4.4）：FACTOR 模式 → incoming_damage_factor = 1 - _compute_boss_dr()
+var _boss_dr: BossDRPolicy = null
 
 # 周期被动 CD：仅在"成功释放"后才进入冷却（设计：释放过后才进入 CD）。
 # 初始 = base，确保前几回合按 base 节奏首发；撞期时被让位的技能 CD 维持 0，下回合即可释放。
@@ -998,12 +1000,10 @@ func _compute_boss_dr() -> float:
 	return 0.0
 
 
-# 把 _compute_boss_dr 写入 boss.combat_stats.incoming_damage_factor。
+# 把当前免伤比例落地到 boss.combat_stats.incoming_damage_factor（BossDRPolicy 策略对象）。
 # CombatResolver.resolve_hit 会在 step 8 自动乘上它。
 func _refresh_boss_dr() -> void:
-	if _boss == null or _boss.combat_stats == null:
-		return
-	_boss.combat_stats.incoming_damage_factor = 1.0 - _compute_boss_dr()
+	_boss_dr.apply()
 
 
 # Boss HP 跨阈值时自动进入下一阶段。单向（只升不降）。
@@ -1122,6 +1122,8 @@ func _setup_enemies_from_scene() -> void:
 	_apply_permanent_status(_boss, STATUS_KNOCKBACK_IMMUNE)
 	_get_unit_factory().set_unit_skills(_boss, [_overturn_bridge])
 	_populate_boss_hit_area()
+	# Boss 减伤策略：免伤比例来自 _compute_boss_dr（按阶段 + 拆肩进度现算）
+	_boss_dr = BossDRPolicy.factor(_boss, self._compute_boss_dr)
 
 	_get_unit_factory().setup_unit_stats(_flood_spear_1, "洪锋", 70, 21, 90, 10, Enums.Element.WATER, 2)
 	_get_unit_factory().set_unit_skills(_flood_spear_1, [_torrent_ram])

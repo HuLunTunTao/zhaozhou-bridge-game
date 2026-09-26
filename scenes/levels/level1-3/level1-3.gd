@@ -42,6 +42,8 @@ var _joint_cells: Array[Vector2i] = []
 var _bridge_cells: Dictionary = {}  # 桥面可落脚 cell 集合（敌人刷新必须在桥上）
 # 石料场 / 券台的取石·交石交互派发表（InteractionTile 参数化，落格触发）
 var _interactions: Array[InteractionTile] = []
+# Boss 减伤策略（Step 4.4）：CAP 模式 → 单次伤害上限随左右差值现算（_boss_damage_cap）
+var _boss_dr: BossDRPolicy = null
 
 var _craftsman_data: UnitData = preload("res://data/units/craftsman_guard.tres")
 var _mud_data: UnitData = preload("res://data/units/bank_mud_wraith.tres")
@@ -474,18 +476,13 @@ func _on_stage_hp_changed(unit: Unit, old_hp: int, new_hp: int) -> void:
 
 
 func _finalize_skill_hit_damage(_caster: Unit, _skill: SkillData, target: Unit, hit: CombatResolver.HitResult) -> void:
-	if target != _boss or hit.actual_damage <= 0:
+	# BossDRPolicy（CAP 模式）截断单次伤害；上限由 _boss_damage_cap 随左右差值现算
+	var info := _boss_dr.limit_hit(target, hit)
+	if not info.get("changed", false):
 		return
-	var cap := _boss_damage_cap()
-	if hit.actual_damage <= cap:
-		return
-	var raw_damage := hit.actual_damage
-	var capped_damage: int = mini(raw_damage, cap)
-	target.combat_stats.current_hp = maxi(hit.hp_before - capped_damage, 0)
-	target.refresh_overhead_bars()
 	var state := _balance_state()
 	hit.damage_limit_message = "偏载傀处于%s：本次最多承受 %d 点伤害（原伤害 %d → 实际 %d）" % [
-		state, cap, raw_damage, capped_damage,
+		state, info["cap"], info["raw"], info["capped"],
 	]
 	CombatLog.msg("    关卡机制: %s" % hit.damage_limit_message)
 
@@ -637,6 +634,8 @@ func _spawn_enemies() -> void:
 	# 倾压之号触发时调 _unlock_boss 放开机动 + 补土系近战，Boss 开始下桥还手。
 	# 玩家仍可远程打 Boss，Boss 受击伤害仍按 _boss_damage_cap 截断。
 	_boss = _spawn_enemy(_make_unit_data(_mud_data, "偏载傀", 720, 18, 1, 99, Enums.Element.EARTH, 2), _nearest_bridge_cell(BOSS_CELL), [], _visual_boss)
+	# Boss 减伤策略：单次伤害上限随左右差值现算（_boss_damage_cap）
+	_boss_dr = BossDRPolicy.cap(_boss, self._boss_damage_cap)
 	# 两个错券兵分别贴在左右券台外侧（关于桥中轴镜像），与券台 2×2 相邻以便扰券。
 	_spawn_enemy(_make_unit_data(_craftsman_data, "错券兵", 77, 17, 90, 9), _nearest_bridge_cell(_left_platform + Vector2i(-1, -1)), [_mallet], _visual_misaligned)
 	_spawn_enemy(_make_unit_data(_craftsman_data, "错券兵", 77, 17, 90, 9), _nearest_bridge_cell(_right_platform + Vector2i(1, 1)), [_mallet], _visual_misaligned)
