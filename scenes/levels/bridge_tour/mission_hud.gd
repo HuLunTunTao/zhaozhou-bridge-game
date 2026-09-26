@@ -21,7 +21,6 @@ extends CanvasLayer
 @onready var _tip: Label = %Tip
 
 const TEXT_COLOR := Color(0.96, 0.94, 0.88)
-const DIM_COLOR := Color(0.65, 0.6, 0.5)
 const PERSUADE_COLOR := Color(0.55, 0.78, 1.0)
 const QA_COLOR := Color(0.55, 0.95, 0.6)
 const MENTOR_COLOR := Color(1.0, 0.85, 0.32)

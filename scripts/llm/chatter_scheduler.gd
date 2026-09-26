@@ -51,14 +51,6 @@ const LLM_TEMPERATURE := 0.85
 ## false → 完全不发声。两者都不会让对话失败，只影响是否能听到声。
 @export var use_system_tts_fallback: bool = true
 
-## 曼哈顿相邻偏移（4 向）。
-const NEIGHBOR_OFFSETS: Array[Vector2i] = [
-	Vector2i(1, 0),
-	Vector2i(-1, 0),
-	Vector2i(0, 1),
-	Vector2i(0, -1),
-]
-
 var _level: Node = null
 var _llm: Node = null
 var _voice: Node = null
@@ -604,13 +596,6 @@ func _pick_adjacent_pair() -> Array:
 	if not same_camp.is_empty():
 		return same_camp[randi() % same_camp.size()]
 	return []
-
-
-func _are_adjacent(a: Node, b: Node) -> bool:
-	if not (a is Unit) or not (b is Unit):
-		return false
-	var delta: Vector2i = (a as Unit).cell - (b as Unit).cell
-	return absi(delta.x) + absi(delta.y) == 1
 
 
 func _are_different_camps(a: Node, b: Node) -> bool:

@@ -90,13 +90,6 @@ var _phase_notification: PhaseNotification = null
 ## 兼容旧版：指向第一个玩家控制队伍的第一个单位（李春）。
 var hero: Node2D
 var unit_selected := false
-## debug AI 闲聊忙锁。代理属性：真源在 LLMChatterBridge，保持旧字段名可读写（debug 降级：未启用时读 false / 写忽略）。
-var _ai_busy: bool:
-	get:
-		return _is_debug_ai_enabled() and _get_chatter_bridge().ai_busy
-	set(value):
-		if _is_debug_ai_enabled():
-			_get_chatter_bridge().ai_busy = value
 ## 单位闲聊调度器（LLM 驱动）。BRIEFING 之后的战斗中监听 team_turn_ended / round_ended 触发对话。
 var _chatter_scheduler: Node = null
 ## 对话桥接组件（Shared Kernel）。BaseLevel 通过同名委托方法转发调用。
@@ -458,11 +451,6 @@ func _on_infinite_ap_button_toggled(enabled: bool) -> void:
 	_get_ui_bridge().on_infinite_ap_button_toggled(enabled)
 
 
-## 薄壳转发至 LevelUIBridge.set_infinite_ally_actions_enabled。
-func _set_infinite_ally_actions_enabled(enabled: bool) -> void:
-	_get_ui_bridge().set_infinite_ally_actions_enabled(enabled)
-
-
 ## 薄壳转发至 LevelUIBridge.apply_infinite_ally_actions_to_unit。
 func _apply_infinite_ally_actions_to_unit(unit: Unit) -> void:
 	_get_ui_bridge().apply_infinite_ally_actions_to_unit(unit)
@@ -765,11 +753,6 @@ func _on_end_turn_button_pressed() -> void:
 	_get_turn_system().on_end_turn_button_pressed()
 
 
-## 薄壳转发至 TurnSystem.try_prompt_round_growth（保留旧调用点零改动）。
-func _try_prompt_round_growth() -> bool:
-	return _get_turn_system().try_prompt_round_growth()
-
-
 ## 薄壳转发至 TurnSystem.clear_end_turn_pending。取消"待确认结束回合"状态。
 func _clear_end_turn_pending() -> void:
 	_get_turn_system().clear_end_turn_pending()
@@ -791,36 +774,14 @@ func _run_ai_turn(team: TeamData) -> void:
 	await _get_ai_runner().run_ai_turn(team)
 
 
-## 薄壳转发至 AITurnRunner.execute_ai_skill（保留旧调用点零改动）。
-func _execute_ai_skill(unit: Unit, skill: SkillData, cast_cell: Vector2i) -> void:
-	await _get_ai_runner().execute_ai_skill(unit, skill, cast_cell)
-
-
-## 薄壳转发至 AITurnRunner.get_alive_enemies_of。
-func _get_alive_enemies_of(faction: String) -> Array:
-	return _get_ai_runner().get_alive_enemies_of(faction)
-
-
 ## 薄壳转发至 LevelQueryAPI.is_cell_occupied。
 func _is_cell_occupied(cell: Vector2i) -> bool:
 	return _get_query_api().is_cell_occupied(cell)
 
 
-## 薄壳转发至 LevelQueryAPI.is_any_unit_moving。
-func _is_any_unit_moving() -> bool:
-	return _get_query_api().is_any_unit_moving()
-
-
 ## 薄壳转发至 LevelQueryAPI.get_unit_at_cell。
 func _get_unit_at_cell(cell: Vector2i, team: TeamData) -> Node2D:
 	return _get_query_api().get_unit_at_cell(cell, team)
-
-
-
-## 在点击位置附近查找任意队伍的单位（用于状态栏显示）。
-## 薄壳转发至 LevelQueryAPI.find_nearest_any_unit（保留旧调用点零改动）。
-func _find_nearest_any_unit(local_mouse_pos: Vector2, max_dist: float = 24.0) -> Node2D:
-	return _get_query_api().find_nearest_any_unit(local_mouse_pos, max_dist)
 
 
 ## 更新状态栏显示指定单位的信息。薄壳转发至 LevelUIBridge.update_status_bar_for_unit。
@@ -985,14 +946,6 @@ func _on_round_started_ai_call(rn: int) -> void:
 	await _get_chatter_bridge().on_round_started_ai_call(rn)
 
 
-## 内部：拼请求 + 显示 toast。被按钮和回合开始两处复用。
-## 薄壳转发至 LLMChatterBridge.call_ai_with_prompt。
-func _call_ai_with_prompt(prompt: String) -> void:
-	if not _is_debug_ai_enabled():
-		return
-	await _get_chatter_bridge().call_ai_with_prompt(prompt)
-
-
 ## 薄壳转发至 LevelUIBridge.on_tutorial_button_pressed（base_level.tscn 信号目标）。
 func _on_tutorial_button_pressed() -> void:
 	_get_ui_bridge().on_tutorial_button_pressed()
@@ -1085,10 +1038,6 @@ func _confirm_idle(cell: Vector2i, _local_mouse: Vector2, current_team: TeamData
 
 func _enter_targeting_move() -> void:
 	_get_input_controller().enter_targeting_move()
-
-
-func _confirm_targeting_move(cell: Vector2i, local_mouse: Vector2, current_team: TeamData) -> void:
-	await _get_input_controller().confirm_targeting_move(cell, local_mouse, current_team)
 
 
 ## 获取除指定单位外所有被占据的格子。
@@ -1194,28 +1143,10 @@ func _get_all_units() -> Array:
 	return _get_scene_bootstrap().get_all_units()
 
 
-## 找一个"空且可走"的格。同心方环外扩搜索，max_radius 控制最大半径。
-## 找不到时返回 target 本身（不静默崩；调用方可以看到 spawn_unit 的 push_warning）。
-## 复用 movement_manager.get_movement_cost 判地形 + _get_all_units 判占位。
-## 薄壳转发至 SceneBootstrap.find_empty_walkable_cell（保留旧调用点零改动）。
-func _find_empty_walkable_cell(target: Vector2i, max_radius: int = 4) -> Vector2i:
-	return _get_scene_bootstrap().find_empty_walkable_cell(target, max_radius)
-
-
-## 薄壳转发至 SceneBootstrap.is_cell_walkable_and_empty（保留旧调用点零改动）。
-func _is_cell_walkable_and_empty(cell: Vector2i) -> bool:
-	return _get_scene_bootstrap().is_cell_walkable_and_empty(cell)
-
-
 ## 难度变化时，按比例重算所有存活单位的 max_hp / ap_max / base_atk。
 ## 薄壳转发至 LevelUIBridge.on_difficulty_changed（Settings.difficulty_changed 信号目标）。
 func _on_difficulty_changed(_id: String) -> void:
 	_get_ui_bridge().on_difficulty_changed(_id)
-
-
-## 薄壳转发至 LevelUIBridge.refresh_difficulty_dependent_ui。
-func _refresh_difficulty_dependent_ui() -> void:
-	_get_ui_bridge().refresh_difficulty_dependent_ui()
 
 
 # ─────────────────────────────────────────────

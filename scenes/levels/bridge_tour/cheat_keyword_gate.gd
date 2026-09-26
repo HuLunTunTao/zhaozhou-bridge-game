@@ -26,10 +26,6 @@ func setup(level: Node) -> void:
 	_level = level
 
 
-func is_cheat_text(text: String) -> bool:
-	return not matched_cheat_word(text).is_empty()
-
-
 func matched_cheat_word(text: String) -> String:
 	var normalized := text.strip_edges().to_lower()
 	if normalized.is_empty():
@@ -40,11 +36,6 @@ func matched_cheat_word(text: String) -> String:
 		if not normalized_word.is_empty() and normalized.find(normalized_word) >= 0:
 			return clean_word
 	return ""
-
-
-## 检测玩家输入是否包含演示用作弊暗语。命中即整轮强制通过。
-func argument_has_cheat(argument: String) -> bool:
-	return is_cheat_text(argument)
 
 
 func cheat_context_text(is_cheat: bool, cheat_word: String = "") -> String:

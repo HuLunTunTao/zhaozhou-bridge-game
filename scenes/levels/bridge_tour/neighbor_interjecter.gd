@@ -31,13 +31,6 @@ class NeighborGen extends RefCounted:
 		completed.emit(t)
 
 
-## 旧入口（同步：先 LLM 后播）。新代码请用 start_interject + play_pending，
-## 把 LLM 与第一句话播放并发，省 1~2 秒等待。这里保留以便兼容。
-func maybe_interject(speaker: Unit, heard: String, presenter: SocialInteractionFlow = null) -> void:
-	var spec := start_interject(speaker, heard)
-	await play_pending(spec, presenter)
-
-
 ## 在第一句话播放前调用。立即决定是否要邻居插话；如果要，立刻 fire-and-forget 跑邻居 LLM。
 ## 返回 spec dict 给 play_pending 用：{neighbor: Unit?, gen: NeighborGen?}。
 ## 这样邻居 LLM 与第一句 TTS 播放并发；轮到邻居说话时再走 TTS 流式播放。

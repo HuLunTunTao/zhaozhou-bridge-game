@@ -60,8 +60,6 @@ var _tutorial_stone_delivered: bool = false
 var _staff: SkillData = preload("res://data/skills/sw_staff_end_strike.tres")
 var _mallet: SkillData = preload("res://data/skills/cg_mallet_strike.tres")
 var _guard: SkillData = preload("res://data/skills/cg_guard_the_works.tres")
-var _divider: SkillData = preload("res://data/skills/lc_divider_mark_arc.tres")
-var _inkline: SkillData = preload("res://data/skills/lc_inkline_balance_arch.tres")
 var _crush: SkillData = preload("res://data/skills/bmw_crumbling_bank_crush.tres")
 var _lunge: SkillData = preload("res://data/skills/dc_hidden_current_lunge.tres")
 var _timber: SkillData = preload("res://data/skills/dlp_drifting_timber_crash.tres")
@@ -81,10 +79,6 @@ const COLOR_LEFT_PLATFORM := Color(0.95, 0.75, 0.25, 0.65)    # 金色 —— �
 const COLOR_RIGHT_PLATFORM := Color(0.25, 0.65, 0.95, 0.65)   # 蓝色 —— 右券台
 const COLOR_STONE_YARD := Color(0.55, 0.40, 0.25, 0.35)       # 棕色 —— 石料场（较淡）
 const COLOR_CROWN_PLATFORM := Color(0.75, 0.40, 0.95, 0.70)   # 紫色 —— 拱冠合龙点
-const COLOR_LEFT_HALO := Color(1.0, 0.80, 0.25, 0.50)         # 金色光晕
-const COLOR_RIGHT_HALO := Color(0.30, 0.70, 1.0, 0.50)        # 蓝色光晕
-const COLOR_STONE_HALO := Color(0.70, 0.50, 0.30, 0.30)       # 棕色光晕（更淡）
-const COLOR_CROWN_HALO := Color(0.85, 0.50, 1.0, 0.55)        # 紫色光晕
 
 # ── 地图固定锚点（按桥面 tile 实际位置解码得出，视觉关于桥中轴 x==y 镜像对称）──
 # 桥图层并集范围：grid x=[-19,16] y=[-18,17]；视觉中轴位于 x-y=0 这条竖线（即 x==y）。

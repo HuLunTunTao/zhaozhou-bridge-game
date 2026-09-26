@@ -53,7 +53,6 @@ var _topple_cd_remaining: int = TOPPLE_CD_BASE
 
 var _hero_data: UnitData = preload("res://data/units/hero_li_chun.tres")
 var _hero_visual: PackedScene = preload("res://scenes/unit/visual/human/li_chun/li_chun_visual.tscn")
-var _survey_data: UnitData = preload("res://data/units/survey_worker.tres")
 var _craftsman_data: UnitData = preload("res://data/units/craftsman_guard.tres")
 
 # 第四关敌方单位（独立 .tres）
@@ -93,10 +92,9 @@ var _bmw_crush: SkillData = preload("res://data/skills/bmw_crumbling_bank_crush.
 var _slam_deck: SkillData = preload("res://data/skills/wf_slam_deck.tres")
 var _topple_bank: SkillData = preload("res://data/skills/wf_topple_bank.tres")
 
-# 关卡配置资源（浅拆：数值 + anchor 偏移 + 波次模板；绝对 cell 运行时算）
+# 关卡配置资源（数值 + 波次模板；小拱锚点是绝对 cell，见 _setup_anchor_cells）
 var _stage_config: StageConfig = preload("res://data/stages/chapter1_stage4/stage_config.tres")
 var _stability_config: BridgeStabilityConfig = preload("res://data/stages/chapter1_stage4/bridge_stability_config.tres")
-var _side_arch_config: SideArchConfig = preload("res://data/stages/chapter1_stage4/side_arch_config.tres")
 var _wave_spawns: WaveSpawns = preload("res://data/stages/chapter1_stage4/wave_spawns.tres")
 
 # 我方属性表（Step 4.8）：李春 / 工匠 / 运石工 的数值外置 data/units/roster_level1-4.tres。
@@ -112,7 +110,6 @@ const TUTORIAL_ID_P3 := "level1-4_p3"
 var _wants_tutorial_replay: bool = true
 
 # 特殊地格容器（运行时 register_special_tile）
-const SmallArchTileClass := preload("res://scenes/levels/level1-4/small_arch_tile.gd")
 const SiltTileClass := preload("res://scenes/levels/base_level/silt_tile.gd")
 const RapidEdgeTileClass := preload("res://scenes/levels/base_level/rapid_edge_tile.gd")
 

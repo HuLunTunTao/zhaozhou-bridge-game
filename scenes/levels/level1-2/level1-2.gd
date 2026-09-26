@@ -23,12 +23,6 @@ const SUMMON_CYCLE: Array[StringName] = [
 	&"循旧匠首", &"高拱幻影", &"循旧匠首", &"重墩石像",
 ]
 
-# ── 敌方颜色（沿用 1-1 的视觉惯例） ──
-const COLOR_RULE_GUARD := Color(0.75, 0.55, 0.3)
-const COLOR_HIGH_ARCH := Color(0.55, 0.65, 0.95)
-const COLOR_HEAVY_PIER := Color(0.65, 0.6, 0.5)
-const COLOR_BOSS := Color(0.8, 0.25, 0.25)
-
 # ── 关卡任务链（TaskChain：parameters → platform → arch → hunt）──
 var _task_chain: TaskChain = TaskChain.new()
 # 阶段接线器（Step 4.6）
@@ -50,7 +44,6 @@ var _take_parameters: SkillData = preload("res://data/skills/sw_take_parameters.
 var _confirm_parameter: SkillData = preload("res://data/skills/lc_confirm_parameter.tres")
 var _ink_set_arch: SkillData = preload("res://data/skills/lc_ink_set_arch.tres")
 var _divider_arc: SkillData = preload("res://data/skills/lc_divider_mark_arc.tres")
-var _line_lock_arc: SkillData = preload("res://data/skills/lc_line_lock_arc.tres")
 var _mallet: SkillData = preload("res://data/skills/cg_mallet_strike.tres")
 var _guard: SkillData = preload("res://data/skills/cg_guard_the_works.tres")
 var _pull: SkillData = preload("res://data/skills/wp_spiral_pull.tres")
