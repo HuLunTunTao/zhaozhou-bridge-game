@@ -507,22 +507,7 @@ func _setup_arch_tiles() -> void:
 
 
 func _setup_status_panel() -> void:
-	_status_panel = RichTextLabel.new()
-	_status_panel.name = "Level4StatusPanel"
-	_status_panel.bbcode_enabled = true
-	_status_panel.fit_content = true
-	_status_panel.scroll_active = false
-	_status_panel.autowrap_mode = TextServer.AUTOWRAP_OFF
-	_status_panel.anchors_preset = Control.PRESET_TOP_LEFT
-	_status_panel.offset_left = 18
-	_status_panel.offset_top = 84
-	_status_panel.offset_right = 300
-	_status_panel.offset_bottom = 120
-	_status_panel.add_theme_font_size_override("normal_font_size", 16)
-	_status_panel.add_theme_color_override("default_color", Color(0.96, 0.94, 0.88))
-	_status_panel.add_theme_color_override("font_outline_color", Color(0.08, 0.08, 0.08))
-	_status_panel.add_theme_constant_override("outline_size", 3)
-	_status_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_status_panel = LevelHudFactory.create_status_panel("Level4StatusPanel", 300, 120)
 	gui.add_child(_status_panel)
 
 
@@ -1102,19 +1087,15 @@ func _setup_anchor_cells() -> void:
 
 
 func _setup_li_chun() -> void:
-	_get_unit_factory().set_unit_skills(_li_chun, Progress.get_battle_skill_resources(GameState.selected_level))
-	_get_unit_factory().setup_unit_stats(_li_chun, "李春", 138, 26, 105, 8, Enums.Element.NONE, 0, true)
+	_get_unit_factory().setup_hero_unit(_li_chun, "李春", 138, 26, 105, 8)
 
 
 # 友方 / 敌方均在 .tscn 里预置（unit_data + visual_scene + position 都已配齐）；
 # 这里只补技能 + 战斗数值。setup_unit_stats 会覆盖 combat_stats 的基线。
 func _setup_allies_from_scene() -> void:
-	for craftsman in _craftsmen:
-		_get_unit_factory().set_unit_skills(craftsman, [_mallet, _guard])
-		_get_unit_factory().setup_unit_stats(craftsman, "工匠", 120, 20, 95, 9)
-	for carrier in _stone_carriers:
-		_get_unit_factory().set_unit_skills(carrier, [_staff, _sw_open_arch])
-		_get_unit_factory().setup_unit_stats(carrier, "运石工", 92, 14, 95, 9)
+	var factory := _get_unit_factory()
+	factory.setup_ally_group(_craftsmen, [_mallet, _guard], "工匠", 120, 20, 95, 9)
+	factory.setup_ally_group(_stone_carriers, [_staff, _sw_open_arch], "运石工", 92, 14, 95, 9)
 	_apply_persistent_growth_effects()
 
 
@@ -1416,15 +1397,4 @@ func _open_arch_count() -> int:
 
 
 func _spawn_enemy(data: UnitData, cell: Vector2i, skills: Array[SkillData], visual: PackedScene = null) -> Unit:
-	var unit := _get_unit_factory().spawn_unit(data, _get_scene_bootstrap().find_empty_walkable_cell(cell), ENEMY_TEAM, visual)
-	_get_unit_factory().set_unit_skills(unit, skills)
-	_get_unit_factory().setup_unit_stats(
-			unit,
-			data.unit_name,
-			data.max_hp,
-			data.base_atk,
-			data.ap_max,
-			data.move_cost_per_tile,
-			data.innate_element,
-			data.innate_element_amount)
-	return unit
+	return _get_unit_factory().spawn_enemy_unit(data, _get_scene_bootstrap().find_empty_walkable_cell(cell), ENEMY_TEAM, skills, visual)

@@ -99,6 +99,25 @@ func spawn_unit(unit_data: UnitData, cell: Vector2i, team_index: int, visual: Pa
 	return unit
 
 
+## 各关 `_spawn_enemy` 的共享底座：生成单位 + 配技能 + 覆写战斗数值。
+## stats_override 可逐项覆盖（键：unit_name / max_hp / base_atk / ap_max / move_cost /
+## element / element_amount），缺省按 unit_data 自身数值（1-3 / 1-4 形态）；1-2 传显式数值。
+func spawn_enemy_unit(unit_data: UnitData, cell: Vector2i, team_index: int, skills: Array,
+		visual: PackedScene = null, stats_override: Dictionary = {}) -> Unit:
+	var unit := spawn_unit(unit_data, cell, team_index, visual)
+	set_unit_skills(unit, skills)
+	setup_unit_stats(
+		unit,
+		str(stats_override.get("unit_name", unit_data.unit_name)),
+		int(stats_override.get("max_hp", unit_data.max_hp)),
+		int(stats_override.get("base_atk", unit_data.base_atk)),
+		int(stats_override.get("ap_max", unit_data.ap_max)),
+		int(stats_override.get("move_cost", unit_data.move_cost_per_tile)),
+		stats_override.get("element", unit_data.innate_element),
+		int(stats_override.get("element_amount", unit_data.innate_element_amount)))
+	return unit
+
+
 # ─────────────────────────────────────────────
 # 技能授予 / 收回 / 替换 / 修改
 # ─────────────────────────────────────────────
@@ -218,3 +237,39 @@ func setup_unit_stats(unit: Unit, uname: String, hp: int, atk: int,
 	unit.refresh_overhead_bars()
 	if unit.has_method("apply_faction_outline"):
 		unit.apply_faction_outline()
+
+
+# ─────────────────────────────────────────────
+# 关卡开局装配底座（各关 _setup_li_chun / _setup_allies_from_scene 共用）
+# ─────────────────────────────────────────────
+
+## 英雄装配：Progress 技能池 + 强制补入缺失的核心交互技能 + 战斗数值覆写（is_hero=true）。
+## 数值由各关传入（关卡间不同）；技能表缺省取当前选中关卡的 Progress 配装。
+func setup_hero_unit(unit: Unit, uname: String, hp: int, atk: int, ap: int,
+		move_cost: int, mandatory_skills: Array = []) -> void:
+	var skills: Array[SkillData] = Progress.get_battle_skill_resources(GameState.selected_level)
+	for m in mandatory_skills:
+		var skill := m as SkillData
+		if skill != null and not skill_list_contains(skills, skill.skill_id):
+			skills.append(skill)
+	set_unit_skills(unit, skills)
+	setup_unit_stats(unit, uname, hp, atk, ap, move_cost, Enums.Element.NONE, 0, true)
+
+
+## 批量装配队友：统一技能表 + 战斗数值。数值由各关传入（关卡间不同）。
+func setup_ally_group(units: Array, skills: Array, uname: String, hp: int, atk: int,
+		ap: int, move_cost: int) -> void:
+	for u in units:
+		var unit := u as Unit
+		if unit == null:
+			continue
+		set_unit_skills(unit, skills)
+		setup_unit_stats(unit, uname, hp, atk, ap, move_cost)
+
+
+## 技能表里是否已有指定 skill_id。
+func skill_list_contains(list: Array, skill_id: String) -> bool:
+	for s in list:
+		if s is SkillData and (s as SkillData).skill_id == skill_id:
+			return true
+	return false

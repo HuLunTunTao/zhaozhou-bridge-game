@@ -31,8 +31,8 @@ const COLOR_HIGH_ARCH := Color(0.55, 0.65, 0.95)
 const COLOR_HEAVY_PIER := Color(0.65, 0.6, 0.5)
 const COLOR_BOSS := Color(0.8, 0.25, 0.25)
 
-enum TaskState { TASK1_PARAMETERS, TASK2_PLATFORM, TASK3_ARCH, TASK4_HUNT }
-var _current_task: TaskState = TaskState.TASK1_PARAMETERS
+# ── 关卡任务链（TaskChain：parameters → platform → arch → hunt）──
+var _task_chain: TaskChain = TaskChain.new()
 
 # ── 预加载 ──
 var _hero_data: UnitData = preload("res://data/units/hero_li_chun.tres")
@@ -104,32 +104,8 @@ func get_teams_config() -> Array:
 
 
 func get_objectives_text() -> Dictionary:
-	var lines: Array[String] = []
-	match _current_task:
-		TaskState.TASK1_PARAMETERS:
-			var status := " (%d/%d)" % [_parameter_use_count, PARAMETER_REQUIRED_USES]
-			lines.append("- 在参数点 (-1, 2) 测定 河宽 / 河床 / 汛位 3 项数据（「测尺取参 / 参数确认」%s）" % status)
-			lines.append("- 李春抵达中央绘样台")
-			lines.append("- 李春执行「执墨定拱」")
-			lines.append("- 累计击退 8 名受驱役敌人")
-		TaskState.TASK2_PLATFORM:
-			lines.append("- 在参数点测定 河宽 / 河床 / 汛位 3 项数据 (3/3)")
-			lines.append("- 李春抵达中央绘样台 (0/1)")
-			lines.append("- 李春执行「执墨定拱」")
-			lines.append("- 累计击退 8 名受驱役敌人")
-		TaskState.TASK3_ARCH:
-			lines.append("- 在参数点测定 河宽 / 河床 / 汛位 3 项数据 (3/3)")
-			lines.append("- 李春抵达中央绘样台 (1/1)")
-			var arch_status := " (0/1)" if not _finalized else " (1/1)"
-			lines.append("- 李春执行「执墨定拱」%s" % arch_status)
-			lines.append("- 累计击退 8 名受驱役敌人")
-		TaskState.TASK4_HUNT:
-			lines.append("- 在参数点测定 河宽 / 河床 / 汛位 3 项数据 (3/3)")
-			lines.append("- 李春抵达中央绘样台 (1/1)")
-			lines.append("- 李春执行「执墨定拱」 (1/1)")
-			lines.append("- 累计击退 8 名受驱役敌人(%d/%d)" % [_minion_kills, REQUIRED_DEFEATS])
 	return {
-		"victory": lines,
+		"victory": _task_chain.get_objective_lines(),
 		"defeat": [
 			"- 李春倒下",
 			"- 超过第 %d 回合" % TURN_LIMIT,
@@ -138,7 +114,7 @@ func get_objectives_text() -> Dictionary:
 
 
 func check_victory() -> bool:
-	return _current_task == TaskState.TASK4_HUNT and _minion_kills >= REQUIRED_DEFEATS
+	return _task_chain.is_at_id(&"hunt") and _minion_kills >= REQUIRED_DEFEATS
 
 
 func check_defeat() -> String:
@@ -150,6 +126,8 @@ func check_defeat() -> String:
 
 
 func _on_level_ready() -> void:
+	_task_chain.setup(self)
+	_task_chain.configure(_build_task_chain_tasks())
 	_setup_li_chun()
 	_setup_allies_from_scene()
 	_setup_parameter_tiles()
@@ -169,30 +147,86 @@ func _on_level_ready() -> void:
 
 
 # ─────────────────────────────────────────────
+# 任务链（TaskChain）数据与文案
+# ─────────────────────────────────────────────
+
+## 任务链数据：parameters → platform → arch → hunt。目标 / 提示文案与旧 TaskState 版逐字一致。
+func _build_task_chain_tasks() -> Array[Dictionary]:
+	return [
+		TaskChain.task(&"parameters", _obj_parameters, _hint_parameters, Callable(), PARAMETER_CELL),
+		TaskChain.task(&"platform", _obj_platform, "任务目标二，李春前往中央绘样台", _on_enter_platform, DRAFTING_CELLS[0]),
+		TaskChain.task(&"arch", _obj_arch, _hint_arch, _on_enter_arch, DRAFTING_CELLS[0]),
+		TaskChain.task(&"hunt", _obj_hunt, _hint_hunt, _on_enter_hunt, BOSS_CELL),
+	]
+
+
+func _obj_parameters(mode: int) -> String:
+	match mode:
+		TaskChain.DisplayMode.DONE:
+			return "- 在参数点测定 河宽 / 河床 / 汛位 3 项数据 (3/3)"
+		TaskChain.DisplayMode.ACTIVE:
+			var status := " (%d/%d)" % [_parameter_use_count, PARAMETER_REQUIRED_USES]
+			return "- 在参数点 (-1, 2) 测定 河宽 / 河床 / 汛位 3 项数据（「测尺取参 / 参数确认」%s）" % status
+		_:
+			return "- 在参数点测定 河宽 / 河床 / 汛位 3 项数据"
+
+
+func _obj_platform(mode: int) -> String:
+	match mode:
+		TaskChain.DisplayMode.DONE:
+			return "- 李春抵达中央绘样台 (1/1)"
+		TaskChain.DisplayMode.ACTIVE:
+			return "- 李春抵达中央绘样台 (0/1)"
+		_:
+			return "- 李春抵达中央绘样台"
+
+
+func _obj_arch(mode: int) -> String:
+	match mode:
+		TaskChain.DisplayMode.DONE:
+			return "- 李春执行「执墨定拱」 (1/1)"
+		TaskChain.DisplayMode.ACTIVE:
+			return "- 李春执行「执墨定拱」%s" % (" (0/1)" if not _finalized else " (1/1)")
+		_:
+			return "- 李春执行「执墨定拱」"
+
+
+func _obj_hunt(mode: int) -> String:
+	if mode == TaskChain.DisplayMode.PENDING:
+		return "- 累计击退 8 名受驱役敌人"
+	return "- 累计击退 8 名受驱役敌人(%d/%d)" % [_minion_kills, REQUIRED_DEFEATS]
+
+
+func _hint_parameters() -> String:
+	return "任务目标一，在参数点 (-1, 2) 测定河宽 / 河床 / 汛位 3 项数据【%d/%d】" % [_parameter_use_count, PARAMETER_REQUIRED_USES]
+
+
+func _hint_arch() -> String:
+	var done := " (1/1)" if _finalized else " (0/1)"
+	return "任务目标三，李春在绘样台执行「执墨定拱」%s" % done
+
+
+func _hint_hunt() -> String:
+	return "任务目标四，李春「绳准锁弧」已解锁，累计击退 8 名受驱役敌人【%d/%d】" % [_minion_kills, REQUIRED_DEFEATS]
+
+
+# ─────────────────────────────────────────────
 # 开局配置
 # ─────────────────────────────────────────────
 
 func _setup_li_chun() -> void:
 	_li_chun.apply_runtime_setup(_hero_data, _hero_visual, Color(1, 0.85, 0, 1))
-	var skills: Array[SkillData] = Progress.get_battle_skill_resources(GameState.selected_level)
 	# 关卡核心交互 & 分规定弧 默认写入李春技能池（若 Progress 没提供）。
-	for mandatory in [_confirm_parameter, _ink_set_arch, _divider_arc]:
-		if not _skill_list_contains(skills, mandatory.skill_id):
-			skills.append(mandatory)
-	_get_unit_factory().set_unit_skills(_li_chun, skills)
-	_get_unit_factory().setup_unit_stats(_li_chun, "李春", 130, 24, 100, 8, Enums.Element.NONE, 0, true)
+	_get_unit_factory().setup_hero_unit(_li_chun, "李春", 130, 24, 100, 8, [_confirm_parameter, _ink_set_arch, _divider_arc])
 
 
 func _setup_allies_from_scene() -> void:
 	# 场景里已放好 SurveyWorker*/CraftsmanA-C 节点；位置由场景 position 决定
 	# （基类 _reparent_entities_to_obstacles 会按 global_position 吸附到最近格）。
 	# 这里只补齐 skills / 数值。
-	for sw in _survey_workers:
-		_get_unit_factory().set_unit_skills(sw, [_staff, _take_parameters])
-		_get_unit_factory().setup_unit_stats(sw, "测量工", 80, 12, 85, 10)
-	for craftsman in _craftsmen:
-		_get_unit_factory().set_unit_skills(craftsman, [_mallet, _guard])
-		_get_unit_factory().setup_unit_stats(craftsman, "工匠", 110, 18, 90, 9)
+	var factory := _get_unit_factory()
+	factory.setup_ally_group(_survey_workers, [_staff, _take_parameters], "测量工", 80, 12, 85, 10)
+	factory.setup_ally_group(_craftsmen, [_mallet, _guard], "工匠", 110, 18, 90, 9)
 
 
 func _setup_parameter_tiles() -> void:
@@ -327,8 +361,8 @@ func _register_parameter_use(caster_name: String) -> void:
 	if _parameter_use_count >= PARAMETER_REQUIRED_USES:
 		if _parameter_tile != null and not _parameter_tile.completed:
 			_parameter_tile.complete()
-		if _current_task == TaskState.TASK1_PARAMETERS:
-			_advance_to_task2()
+		if _task_chain.is_at_id(&"parameters"):
+			_task_chain.advance_next()
 
 
 func _handle_ink_set_arch(caster: Unit, cast_cell: Vector2i) -> void:
@@ -344,7 +378,7 @@ func _handle_ink_set_arch(caster: Unit, cast_cell: Vector2i) -> void:
 	if _finalized:
 		return
 	_finalized = true
-	_advance_to_task4()
+	_task_chain.advance_next()
 
 
 # ─────────────────────────────────────────────
@@ -352,35 +386,13 @@ func _handle_ink_set_arch(caster: Unit, cast_cell: Vector2i) -> void:
 # ─────────────────────────────────────────────
 
 func _setup_mission_hint() -> void:
-	_mission_hint_label = Label.new()
-	_mission_hint_label.name = "MissionHint"
-	_mission_hint_label.anchors_preset = Control.PRESET_TOP_WIDE
-	_mission_hint_label.offset_top = 36
-	_mission_hint_label.offset_bottom = 66
-	_mission_hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_mission_hint_label.add_theme_font_size_override("font_size", 18)
-	_mission_hint_label.add_theme_color_override("font_color", Color(1.0, 0.95, 0.8))
-	_mission_hint_label.add_theme_color_override("font_outline_color", Color(0.1, 0.1, 0.1))
-	_mission_hint_label.add_theme_constant_override("outline_size", 4)
-	_mission_hint_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_mission_hint_label = LevelHudFactory.create_mission_hint_label()
 	gui.add_child(_mission_hint_label)
 	_update_mission_hint()
 
 
 func _setup_params_status_hint() -> void:
-	_params_status_label = Label.new()
-	_params_status_label.name = "ParamsStatusHint"
-	_params_status_label.anchors_preset = Control.PRESET_TOP_LEFT
-	_params_status_label.offset_left = 18
-	_params_status_label.offset_top = 84
-	_params_status_label.offset_right = 320
-	_params_status_label.offset_bottom = 240
-	_params_status_label.vertical_alignment = VERTICAL_ALIGNMENT_TOP
-	_params_status_label.add_theme_font_size_override("font_size", 16)
-	_params_status_label.add_theme_color_override("font_color", Color(0.96, 0.94, 0.88))
-	_params_status_label.add_theme_color_override("font_outline_color", Color(0.08, 0.08, 0.08))
-	_params_status_label.add_theme_constant_override("outline_size", 3)
-	_params_status_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_params_status_label = LevelHudFactory.create_side_hint_label("ParamsStatusHint", 240)
 	gui.add_child(_params_status_label)
 	_update_params_status_hint()
 
@@ -388,16 +400,7 @@ func _setup_params_status_hint() -> void:
 func _update_mission_hint() -> void:
 	if _mission_hint_label == null:
 		return
-	match _current_task:
-		TaskState.TASK1_PARAMETERS:
-			_mission_hint_label.text = "任务目标一，在参数点 (-1, 2) 测定河宽 / 河床 / 汛位 3 项数据【%d/%d】" % [_parameter_use_count, PARAMETER_REQUIRED_USES]
-		TaskState.TASK2_PLATFORM:
-			_mission_hint_label.text = "任务目标二，李春前往中央绘样台"
-		TaskState.TASK3_ARCH:
-			var done := " (1/1)" if _finalized else " (0/1)"
-			_mission_hint_label.text = "任务目标三，李春在绘样台执行「执墨定拱」%s" % done
-		TaskState.TASK4_HUNT:
-			_mission_hint_label.text = "任务目标四，李春「绳准锁弧」已解锁，累计击退 8 名受驱役敌人【%d/%d】" % [_minion_kills, REQUIRED_DEFEATS]
+	_mission_hint_label.text = _task_chain.get_current_hint()
 
 
 func _update_params_status_hint() -> void:
@@ -411,8 +414,8 @@ func _update_params_status_hint() -> void:
 # 任务推进
 # ─────────────────────────────────────────────
 
-func _advance_to_task2() -> void:
-	_current_task = TaskState.TASK2_PLATFORM
+## 进入「绘样台」任务的进场动作（旧 _advance_to_task2 主体）。
+func _on_enter_platform() -> void:
 	Notify.success("三处参数已成。请李春前往中央绘样台。", 3.5)
 	_update_mission_hint()
 	_show_objectives_if_not_open()
@@ -420,7 +423,7 @@ func _advance_to_task2() -> void:
 
 
 ## 在中央绘样台 4 格中心 spawn 一个 TilePulsingMarker，作为"现在去这里"的动态指引。
-## 进 TASK4 时由 _advance_to_task4 主动 queue_free 撤除。
+## 进 TASK4 时由 _on_enter_hunt 主动 queue_free 撤除。
 func _spawn_task2_marker() -> void:
 	if _task2_pulsing_marker != null and is_instance_valid(_task2_pulsing_marker):
 		return
@@ -439,15 +442,15 @@ func _spawn_task2_marker() -> void:
 	) as TilePulsingMarker
 
 
-func _advance_to_task3() -> void:
-	_current_task = TaskState.TASK3_ARCH
+## 进入「执墨定拱」任务的进场动作（旧 _advance_to_task3 主体）。
+func _on_enter_arch() -> void:
 	Notify.success("李春抵达绘样台！执行「执墨定拱」落定桥法。", 3.5)
 	_update_mission_hint()
 	_show_objectives_if_not_open()
 
 
-func _advance_to_task4() -> void:
-	_current_task = TaskState.TASK4_HUNT
+## 进入「清退」任务的进场动作（旧 _advance_to_task4 主体）。
+func _on_enter_hunt() -> void:
 	if _drafting_marker != null and is_instance_valid(_drafting_marker):
 		_drafting_marker.modulate = Color(1, 1, 1, 0.4)
 	if _task2_pulsing_marker != null and is_instance_valid(_task2_pulsing_marker):
@@ -464,8 +467,8 @@ func _show_objectives_if_not_open() -> void:
 
 
 func _on_stage_unit_move_completed(unit: Unit) -> void:
-	if unit == _li_chun and _current_task == TaskState.TASK2_PLATFORM and unit.cell in DRAFTING_CELLS:
-		_advance_to_task3()
+	if unit == _li_chun and _task_chain.is_at_id(&"platform") and unit.cell in DRAFTING_CELLS:
+		_task_chain.advance_next()
 
 
 # ─────────────────────────────────────────────
@@ -620,22 +623,15 @@ func _random_enemy_spawn_cell() -> Vector2i:
 
 
 func _spawn_enemy(base: UnitData, uname: String, hp: int, atk: int, ap: int, move_cost: int, cell: Vector2i, skills: Array[SkillData], visual: PackedScene = null, element: Enums.Element = Enums.Element.NONE, element_amount: int = 0) -> Unit:
-	var unit := _get_unit_factory().spawn_unit(base, _get_scene_bootstrap().find_empty_walkable_cell(cell), ENEMY_TEAM, visual)
-	_get_unit_factory().set_unit_skills(unit, skills)
-	_get_unit_factory().setup_unit_stats(unit, uname, hp, atk, ap, move_cost, element, element_amount)
-	return unit
+	return _get_unit_factory().spawn_enemy_unit(base, _get_scene_bootstrap().find_empty_walkable_cell(cell), ENEMY_TEAM, skills, visual, {
+		"unit_name": uname, "max_hp": hp, "base_atk": atk, "ap_max": ap,
+		"move_cost": move_cost, "element": element, "element_amount": element_amount,
+	})
 
 
 # ─────────────────────────────────────────────
 # 辅助工具
 # ─────────────────────────────────────────────
-
-func _skill_list_contains(list: Array, skill_id: String) -> bool:
-	for s in list:
-		if s is SkillData and (s as SkillData).skill_id == skill_id:
-			return true
-	return false
-
 
 func _cell_occupied(cell: Vector2i) -> bool:
 	for unit in _get_scene_bootstrap().get_all_units():
