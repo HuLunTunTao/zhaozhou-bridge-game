@@ -1,0 +1,80 @@
+[gd_resource type="Resource" script_class="WaveSpawns" format=3]
+
+[ext_resource type="Script" uid="uid://d26ymkx50ds12" path="res://scripts/data/wave_spawns.gd" id="1"]
+[ext_resource type="Script" uid="uid://d2hf2spjg00i4" path="res://scripts/data/wave_entry.gd" id="2"]
+
+[sub_resource type="Resource" id="W_R3"]
+script = ExtResource("2")
+round_number = 3
+unit_kind = "rope_sever"
+cell_hint = "stone_yard_left"
+
+[sub_resource type="Resource" id="W_R5"]
+script = ExtResource("2")
+round_number = 5
+unit_kind = "misalign_soldier"
+cell_hint = "misaligned_flank"
+
+[sub_resource type="Resource" id="W_R7a"]
+script = ExtResource("2")
+round_number = 7
+unit_kind = "stone_split"
+cell_hint = "center_front"
+
+[sub_resource type="Resource" id="W_R7b"]
+script = ExtResource("2")
+round_number = 7
+unit_kind = "misalign_soldier"
+cell_hint = "misaligned_flank"
+
+[sub_resource type="Resource" id="W_R10"]
+script = ExtResource("2")
+round_number = 10
+unit_kind = "joint_shade"
+cell_hint = "joint_a"
+
+[sub_resource type="Resource" id="W_R13"]
+script = ExtResource("2")
+round_number = 13
+unit_kind = "misalign_soldier"
+cell_hint = "misaligned_flank"
+
+[sub_resource type="Resource" id="W_R15a"]
+script = ExtResource("2")
+round_number = 15
+unit_kind = "rope_sever"
+cell_hint = "stone_yard_right"
+
+[sub_resource type="Resource" id="W_R15b"]
+script = ExtResource("2")
+round_number = 15
+unit_kind = "stone_split"
+cell_hint = "right_flank"
+
+[sub_resource type="Resource" id="W_R18"]
+script = ExtResource("2")
+round_number = 18
+unit_kind = "joint_shade"
+cell_hint = "joint_b"
+
+[sub_resource type="Resource" id="W_R21"]
+script = ExtResource("2")
+round_number = 21
+unit_kind = "misalign_soldier"
+cell_hint = "misaligned_flank"
+
+[sub_resource type="Resource" id="W_R24a"]
+script = ExtResource("2")
+round_number = 24
+unit_kind = "rope_sever"
+cell_hint = "stone_yard_left"
+
+[sub_resource type="Resource" id="W_R24b"]
+script = ExtResource("2")
+round_number = 24
+unit_kind = "misalign_soldier"
+cell_hint = "misaligned_flank"
+
+[resource]
+script = ExtResource("1")
+entries = Array[Resource]([SubResource("W_R3"), SubResource("W_R5"), SubResource("W_R7a"), SubResource("W_R7b"), SubResource("W_R10"), SubResource("W_R13"), SubResource("W_R15a"), SubResource("W_R15b"), SubResource("W_R18"), SubResource("W_R21"), SubResource("W_R24a"), SubResource("W_R24b")])

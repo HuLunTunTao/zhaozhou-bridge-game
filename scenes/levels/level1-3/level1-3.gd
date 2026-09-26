@@ -129,76 +129,79 @@ func get_teams_config() -> Array:
 	]
 
 
+# 波次表（WaveSpawns，Step 4.7）：节奏模板外置 data/stages/chapter1_stage3/wave_spawns.tres。
+var _wave_spawns: WaveSpawns = preload("res://data/stages/chapter1_stage3/wave_spawns.tres")
+
+
 func get_wave_config() -> Dictionary:
 	# 节奏：前 25 回合自然刷怪（9 波，单只与双只混合），r25 之后不再刷怪，
 	# 进入 Boss 攻坚阶段。开场已有 Boss + 2 错券兵 + 1 裂石兽。
-	# boss clutch 急召是独立触发。
-	var left_flank := _nearest_bridge_cell(_left_platform + Vector2i(-2, 0))
-	var right_flank := _nearest_bridge_cell(_right_platform + Vector2i(2, 0))
-	var center_front := _nearest_bridge_cell(_crown_point + Vector2i(0, 1))
-	var stone_yard_left := _nearest_bridge_cell(_stone_yard_cells[0] + Vector2i(-1, -2))
-	var stone_yard_right := _nearest_bridge_cell(_stone_yard_cells[1] + Vector2i(-2, -1))
-	var misaligned_flank: Vector2i
-	if _right_arch_value > _left_arch_value:
-		misaligned_flank = right_flank
-	else:
-		misaligned_flank = left_flank
-	return {
-		3: [
-			{"unit_data": _make_unit_data(_dark_data, "断索鬼", 66, 18, 100, 7, Enums.Element.WOOD, 2),
-				"cell": stone_yard_left, "team_index": ENEMY_TEAM,
-				"skills": [_timber], "visual": _visual_rope_sever},
-		],
-		5: [
-			{"unit_data": _make_unit_data(_craftsman_data, "错券兵", 77, 17, 90, 9),
-				"cell": misaligned_flank, "team_index": ENEMY_TEAM,
-				"skills": [_mallet], "visual": _visual_misaligned},
-		],
-		7: [
-			{"unit_data": _make_unit_data(_mud_data, "裂石兽", 95, 22, 90, 10, Enums.Element.EARTH, 2),
-				"cell": center_front, "team_index": ENEMY_TEAM,
-				"skills": [_crush], "visual": _visual_stone_split},
-			{"unit_data": _make_unit_data(_craftsman_data, "错券兵", 77, 17, 90, 9),
-				"cell": misaligned_flank, "team_index": ENEMY_TEAM,
-				"skills": [_mallet], "visual": _visual_misaligned},
-		],
-		10: [
-			{"unit_data": _make_unit_data(_dark_data, "脱缝鬼", 60, 15, 95, 8, Enums.Element.WATER, 2),
-				"cell": _joint_cells[0], "team_index": ENEMY_TEAM,
-				"skills": [_lunge], "visual": _visual_joint_shade},
-		],
-		13: [
-			{"unit_data": _make_unit_data(_craftsman_data, "错券兵", 77, 17, 90, 9),
-				"cell": misaligned_flank, "team_index": ENEMY_TEAM,
-				"skills": [_mallet], "visual": _visual_misaligned},
-		],
-		15: [
-			{"unit_data": _make_unit_data(_dark_data, "断索鬼", 66, 18, 100, 7, Enums.Element.WOOD, 2),
-				"cell": stone_yard_right, "team_index": ENEMY_TEAM,
-				"skills": [_timber], "visual": _visual_rope_sever},
-			{"unit_data": _make_unit_data(_mud_data, "裂石兽", 95, 22, 90, 10, Enums.Element.EARTH, 2),
-				"cell": right_flank, "team_index": ENEMY_TEAM,
-				"skills": [_crush], "visual": _visual_stone_split},
-		],
-		18: [
-			{"unit_data": _make_unit_data(_dark_data, "脱缝鬼", 60, 15, 95, 8, Enums.Element.WATER, 2),
-				"cell": _joint_cells[1], "team_index": ENEMY_TEAM,
-				"skills": [_lunge], "visual": _visual_joint_shade},
-		],
-		21: [
-			{"unit_data": _make_unit_data(_craftsman_data, "错券兵", 77, 17, 90, 9),
-				"cell": misaligned_flank, "team_index": ENEMY_TEAM,
-				"skills": [_mallet], "visual": _visual_misaligned},
-		],
-		24: [
-			{"unit_data": _make_unit_data(_dark_data, "断索鬼", 66, 18, 100, 7, Enums.Element.WOOD, 2),
-				"cell": stone_yard_left, "team_index": ENEMY_TEAM,
-				"skills": [_timber], "visual": _visual_rope_sever},
-			{"unit_data": _make_unit_data(_craftsman_data, "错券兵", 77, 17, 90, 9),
-				"cell": misaligned_flank, "team_index": ENEMY_TEAM,
-				"skills": [_mallet], "visual": _visual_misaligned},
-		],
-	}
+	# boss clutch 急召是独立触发。刷点 cell_hint 在 _resolve_wave_cell_hint 现算
+	#（misaligned_flank 随左右券值高低动态取侧）。
+	var waves: Dictionary = {}
+	for res in _wave_spawns.entries:
+		var entry := res as WaveEntry
+		if entry == null:
+			continue
+		var unit_bundle := _resolve_wave_unit(entry.unit_kind)
+		if unit_bundle.is_empty():
+			push_warning("wave_spawns: 未知 unit_kind '%s'" % entry.unit_kind)
+			continue
+		var round_num: int = entry.round_number
+		if not waves.has(round_num):
+			waves[round_num] = []
+		waves[round_num].append({
+			"unit_data": unit_bundle["unit_data"],
+			"cell": _resolve_wave_cell_hint(entry.cell_hint),
+			"team_index": ENEMY_TEAM,
+			"skills": unit_bundle["skills"],
+			"visual": unit_bundle["visual"],
+		})
+	return waves
+
+
+# unit_kind → (UnitData 副本, 技能表, 视觉)。波次模板只写 kind，具体配置在此（1-4 同款解析层）。
+func _resolve_wave_unit(kind: String) -> Dictionary:
+	match kind:
+		"rope_sever":
+			return {"unit_data": _make_unit_data(_dark_data, "断索鬼", 66, 18, 100, 7, Enums.Element.WOOD, 2),
+				"skills": [_timber], "visual": _visual_rope_sever}
+		"misalign_soldier":
+			return {"unit_data": _make_unit_data(_craftsman_data, "错券兵", 77, 17, 90, 9),
+				"skills": [_mallet], "visual": _visual_misaligned}
+		"stone_split":
+			return {"unit_data": _make_unit_data(_mud_data, "裂石兽", 95, 22, 90, 10, Enums.Element.EARTH, 2),
+				"skills": [_crush], "visual": _visual_stone_split}
+		"joint_shade":
+			return {"unit_data": _make_unit_data(_dark_data, "脱缝鬼", 60, 15, 95, 8, Enums.Element.WATER, 2),
+				"skills": [_lunge], "visual": _visual_joint_shade}
+	return {}
+
+
+# cell_hint → 绝对刷点格（旧 get_wave_config 顶部的锚点表达式逐字）。
+func _resolve_wave_cell_hint(hint: String) -> Vector2i:
+	match hint:
+		"stone_yard_left":
+			return _nearest_bridge_cell(_stone_yard_cells[0] + Vector2i(-1, -2))
+		"stone_yard_right":
+			return _nearest_bridge_cell(_stone_yard_cells[1] + Vector2i(-2, -1))
+		"center_front":
+			return _nearest_bridge_cell(_crown_point + Vector2i(0, 1))
+		"left_flank":
+			return _nearest_bridge_cell(_left_platform + Vector2i(-2, 0))
+		"right_flank":
+			return _nearest_bridge_cell(_right_platform + Vector2i(2, 0))
+		"joint_a":
+			return _joint_cells[0]
+		"joint_b":
+			return _joint_cells[1]
+		# 错券兵贴扰券侧：哪侧券值高就出在哪侧（相等取左，与旧分支一致）
+		"misaligned_flank":
+			if _right_arch_value > _left_arch_value:
+				return _resolve_wave_cell_hint("right_flank")
+			return _resolve_wave_cell_hint("left_flank")
+	push_warning("wave_spawns: 未知 cell_hint '%s'，退回拱冠点" % hint)
+	return _crown_point
 
 
 func get_objectives_text() -> Dictionary:

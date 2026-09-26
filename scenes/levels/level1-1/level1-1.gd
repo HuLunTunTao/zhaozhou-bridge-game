@@ -88,51 +88,50 @@ func get_teams_config() -> Array:
 	]
 
 
+# 波次表（WaveSpawns，Step 4.7）：节奏模板外置 data/stages/chapter1_stage1/wave_spawns.tres。
+# 节奏：开场压一下，前期 2–3 回合一波逐步加温，中后期稳定 3 回合一波，
+# 整体展开到 r20，避免早期扎堆也不会拖到新手无事可做。
+var _wave_spawns: WaveSpawns = preload("res://data/stages/chapter1_stage1/wave_spawns.tres")
+
+
 func get_wave_config() -> Dictionary:
-	# 节奏：开场压一下，前期 2–3 回合一波逐步加温，中后期稳定 3 回合一波，
-	# 整体展开到 r20，避免早期扎堆也不会拖到新手无事可做。
-	return {
-		1: [
-			{"unit_data": _ud_dark_current, "cell": Vector2i(13, -24), "team_index": ENEMY_TEAM,
-			 "skills": [_sk_lunge], "color": COLOR_DARK_CURRENT},
-			{"unit_data": _ud_mud_wraith, "cell": Vector2i(10, -19), "team_index": ENEMY_TEAM,
-			 "skills": [_sk_crush], "color": COLOR_MUD_WRAITH},
-		],
-		3: [
-			{"unit_data": _ud_whirl_pool, "cell": Vector2i(15, -24), "team_index": ENEMY_TEAM,
-			 "skills": [_sk_pull], "color": COLOR_WHIRL_POOL},
-		],
-		5: [
-			{"unit_data": _ud_drift_log, "cell": Vector2i(-19, 21), "team_index": ENEMY_TEAM,
-			 "skills": [_sk_timber], "color": COLOR_DRIFT_LOG},
-		],
-		8: [
-			{"unit_data": _ud_mud_wraith, "cell": Vector2i(11, -18), "team_index": ENEMY_TEAM,
-			 "skills": [_sk_crush], "color": COLOR_MUD_WRAITH},
-		],
-		11: [
-			{"unit_data": _ud_dark_current, "cell": Vector2i(-24, 20), "team_index": ENEMY_TEAM,
-			 "skills": [_sk_lunge], "color": COLOR_DARK_CURRENT},
-			{"unit_data": _ud_whirl_pool, "cell": Vector2i(14, -21), "team_index": ENEMY_TEAM,
-			 "skills": [_sk_pull], "color": COLOR_WHIRL_POOL},
-		],
-		14: [
-			{"unit_data": _ud_drift_log, "cell": Vector2i(-20, 21), "team_index": ENEMY_TEAM,
-			 "skills": [_sk_timber], "color": COLOR_DRIFT_LOG},
-		],
-		17: [
-			{"unit_data": _ud_dark_current, "cell": Vector2i(14, -24), "team_index": ENEMY_TEAM,
-			 "skills": [_sk_lunge], "color": COLOR_DARK_CURRENT},
-			{"unit_data": _ud_mud_wraith, "cell": Vector2i(-22, 20), "team_index": ENEMY_TEAM,
-			 "skills": [_sk_crush], "color": COLOR_MUD_WRAITH},
-		],
-		20: [
-			{"unit_data": _ud_whirl_pool, "cell": Vector2i(13, -24), "team_index": ENEMY_TEAM,
-			 "skills": [_sk_pull], "color": COLOR_WHIRL_POOL},
-			{"unit_data": _ud_drift_log, "cell": Vector2i(-19, 21), "team_index": ENEMY_TEAM,
-			 "skills": [_sk_timber], "color": COLOR_DRIFT_LOG},
-		],
-	}
+	var waves: Dictionary = {}
+	for res in _wave_spawns.entries:
+		var entry := res as WaveEntry
+		if entry == null:
+			continue
+		var unit_bundle := _resolve_wave_unit(entry.unit_kind)
+		if unit_bundle.is_empty():
+			push_warning("wave_spawns: 未知 unit_kind '%s'" % entry.unit_kind)
+			continue
+		if entry.cell == WaveEntry.NO_CELL:
+			push_warning("wave_spawns: 条目缺 cell（unit_kind '%s'）" % entry.unit_kind)
+			continue
+		var round_num: int = entry.round_number
+		if not waves.has(round_num):
+			waves[round_num] = []
+		waves[round_num].append({
+			"unit_data": unit_bundle["unit_data"],
+			"cell": entry.cell,
+			"team_index": ENEMY_TEAM,
+			"skills": unit_bundle["skills"],
+			"color": unit_bundle["color"],
+		})
+	return waves
+
+
+# unit_kind → (UnitData, 技能表, 敌方颜色)。波次模板只写 kind，具体配置在此（1-4 同款解析层）。
+func _resolve_wave_unit(kind: String) -> Dictionary:
+	match kind:
+		"dark_current":
+			return {"unit_data": _ud_dark_current, "skills": [_sk_lunge], "color": COLOR_DARK_CURRENT}
+		"whirl_pool":
+			return {"unit_data": _ud_whirl_pool, "skills": [_sk_pull], "color": COLOR_WHIRL_POOL}
+		"bank_mud_wraith":
+			return {"unit_data": _ud_mud_wraith, "skills": [_sk_crush], "color": COLOR_MUD_WRAITH}
+		"drift_log_pack":
+			return {"unit_data": _ud_drift_log, "skills": [_sk_timber], "color": COLOR_DRIFT_LOG}
+	return {}
 
 
 func get_objectives_text() -> Dictionary:
