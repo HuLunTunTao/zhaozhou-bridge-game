@@ -110,8 +110,8 @@ var _wants_tutorial_replay: bool = true
 
 # 特殊地格容器（运行时 register_special_tile）
 const SmallArchTileClass := preload("res://scenes/levels/level1-4/small_arch_tile.gd")
-const SiltTileClass := preload("res://scenes/levels/level1-4/silt_tile.gd")
-const RapidEdgeTileClass := preload("res://scenes/levels/level1-4/rapid_edge_tile.gd")
+const SiltTileClass := preload("res://scenes/levels/base_level/silt_tile.gd")
+const RapidEdgeTileClass := preload("res://scenes/levels/base_level/rapid_edge_tile.gd")
 
 # 小拱 marker 的杆+下指箭头颜色：按"可交互性"语义区分。
 # 黄=可开 / 紫=本阶段不可开 / 绿=已开 / 红=被敌人占位（沿用 halo 红的"塞"信号）。
@@ -615,23 +615,21 @@ func _on_stage_round_started(_r: int) -> void:
 	_expire_transient_tiles()
 
 
-# 定期清理过期的临时地格（淤泥 2 回合 / 激流桥缘 1 回合）。
+# 定期清理过期的临时地格（淤泥 2 回合 / 激流桥缘 1 回合，过期判定走 TransientTile）。
 func _expire_transient_tiles() -> void:
+	_expire_tile_group(_silt_tiles)
+	_expire_tile_group(_rapid_edge_tiles)
+
+
+func _expire_tile_group(tiles: Dictionary) -> void:
 	var round_now := round_number
-	for cell in _silt_tiles.keys().duplicate():
-		var tile: SiltTile = _silt_tiles[cell]
+	for cell in tiles.keys().duplicate():
+		var tile: TransientTile = tiles[cell]
 		if tile == null or not is_instance_valid(tile) or tile.is_expired(round_now):
 			if is_instance_valid(tile):
 				_special_tile_registry.unregister(tile, cell)
 				tile.queue_free()
-			_silt_tiles.erase(cell)
-	for cell in _rapid_edge_tiles.keys().duplicate():
-		var tile: RapidEdgeTile = _rapid_edge_tiles[cell]
-		if tile == null or not is_instance_valid(tile) or tile.is_expired(round_now):
-			if is_instance_valid(tile):
-				_special_tile_registry.unregister(tile, cell)
-				tile.queue_free()
-			_rapid_edge_tiles.erase(cell)
+			tiles.erase(cell)
 
 
 func _on_unit_moved() -> void:
