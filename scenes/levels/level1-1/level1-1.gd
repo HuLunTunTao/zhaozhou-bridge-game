@@ -351,7 +351,8 @@ func _update_survey_points_hint() -> void:
 		return
 	var lines: Array[String] = ["已勘测点位："]
 	for cell in SURVEY_CELLS:
-		var tile := _special_tile_map.get(cell) as InteractionTile
+		var raw = _special_tile_map.get(cell)
+		var tile := raw as InteractionTile if is_instance_valid(raw) else null
 		var done := tile != null and tile.completed
 		var prefix := "[已完成]" if done else "[未完成]"
 		lines.append("%s (%d, %d)" % [prefix, cell.x, cell.y])

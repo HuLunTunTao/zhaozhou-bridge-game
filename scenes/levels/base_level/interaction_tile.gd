@@ -80,6 +80,8 @@ func holds_cell(target_cell: Vector2i) -> bool:
 static func dispatch_skill(tiles: Array, caster: Unit, skill: SkillData, cast_cell: Vector2i) -> bool:
 	var probe: InteractionTile = null
 	for t in tiles:
+		if not is_instance_valid(t):
+			continue
 		var tile := t as InteractionTile
 		if tile != null and tile.matches_skill(skill):
 			probe = tile
@@ -90,6 +92,8 @@ static func dispatch_skill(tiles: Array, caster: Unit, skill: SkillData, cast_ce
 	if probe.unit_filter.is_valid() and not probe.unit_filter.call(caster):
 		return true
 	for t in tiles:
+		if not is_instance_valid(t):
+			continue
 		var tile := t as InteractionTile
 		if tile != null and tile.matches_skill(skill) and tile.holds_cell(cast_cell):
 			tile._finish(caster, cast_cell)
@@ -103,6 +107,8 @@ static func dispatch_skill(tiles: Array, caster: Unit, skill: SkillData, cast_ce
 ## 返回 true = 已被某交互点认领；false = 该格没有落格交互点。
 static func dispatch_touch(tiles: Array, caster: Unit, target_cell: Vector2i) -> bool:
 	for t in tiles:
+		if not is_instance_valid(t):
+			continue
 		var tile := t as InteractionTile
 		if tile == null or not tile.holds_cell(target_cell):
 			continue
