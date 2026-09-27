@@ -41,6 +41,8 @@ const STATUS_KNOCKBACK_IMMUNE := "knockback_immune"
 var _boss_phase: int = 1
 var _phase_arch_skill_used: Dictionary = {}   # arch_key → bool；_enter_phase 重置
 var _arch_blocked_overlay: Dictionary = {}    # arch_key → bool；transient (敌人占位)
+# Boss 减伤策略（Step 4.4）：FACTOR 模式 → incoming_damage_factor = 1 - _compute_boss_dr()
+var _boss_dr: BossDRPolicy = null
 
 # 周期被动 CD：仅在"成功释放"后才进入冷却（设计：释放过后才进入 CD）。
 # 初始 = base，确保前几回合按 base 节奏首发；撞期时被让位的技能 CD 维持 0，下回合即可释放。
@@ -51,7 +53,6 @@ var _topple_cd_remaining: int = TOPPLE_CD_BASE
 
 var _hero_data: UnitData = preload("res://data/units/hero_li_chun.tres")
 var _hero_visual: PackedScene = preload("res://scenes/unit/visual/human/li_chun/li_chun_visual.tscn")
-var _survey_data: UnitData = preload("res://data/units/survey_worker.tres")
 var _craftsman_data: UnitData = preload("res://data/units/craftsman_guard.tres")
 
 # 第四关敌方单位（独立 .tres）
@@ -91,29 +92,26 @@ var _bmw_crush: SkillData = preload("res://data/skills/bmw_crumbling_bank_crush.
 var _slam_deck: SkillData = preload("res://data/skills/wf_slam_deck.tres")
 var _topple_bank: SkillData = preload("res://data/skills/wf_topple_bank.tres")
 
-# 关卡配置资源（浅拆：数值 + anchor 偏移 + 波次模板；绝对 cell 运行时算）
+# 关卡配置资源（数值 + 波次模板；小拱锚点是绝对 cell，见 _setup_anchor_cells）
 var _stage_config: StageConfig = preload("res://data/stages/chapter1_stage4/stage_config.tres")
 var _stability_config: BridgeStabilityConfig = preload("res://data/stages/chapter1_stage4/bridge_stability_config.tres")
-var _side_arch_config: SideArchConfig = preload("res://data/stages/chapter1_stage4/side_arch_config.tres")
 var _wave_spawns: WaveSpawns = preload("res://data/stages/chapter1_stage4/wave_spawns.tres")
+
+# 我方属性表（Step 4.8）：李春 / 工匠 / 运石工 的数值外置 data/units/roster_level1-4.tres。
+var _roster: UnitRoster = preload("res://data/units/roster_level1-4.tres")
 
 # 教程引导（L1-1 同款 dialogue 流程，分三段挂在 boss 阶段切换上）。
 const TUTORIAL_ID_P1 := "level1-4_p1"
 const TUTORIAL_ID_P2 := "level1-4_p2"
 const TUTORIAL_ID_P3 := "level1-4_p3"
 
-# P1 教程"李春攻击 boss 一次"的同步态。skill_executed 信号到达后由
-# _on_p1_tutorial_skill_executed 翻成 true，主协程 await 它跳出循环。
-var _p1_tutorial_hit_boss: bool = false
-
 # 复玩进关时玩家的"是否再听一遍"选择，进 P1 时设定一次，被 P2/P3 沿用。
 # 默认 true：首次进关（任意 phase 教程未看过）一切照旧；只有玩家在 P1 主动选"跳过"才会变 false。
 var _wants_tutorial_replay: bool = true
 
 # 特殊地格容器（运行时 register_special_tile）
-const SmallArchTileClass := preload("res://scenes/levels/level1-4/small_arch_tile.gd")
-const SiltTileClass := preload("res://scenes/levels/level1-4/silt_tile.gd")
-const RapidEdgeTileClass := preload("res://scenes/levels/level1-4/rapid_edge_tile.gd")
+const SiltTileClass := preload("res://scenes/levels/base_level/silt_tile.gd")
+const RapidEdgeTileClass := preload("res://scenes/levels/base_level/rapid_edge_tile.gd")
 
 # 小拱 marker 的杆+下指箭头颜色：按"可交互性"语义区分。
 # 黄=可开 / 紫=本阶段不可开 / 绿=已开 / 红=被敌人占位（沿用 halo 红的"塞"信号）。
@@ -126,6 +124,10 @@ var _arch_tiles: Dictionary = {}          # arch_key → SmallArchTile
 var _silt_tiles: Dictionary = {}          # cell → SiltTile
 var _rapid_edge_tiles: Dictionary = {}    # cell → RapidEdgeTile
 var _status_panel: RichTextLabel = null
+# 小拱开肩交互派发表（InteractionTile 参数化，stage_open_arch 技能触发）
+var _interactions: Array[InteractionTile] = []
+# 阶段接线器（Step 4.6）
+var _stage_hooks: StageHooks = StageHooks.new()
 
 
 func get_teams_config() -> Array:
@@ -245,9 +247,9 @@ func _resolve_wave_unit(kind: String) -> Dictionary:
 func _resolve_cell_hint(hint: String) -> Vector2i:
 	match hint:
 		"near_left_pier_west":
-			return _nearest_walkable(_left_pier + Vector2i(-2, 0))
+			return CellMath.nearest_walkable(movement_manager, _left_pier + Vector2i(-2, 0))
 		"near_right_pier_east":
-			return _nearest_walkable(_right_pier + Vector2i(2, 0))
+			return CellMath.nearest_walkable(movement_manager, _right_pier + Vector2i(2, 0))
 		"watch_north_2":
 			return _watch_point + Vector2i(0, -2)
 		"arch_left_front_north_2":
@@ -265,9 +267,9 @@ func _resolve_cell_hint(hint: String) -> Vector2i:
 		# 地图东西两端（桥的远端两侧），所有 wave spawn 都从这里登场。
 		# 这两个绝对坐标接近 surface tilemap 的左右极限。
 		"map_west_edge":
-			return _nearest_walkable(Vector2i(-20, 41))
+			return CellMath.nearest_walkable(movement_manager, Vector2i(-20, 41))
 		"map_east_edge":
-			return _nearest_walkable(Vector2i(41, -20))
+			return CellMath.nearest_walkable(movement_manager, Vector2i(41, -20))
 	push_warning("wave_spawns: 未知 cell_hint '%s'，退回 watch_point" % hint)
 	return _watch_point
 
@@ -288,7 +290,7 @@ func _find_water_cell_near(target: Vector2i, max_radius: int) -> Vector2i:
 				if movement_manager.is_water_cell(candidate):
 					return candidate
 	push_warning("water cell hint near %s 找不到水格，退回 nearest_walkable" % target)
-	return _nearest_walkable(target)
+	return CellMath.nearest_walkable(movement_manager, target)
 
 
 # 复制 UnitData 以避免多实例共享同一 Resource 副作用（原 _make_unit_data 的精简版，
@@ -333,6 +335,8 @@ func check_victory() -> bool:
 # 注意：super.complete_level() 内部会调 Progress.complete_level 标记关卡完成并
 # 切场到 post 过场动画；本函数在它之前先把 summary 和 chapter flag 落盘。
 func complete_level() -> void:
+	if is_phase_ended():
+		return
 	_record_clear_summary()
 	Progress.set_chapter_flag("chapter_1", true)
 	super()
@@ -376,13 +380,17 @@ func _on_level_ready() -> void:
 	_setup_li_chun()
 	_setup_allies_from_scene()
 	_setup_enemies_from_scene()
-	team_turn_started.connect(_on_stage_team_turn_started)
-	unit_hp_changed.connect(_on_stage_hp_changed)
-	unit_died.connect(_on_stage_unit_died)
-	round_started.connect(_on_stage_round_started)
-	phase_changed.connect(_on_phase_changed_for_onboarding)
+	# 阶段接线（StageHooks 声明式）
+	_stage_hooks.setup(self)
+	_stage_hooks.connect_all({
+		"team_turn_started": _on_stage_team_turn_started,
+		"unit_hp_changed": _on_stage_hp_changed,
+		"unit_died": _on_stage_unit_died,
+		"round_started": _on_stage_round_started,
+		"phase_changed": _on_phase_changed_for_onboarding,
+	})
 	_update_status_panel()
-	Notify.notify("李春与运石工可开启小拱；整桥稳定值 100 归零即败", Notify.Position.TOP_CENTER, Notify.Style.INFO, 3.0)
+	Notify.hint("李春与运石工可开启小拱；整桥稳定值 100 归零即败", 3.0)
 
 
 # 轻教学：进入 PLAYING 阶段后用 dialogue 流程做 P1 开局引导（仿 L1-1 风格）。
@@ -398,47 +406,38 @@ func _run_p1_tutorial() -> void:
 		_wants_tutorial_replay = await _ask_tutorial_replay()
 		if not _wants_tutorial_replay:
 			# 复玩跳过时给一条简短 Notify 提示玩法重点
-			Notify.notify("整桥稳定 100 归零即败；多打怒水/小怪可回血；工匠「捍作护行」豁免拍面", Notify.Position.TOP_CENTER, Notify.Style.INFO, 5.0)
+			Notify.hint("整桥稳定 100 归零即败；多打怒水/小怪可回血；工匠「捍作护行」豁免拍面", 5.0)
 			return
 	await get_tree().create_timer(0.4).timeout
 	if is_phase_ended():
 		return
-	await play_dialogue([
-		_lc_line("洨河汛情正盛，桥要立得住才算赢。屏顶『整桥稳定值 100』归零即败——这一仗不是拼血，是拼桥。"),
-		_lc_line("怒水有 600 血、三阶段（HP 75% / 50% 是拐点）。我每打它一下整桥回 1 点，每杀一只小怪回 2 点——所以多动手。"),
-		_lc_line("桥两侧有四座『小拱』要开。运石工和我自己都能开，开得越多，每回合扣的稳定值越少。boss 阶段越后，能开的肩也越多。"),
-		_lc_line("工匠手里的『捍作护行』给邻接友军 2 回合『护持』——这玩意是抗 boss 大招的关键，记得每回合留一份给前排。"),
-	])
-	if is_phase_ended():
-		return
+	await _get_tutorial_runner().run_steps(_build_p1_steps())
+	if not is_phase_ended():
+		Progress.mark_tutorial_seen(TUTORIAL_ID_P1)
+
+
+# P1 教程步进数据。顺序 / 文案 / 等待条件与旧手写版一一对应。
+func _build_p1_steps() -> Array[TutorialStep]:
+	var steps: Array[TutorialStep] = []
+	steps.append(TutorialStep.create("briefing", [
+		{"text": "洨河汛情正盛，桥要立得住才算赢。屏顶『整桥稳定值 100』归零即败——这一仗不是拼血，是拼桥。"},
+		{"text": "怒水有 600 血、三阶段（HP 75% / 50% 是拐点）。我每打它一下整桥回 1 点，每杀一只小怪回 2 点——所以多动手。"},
+		{"text": "桥两侧有四座『小拱』要开。运石工和我自己都能开，开得越多，每回合扣的稳定值越少。boss 阶段越后，能开的肩也越多。"},
+		{"text": "工匠手里的『捍作护行』给邻接友军 2 回合『护持』——这玩意是抗 boss 大招的关键，记得每回合留一份给前排。"},
+	]))
 	# ── 实战引导：让玩家亲自打 boss 一下，直观感受 boss 的"巨型受击范围"──
-	await play_dialogue([
-		_lc_line("最后一件事：怒水个头巨大，可见的本体小框是骗人的——它的受击区铺到桥心北边好几行水域里。"),
-		_lc_line("选中我，挑一招技能朝桥心以北的水域来一下试试，会自动算到怒水头上。命中后整桥还会 +1。"),
-	])
-	if is_phase_ended():
-		return
-	Notify.notify(
-		"选中李春 → 选技能 → 点桥心以北的水域（怒水的判定区覆盖到北侧 7 行内）",
-		Notify.Position.TOP_CENTER, Notify.Style.INFO, 14.0,
-	)
-	_p1_tutorial_hit_boss = false
-	skill_executed.connect(_on_p1_tutorial_skill_executed)
-	while not _p1_tutorial_hit_boss:
-		await skill_executed
-		if is_phase_ended():
-			if skill_executed.is_connected(_on_p1_tutorial_skill_executed):
-				skill_executed.disconnect(_on_p1_tutorial_skill_executed)
-			return
-	if skill_executed.is_connected(_on_p1_tutorial_skill_executed):
-		skill_executed.disconnect(_on_p1_tutorial_skill_executed)
-	await play_dialogue([
-		_lc_line("命中——你看屏右上的回血提示，整桥稳定 +1。攻击 boss 是回血主流，记着。"),
-		_lc_line("一阶段没别的花活，先熟悉布阵和开肩节奏。等怒水血量见底我再补课。"),
-	])
-	if is_phase_ended():
-		return
-	Progress.mark_tutorial_seen(TUTORIAL_ID_P1)
+	steps.append(TutorialStep.create("hit_boss", [
+		{"text": "最后一件事：怒水个头巨大，可见的本体小框是骗人的——它的受击区铺到桥心北边好几行水域里。"},
+		{"text": "选中我，挑一招技能朝桥心以北的水域来一下试试，会自动算到怒水头上。命中后整桥还会 +1。"},
+	], "选中李春 → 选技能 → 点桥心以北的水域（怒水的判定区覆盖到北侧 7 行内）", 14.0,
+		TutorialStep.WaitMode.PREDICATE, &"skill_executed",
+		# 等价原 _on_p1_tutorial_skill_executed：仅当李春命中 boss 巨型受击区才算做完。
+		func(args: Array) -> bool: return args.size() >= 3 and args[0] == _li_chun and _skill_hit_boss(args[2])))
+	steps.append(TutorialStep.create("wrap_up", [
+		{"text": "命中——你看屏右上的回血提示，整桥稳定 +1。攻击 boss 是回血主流，记着。"},
+		{"text": "一阶段没别的花活，先熟悉布阵和开肩节奏。等怒水血量见底我再补课。"},
+	]))
+	return steps
 
 
 # 判定指定 cast_cell 是否落在 boss 的本体或 extra_target_cells（巨型受击范围）内。
@@ -454,14 +453,6 @@ func _skill_hit_boss(cast_cell: Vector2i) -> bool:
 	return false
 
 
-# P1 教程专用 skill_executed 监听：仅当李春命中 boss 时翻起 _p1_tutorial_hit_boss
-# 标志，主协程 _run_p1_tutorial 的 while 循环据此跳出。其他施法（友军间、空地试招）
-# 一律忽略，不打断教程。
-func _on_p1_tutorial_skill_executed(caster: Unit, _skill: SkillData, cast_cell: Vector2i) -> void:
-	if caster == _li_chun and _skill_hit_boss(cast_cell):
-		_p1_tutorial_hit_boss = true
-
-
 func _run_p2_tutorial() -> void:
 	if Progress.has_seen_tutorial(TUTORIAL_ID_P2) and not _wants_tutorial_replay:
 		return
@@ -469,15 +460,20 @@ func _run_p2_tutorial() -> void:
 	await get_tree().create_timer(0.3).timeout
 	if is_phase_ended():
 		return
-	await play_dialogue([
-		_lc_line("怒水开始动真格了——【怒涛拍面】每两回合一次，水属性 0.5 倍率 + 附水，敌我两伤击退 2 格。"),
-		_lc_line("注意『敌我两伤』：boss 自己召的小怪也会被它一并打飞，你正好趁势补刀回稳定值。"),
-		_lc_line("被『护持』覆盖的友军完全免疫这招——下回合预告会显示在右上角，提前给前排上护持。"),
-		_lc_line("P2 解锁了外侧两座小拱（1、4 号）。它们都没开 → 每回合额外 -1；都开了 → 这条压力清零。"),
-	])
-	if is_phase_ended():
-		return
-	Progress.mark_tutorial_seen(TUTORIAL_ID_P2)
+	await _get_tutorial_runner().run_steps(_build_p2_steps())
+	if not is_phase_ended():
+		Progress.mark_tutorial_seen(TUTORIAL_ID_P2)
+
+
+func _build_p2_steps() -> Array[TutorialStep]:
+	var steps: Array[TutorialStep] = []
+	steps.append(TutorialStep.create("p2_torrent_ram", [
+		{"text": "怒水开始动真格了——【怒涛拍面】每两回合一次，水属性 0.5 倍率 + 附水，敌我两伤击退 2 格。"},
+		{"text": "注意『敌我两伤』：boss 自己召的小怪也会被它一并打飞，你正好趁势补刀回稳定值。"},
+		{"text": "被『护持』覆盖的友军完全免疫这招——下回合预告会显示在右上角，提前给前排上护持。"},
+		{"text": "P2 解锁了外侧两座小拱（1、4 号）。它们都没开 → 每回合额外 -1；都开了 → 这条压力清零。"},
+	]))
+	return steps
 
 
 func _run_p3_tutorial() -> void:
@@ -486,15 +482,20 @@ func _run_p3_tutorial() -> void:
 	await get_tree().create_timer(0.3).timeout
 	if is_phase_ended():
 		return
-	await play_dialogue([
-		_lc_line("最后关头。怒水又掏出一招【翻岸压塌】每三回合一次——打离它最近的 2 个人，土属性 0.7 倍率 + 附土，击退 3 格。"),
-		_lc_line("这招护持只能『半减』：伤害 -16、击退被压到 1 格，但不豁免；让最厚的人靠前顶一下就能扛住。"),
-		_lc_line("撞期同回合时本技优先释放，拍面让位至下回合——预告还是看右上角。"),
-		_lc_line("P3 四肩都解锁了。都没开 -2；先开 2&3 → -1；再开 1&4 → 压力清零。这时候 boss 也进了易伤窗口（-25%），抓紧击退它。"),
-	])
-	if is_phase_ended():
-		return
-	Progress.mark_tutorial_seen(TUTORIAL_ID_P3)
+	await _get_tutorial_runner().run_steps(_build_p3_steps())
+	if not is_phase_ended():
+		Progress.mark_tutorial_seen(TUTORIAL_ID_P3)
+
+
+func _build_p3_steps() -> Array[TutorialStep]:
+	var steps: Array[TutorialStep] = []
+	steps.append(TutorialStep.create("p3_overturn", [
+		{"text": "最后关头。怒水又掏出一招【翻岸压塌】每三回合一次——打离它最近的 2 个人，土属性 0.7 倍率 + 附土，击退 3 格。"},
+		{"text": "这招护持只能『半减』：伤害 -16、击退被压到 1 格，但不豁免；让最厚的人靠前顶一下就能扛住。"},
+		{"text": "撞期同回合时本技优先释放，拍面让位至下回合——预告还是看右上角。"},
+		{"text": "P3 四肩都解锁了。都没开 -2；先开 2&3 → -1；再开 1&4 → 压力清零。这时候 boss 也进了易伤窗口（-25%），抓紧击退它。"},
+	]))
+	return steps
 
 
 # 在 4 座小拱「2×2 区域」中心生成 TilePulsingMarker 用作状态指示。
@@ -503,7 +504,7 @@ func _run_p3_tutorial() -> void:
 # z_index 走基类默认 1：halo/core/label 浮在地表上但被角色覆盖；Floater(120) 仍抢 top。
 func _setup_arch_tiles() -> void:
 	for arch_key in _side_arch_cells.keys():
-		var marker := spawn_tile_pulsing_marker(
+		var marker := _special_tile_registry.spawn_pulsing_marker(
 			_side_arch_cells[arch_key],
 			SmallArchTile.COLOR_CLOSED,
 			"肩",
@@ -512,26 +513,23 @@ func _setup_arch_tiles() -> void:
 		) as TilePulsingMarker
 		marker.show_label = true
 		_arch_tiles[arch_key] = marker
+		_interactions.append(_make_arch_interaction(arch_key))
 	_refresh_arch_visuals()
 
 
+## 小拱交互点：stage_open_arch 命中该肩 2×2 任意格 → 拆肩登记（旧 _on_skill_executed 路由逐字）。
+func _make_arch_interaction(arch_key: String) -> InteractionTile:
+	return InteractionTile.create(
+		_arch_cells_for(arch_key), &"stage_open_arch",
+		Callable(), self._on_arch_interacted.bind(arch_key), false)
+
+
+func _on_arch_interacted(_tile: InteractionTile, _caster: Unit, _target_cell: Vector2i, arch_key: String) -> void:
+	_try_mark_arch_interacted(arch_key)
+
+
 func _setup_status_panel() -> void:
-	_status_panel = RichTextLabel.new()
-	_status_panel.name = "Level4StatusPanel"
-	_status_panel.bbcode_enabled = true
-	_status_panel.fit_content = true
-	_status_panel.scroll_active = false
-	_status_panel.autowrap_mode = TextServer.AUTOWRAP_OFF
-	_status_panel.anchors_preset = Control.PRESET_TOP_LEFT
-	_status_panel.offset_left = 18
-	_status_panel.offset_top = 84
-	_status_panel.offset_right = 300
-	_status_panel.offset_bottom = 120
-	_status_panel.add_theme_font_size_override("normal_font_size", 16)
-	_status_panel.add_theme_color_override("default_color", Color(0.96, 0.94, 0.88))
-	_status_panel.add_theme_color_override("font_outline_color", Color(0.08, 0.08, 0.08))
-	_status_panel.add_theme_constant_override("outline_size", 3)
-	_status_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_status_panel = LevelHudFactory.create_status_panel("Level4StatusPanel", 300, 120)
 	gui.add_child(_status_panel)
 
 
@@ -549,15 +547,9 @@ func _update_status_panel() -> void:
 	]
 
 
-# 返回一座小拱占据的 2×2 cells（start + 左 + 上 + 左上）
+# 返回一座小拱占据的 2×2 cells（start + 左 + 上 + 左上，NW 展开）
 func _arch_cells_for(arch_key: String) -> Array[Vector2i]:
-	var start: Vector2i = _side_arch_cells[arch_key]
-	return [
-		start,
-		start + Vector2i(-1, 0),
-		start + Vector2i(0, -1),
-		start + Vector2i(-1, -1),
-	]
+	return CellMath.zone2x2_nw(_side_arch_cells[arch_key])
 
 
 func _make_silt_tile() -> SiltTile:
@@ -629,23 +621,21 @@ func _on_stage_round_started(_r: int) -> void:
 	_expire_transient_tiles()
 
 
-# 定期清理过期的临时地格（淤泥 2 回合 / 激流桥缘 1 回合）。
+# 定期清理过期的临时地格（淤泥 2 回合 / 激流桥缘 1 回合，过期判定走 TransientTile）。
 func _expire_transient_tiles() -> void:
+	_expire_tile_group(_silt_tiles)
+	_expire_tile_group(_rapid_edge_tiles)
+
+
+func _expire_tile_group(tiles: Dictionary) -> void:
 	var round_now := round_number
-	for cell in _silt_tiles.keys().duplicate():
-		var tile: SiltTile = _silt_tiles[cell]
+	for cell in tiles.keys().duplicate():
+		var tile: TransientTile = tiles[cell]
 		if tile == null or not is_instance_valid(tile) or tile.is_expired(round_now):
 			if is_instance_valid(tile):
-				unregister_special_tile(tile, cell)
+				_special_tile_registry.unregister(tile, cell)
 				tile.queue_free()
-			_silt_tiles.erase(cell)
-	for cell in _rapid_edge_tiles.keys().duplicate():
-		var tile: RapidEdgeTile = _rapid_edge_tiles[cell]
-		if tile == null or not is_instance_valid(tile) or tile.is_expired(round_now):
-			if is_instance_valid(tile):
-				unregister_special_tile(tile, cell)
-				tile.queue_free()
-			_rapid_edge_tiles.erase(cell)
+			tiles.erase(cell)
 
 
 func _on_unit_moved() -> void:
@@ -654,11 +644,8 @@ func _on_unit_moved() -> void:
 
 
 func _on_skill_executed(caster: Unit, skill: SkillData, cast_cell: Vector2i, _exec_result: SkillExecutor.ExecuteResult) -> void:
-	if skill != null and skill.extra_effect_id == "stage_open_arch":
-		for arch_key in _side_arch_cells.keys():
-			if cast_cell in _arch_cells_for(arch_key):
-				_try_mark_arch_interacted(arch_key)
-				break
+	# 小拱开肩（stage_open_arch）走 InteractionTile 参数化派发
+	if InteractionTile.dispatch_skill(_interactions, caster, skill, cast_cell):
 		return
 
 	# 洪锋 / 漂木群·洪水版 的冲撞线命中桥心 watch_point → 整桥 -1
@@ -671,8 +658,8 @@ func _on_skill_executed(caster: Unit, skill: SkillData, cast_cell: Vector2i, _ex
 	if _watch_point in path:
 		_overall_stability = maxi(_overall_stability - 1, 0)
 		_update_status_panel()
-		Notify.notify("%s 冲撞桥心！整桥 −1 → %d" % [unit_name_str, _overall_stability], Notify.Position.TOP_RIGHT, Notify.Style.WARNING, 2.5)
-		_check_win_lose()
+		Notify.warn("%s 冲撞桥心！整桥 −1 → %d" % [unit_name_str, _overall_stability])
+		_get_objectives_tracker().check_win_lose()
 
 	# 击退可能把单位推到激流桥缘上；_force_move_cell 直接改 cell 不走
 	# tile_entered 信号，所以这里统一扫一遍所有单位。
@@ -695,7 +682,7 @@ func _apply_rapid_edge_if_present() -> void:
 			if tile == null or not is_instance_valid(tile):
 				continue
 			tile.apply_knockback_damage(u)
-	_check_win_lose()
+	_get_objectives_tracker().check_win_lose()
 
 
 # 从冲撞发起格到目标格的直线覆盖单元（不含起始格，含目标格）。
@@ -723,8 +710,8 @@ func _cast_overturn_bridge() -> void:
 	# 桥稳压制现在统一在 _resolve_enemy_pressure（基于已开肩数）结算，本技保留：
 	# 桥面上下边缘生成激流桥缘 1 回合（位移陷阱）+ 视觉/语义上的 boss 大招感
 	_spawn_rapid_edges_for_overturn()
-	Notify.notify("怒水释放【翻潮压桥】（桥缘激流持续 1 回合）", Notify.Position.TOP_RIGHT, Notify.Style.WARNING, 2.5)
-	_check_win_lose()
+	Notify.warn("怒水释放【翻潮压桥】（桥缘激流持续 1 回合）")
+	_get_objectives_tracker().check_win_lose()
 
 
 func _boss_slam_deck() -> void:
@@ -734,7 +721,7 @@ func _boss_slam_deck() -> void:
 	#   • 友方未护持单位（玩家可用工匠「捍作护行」豁免）
 	#   • 敌方所有小怪（boss 自己除外）— 友军伤害平衡设计：boss 召唤越多怪自己被打越多
 	var targets: Array = []
-	for ally in get_friendly_units():
+	for ally in _get_query_api().get_friendly_units():
 		if ally == null or ally.combat_stats == null or not ally.combat_stats.is_alive():
 			continue
 		if _has_guarding_status(ally):
@@ -752,20 +739,18 @@ func _boss_slam_deck() -> void:
 	if targets.is_empty():
 		Notify.notify("怒涛拍面：全员护持/无目标", Notify.Position.TOP_RIGHT, Notify.Style.SUCCESS, 2.0)
 		return
-	Notify.notify("怒水释放【怒涛拍面】（横扫桥心，敌我两伤）", Notify.Position.TOP_RIGHT, Notify.Style.WARNING, 2.5)
+	Notify.warn("怒水释放【怒涛拍面】（横扫桥心，敌我两伤）")
 	CombatLog.msg("怒涛拍面: 命中 %d 名（含敌方小怪）" % targets.size())
 	for target in targets:
 		var hit: CombatResolver.HitResult = CombatResolver.resolve_hit(_boss.combat_stats, target.combat_stats, _slam_deck, 0.5)
 		var old_hp: int = target.combat_stats.current_hp
 		CombatResolver.apply_hit(target.combat_stats, _slam_deck, hit)
 		target.refresh_overhead_bars()
-		unit_hp_changed.emit(target, old_hp, target.combat_stats.current_hp)
+		_get_skill_cast_controller().report_unit_damaged(target, old_hp, target.combat_stats.current_hp)
 		if target.combat_stats.current_hp <= 0:
-			unit_died.emit(target)
 			continue
 		_knockback_cells(target, _boss.cell, 2)
 	_apply_rapid_edge_if_present()
-	_check_win_lose()
 
 
 # 翻岸压塌：每 3 回合 1 次。对最近 2 名我方造成 0.7×土属性伤害（附土 2），击退 3 格。
@@ -775,7 +760,7 @@ func _boss_topple_bank() -> void:
 	if _boss == null or _boss.combat_stats == null or not _boss.combat_stats.is_alive():
 		return
 	var alive: Array = []
-	for ally in get_friendly_units():
+	for ally in _get_query_api().get_friendly_units():
 		if ally == null or ally.combat_stats == null or not ally.combat_stats.is_alive():
 			continue
 		alive.append(ally)
@@ -783,25 +768,23 @@ func _boss_topple_bank() -> void:
 		return
 	var boss_cell := _boss.cell
 	alive.sort_custom(func(a: Unit, b: Unit) -> bool:
-		return _manhattan(a.cell, boss_cell) < _manhattan(b.cell, boss_cell)
+		return CellMath.manhattan(a.cell, boss_cell) < CellMath.manhattan(b.cell, boss_cell)
 	)
 	var targets: Array = alive.slice(0, mini(2, alive.size()))
-	Notify.notify("怒水释放【翻岸压塌】", Notify.Position.TOP_RIGHT, Notify.Style.WARNING, 2.5)
+	Notify.warn("怒水释放【翻岸压塌】")
 	CombatLog.msg("翻岸压塌: 命中 %d 名最近单位" % targets.size())
 	for target in targets:
 		var hit: CombatResolver.HitResult = CombatResolver.resolve_hit(_boss.combat_stats, target.combat_stats, _topple_bank, 0.7)
 		var old_hp: int = target.combat_stats.current_hp
 		CombatResolver.apply_hit(target.combat_stats, _topple_bank, hit)
 		target.refresh_overhead_bars()
-		unit_hp_changed.emit(target, old_hp, target.combat_stats.current_hp)
+		_get_skill_cast_controller().report_unit_damaged(target, old_hp, target.combat_stats.current_hp)
 		if target.combat_stats.current_hp <= 0:
-			unit_died.emit(target)
 			continue
 		# 护持半减：击退 3 → 1（与设定文档「护持抗位移最多 1 格」一致）
 		var kb_dist: int = 1 if _has_guarding_status(target) else 3
 		_knockback_cells(target, _boss.cell, kb_dist)
 	_apply_rapid_edge_if_present()
-	_check_win_lose()
 
 
 # 朝"远离 from_cell"的方向逐格击退 target，最多 distance 格。地形不可走或被其他单位占据则提前停步。
@@ -867,10 +850,6 @@ func _has_knockback_immune_status(unit: Unit) -> bool:
 	return unit.combat_stats.has_status(STATUS_KNOCKBACK_IMMUNE)
 
 
-func _manhattan(a: Vector2i, b: Vector2i) -> int:
-	return absi(a.x - b.x) + absi(a.y - b.y)
-
-
 func _on_stage_team_turn_started(team_index: int) -> void:
 	if team_index == ENEMY_TEAM:
 		_pending_enemy_resolution = true
@@ -922,7 +901,7 @@ func _show_next_round_preview() -> void:
 		label = "【怒涛拍面】（水，横扫桥心敌我两伤 0.5×+附水 1，击退 2 格）— 工匠「捍作护行」可豁免；boss 也会攻击自家小怪"
 	else:
 		label = "蓄力中（无周期被动；可推进开肩）"
-	Notify.notify("下回合怒水：%s" % label, Notify.Position.TOP_RIGHT, Notify.Style.INFO, 4.0)
+	Notify.info("下回合怒水：%s" % label, 4.0)
 
 
 # 洪锋·被动【涌锋】：本回合首次移动 +1 格。
@@ -1025,12 +1004,10 @@ func _compute_boss_dr() -> float:
 	return 0.0
 
 
-# 把 _compute_boss_dr 写入 boss.combat_stats.incoming_damage_factor。
+# 把当前免伤比例落地到 boss.combat_stats.incoming_damage_factor（BossDRPolicy 策略对象）。
 # CombatResolver.resolve_hit 会在 step 8 自动乘上它。
 func _refresh_boss_dr() -> void:
-	if _boss == null or _boss.combat_stats == null:
-		return
-	_boss.combat_stats.incoming_damage_factor = 1.0 - _compute_boss_dr()
+	_boss_dr.apply()
 
 
 # Boss HP 跨阈值时自动进入下一阶段。单向（只升不降）。
@@ -1109,9 +1086,9 @@ func _spawn_phase_reinforcements(phase: int) -> void:
 
 func _setup_anchor_cells() -> void:
 	var anchor := _li_chun.cell
-	_watch_point = _nearest_walkable(anchor + Vector2i(0, -1))
-	_left_pier = _nearest_walkable(anchor + Vector2i(-4, 0))
-	_right_pier = _nearest_walkable(anchor + Vector2i(4, 0))
+	_watch_point = CellMath.nearest_walkable(movement_manager, anchor + Vector2i(0, -1))
+	_left_pier = CellMath.nearest_walkable(movement_manager, anchor + Vector2i(-4, 0))
+	_right_pier = CellMath.nearest_walkable(movement_manager, anchor + Vector2i(4, 0))
 	# 4 座小拱：surface z=0 的绝对 cell 坐标，每座是 2×2 区域（start + 左 + 上 + 左上）。
 	# 原始读数在 TileMaps/bridge1（position=Vector2(0,440)）的 cell 系下；surface z=0 在
 	# 原点，两者 tile_set 一致（iso DIAMOND_DOWN, tile_size=32x16），因此换算为
@@ -1125,19 +1102,17 @@ func _setup_anchor_cells() -> void:
 
 
 func _setup_li_chun() -> void:
-	set_unit_skills(_li_chun, Progress.get_battle_skill_resources(GameState.selected_level))
-	setup_unit_stats(_li_chun, "李春", 138, 26, 105, 8, Enums.Element.NONE, 0, true)
+	# 属性外置 data/units/roster_level1-4.tres。
+	_get_unit_factory().setup_hero_unit(_li_chun, _roster.find("李春"))
 
 
 # 友方 / 敌方均在 .tscn 里预置（unit_data + visual_scene + position 都已配齐）；
-# 这里只补技能 + 战斗数值。setup_unit_stats 会覆盖 combat_stats 的基线。
+# 这里只补技能 + 战斗数值（数值外置 data/units/roster_level1-4.tres）。
+# setup_unit_stats 会覆盖 combat_stats 的基线。
 func _setup_allies_from_scene() -> void:
-	for craftsman in _craftsmen:
-		set_unit_skills(craftsman, [_mallet, _guard])
-		setup_unit_stats(craftsman, "工匠", 120, 20, 95, 9)
-	for carrier in _stone_carriers:
-		set_unit_skills(carrier, [_staff, _sw_open_arch])
-		setup_unit_stats(carrier, "运石工", 92, 14, 95, 9)
+	var factory := _get_unit_factory()
+	factory.setup_ally_group(_craftsmen, [_mallet, _guard], _roster.find("工匠"))
+	factory.setup_ally_group(_stone_carriers, [_staff, _sw_open_arch], _roster.find("运石工"))
 	_apply_persistent_growth_effects()
 
 
@@ -1149,23 +1124,25 @@ func _setup_enemies_from_scene() -> void:
 	# TileMaps/boss_hit_area 这层 TileMap 定义——设计师在编辑器里画哪些桥面格
 	# 算"打到 Boss"。运行时把这些绝对格子转成相对偏移塞进 extra_target_cells，
 	# 让 base_level 的 targeting overlay + skill_executor 的命中判定都直接复用。
-	setup_unit_stats(_boss, "怒水", 600, 24, 1, 99, Enums.Element.WATER, 2)
+	_get_unit_factory().setup_unit_stats(_boss, "怒水", 600, 24, 1, 99, Enums.Element.WATER, 2)
 	_apply_permanent_status(_boss, STATUS_KNOCKBACK_IMMUNE)
-	set_unit_skills(_boss, [_overturn_bridge])
+	_get_unit_factory().set_unit_skills(_boss, [_overturn_bridge])
 	_populate_boss_hit_area()
+	# Boss 减伤策略：免伤比例来自 _compute_boss_dr（按阶段 + 拆肩进度现算）
+	_boss_dr = BossDRPolicy.factor(_boss, self._compute_boss_dr)
 
-	setup_unit_stats(_flood_spear_1, "洪锋", 70, 21, 90, 10, Enums.Element.WATER, 2)
-	set_unit_skills(_flood_spear_1, [_torrent_ram])
+	_get_unit_factory().setup_unit_stats(_flood_spear_1, "洪锋", 70, 21, 90, 10, Enums.Element.WATER, 2)
+	_get_unit_factory().set_unit_skills(_flood_spear_1, [_torrent_ram])
 
-	setup_unit_stats(_flood_spear_2, "洪锋", 70, 21, 90, 10, Enums.Element.WATER, 2)
-	set_unit_skills(_flood_spear_2, [_torrent_ram])
+	_get_unit_factory().setup_unit_stats(_flood_spear_2, "洪锋", 70, 21, 90, 10, Enums.Element.WATER, 2)
+	_get_unit_factory().set_unit_skills(_flood_spear_2, [_torrent_ram])
 
 	# 与 wave 系统保持一致：开局两只洪锋也从地图东西两端登场，而不是 .tscn 里的预置点。
 	_relocate_unit_to_edge(_flood_spear_1, "map_west_edge")
 	_relocate_unit_to_edge(_flood_spear_2, "map_east_edge")
 
-	setup_unit_stats(_siltmare, "泥沙魇", 105, 15, 90, 10, Enums.Element.EARTH, 2)
-	set_unit_skills(_siltmare, [_mire_steps])
+	_get_unit_factory().setup_unit_stats(_siltmare, "泥沙魇", 105, 15, 90, 10, Enums.Element.EARTH, 2)
+	_get_unit_factory().set_unit_skills(_siltmare, [_mire_steps])
 
 
 func _apply_permanent_status(unit: Unit, status_id: String) -> void:
@@ -1187,7 +1164,7 @@ func _relocate_unit_to_edge(unit: Unit, hint: String) -> void:
 	if unit == null or tilemap == null:
 		return
 	var target := _resolve_cell_hint(hint)
-	var cell := _find_empty_walkable_cell(target)
+	var cell := _get_scene_bootstrap().find_empty_walkable_cell(target)
 	unit.set_cell(cell, tilemap)
 
 
@@ -1214,10 +1191,10 @@ func _try_mark_arch_interacted(arch_key: String) -> void:
 			hint = "此交互点尚未开放"
 		else:
 			hint = "二阶段仅外侧两肩可拆"
-		Notify.notify(hint, Notify.Position.TOP_RIGHT, Notify.Style.WARNING, 2.0)
+		Notify.warn(hint, 2.0)
 		return
 	if _phase_arch_skill_used.get(arch_key, false):
-		Notify.notify("此交互点本阶段已生效", Notify.Position.TOP_RIGHT, Notify.Style.INFO, 1.5)
+		Notify.info("此交互点本阶段已生效", 1.5)
 		return
 	var dr_before: float = _compute_boss_dr()
 	_phase_arch_skill_used[arch_key] = true
@@ -1227,9 +1204,8 @@ func _try_mark_arch_interacted(arch_key: String) -> void:
 	var label: String = ("易伤 %d%%" % int(round(-dr_after * 100))) if dr_after < 0.0 else ("免伤 %d%%" % int(round(dr_after * 100)))
 	if is_equal_approx(dr_before, dr_after):
 		# Phase 3 先打 1/4 时会到这里：标记登记成功，但 DR 还要等 2&3 都 done 才落地
-		Notify.notify(
-			"导汛开肩 → 已登记（怒水 %s，待中间两肩拆完后联动）" % label,
-			Notify.Position.TOP_RIGHT, Notify.Style.INFO, 2.5,
+		Notify.info(
+			"导汛开肩 → 已登记（怒水 %s，待中间两肩拆完后联动）" % label
 		)
 	else:
 		Notify.notify(
@@ -1278,7 +1254,7 @@ func _resolve_enemy_pressure() -> void:
 		if not (enemy is Unit) or enemy.combat_stats == null or not enemy.combat_stats.is_alive():
 			continue
 		var u_name: String = enemy.combat_stats.unit_name
-		if not _is_adjacent_or_same(enemy.cell, _watch_point):
+		if not CellMath.is_adjacent_or_same(enemy.cell, _watch_point):
 			continue
 		if u_name == "桥台噬者":
 			event_dmg += 2
@@ -1290,13 +1266,12 @@ func _resolve_enemy_pressure() -> void:
 		_overall_stability = maxi(_overall_stability - total, 0)
 		_update_status_panel()
 
-	Notify.notify(
+	Notify.warn(
 		"整桥:%d 已拆肩:%d/4（怒水 -%d｜阶段 -%d｜邻桥心 -%d）" % [
 			_overall_stability, _open_arch_count(), alive_dmg, phase_dmg, event_dmg,
-		],
-		Notify.Position.TOP_RIGHT, Notify.Style.WARNING, 2.5,
+		]
 	)
-	_check_win_lose()
+	_get_objectives_tracker().check_win_lose()
 
 
 # 阶段相关肩压力。归位规则镜像 boss DR 的进程，给玩家一致的"拆肩 = 减压"反馈。
@@ -1334,7 +1309,7 @@ func _build_priority_targets() -> Dictionary:
 	var priorities: Dictionary = {}
 
 	var alive_allies: Array = []
-	for a in get_friendly_units():
+	for a in _get_query_api().get_friendly_units():
 		if a is Unit and a.combat_stats != null and a.combat_stats.is_alive():
 			alive_allies.append(a)
 
@@ -1345,14 +1320,14 @@ func _build_priority_targets() -> Dictionary:
 		var y_on: int = 0 if _is_on_main_bridge(y.cell) else 1
 		if x_on != y_on:
 			return x_on < y_on
-		return _manhattan(x.cell, _watch_point) < _manhattan(y.cell, _watch_point)
+		return CellMath.manhattan(x.cell, _watch_point) < CellMath.manhattan(y.cell, _watch_point)
 	)
 	priorities["洪锋"] = flood_spear_list
 
 	# 桥台噬者：任何我方，按到 watch_point 曼哈顿距离排序（趋近桥心制造 -2 压力）
 	var gnawer_list: Array = alive_allies.duplicate()
 	gnawer_list.sort_custom(func(x: Unit, y: Unit) -> bool:
-		return _manhattan(x.cell, _watch_point) < _manhattan(y.cell, _watch_point)
+		return CellMath.manhattan(x.cell, _watch_point) < CellMath.manhattan(y.cell, _watch_point)
 	)
 	priorities["桥台噬者"] = gnawer_list
 
@@ -1383,10 +1358,6 @@ func _min_dist_to_cells(from_cell: Vector2i, cells: Array) -> int:
 	return best
 
 
-func _is_adjacent_or_same(a: Vector2i, b: Vector2i) -> bool:
-	return absi(a.x - b.x) + absi(a.y - b.y) <= 1
-
-
 func _cell_is_small_arch(cell: Vector2i) -> bool:
 	for arch_key in _side_arch_cells.keys():
 		if cell in _arch_cells_for(arch_key):
@@ -1402,7 +1373,7 @@ func _spawn_silt_at(cell: Vector2i) -> void:
 			return
 	var tile: SiltTile = _make_silt_tile()
 	tile.configure(round_number, "泥沙魇")
-	register_special_tile(tile, cell)
+	_special_tile_registry.register(tile, cell)
 	_silt_tiles[cell] = tile
 	CombatLog.msg("  淤泥格生成: %s (2 回合)" % [cell])
 
@@ -1431,7 +1402,7 @@ func _spawn_rapid_edge_at(cell: Vector2i) -> void:
 			return
 	var tile: RapidEdgeTile = _make_rapid_edge_tile()
 	tile.configure(round_number)
-	register_special_tile(tile, cell)
+	_special_tile_registry.register(tile, cell)
 	_rapid_edge_tiles[cell] = tile
 
 
@@ -1445,27 +1416,4 @@ func _open_arch_count() -> int:
 
 
 func _spawn_enemy(data: UnitData, cell: Vector2i, skills: Array[SkillData], visual: PackedScene = null) -> Unit:
-	var unit := spawn_unit(data, _find_empty_walkable_cell(cell), ENEMY_TEAM, visual)
-	set_unit_skills(unit, skills)
-	setup_unit_stats(
-			unit,
-			data.unit_name,
-			data.max_hp,
-			data.base_atk,
-			data.ap_max,
-			data.move_cost_per_tile,
-			data.innate_element,
-			data.innate_element_amount)
-	return unit
-
-
-func _nearest_walkable(target: Vector2i) -> Vector2i:
-	if movement_manager.get_movement_cost(target) != TileType.IMPASSABLE:
-		return target
-	for radius in range(1, 4):
-		for dx in range(-radius, radius + 1):
-			for dy in range(-radius, radius + 1):
-				var candidate := target + Vector2i(dx, dy)
-				if movement_manager.get_movement_cost(candidate) != TileType.IMPASSABLE:
-					return candidate
-	return target
+	return _get_unit_factory().spawn_enemy_unit(data, _get_scene_bootstrap().find_empty_walkable_cell(cell), ENEMY_TEAM, skills, visual)

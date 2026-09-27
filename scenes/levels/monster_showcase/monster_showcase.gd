@@ -45,7 +45,7 @@ func get_teams_config() -> Array:
 
 
 func _on_level_ready() -> void:
-	setup_unit_stats(_player as Unit, "李春", 999, 0, 999, 8, Enums.Element.NONE, 0, true)
+	_get_unit_factory().setup_unit_stats(_player as Unit, "李春", 999, 0, 999, 8, Enums.Element.NONE, 0, true)
 	_spawn_all_monsters()
 
 
@@ -59,8 +59,8 @@ func _spawn_all_monsters() -> void:
 		@warning_ignore("integer_division")
 		var row := i / cols
 		var cell := enemy_start + Vector2i(col * 2, row * 2)
-		var unit := spawn_unit(_ud_generic, cell, 1, entry["visual"])
-		setup_unit_stats(unit, entry["name"], 100, 10, 100, 10)
+		var unit := _get_unit_factory().spawn_unit(_ud_generic, cell, 1, entry["visual"])
+		_get_unit_factory().setup_unit_stats(unit, entry["name"], 100, 10, 100, 10)
 
 	# 玩家方：同样的敌方单位，放在左侧区域
 	var ally_start := Vector2i(-20, -2)
@@ -70,8 +70,8 @@ func _spawn_all_monsters() -> void:
 		@warning_ignore("integer_division")
 		var row := i / cols
 		var cell := ally_start + Vector2i(col * 2, row * 2)
-		var unit := spawn_unit(_ud_generic, cell, 0, entry["visual"])
-		setup_unit_stats(unit, entry["name"] + "(友)", 100, 10, 100, 10)
+		var unit := _get_unit_factory().spawn_unit(_ud_generic, cell, 0, entry["visual"])
+		_get_unit_factory().setup_unit_stats(unit, entry["name"] + "(友)", 100, 10, 100, 10)
 
 
 func get_objectives_text() -> Dictionary:

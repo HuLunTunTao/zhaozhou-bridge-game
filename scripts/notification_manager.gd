@@ -1,9 +1,15 @@
 extends CanvasLayer
 ## 全局通知管理器（自动加载单例）。
-## 用法：
+## 用法（五参原语，任意 position/style/duration 组合）：
 ##   Notify.notify("操作成功")
 ##   Notify.notify("警告", Notify.Position.TOP_LEFT, Notify.Style.WARNING)
 ##   Notify.notify("错误", Notify.Position.CENTER, Notify.Style.ERROR, 5.0)
+## 用法（样式 helper，收口高频五元组）：
+##   Notify.hint("顶部居中 info，教程 / 通用提示")
+##   Notify.success("顶部居中 success，任务完成 / 解锁")
+##   Notify.warn("右上 warning，关卡机制提示")
+##   Notify.error("右上 error")
+##   Notify.info("右上 info，关卡机制状态提示")
 
 const PopupScene: PackedScene = preload("res://scenes/ui/notification_popup.tscn")
 
@@ -111,6 +117,31 @@ func notify(
 	_stacks[pos].erase(popup)
 	popup.queue_free()
 	_reposition_stack(pos)
+
+
+## 顶部居中 info 提示（教程、通用提示）。
+func hint(text: String, duration: float = 2.5) -> void:
+	notify(text, Position.TOP_CENTER, Style.INFO, duration)
+
+
+## 顶部居中 success（任务完成、解锁）。
+func success(text: String, duration: float = 2.5) -> void:
+	notify(text, Position.TOP_CENTER, Style.SUCCESS, duration)
+
+
+## 右上 warning（关卡机制提示，与 level1-*.gd 高频模式一致）。
+func warn(text: String, duration: float = 2.5) -> void:
+	notify(text, Position.TOP_RIGHT, Style.WARNING, duration)
+
+
+## 右上 error。
+func error(text: String, duration: float = 2.5) -> void:
+	notify(text, Position.TOP_RIGHT, Style.ERROR, duration)
+
+
+## 右上 info（关卡机制状态提示）。
+func info(text: String, duration: float = 2.5) -> void:
+	notify(text, Position.TOP_RIGHT, Style.INFO, duration)
 
 
 func _get_slide_offset(pos: Position) -> Vector2:

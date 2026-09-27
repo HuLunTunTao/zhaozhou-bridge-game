@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="ContentTable" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scenes/levels/base_level/content_table.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+entries = {
+"knockback_1": "击退1格",
+"pull_1": "拖拽1格",
+"guarded_cover": "护持",
+"hindered_cross": "十字迟滞",
+"line_bind": "蔓缚",
+"read_water": "相水定址",
+"stage_balance_arch": "校券",
+"stage_open_arch": "启肩泄洪",
+"complete_survey": "踏勘量址",
+"non_element_bonus": "无属性加成"
+}

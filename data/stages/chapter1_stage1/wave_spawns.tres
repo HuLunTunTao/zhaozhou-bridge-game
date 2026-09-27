@@ -1,0 +1,80 @@
+[gd_resource type="Resource" script_class="WaveSpawns" format=3]
+
+[ext_resource type="Script" uid="uid://d26ymkx50ds12" path="res://scripts/data/wave_spawns.gd" id="1"]
+[ext_resource type="Script" uid="uid://d2hf2spjg00i4" path="res://scripts/data/wave_entry.gd" id="2"]
+
+[sub_resource type="Resource" id="W_R1a"]
+script = ExtResource("2")
+round_number = 1
+unit_kind = "dark_current"
+cell = Vector2i(13, -24)
+
+[sub_resource type="Resource" id="W_R1b"]
+script = ExtResource("2")
+round_number = 1
+unit_kind = "bank_mud_wraith"
+cell = Vector2i(10, -19)
+
+[sub_resource type="Resource" id="W_R3"]
+script = ExtResource("2")
+round_number = 3
+unit_kind = "whirl_pool"
+cell = Vector2i(15, -24)
+
+[sub_resource type="Resource" id="W_R5"]
+script = ExtResource("2")
+round_number = 5
+unit_kind = "drift_log_pack"
+cell = Vector2i(-19, 21)
+
+[sub_resource type="Resource" id="W_R8"]
+script = ExtResource("2")
+round_number = 8
+unit_kind = "bank_mud_wraith"
+cell = Vector2i(11, -18)
+
+[sub_resource type="Resource" id="W_R11a"]
+script = ExtResource("2")
+round_number = 11
+unit_kind = "dark_current"
+cell = Vector2i(-24, 20)
+
+[sub_resource type="Resource" id="W_R11b"]
+script = ExtResource("2")
+round_number = 11
+unit_kind = "whirl_pool"
+cell = Vector2i(14, -21)
+
+[sub_resource type="Resource" id="W_R14"]
+script = ExtResource("2")
+round_number = 14
+unit_kind = "drift_log_pack"
+cell = Vector2i(-20, 21)
+
+[sub_resource type="Resource" id="W_R17a"]
+script = ExtResource("2")
+round_number = 17
+unit_kind = "dark_current"
+cell = Vector2i(14, -24)
+
+[sub_resource type="Resource" id="W_R17b"]
+script = ExtResource("2")
+round_number = 17
+unit_kind = "bank_mud_wraith"
+cell = Vector2i(-22, 20)
+
+[sub_resource type="Resource" id="W_R20a"]
+script = ExtResource("2")
+round_number = 20
+unit_kind = "whirl_pool"
+cell = Vector2i(13, -24)
+
+[sub_resource type="Resource" id="W_R20b"]
+script = ExtResource("2")
+round_number = 20
+unit_kind = "drift_log_pack"
+cell = Vector2i(-19, 21)
+
+[resource]
+script = ExtResource("1")
+entries = Array[Resource]([SubResource("W_R1a"), SubResource("W_R1b"), SubResource("W_R3"), SubResource("W_R5"), SubResource("W_R8"), SubResource("W_R11a"), SubResource("W_R11b"), SubResource("W_R14"), SubResource("W_R17a"), SubResource("W_R17b"), SubResource("W_R20a"), SubResource("W_R20b")])

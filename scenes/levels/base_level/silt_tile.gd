@@ -1,14 +1,13 @@
 @tool
 class_name SiltTile
-extends SpecialTile
-## 淤泥格。泥沙魇「淤行」在其行动结束非小拱格生成，持续 2 回合。
+extends TransientTile
+## 淤泥格（通用临时地块）。泥沙魇「淤行」在其行动结束非小拱格生成，持续 2 回合。
 ## 单位进入：立即额外 -4 AP。（"停留本格下回合首次移动 -2 AP" 尚未接入；
 ## 需要新增 status 表达"下次移动额外消耗"，暂缓。）
+## 过期回收走 TransientTile.is_expired（round_now >= round + 2）。
 
 const COLOR_ACTIVE := Color(0.45, 0.3, 0.15, 0.55)   # 褐色
 const ENTER_AP_PENALTY := 4
-
-@export var expires_at_round: int = 0
 
 var _source_name: String = "淤泥"
 
@@ -18,13 +17,13 @@ func _ready() -> void:
 	super._ready()
 
 
+func duration_rounds() -> int:
+	return 2
+
+
 func configure(round_now: int, source_name: String = "淤泥") -> void:
-	expires_at_round = round_now + 2
+	super.configure(round_now)
 	_source_name = source_name
-
-
-func is_expired(round_now: int) -> bool:
-	return round_now >= expires_at_round
 
 
 func _on_unit_arrive(entity: Node2D) -> void:

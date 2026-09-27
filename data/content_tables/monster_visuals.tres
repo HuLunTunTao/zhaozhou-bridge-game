@@ -1,0 +1,39 @@
+[gd_resource type="Resource" script_class="ContentTable" load_steps=16 format=3]
+
+[ext_resource type="Script" path="res://scenes/levels/base_level/content_table.gd" id="1"]
+[ext_resource type="PackedScene" path="res://scenes/unit/visual/monster/暗涌/暗涌_visual.tscn" id="2"]
+[ext_resource type="PackedScene" path="res://scenes/unit/visual/monster/水旋/水旋_visual.tscn" id="3"]
+[ext_resource type="PackedScene" path="res://scenes/unit/visual/monster/泥沙魇/泥沙魇_visual.tscn" id="4"]
+[ext_resource type="PackedScene" path="res://scenes/unit/visual/monster/浮木群/浮木群_visual.tscn" id="5"]
+[ext_resource type="PackedScene" path="res://scenes/unit/visual/monster/洪峰/洪峰_visual.tscn" id="6"]
+[ext_resource type="PackedScene" path="res://scenes/unit/visual/monster/断索鬼/断索鬼_visual.tscn" id="7"]
+[ext_resource type="PackedScene" path="res://scenes/unit/visual/monster/桥台噬者/桥台噬者_visual.tscn" id="8"]
+[ext_resource type="PackedScene" path="res://scenes/unit/visual/monster/脱缝鬼/脱缝鬼_visual.tscn" id="9"]
+[ext_resource type="PackedScene" path="res://scenes/unit/visual/monster/旧制监工/旧制监工_visual.tscn" id="10"]
+[ext_resource type="PackedScene" path="res://scenes/unit/visual/monster/守法匠首/守法匠首_visual.tscn" id="11"]
+[ext_resource type="PackedScene" path="res://scenes/unit/visual/monster/重墩石像/重墩石像_visual.tscn" id="12"]
+[ext_resource type="PackedScene" path="res://scenes/unit/visual/monster/裂石兽/裂石兽_visual.tscn" id="13"]
+[ext_resource type="PackedScene" path="res://scenes/unit/visual/monster/错券兵/错券兵_visual.tscn" id="14"]
+[ext_resource type="PackedScene" path="res://scenes/unit/visual/monster/漂木群洪水版/漂木群洪水版_visual.tscn" id="15"]
+
+[resource]
+script = ExtResource("1")
+entries = {
+"暗涌": ExtResource("2"),
+"水旋": ExtResource("3"),
+"坍岸泥流": ExtResource("4"),
+"浮木群": ExtResource("5"),
+"洪峰": ExtResource("6"),
+"洪锋": ExtResource("6"),
+"断索风": ExtResource("7"),
+"桥台侵蚀": ExtResource("8"),
+"桥台噬者": ExtResource("8"),
+"泥沙魇": ExtResource("4"),
+"脱缝潮": ExtResource("9"),
+"旧制监工": ExtResource("10"),
+"循旧匠首": ExtResource("11"),
+"重墩石像": ExtResource("12"),
+"裂石兽": ExtResource("13"),
+"错券兵": ExtResource("14"),
+"漂木群·洪水版": ExtResource("15")
+}

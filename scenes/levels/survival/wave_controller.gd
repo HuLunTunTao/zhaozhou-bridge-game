@@ -4,11 +4,17 @@ extends Node
 ##
 ## 监听 BaseLevel.phase_changed → 第 1 波；监听 unit_died → 敌方全灭后跑波间序列。
 ##
-## 波次主题：[木, 火, 土, 金, 水] 循环；每 5 波出 Boss。
-## 波间：友方回血 30-60% → 40% 概率召唤支援 → 三选一 buff → 下一波。
+## 波次主题：[木, 火, 土, 金, 水] 循环；每 N 波出 Boss（N = config.boss_every）。
+## 波间：友方回血 → 概率召唤支援 → 三选一 buff → 下一波。
+##
+## 节奏公式 / buff 池 / 可学技能池的真源是 SurvivalWaveConfig（data/stages/survival/wave_config.tres）；
+## 刷点的真源是地图锚点节点（survival.tscn 的 WaveSpawnAnchors/North|South/*），拖锚点即可改刷点。
 
 const PLAYER_TEAM := 0
 const AI_TEAM := 1
+
+## 刷点锚点容器（挂在关卡场景根下）。North / South 两组保持刷点的组织分区。
+const SPAWN_ANCHORS_ROOT := "WaveSpawnAnchors"
 
 const ELEMENTS: Array[int] = [
 	Enums.Element.WOOD,
@@ -97,44 +103,24 @@ const _ENEMY_SKILLS: Dictionary = {
 	"whirl_pool": [_SK_SPIRAL],
 }
 
-# ── 怪物刷出位置（北/南两个方向，level1-1 验证过的可走格） ──
-const _SPAWN_CELLS_NORTH: Array[Vector2i] = [
-	Vector2i(13, -24), Vector2i(10, -19), Vector2i(15, -24),
-	Vector2i(11, -18), Vector2i(14, -21), Vector2i(14, -24),
-]
-const _SPAWN_CELLS_SOUTH: Array[Vector2i] = [
-	Vector2i(-19, 21), Vector2i(-22, 20), Vector2i(-24, 20), Vector2i(-20, 21),
-]
-
-# ── 数值常量 ──
-const HEAL_MIN_RATIO := 0.30
-const HEAL_MAX_RATIO := 0.60
-const SUPPORT_PROB := 0.40
-const BOSS_EVERY := 5
-const SCALING_START_WAVE := 10
-const SCALING_PER_WAVE := 0.1
-const PACK_BASE := 2
-const PACK_GROW_DIVISOR := 3
-const PACK_MAX := 6
-const BUFF_HP_SMALL_AMOUNT := 15
-const BUFF_HP_BIG_AMOUNT := 30
-const BUFF_BIG_HP_UNLOCK_WAVE := 5
-const BUFF_ELEMENT_AMOUNT := 3
-
 # ── 状态 ──
 var _level: BaseLevel
+## 波次配置（节奏公式 + buff 池 + 可学技能池）。真源 data/stages/survival/wave_config.tres。
+var _config: SurvivalWaveConfig
+## 地图锚点解析出的刷点格（顺序：North 组在前，South 组在后，各自按场景树顺序）。
+var _spawn_cells: Array[Vector2i] = []
 ## 类型用 Node 而不是 WaveBuffHud：避免 class_name 加载顺序问题。运行时通过 add_buff/set_wave 鸭子调用。
 var _hud: Node
 var _wave_index: int = 0
 var _between_waves_running: bool = false
-## 玩家可学到的技能候选池（avoid 已学）。
-var _learnable_skills: Array[SkillData] = []
 
 
-func setup(level: BaseLevel, hud: Node, learnable_skills: Array[SkillData]) -> void:
+func setup(level: BaseLevel, hud: Node, config: SurvivalWaveConfig) -> void:
 	_level = level
 	_hud = hud
-	_learnable_skills = learnable_skills
+	# 缺配置时用类默认值兜底（等价于旧常量），不让 null 打穿整套节奏。
+	_config = config if config != null else SurvivalWaveConfig.new()
+	_spawn_cells = _resolve_spawn_anchor_cells()
 	_level.phase_changed.connect(_on_phase_changed)
 	_level.unit_died.connect(_on_unit_died)
 
@@ -153,7 +139,7 @@ func _on_phase_changed(p: int) -> void:
 func _start_wave(n: int) -> void:
 	_wave_index = n
 	var element: int = ELEMENTS[(n - 1) % ELEMENTS.size()]
-	var is_boss: bool = (n % BOSS_EVERY == 0)
+	var is_boss: bool = (n % _config.boss_every == 0)
 	if _hud:
 		_hud.set_wave(n)
 	_announce_wave(n, element, is_boss)
@@ -180,7 +166,7 @@ func _spawn_wave(n: int, element: int, is_boss: bool) -> void:
 		var boss_data: UnitData = _BOSS_BY_ELEMENT.get(element, pool[0])
 		_spawn_one(boss_data, spawn_cells.pop_front(), color, n, true)
 		@warning_ignore("integer_division")
-		var minion_count: int = n / 10
+		var minion_count: int = n / _config.boss_minion_divisor
 		for i in minion_count:
 			if spawn_cells.is_empty():
 				break
@@ -195,18 +181,17 @@ func _spawn_wave(n: int, element: int, is_boss: bool) -> void:
 func _pack_count(n: int, is_boss: bool) -> int:
 	if is_boss:
 		@warning_ignore("integer_division")
-		var bonus: int = n / 10
+		var bonus: int = n / _config.boss_pack_bonus_divisor
 		return 1 + bonus
 	@warning_ignore("integer_division")
-	var grow: int = n / PACK_GROW_DIVISOR
-	return mini(PACK_BASE + grow, PACK_MAX)
+	var grow: int = n / _config.pack_grow_divisor
+	return mini(_config.pack_base + grow, _config.pack_max)
 
 
 func _pick_spawn_cells(count: int) -> Array[Vector2i]:
 	# 北/南交替挑，避开已被占用的格
 	var pool: Array[Vector2i] = []
-	pool.append_array(_SPAWN_CELLS_NORTH)
-	pool.append_array(_SPAWN_CELLS_SOUTH)
+	pool.append_array(_spawn_cells)
 	pool.shuffle()
 	var occupied := _occupied_cells()
 	var picked: Array[Vector2i] = []
@@ -220,6 +205,31 @@ func _pick_spawn_cells(count: int) -> Array[Vector2i]:
 	return picked
 
 
+## 读地图锚点节点 → 刷点格。锚点所在格即刷点（同 UnitFactory 从节点位置反推 cell 的惯例）。
+## North / South 两组只是组织分区；返回顺序保持「North 全部 → South 全部」，各自按场景树顺序。
+func _resolve_spawn_anchor_cells() -> Array[Vector2i]:
+	var out: Array[Vector2i] = []
+	var root := _level.get_node_or_null(SPAWN_ANCHORS_ROOT)
+	if root == null:
+		push_warning("[Survival] 场景缺少 %s 锚点节点，波次将无处刷怪" % SPAWN_ANCHORS_ROOT)
+		return out
+	if _level.tilemap == null:
+		push_warning("[Survival] 无可走 tilemap，锚点刷点无法换算成格子")
+		return out
+	for group_name: String in ["North", "South"]:
+		var group := root.get_node_or_null(group_name)
+		if group == null:
+			continue
+		for child in group.get_children():
+			if child is Node2D:
+				out.append(_cell_of_anchor(child as Node2D))
+	return out
+
+
+func _cell_of_anchor(anchor: Node2D) -> Vector2i:
+	return _level.tilemap.local_to_map(_level.tilemap.to_local(anchor.global_position))
+
+
 func _occupied_cells() -> Array[Vector2i]:
 	var out: Array[Vector2i] = []
 	for team in _level.teams:
@@ -230,25 +240,25 @@ func _occupied_cells() -> Array[Vector2i]:
 
 
 func _spawn_one(unit_data: UnitData, cell: Vector2i, color: Color, wave: int, is_boss: bool) -> Unit:
-	var unit := _level.spawn_unit(unit_data, cell, AI_TEAM)
+	var unit := _level._get_unit_factory().spawn_unit(unit_data, cell, AI_TEAM)
 	if unit == null:
 		return null
 	unit.unit_color = color
-	# 难度缩放：从 N=10 起按 10% / 波 提升 HP / ATK
-	if wave >= SCALING_START_WAVE and unit.combat_stats != null:
-		var mult := 1.0 + (wave - SCALING_START_WAVE) * SCALING_PER_WAVE
+	# 难度缩放：从 scaling_start_wave 起按 scaling_per_wave / 波 提升 HP / ATK
+	if wave >= _config.scaling_start_wave and unit.combat_stats != null:
+		var mult := 1.0 + (wave - _config.scaling_start_wave) * _config.scaling_per_wave
 		unit.combat_stats.max_hp = int(unit.combat_stats.max_hp * mult)
 		unit.combat_stats.current_hp = unit.combat_stats.max_hp
 		unit.combat_stats.base_atk = int(unit.combat_stats.base_atk * mult)
 		unit.refresh_overhead_bars()
 	# Boss 再加成
 	if is_boss and unit.combat_stats != null:
-		unit.combat_stats.max_hp = int(unit.combat_stats.max_hp * 1.3)
+		unit.combat_stats.max_hp = int(unit.combat_stats.max_hp * _config.boss_hp_mult)
 		unit.combat_stats.current_hp = unit.combat_stats.max_hp
 		unit.refresh_overhead_bars()
 	var enemy_skills: Array = _ENEMY_SKILLS.get(unit_data.unit_id, [])
 	if not enemy_skills.is_empty():
-		_level.set_unit_skills(unit, enemy_skills)
+		_level._get_unit_factory().set_unit_skills(unit, enemy_skills)
 	return unit
 
 
@@ -287,12 +297,12 @@ func _run_between_waves() -> void:
 	_between_waves_running = true
 	# 1. 友方回血
 	_heal_player_team()
-	# 2. 40% 概率召唤支援
-	if randf() < SUPPORT_PROB:
+	# 2. 概率召唤支援
+	if randf() < _config.support_prob:
 		_spawn_support()
-	# 3. 等正在跑的 chatter / overlay 收尾
+	# 3. 等正在跑的 chatter / overlay 收尾（overlay_closed 信号唤醒，不再逐帧轮询）
 	while _level.has_overlay():
-		await get_tree().process_frame
+		await _level.overlay_closed
 		if _level.is_phase_ended():
 			_between_waves_running = false
 			return
@@ -315,7 +325,7 @@ func _heal_player_team() -> void:
 		var unit := u as Unit
 		if unit.combat_stats == null or not unit.combat_stats.is_alive():
 			continue
-		var ratio: float = randf_range(HEAL_MIN_RATIO, HEAL_MAX_RATIO)
+		var ratio: float = randf_range(_config.heal_min_ratio, _config.heal_max_ratio)
 		var amount: int = int(unit.combat_stats.max_hp * ratio)
 		var old_hp: int = unit.combat_stats.current_hp
 		unit.combat_stats.current_hp = mini(unit.combat_stats.max_hp, old_hp + amount)
@@ -328,12 +338,12 @@ func _heal_player_team() -> void:
 func _spawn_support() -> void:
 	var data: UnitData = _SUPPORT_POOL[randi() % _SUPPORT_POOL.size()]
 	var cell := _pick_support_cell()
-	var unit := _level.spawn_unit(data, cell, PLAYER_TEAM)
+	var unit := _level._get_unit_factory().spawn_unit(data, cell, PLAYER_TEAM)
 	if unit == null:
 		return
 	var skills: Array = _SUPPORT_SKILLS.get(data.unit_id, [])
 	if not skills.is_empty():
-		_level.set_unit_skills(unit, skills)
+		_level._get_unit_factory().set_unit_skills(unit, skills)
 	Notify.notify("支援抵达：%s" % data.unit_name, Notify.Position.TOP_RIGHT, Notify.Style.SUCCESS, 4.0)
 
 
@@ -374,13 +384,10 @@ func _prompt_buff_choice() -> void:
 	panel.set("panel_title", "波间增益")
 	panel.set("options", options)
 	panel.set("required_selection_count", 1)
-	# 手动管 overlay：GrowthChoicePanel 的 options_confirmed 带参，不能走 _open_overlay 的自动连接
-	_level._active_overlay = BaseLevel.ActiveOverlay.GROWTH_CHOICE
-	_level.add_child(panel)
-	_level.overlay_opened.emit(BaseLevel.ActiveOverlay.GROWTH_CHOICE)
+	if not _level._open_overlay(BaseLevel.ActiveOverlay.GROWTH_CHOICE, panel, &"options_confirmed"):
+		panel.queue_free()
+		return
 	var ids: Array = await panel.options_confirmed
-	_level._active_overlay = BaseLevel.ActiveOverlay.NONE
-	_level.overlay_closed.emit(BaseLevel.ActiveOverlay.GROWTH_CHOICE)
 	if ids.is_empty():
 		return
 	for id in ids:
@@ -399,47 +406,30 @@ func _find_option_by_id(options: Array[Dictionary], id: String) -> Dictionary:
 
 func _build_buff_options() -> Array[Dictionary]:
 	var pool: Array[Dictionary] = []
-	# HP +15
-	pool.append({
-		"id": "hp_cap_small",
-		"name": "强身（+%d HP 上限）" % BUFF_HP_SMALL_AMOUNT,
-		"description": "李春最大 HP +%d，并立即回满" % BUFF_HP_SMALL_AMOUNT,
-		"_kind": "hp_cap", "_amount": BUFF_HP_SMALL_AMOUNT,
-		"_label": "+%d HP" % BUFF_HP_SMALL_AMOUNT,
-	})
-	# HP +30 (>= 5 wave)
-	if _wave_index >= BUFF_BIG_HP_UNLOCK_WAVE:
-		pool.append({
-			"id": "hp_cap_big",
-			"name": "砥柱（+%d HP 上限）" % BUFF_HP_BIG_AMOUNT,
-			"description": "李春最大 HP +%d，并立即回满" % BUFF_HP_BIG_AMOUNT,
-			"_kind": "hp_cap", "_amount": BUFF_HP_BIG_AMOUNT,
-			"_label": "+%d HP" % BUFF_HP_BIG_AMOUNT,
-		})
-	# AP +1
-	pool.append({
-		"id": "ap_cap",
-		"name": "锐意（+1 AP 上限）",
-		"description": "李春每回合 AP 上限 +1（约+10 行动力）",
-		"_kind": "ap_cap", "_amount": 10,
-		"_label": "+10 AP",
-	})
-	# Element attach (5 个元素各一个候选)
-	for elt in ELEMENTS:
-		var elt_short: String = "染" + ELEMENT_NAMES.get(elt, "").substr(0, 1)
-		pool.append({
-			"id": "element_attach_%d" % elt,
-			"name": "%s（附着 %s）" % [elt_short, ELEMENT_NAMES.get(elt, "")],
-			"description": "李春当前 %s 附着，下 %d 次出招带元素" % [ELEMENT_NAMES.get(elt, ""), BUFF_ELEMENT_AMOUNT],
-			"_kind": "element_attach", "_element": elt,
-			"_label": elt_short,
-		})
-	# Grant skill (filter已学)
+	# 静态 buff 池：逐条读 WaveBuffDef（unlock_wave 未到的不入池）
+	for raw in _config.buffs:
+		var def := raw as WaveBuffDef
+		if def == null:
+			continue
+		if def.unlock_wave > 0 and _wave_index < def.unlock_wave:
+			continue
+		var opt := {
+			"id": def.id,
+			"name": def.display_name,
+			"description": def.description,
+			"_kind": def.kind,
+			"_amount": def.amount,
+			"_label": def.label,
+		}
+		if def.kind == "element_attach":
+			opt["_element"] = def.element
+		pool.append(opt)
+	# 学技卡（filter已学）：名称 / 描述取自 SkillData，不进 .tres
 	var hero_unit: Unit = _level.hero as Unit
 	var hero_skills: Array = []
 	if hero_unit != null and hero_unit.unit_data != null:
 		hero_skills = hero_unit.unit_data.skills
-	for sk in _learnable_skills:
+	for sk in _config.learnable_skills:
 		if sk in hero_skills:
 			continue
 		pool.append({
@@ -480,11 +470,11 @@ func _apply_buff(opt: Dictionary) -> void:
 		"element_attach":
 			var elt: int = int(opt.get("_element", Enums.Element.NONE))
 			stats.current_element = elt as Enums.Element
-			stats.current_element_amount = BUFF_ELEMENT_AMOUNT
+			stats.current_element_amount = int(opt.get("_amount", 0))
 			hero_unit.refresh_overhead_bars()
 		"grant_skill":
 			var sk: SkillData = opt.get("_skill", null)
 			if sk:
-				_level.grant_skill(hero_unit, sk)
+				_level._get_unit_factory().grant_skill(hero_unit, sk)
 	if _hud:
 		_hud.add_buff(String(opt.get("_label", opt.get("name", ""))))

@@ -21,7 +21,6 @@ extends CanvasLayer
 @onready var _tip: Label = %Tip
 
 const TEXT_COLOR := Color(0.96, 0.94, 0.88)
-const DIM_COLOR := Color(0.65, 0.6, 0.5)
 const PERSUADE_COLOR := Color(0.55, 0.78, 1.0)
 const QA_COLOR := Color(0.55, 0.95, 0.6)
 const MENTOR_COLOR := Color(1.0, 0.85, 0.32)
@@ -56,6 +55,14 @@ func set_targets(persuade_target: int, qa_target: int) -> void:
 	_refresh_counts()
 
 
+## 外部推送计数（单一真相源：level 的 _persuaded_count / _qa_solved_count）。
+func set_counts(persuade_done: int, qa_done: int) -> void:
+	_persuade_done = persuade_done
+	_qa_done = qa_done
+	_refresh_counts()
+	_refresh_title()
+
+
 func add_npc(role: String, npc_name: String, done: bool) -> void:
 	if _entries.has(npc_name):
 		update_npc(role, npc_name, done)
@@ -79,8 +86,6 @@ func add_npc(role: String, npc_name: String, done: bool) -> void:
 		"final_score": 0,
 	}
 	_render(npc_name, role, done)
-	if done:
-		_inc_count(role)
 
 
 func update_npc(role: String, npc_name: String, done: bool) -> void:
@@ -88,10 +93,7 @@ func update_npc(role: String, npc_name: String, done: bool) -> void:
 		add_npc(role, npc_name, done)
 		return
 	var entry: Dictionary = _entries[npc_name]
-	var was_done: bool = bool(entry.get("done", false))
 	_render(npc_name, role, done)
-	if done and not was_done:
-		_inc_count(role)
 
 
 ## 更新 persuade NPC 的说服进度与上轮计分。仅 persuade 起效；qa / mentor 调用静默忽略。
@@ -162,16 +164,6 @@ func _list_for(role: String) -> VBoxContainer:
 			return _mentor_list
 		_:
 			return null
-
-
-func _inc_count(role: String) -> void:
-	match role:
-		"persuade":
-			_persuade_done += 1
-		"qa":
-			_qa_done += 1
-	_refresh_counts()
-	_refresh_title()
 
 
 func _refresh_counts() -> void:

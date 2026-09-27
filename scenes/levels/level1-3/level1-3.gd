@@ -40,6 +40,12 @@ var _crown_point: Vector2i
 var _stone_yard_cells: Array[Vector2i] = []
 var _joint_cells: Array[Vector2i] = []
 var _bridge_cells: Dictionary = {}  # 桥面可落脚 cell 集合（敌人刷新必须在桥上）
+# 石料场 / 券台的取石·交石交互派发表（InteractionTile 参数化，落格触发）
+var _interactions: Array[InteractionTile] = []
+# Boss 减伤策略（Step 4.4）：CAP 模式 → 单次伤害上限随左右差值现算（_boss_damage_cap）
+var _boss_dr: BossDRPolicy = null
+# 阶段接线器（Step 4.6）
+var _stage_hooks: StageHooks = StageHooks.new()
 
 var _craftsman_data: UnitData = preload("res://data/units/craftsman_guard.tres")
 var _mud_data: UnitData = preload("res://data/units/bank_mud_wraith.tres")
@@ -47,16 +53,13 @@ var _dark_data: UnitData = preload("res://data/units/dark_current.tres")
 
 # 教程引导（L1-1 / L1-4 同款 dialogue 流程）。
 const TUTORIAL_ID := "level1-3"
-# 教程"亲手用一次墨绳校券"的同步态。
-var _tutorial_inkline_used: bool = false
+# 教程"亲手取 / 交一次石"的同步态：取 / 交石交互效果置位，教程谓词消费。
 var _tutorial_stone_picked: bool = false
 var _tutorial_stone_delivered: bool = false
 
 var _staff: SkillData = preload("res://data/skills/sw_staff_end_strike.tres")
 var _mallet: SkillData = preload("res://data/skills/cg_mallet_strike.tres")
 var _guard: SkillData = preload("res://data/skills/cg_guard_the_works.tres")
-var _divider: SkillData = preload("res://data/skills/lc_divider_mark_arc.tres")
-var _inkline: SkillData = preload("res://data/skills/lc_inkline_balance_arch.tres")
 var _crush: SkillData = preload("res://data/skills/bmw_crumbling_bank_crush.tres")
 var _lunge: SkillData = preload("res://data/skills/dc_hidden_current_lunge.tres")
 var _timber: SkillData = preload("res://data/skills/dlp_drifting_timber_crash.tres")
@@ -76,10 +79,6 @@ const COLOR_LEFT_PLATFORM := Color(0.95, 0.75, 0.25, 0.65)    # 金色 —— �
 const COLOR_RIGHT_PLATFORM := Color(0.25, 0.65, 0.95, 0.65)   # 蓝色 —— 右券台
 const COLOR_STONE_YARD := Color(0.55, 0.40, 0.25, 0.35)       # 棕色 —— 石料场（较淡）
 const COLOR_CROWN_PLATFORM := Color(0.75, 0.40, 0.95, 0.70)   # 紫色 —— 拱冠合龙点
-const COLOR_LEFT_HALO := Color(1.0, 0.80, 0.25, 0.50)         # 金色光晕
-const COLOR_RIGHT_HALO := Color(0.30, 0.70, 1.0, 0.50)        # 蓝色光晕
-const COLOR_STONE_HALO := Color(0.70, 0.50, 0.30, 0.30)       # 棕色光晕（更淡）
-const COLOR_CROWN_HALO := Color(0.85, 0.50, 1.0, 0.55)        # 紫色光晕
 
 # ── 地图固定锚点（按桥面 tile 实际位置解码得出，视觉关于桥中轴 x==y 镜像对称）──
 # 桥图层并集范围：grid x=[-19,16] y=[-18,17]；视觉中轴位于 x-y=0 这条竖线（即 x==y）。
@@ -124,76 +123,82 @@ func get_teams_config() -> Array:
 	]
 
 
+# 波次表（WaveSpawns，Step 4.7）：节奏模板外置 data/stages/chapter1_stage3/wave_spawns.tres。
+var _wave_spawns: WaveSpawns = preload("res://data/stages/chapter1_stage3/wave_spawns.tres")
+
+# 我方属性表（Step 4.8）：李春 / 工匠 / 运石工 的数值外置 data/units/roster_level1-3.tres。
+var _roster: UnitRoster = preload("res://data/units/roster_level1-3.tres")
+
+
 func get_wave_config() -> Dictionary:
 	# 节奏：前 25 回合自然刷怪（9 波，单只与双只混合），r25 之后不再刷怪，
 	# 进入 Boss 攻坚阶段。开场已有 Boss + 2 错券兵 + 1 裂石兽。
-	# boss clutch 急召是独立触发。
-	var left_flank := _nearest_bridge_cell(_left_platform + Vector2i(-2, 0))
-	var right_flank := _nearest_bridge_cell(_right_platform + Vector2i(2, 0))
-	var center_front := _nearest_bridge_cell(_crown_point + Vector2i(0, 1))
-	var stone_yard_left := _nearest_bridge_cell(_stone_yard_cells[0] + Vector2i(-1, -2))
-	var stone_yard_right := _nearest_bridge_cell(_stone_yard_cells[1] + Vector2i(-2, -1))
-	var misaligned_flank: Vector2i
-	if _right_arch_value > _left_arch_value:
-		misaligned_flank = right_flank
-	else:
-		misaligned_flank = left_flank
-	return {
-		3: [
-			{"unit_data": _make_unit_data(_dark_data, "断索鬼", 66, 18, 100, 7, Enums.Element.WOOD, 2),
-				"cell": stone_yard_left, "team_index": ENEMY_TEAM,
-				"skills": [_timber], "visual": _visual_rope_sever},
-		],
-		5: [
-			{"unit_data": _make_unit_data(_craftsman_data, "错券兵", 77, 17, 90, 9),
-				"cell": misaligned_flank, "team_index": ENEMY_TEAM,
-				"skills": [_mallet], "visual": _visual_misaligned},
-		],
-		7: [
-			{"unit_data": _make_unit_data(_mud_data, "裂石兽", 95, 22, 90, 10, Enums.Element.EARTH, 2),
-				"cell": center_front, "team_index": ENEMY_TEAM,
-				"skills": [_crush], "visual": _visual_stone_split},
-			{"unit_data": _make_unit_data(_craftsman_data, "错券兵", 77, 17, 90, 9),
-				"cell": misaligned_flank, "team_index": ENEMY_TEAM,
-				"skills": [_mallet], "visual": _visual_misaligned},
-		],
-		10: [
-			{"unit_data": _make_unit_data(_dark_data, "脱缝鬼", 60, 15, 95, 8, Enums.Element.WATER, 2),
-				"cell": _joint_cells[0], "team_index": ENEMY_TEAM,
-				"skills": [_lunge], "visual": _visual_joint_shade},
-		],
-		13: [
-			{"unit_data": _make_unit_data(_craftsman_data, "错券兵", 77, 17, 90, 9),
-				"cell": misaligned_flank, "team_index": ENEMY_TEAM,
-				"skills": [_mallet], "visual": _visual_misaligned},
-		],
-		15: [
-			{"unit_data": _make_unit_data(_dark_data, "断索鬼", 66, 18, 100, 7, Enums.Element.WOOD, 2),
-				"cell": stone_yard_right, "team_index": ENEMY_TEAM,
-				"skills": [_timber], "visual": _visual_rope_sever},
-			{"unit_data": _make_unit_data(_mud_data, "裂石兽", 95, 22, 90, 10, Enums.Element.EARTH, 2),
-				"cell": right_flank, "team_index": ENEMY_TEAM,
-				"skills": [_crush], "visual": _visual_stone_split},
-		],
-		18: [
-			{"unit_data": _make_unit_data(_dark_data, "脱缝鬼", 60, 15, 95, 8, Enums.Element.WATER, 2),
-				"cell": _joint_cells[1], "team_index": ENEMY_TEAM,
-				"skills": [_lunge], "visual": _visual_joint_shade},
-		],
-		21: [
-			{"unit_data": _make_unit_data(_craftsman_data, "错券兵", 77, 17, 90, 9),
-				"cell": misaligned_flank, "team_index": ENEMY_TEAM,
-				"skills": [_mallet], "visual": _visual_misaligned},
-		],
-		24: [
-			{"unit_data": _make_unit_data(_dark_data, "断索鬼", 66, 18, 100, 7, Enums.Element.WOOD, 2),
-				"cell": stone_yard_left, "team_index": ENEMY_TEAM,
-				"skills": [_timber], "visual": _visual_rope_sever},
-			{"unit_data": _make_unit_data(_craftsman_data, "错券兵", 77, 17, 90, 9),
-				"cell": misaligned_flank, "team_index": ENEMY_TEAM,
-				"skills": [_mallet], "visual": _visual_misaligned},
-		],
-	}
+	# boss clutch 急召是独立触发。刷点 cell_hint 在 _resolve_wave_cell_hint 现算
+	#（misaligned_flank 随左右券值高低动态取侧）。
+	var waves: Dictionary = {}
+	for res in _wave_spawns.entries:
+		var entry := res as WaveEntry
+		if entry == null:
+			continue
+		var unit_bundle := _resolve_wave_unit(entry.unit_kind)
+		if unit_bundle.is_empty():
+			push_warning("wave_spawns: 未知 unit_kind '%s'" % entry.unit_kind)
+			continue
+		var round_num: int = entry.round_number
+		if not waves.has(round_num):
+			waves[round_num] = []
+		waves[round_num].append({
+			"unit_data": unit_bundle["unit_data"],
+			"cell": _resolve_wave_cell_hint(entry.cell_hint),
+			"team_index": ENEMY_TEAM,
+			"skills": unit_bundle["skills"],
+			"visual": unit_bundle["visual"],
+		})
+	return waves
+
+
+# unit_kind → (UnitData 副本, 技能表, 视觉)。波次模板只写 kind，具体配置在此（1-4 同款解析层）。
+func _resolve_wave_unit(kind: String) -> Dictionary:
+	match kind:
+		"rope_sever":
+			return {"unit_data": _make_unit_data(_dark_data, "断索鬼", 66, 18, 100, 7, Enums.Element.WOOD, 2),
+				"skills": [_timber], "visual": _visual_rope_sever}
+		"misalign_soldier":
+			return {"unit_data": _make_unit_data(_craftsman_data, "错券兵", 77, 17, 90, 9),
+				"skills": [_mallet], "visual": _visual_misaligned}
+		"stone_split":
+			return {"unit_data": _make_unit_data(_mud_data, "裂石兽", 95, 22, 90, 10, Enums.Element.EARTH, 2),
+				"skills": [_crush], "visual": _visual_stone_split}
+		"joint_shade":
+			return {"unit_data": _make_unit_data(_dark_data, "脱缝鬼", 60, 15, 95, 8, Enums.Element.WATER, 2),
+				"skills": [_lunge], "visual": _visual_joint_shade}
+	return {}
+
+
+# cell_hint → 绝对刷点格（旧 get_wave_config 顶部的锚点表达式逐字）。
+func _resolve_wave_cell_hint(hint: String) -> Vector2i:
+	match hint:
+		"stone_yard_left":
+			return _nearest_bridge_cell(_stone_yard_cells[0] + Vector2i(-1, -2))
+		"stone_yard_right":
+			return _nearest_bridge_cell(_stone_yard_cells[1] + Vector2i(-2, -1))
+		"center_front":
+			return _nearest_bridge_cell(_crown_point + Vector2i(0, 1))
+		"left_flank":
+			return _nearest_bridge_cell(_left_platform + Vector2i(-2, 0))
+		"right_flank":
+			return _nearest_bridge_cell(_right_platform + Vector2i(2, 0))
+		"joint_a":
+			return _joint_cells[0]
+		"joint_b":
+			return _joint_cells[1]
+		# 错券兵贴扰券侧：哪侧券值高就出在哪侧（相等取左，与旧分支一致）
+		"misaligned_flank":
+			if _right_arch_value > _left_arch_value:
+				return _resolve_wave_cell_hint("right_flank")
+			return _resolve_wave_cell_hint("left_flank")
+	push_warning("wave_spawns: 未知 cell_hint '%s'，退回拱冠点" % hint)
+	return _crown_point
 
 
 func get_objectives_text() -> Dictionary:
@@ -237,15 +242,20 @@ func _on_level_ready() -> void:
 	# 会按 global_position 吸附到最近 cell。桥面固定锚点走 _setup_anchor_cells 常量。
 	_build_bridge_cells()
 	_setup_anchor_cells()
+	_setup_stone_interactions()
 	_setup_li_chun()
 	_setup_allies_from_scene()
 	_spawn_enemies()
 	_setup_status_panel()
-	team_turn_started.connect(_on_stage_team_turn_started)
-	unit_hp_changed.connect(_on_stage_hp_changed)
-	round_started.connect(_on_stage_round_started)
-	# 教程对话不能在 BRIEFING 阶段就跑（会和初始目标面板抢输入），等 PLAYING 之后再触发。
-	phase_changed.connect(_on_phase_changed_for_onboarding)
+	# 阶段接线（StageHooks 声明式）
+	_stage_hooks.setup(self)
+	_stage_hooks.connect_all({
+		"team_turn_started": _on_stage_team_turn_started,
+		"unit_hp_changed": _on_stage_hp_changed,
+		"round_started": _on_stage_round_started,
+		# 教程对话不能在 BRIEFING 阶段就跑（会和初始目标面板抢输入），等 PLAYING 之后再触发。
+		"phase_changed": _on_phase_changed_for_onboarding,
+	})
 	_update_status_panel()
 	_update_crown_visibility()
 	_prev_balance_state = _balance_state()
@@ -259,109 +269,126 @@ func _on_phase_changed_for_onboarding(p: int) -> void:
 
 # 完整对话教程（仿 L1-1 / L1-4 P1）。复玩走 has_seen_tutorial 自动跳过。
 # 设计：目标说明 → 手把手取石/交石 → boss 免伤机制 → 墨绳校券调平 → 收尾确认。
+# 步进数据在 _build_onboarding_steps()，由 TutorialRunner.run_steps 驱动。
 func _run_onboarding() -> void:
 	if Progress.has_seen_tutorial(TUTORIAL_ID):
 		if not await _ask_tutorial_replay():
-			Notify.notify(
-				"运石工取送石 +3；李春「墨绳校券」命中侧 +1、对侧 -1；保持差值 ≤1 才能有效击退偏载傀",
-				Notify.Position.TOP_CENTER, Notify.Style.INFO, 6.0,
+			Notify.hint(
+				"运石工取送石 +3；李春「墨绳校券」命中侧 +1、对侧 -1；保持差值 ≤1 才能有效击退偏载傀", 6.0,
 			)
 			return
 	await get_tree().create_timer(0.4).timeout
 	if is_phase_ended():
 		return
-	# ── ① 战场目标 ──
-	await play_dialogue([
-		_lc_line("二十八券要在这里成形——这一关的最终目标不是清空全场敌人，而是把桥『券』够。"),
-		_lc_line("左上券值面板看着：左、右两侧各要凑到 [b]10[/b]，差值要 [b]≤1[/b]，再把『偏载傀』这个偏载威胁击退。"),
-		_lc_line("条件全满之后，桥中央会亮起[color=#c060f0]紫色拱冠点[/color]——我用『墨绳校券』点上去就算合龙。"),
-	])
-	if is_phase_ended():
-		return
-	# ── ② 推券两条路 ──
-	await play_dialogue([
-		_lc_line("券值先靠工人推。让运石工进入[b]棕色石料场[/b]，他会自动取石；再把石头送进[color=#e0a830]金券台[/color]或[color=#3098e8]蓝券台[/color]的 2×2 区域，对应侧就会 +3。"),
-		_lc_line("先亲手走一遍。选一个运石工，把他移动到任意一处[b]棕色石料场[/b]里。"),
-	])
-	if is_phase_ended():
-		return
+	# 谓词上膛：等价原 while 循环前的 `_tutorial_stone_* = false` 清零。
 	_tutorial_stone_picked = false
-	Notify.notify(
-		"选中运石工 → 移动到棕色石料场 2×2 区域；进格后会自动取石。",
-		Notify.Position.TOP_CENTER, Notify.Style.INFO, 14.0,
-	)
-	while not _tutorial_stone_picked:
-		await unit_move_completed
-		if is_phase_ended():
-			return
-	# ── ③ 手把手交石加券 ──
-	await play_dialogue([
-		_lc_line("好，头顶出现『负石』就说明石料已经背上了。负石会让移动更沉，别让断索鬼盯上。"),
-		_lc_line("现在把这个运石工送到[color=#e0a830]金券台[/color]或[color=#3098e8]蓝券台[/color]里。进到 2×2 区域就会自动交石，加到那一侧券值上。"),
-	])
-	if is_phase_ended():
-		return
 	_tutorial_stone_delivered = false
-	Notify.notify(
-		"移动负石运石工 → 进入金/蓝券台 2×2 区域；交石后该侧券值 +3。",
-		Notify.Position.TOP_CENTER, Notify.Style.INFO, 14.0,
-	)
-	while not _tutorial_stone_delivered:
-		await unit_move_completed
-		if is_phase_ended():
-			return
+	await _get_tutorial_runner().run_steps(_build_onboarding_steps())
+	if not is_phase_ended():
+		Progress.mark_tutorial_seen(TUTORIAL_ID)
+
+
+# 教程步进数据。顺序 / 文案 / 等待条件与旧手写版一一对应。
+func _build_onboarding_steps() -> Array[TutorialStep]:
+	var steps: Array[TutorialStep] = []
+	# ── ① 战场目标 ──
+	steps.append(TutorialStep.create("objectives", [
+		{"text": "二十八券要在这里成形——这一关的最终目标不是清空全场敌人，而是把桥『券』够。"},
+		{"text": "左上券值面板看着：左、右两侧各要凑到 [b]10[/b]，差值要 [b]≤1[/b]，再把『偏载傀』这个偏载威胁击退。"},
+		{"text": "条件全满之后，桥中央会亮起[color=#c060f0]紫色拱冠点[/color]——我用『墨绳校券』点上去就算合龙。"},
+	]))
+	# ── ② 推券两条路 ──
+	steps.append(TutorialStep.create("pick_stone", [
+		{"text": "券值先靠工人推。让运石工进入[b]棕色石料场[/b]，他会自动取石；再把石头送进[color=#e0a830]金券台[/color]或[color=#3098e8]蓝券台[/color]的 2×2 区域，对应侧就会 +3。"},
+		{"text": "先亲手走一遍。选一个运石工，把他移动到任意一处[b]棕色石料场[/b]里。"},
+	], "选中运石工 → 移动到棕色石料场 2×2 区域；进格后会自动取石。", 14.0,
+		TutorialStep.WaitMode.PREDICATE, &"unit_move_completed",
+		func(_args: Array) -> bool: return _tutorial_stone_picked))
+	# ── ③ 手把手交石加券 ──
+	steps.append(TutorialStep.create("deliver_stone", [
+		{"text": "好，头顶出现『负石』就说明石料已经背上了。负石会让移动更沉，别让断索鬼盯上。"},
+		{"text": "现在把这个运石工送到[color=#e0a830]金券台[/color]或[color=#3098e8]蓝券台[/color]里。进到 2×2 区域就会自动交石，加到那一侧券值上。"},
+	], "移动负石运石工 → 进入金/蓝券台 2×2 区域；交石后该侧券值 +3。", 14.0,
+		TutorialStep.WaitMode.PREDICATE, &"unit_move_completed",
+		func(_args: Array) -> bool: return _tutorial_stone_delivered))
 	# ── ④ 平衡机制 + boss ──
-	await play_dialogue([
-		_lc_line("看左上面板：交石会把一侧推高，所以左右差值也会变。差值就是偏载傀的免伤开关。"),
-		_lc_line("差值 ≤1 时是[color=#7aff8c]均衡[/color]，可以正常打偏载傀；差值 2–3 是[color=#ffc855]偏衡[/color]，它每次最多只吃 10 点伤害。"),
-		_lc_line("差值 ≥4 就是[color=#ff5555]失衡[/color]，偏载傀每次最多只吃 1 点伤害——几乎等于打不动。想打 boss，先把左右拉平。"),
-	])
-	if is_phase_ended():
-		return
+	steps.append(TutorialStep.create("balance_rules", [
+		{"text": "看左上面板：交石会把一侧推高，所以左右差值也会变。差值就是偏载傀的免伤开关。"},
+		{"text": "差值 ≤1 时是[color=#7aff8c]均衡[/color]，可以正常打偏载傀；差值 2–3 是[color=#ffc855]偏衡[/color]，它每次最多只吃 10 点伤害。"},
+		{"text": "差值 ≥4 就是[color=#ff5555]失衡[/color]，偏载傀每次最多只吃 1 点伤害——几乎等于打不动。想打 boss，先把左右拉平。"},
+	]))
 	# ── ⑤ 实战：打一发墨绳校券调平 ──
-	await play_dialogue([
-		_lc_line("我这边还有一招『墨绳校券』：命中一侧券台，那侧 +1，另一侧 -1。它不是凭空加券，而是用来调平。"),
-		_lc_line("选中我，对着当前券值较低的那一侧券台来一发，看看差值怎么被拉回来。"),
-	])
-	if is_phase_ended():
-		return
-	Notify.notify(
-		"选中李春 → 选「墨绳校券」→ 点券值较低一侧的券台 2×2 任意一格。",
-		Notify.Position.TOP_CENTER, Notify.Style.INFO, 14.0,
-	)
-	_tutorial_inkline_used = false
-	skill_executed.connect(_on_tutorial_skill_executed)
-	while not _tutorial_inkline_used:
-		await skill_executed
-		if is_phase_ended():
-			if skill_executed.is_connected(_on_tutorial_skill_executed):
-				skill_executed.disconnect(_on_tutorial_skill_executed)
-			return
-	if skill_executed.is_connected(_on_tutorial_skill_executed):
-		skill_executed.disconnect(_on_tutorial_skill_executed)
+	steps.append(TutorialStep.create("inkline_practice", [
+		{"text": "我这边还有一招『墨绳校券』：命中一侧券台，那侧 +1，另一侧 -1。它不是凭空加券，而是用来调平。"},
+		{"text": "选中我，对着当前券值较低的那一侧券台来一发，看看差值怎么被拉回来。"},
+	], "选中李春 → 选「墨绳校券」→ 点券值较低一侧的券台 2×2 任意一格。", 14.0,
+		TutorialStep.WaitMode.PREDICATE, &"skill_executed",
+		# 等价原 _on_tutorial_skill_executed：仅当李春释放「墨绳校券」才算做完。
+		func(args: Array) -> bool: return args.size() >= 2 and args[0] == _li_chun and args[1] is SkillData and (args[1] as SkillData).skill_id == "lc_inkline_balance_arch"))
 	# ── ⑥ 收尾确认 ──
-	await play_dialogue([
-		_lc_line("看到了吧——运石负责把总量堆上去，墨绳负责把左右调回来。两条线要一起做。"),
-		_lc_line("后面记住三件事：两侧都到 10、差值 ≤1、偏载傀被击退。三项齐了，紫色拱冠点会亮起，再用『墨绳校券』合龙。"),
-		_lc_line("如果忘了，就点右上角的目标按钮；关卡详情里也写了取石、交石和偏载傀免伤规则。"),
-	])
-	if is_phase_ended():
-		return
-	Progress.mark_tutorial_seen(TUTORIAL_ID)
-
-
-# 教程专用 skill_executed 监听：仅当李春释放「墨绳校券」时翻起 _tutorial_inkline_used。
-# 其它操作（取送石、技能试招）不打断教程主协程。
-func _on_tutorial_skill_executed(caster: Unit, skill: SkillData, _cast_cell: Vector2i) -> void:
-	if caster == _li_chun and skill != null and skill.skill_id == "lc_inkline_balance_arch":
-		_tutorial_inkline_used = true
+	steps.append(TutorialStep.create("wrap_up", [
+		{"text": "看到了吧——运石负责把总量堆上去，墨绳负责把左右调回来。两条线要一起做。"},
+		{"text": "后面记住三件事：两侧都到 10、差值 ≤1、偏载傀被击退。三项齐了，紫色拱冠点会亮起，再用『墨绳校券』合龙。"},
+		{"text": "如果忘了，就点右上角的目标按钮；关卡详情里也写了取石、交石和偏载傀免伤规则。"},
+	]))
+	return steps
 
 
 func _on_unit_moved() -> void:
 	if selected_unit == null or not (selected_unit is Unit):
 		return
-	var unit := selected_unit as Unit
-	_try_pick_or_deliver_stone(unit)
+	InteractionTile.dispatch_touch(_interactions, selected_unit as Unit, (selected_unit as Unit).cell)
+
+
+## 石料场 / 券台的取石·交石交互点（旧 _try_pick_or_deliver_stone 的条件骨架参数化）。
+## 触发顺序与旧版逐字一致：先「运石工」闸门，再取石（空手进石料场）→ 交石（负石进券台）。
+func _setup_stone_interactions() -> void:
+	var yard_cells: Array[Vector2i] = []
+	for anchor in _stone_yard_cells:
+		yard_cells.append_array(CellMath.zone2x2_se(anchor))
+	# 取石：任一石料场 2×2 落格 → 自动取石
+	_interactions.append(InteractionTile.create(
+		yard_cells, &"", _carrier_filter, _on_pick_stone_effect, false))
+	# 交石：金 / 蓝券台 2×2 落格 → 自动卸石 + 对应侧 +3
+	_interactions.append(InteractionTile.create(
+		CellMath.zone2x2_se(_left_platform), &"", _carrier_filter, _on_deliver_stone_left, false))
+	_interactions.append(InteractionTile.create(
+		CellMath.zone2x2_se(_right_platform), &"", _carrier_filter, _on_deliver_stone_right, false))
+
+
+## 取 / 交石闸门：仅运石工（旧分支首行 `unit not in _stone_carriers` 逐字，静默拒绝）。
+func _carrier_filter(unit: Unit) -> bool:
+	return unit in _stone_carriers
+
+
+func _on_pick_stone_effect(_tile: InteractionTile, unit: Unit, _cell: Vector2i) -> void:
+	var key := unit.get_instance_id()
+	if _carrying_stone.get(key, false):
+		return
+	_carrying_stone[key] = true
+	_set_carrier_loaded(unit, true)
+	_tutorial_stone_picked = true
+	Notify.info("%s 已取石" % unit.combat_stats.unit_name, 1.5)
+
+
+func _on_deliver_stone_left(_tile: InteractionTile, unit: Unit, _cell: Vector2i) -> void:
+	var key := unit.get_instance_id()
+	if not _carrying_stone.get(key, false):
+		return
+	_adjust_arch_value(true, 3, "%s 运石入左券" % unit.combat_stats.unit_name)
+	_carrying_stone[key] = false
+	_set_carrier_loaded(unit, false)
+	_tutorial_stone_delivered = true
+
+
+func _on_deliver_stone_right(_tile: InteractionTile, unit: Unit, _cell: Vector2i) -> void:
+	var key := unit.get_instance_id()
+	if not _carrying_stone.get(key, false):
+		return
+	_adjust_arch_value(false, 3, "%s 运石入右券" % unit.combat_stats.unit_name)
+	_carrying_stone[key] = false
+	_set_carrier_loaded(unit, false)
+	_tutorial_stone_delivered = true
 
 
 func _on_skill_executed(caster: Unit, skill: SkillData, cast_cell: Vector2i, exec_result: SkillExecutor.ExecuteResult) -> void:
@@ -371,8 +398,8 @@ func _on_skill_executed(caster: Unit, skill: SkillData, cast_cell: Vector2i, exe
 		# 命中拱冠点 / 站在拱冠点上自施 → 收缝合龙
 		# 视觉光晕覆盖多格，命中点接受 _crown_point 切比雪夫半径 ≤1 范围（容差）
 		var hit_crown: bool = (
-			_is_adjacent_or_same(caster.cell, _crown_point)
-			or _is_adjacent_or_same(cast_cell, _crown_point)
+			CellMath.is_adjacent_or_same(caster.cell, _crown_point)
+			or CellMath.is_adjacent_or_same(cast_cell, _crown_point)
 		)
 		if hit_crown:
 			if _close_arch_conditions_met():
@@ -388,11 +415,11 @@ func _on_skill_executed(caster: Unit, skill: SkillData, cast_cell: Vector2i, exe
 					Notify.Position.TOP_CENTER, Notify.Style.WARNING, 3.5,
 				)
 			return
-		if _is_in_zone(cast_cell, _left_platform):
+		if CellMath.is_in_zone2x2(cast_cell, _left_platform):
 			_adjust_arch_value(true, 1, "墨绳校券（左 +1）")
 			_adjust_arch_value(false, -1, "墨绳校券（右 -1）")
 			_update_status_panel()
-		elif _is_in_zone(cast_cell, _right_platform):
+		elif CellMath.is_in_zone2x2(cast_cell, _right_platform):
 			_adjust_arch_value(false, 1, "墨绳校券（右 +1）")
 			_adjust_arch_value(true, -1, "墨绳校券（左 -1）")
 			_update_status_panel()
@@ -434,7 +461,7 @@ func _on_skill_executed(caster: Unit, skill: SkillData, cast_cell: Vector2i, exe
 		elif caster_name == "断索鬼":
 			_carrying_stone[key] = false
 			_set_carrier_loaded(target, false)
-			Notify.notify("%s 被断索鬼夺下石料" % target.combat_stats.unit_name, Notify.Position.TOP_RIGHT, Notify.Style.ERROR, 2.0)
+			Notify.error("%s 被断索鬼夺下石料" % target.combat_stats.unit_name, 2.0)
 
 
 func _on_stage_team_turn_started(team_index: int) -> void:
@@ -455,18 +482,13 @@ func _on_stage_hp_changed(unit: Unit, old_hp: int, new_hp: int) -> void:
 
 
 func _finalize_skill_hit_damage(_caster: Unit, _skill: SkillData, target: Unit, hit: CombatResolver.HitResult) -> void:
-	if target != _boss or hit.actual_damage <= 0:
+	# BossDRPolicy（CAP 模式）截断单次伤害；上限由 _boss_damage_cap 随左右差值现算
+	var info := _boss_dr.limit_hit(target, hit)
+	if not info.get("changed", false):
 		return
-	var cap := _boss_damage_cap()
-	if hit.actual_damage <= cap:
-		return
-	var raw_damage := hit.actual_damage
-	var capped_damage: int = mini(raw_damage, cap)
-	target.combat_stats.current_hp = maxi(hit.hp_before - capped_damage, 0)
-	target.refresh_overhead_bars()
 	var state := _balance_state()
 	hit.damage_limit_message = "偏载傀处于%s：本次最多承受 %d 点伤害（原伤害 %d → 实际 %d）" % [
-		state, cap, raw_damage, capped_damage,
+		state, info["cap"], info["raw"], info["capped"],
 	]
 	CombatLog.msg("    关卡机制: %s" % hit.damage_limit_message)
 
@@ -478,25 +500,23 @@ func _show_direct_damage_feedback(unit: Unit, old_hp: int, new_hp: int, message:
 	var popup := DamagePopup.new()
 	add_child(popup)
 	popup.show_at(unit.global_position, actual_damage)
-	Notify.notify(message, Notify.Position.TOP_RIGHT, Notify.Style.WARNING, 1.5)
-	unit_hp_changed.emit(unit, old_hp, new_hp)
-	if new_hp <= 0:
-		unit_died.emit(unit)
+	Notify.warn(message, 1.5)
+	_get_skill_cast_controller().report_unit_damaged(unit, old_hp, new_hp)
 
 
 func _setup_anchor_cells() -> void:
 	# 桥面锚点都是地图固定坐标，不再从李春的 cell 派生；以后李春可以任意开局位置，
 	# 拱冠 / 券台 / 缝口 / 石料场都不动。
-	_crown_point = _nearest_walkable(CROWN_CELL)
-	_left_platform = _nearest_walkable(LEFT_PLATFORM_CELL)
-	_right_platform = _nearest_walkable(RIGHT_PLATFORM_CELL)
+	_crown_point = CellMath.nearest_walkable(movement_manager, CROWN_CELL)
+	_left_platform = CellMath.nearest_walkable(movement_manager, LEFT_PLATFORM_CELL)
+	_right_platform = CellMath.nearest_walkable(movement_manager, RIGHT_PLATFORM_CELL)
 	_stone_yard_cells = [
-		_nearest_walkable(STONE_YARD_CELL_A),
-		_nearest_walkable(STONE_YARD_CELL_B),
+		CellMath.nearest_walkable(movement_manager, STONE_YARD_CELL_A),
+		CellMath.nearest_walkable(movement_manager, STONE_YARD_CELL_B),
 	]
 	_joint_cells = [
-		_nearest_walkable(JOINT_CELL_A),
-		_nearest_walkable(JOINT_CELL_B),
+		CellMath.nearest_walkable(movement_manager, JOINT_CELL_A),
+		CellMath.nearest_walkable(movement_manager, JOINT_CELL_B),
 	]
 	# ── 调试 ──
 	print("[Level1-3] anchors:")
@@ -512,16 +532,16 @@ func _setup_anchor_cells() -> void:
 
 ## 左/右券台视觉：2×2 彩色地块 + 预置的脉动光晕（见 level1-3.tscn 的 Markers 节点）。
 func _setup_platform_markers() -> void:
-	for c in _zone_cells(_left_platform):
+	for c in CellMath.zone2x2_se(_left_platform):
 		var t := _make_platform_tile(COLOR_LEFT_PLATFORM)
 		t.name = "LeftArchTile_%d_%d" % [c.x, c.y]
-		register_special_tile(t, c)
+		_special_tile_registry.register(t, c)
 	_left_platform_marker = get_node("Markers/LeftArchMarker")
 
-	for c in _zone_cells(_right_platform):
+	for c in CellMath.zone2x2_se(_right_platform):
 		var t := _make_platform_tile(COLOR_RIGHT_PLATFORM)
 		t.name = "RightArchTile_%d_%d" % [c.x, c.y]
-		register_special_tile(t, c)
+		_special_tile_registry.register(t, c)
 	_right_platform_marker = get_node("Markers/RightArchMarker")
 
 
@@ -529,10 +549,10 @@ func _setup_platform_markers() -> void:
 func _setup_stone_yard_markers() -> void:
 	for i in _stone_yard_cells.size():
 		var anchor: Vector2i = _stone_yard_cells[i]
-		for c in _zone_cells(anchor):
+		for c in CellMath.zone2x2_se(anchor):
 			var tile := _make_platform_tile(COLOR_STONE_YARD)
 			tile.name = "StoneYardTile_%d_%d_%d" % [i, c.x, c.y]
-			register_special_tile(tile, c)
+			_special_tile_registry.register(tile, c)
 		_stone_yard_markers.append(get_node("Markers/StoneYardMarker_%d" % i))
 
 
@@ -542,7 +562,7 @@ func _setup_stone_yard_markers() -> void:
 func _setup_crown_marker() -> void:
 	var tile := _make_platform_tile(COLOR_CROWN_PLATFORM)
 	tile.name = "CrownTile_%d_%d" % [_crown_point.x, _crown_point.y]
-	register_special_tile(tile, _crown_point)
+	_special_tile_registry.register(tile, _crown_point)
 	tile.visible = false
 	_crown_tile = tile
 	if has_node("Markers/CrownMarker"):
@@ -565,9 +585,8 @@ func _update_crown_visibility() -> void:
 		_crown_marker.visible = should_show
 	if should_show and not _crown_activated:
 		_crown_activated = true
-		Notify.notify(
-			"拱冠合龙点已激活！李春用「墨绳校券」命中桥中央紫色拱冠点即胜利",
-			Notify.Position.TOP_CENTER, Notify.Style.SUCCESS, 5.0,
+		Notify.success(
+			"拱冠合龙点已激活！李春用「墨绳校券」命中桥中央紫色拱冠点即胜利", 5.0,
 		)
 
 
@@ -582,8 +601,8 @@ func _make_platform_tile(color: Color) -> SpecialTile:
 
 
 func _setup_li_chun() -> void:
-	set_unit_skills(_li_chun, Progress.get_battle_skill_resources(GameState.selected_level))
-	setup_unit_stats(_li_chun, "李春", 130, 24, 100, 8, Enums.Element.NONE, 0, true)
+	# 属性外置 data/units/roster_level1-3.tres。
+	_get_unit_factory().setup_hero_unit(_li_chun, _roster.find("李春"))
 
 
 func _setup_allies_from_scene() -> void:
@@ -591,17 +610,16 @@ func _setup_allies_from_scene() -> void:
 	# 这里只补齐技能与战斗数值，并记录运石工的基础移动消耗用于载石后 +1。
 	# 同时在两石料场旁各动态生成 1 名额外运石工，加速运石节奏。
 	_spawn_extra_carriers()
-	for craftsman in _craftsmen:
-		set_unit_skills(craftsman, [_mallet, _guard])
-		setup_unit_stats(craftsman, "工匠", 118, 20, 92, 9)
+	var factory := _get_unit_factory()
+	# 数值外置 data/units/roster_level1-3.tres。
+	factory.setup_ally_group(_craftsmen, [_mallet, _guard], _roster.find("工匠"))
+	factory.setup_ally_group(_stone_carriers, [_staff], _roster.find("运石工"))
 	for carrier in _stone_carriers:
-		set_unit_skills(carrier, [_staff])
-		setup_unit_stats(carrier, "运石工", 88, 13, 100, 8)
 		_carrier_base_move_cost[carrier.get_instance_id()] = carrier.combat_stats.move_cost_per_tile
 	_apply_persistent_growth_effects()
 	# 墨绳校券改为无 CD 的「左右调拨」式机制（命中侧 +1 / 对侧 -1），
 	# 在所有成长应用之后强制覆盖一次以确保 CD=0（防止以后再加成长项时被改回）。
-	modify_unit_skill(_li_chun, "lc_inkline_balance_arch", {"cooldown_turns": 0})
+	factory.modify_unit_skill(_li_chun, "lc_inkline_balance_arch", {"cooldown_turns": 0})
 
 
 ## 在两个石料场旁各生成 1 名额外运石工。让运石节奏跟得上敌方扣券速度。
@@ -613,8 +631,8 @@ func _spawn_extra_carriers() -> void:
 		_stone_yard_cells[1] + Vector2i(-1, 0),   # 右石料场西侧（靠桥一侧）
 	]
 	for target in spawn_targets:
-		var cell := _nearest_walkable(target)
-		var carrier := spawn_unit(carrier_data, cell, PLAYER_TEAM, _visual_carrier)
+		var cell := CellMath.nearest_walkable(movement_manager, target)
+		var carrier := _get_unit_factory().spawn_unit(carrier_data, cell, PLAYER_TEAM, _visual_carrier)
 		_stone_carriers.append(carrier)
 
 
@@ -624,36 +642,12 @@ func _spawn_enemies() -> void:
 	# 倾压之号触发时调 _unlock_boss 放开机动 + 补土系近战，Boss 开始下桥还手。
 	# 玩家仍可远程打 Boss，Boss 受击伤害仍按 _boss_damage_cap 截断。
 	_boss = _spawn_enemy(_make_unit_data(_mud_data, "偏载傀", 720, 18, 1, 99, Enums.Element.EARTH, 2), _nearest_bridge_cell(BOSS_CELL), [], _visual_boss)
+	# Boss 减伤策略：单次伤害上限随左右差值现算（_boss_damage_cap）
+	_boss_dr = BossDRPolicy.cap(_boss, self._boss_damage_cap)
 	# 两个错券兵分别贴在左右券台外侧（关于桥中轴镜像），与券台 2×2 相邻以便扰券。
 	_spawn_enemy(_make_unit_data(_craftsman_data, "错券兵", 77, 17, 90, 9), _nearest_bridge_cell(_left_platform + Vector2i(-1, -1)), [_mallet], _visual_misaligned)
 	_spawn_enemy(_make_unit_data(_craftsman_data, "错券兵", 77, 17, 90, 9), _nearest_bridge_cell(_right_platform + Vector2i(1, 1)), [_mallet], _visual_misaligned)
 	_spawn_enemy(_make_unit_data(_mud_data, "裂石兽", 95, 22, 90, 10, Enums.Element.EARTH, 2), _nearest_bridge_cell(_crown_point + Vector2i(0, 1)), [_crush], _visual_stone_split)
-
-
-func _try_pick_or_deliver_stone(unit: Unit) -> void:
-	if unit not in _stone_carriers:
-		return
-	var key := unit.get_instance_id()
-	# 取石：进入 2×2 石料场区域且空手 → 自动取石（不再扣 AP）
-	if _is_in_any_zone(unit.cell, _stone_yard_cells) and not _carrying_stone.get(key, false):
-		_carrying_stone[key] = true
-		_set_carrier_loaded(unit, true)
-		_tutorial_stone_picked = true
-		Notify.notify("%s 已取石" % unit.combat_stats.unit_name, Notify.Position.TOP_RIGHT, Notify.Style.INFO, 1.5)
-		return
-	if not _carrying_stone.get(key, false):
-		return
-	# 交石：载石时进入 2×2 券台区域 → 自动卸石 + 对应侧 +1（不再扣 AP）
-	if _is_in_zone(unit.cell, _left_platform):
-		_adjust_arch_value(true, 3, "%s 运石入左券" % unit.combat_stats.unit_name)
-		_carrying_stone[key] = false
-		_set_carrier_loaded(unit, false)
-		_tutorial_stone_delivered = true
-	elif _is_in_zone(unit.cell, _right_platform):
-		_adjust_arch_value(false, 3, "%s 运石入右券" % unit.combat_stats.unit_name)
-		_carrying_stone[key] = false
-		_set_carrier_loaded(unit, false)
-		_tutorial_stone_delivered = true
 
 
 func _close_arch_conditions_met() -> bool:
@@ -696,7 +690,7 @@ func _close_arch_via_skill() -> void:
 	if _crown_marker != null:
 		_crown_marker.visible = false
 	_update_status_panel()
-	Notify.notify("收缝合龙完成，安济桥成！", Notify.Position.TOP_CENTER, Notify.Style.SUCCESS, 3.0)
+	Notify.success("收缝合龙完成，安济桥成！", 3.0)
 
 
 func _shift_load() -> void:
@@ -777,7 +771,7 @@ func _unlock_boss() -> void:
 	_boss.combat_stats.ap_max = 90
 	_boss.combat_stats.ap_current = _boss.combat_stats.ap_max
 	_boss.refresh_overhead_bars()
-	set_unit_skills(_boss, [_crush])
+	_get_unit_factory().set_unit_skills(_boss, [_crush])
 
 
 func _resolve_enemy_pressure() -> void:
@@ -789,9 +783,9 @@ func _resolve_enemy_pressure() -> void:
 			continue
 		if enemy.combat_stats.unit_name != "错券兵":
 			continue
-		if _is_adjacent_or_same(enemy.cell, _left_platform):
+		if CellMath.is_adjacent_or_same(enemy.cell, _left_platform):
 			_adjust_arch_value(true, -1, "错券兵扰券（左）")
-		elif _is_adjacent_or_same(enemy.cell, _right_platform):
+		elif CellMath.is_adjacent_or_same(enemy.cell, _right_platform):
 			_adjust_arch_value(false, -1, "错券兵扰券（右）")
 
 	# 2. 偏载傀「压台」——以 Boss 为中心 12×12 范围（切比雪夫半径 6）内，按距离最近选至多 2 个我方扣 base_atk × 0.5 无属伤
@@ -816,11 +810,11 @@ func _resolve_enemy_pressure() -> void:
 			var ally: Unit = candidates[i].ally
 			ally.combat_stats.current_hp = maxi(ally.combat_stats.current_hp - press_damage, 0)
 			ally.refresh_overhead_bars()
-			Notify.notify("%s 被偏载傀压台击中（-%d HP）" % [ally.combat_stats.unit_name, press_damage], Notify.Position.TOP_RIGHT, Notify.Style.WARNING, 1.5)
+			Notify.warn("%s 被偏载傀压台击中（-%d HP）" % [ally.combat_stats.unit_name, press_damage], 1.5)
 
 	_update_status_panel()
 	_maybe_notify_balance_transition()
-	_check_win_lose()
+	_get_objectives_tracker().check_win_lose()
 
 
 ## Boss 受击伤害上限：和"平衡状态"挂钩，玩家必须维持左右差值才能高效打 Boss。
@@ -842,7 +836,7 @@ func _adjust_arch_value(is_left: bool, delta: int, reason: String) -> void:
 		_left_arch_value = clampi(_left_arch_value + delta, 0, 10)
 	else:
 		_right_arch_value = clampi(_right_arch_value + delta, 0, 10)
-	Notify.notify("%s  左券:%d 右券:%d 差值:%d" % [reason, _left_arch_value, _right_arch_value, _arch_gap()], Notify.Position.TOP_RIGHT, Notify.Style.INFO, 2.5)
+	Notify.info("%s  左券:%d 右券:%d 差值:%d" % [reason, _left_arch_value, _right_arch_value, _arch_gap()])
 	_update_crown_visibility()
 	_update_status_panel()
 
@@ -876,10 +870,7 @@ func _set_runtime_status(stats: CombatStats, status_id: String, enabled: bool) -
 func _spawn_enemy(data: UnitData, cell: Vector2i, skills: Array[SkillData], visual: PackedScene = null) -> Unit:
 	# 敌人必须落在桥上（避免刷到桥下水里）；外部通常已经过 _nearest_bridge_cell，
 	# 这里再保一次兜底，防止新调用点遗漏。
-	var unit := spawn_unit(data, _nearest_bridge_cell(cell), ENEMY_TEAM, visual)
-	set_unit_skills(unit, skills)
-	setup_unit_stats(unit, data.unit_name, data.max_hp, data.base_atk, data.ap_max, data.move_cost_per_tile, data.innate_element, data.innate_element_amount)
-	return unit
+	return _get_unit_factory().spawn_enemy_unit(data, _nearest_bridge_cell(cell), ENEMY_TEAM, skills, visual)
 
 
 func _make_unit_data(base: UnitData, unit_name: String, max_hp: int, base_atk: int, ap_max: int, move_cost: int, element: Enums.Element = Enums.Element.NONE, element_amount: int = 0) -> UnitData:
@@ -894,18 +885,6 @@ func _make_unit_data(base: UnitData, unit_name: String, max_hp: int, base_atk: i
 	data.innate_element = element
 	data.innate_element_amount = element_amount
 	return data
-
-
-func _nearest_walkable(target: Vector2i) -> Vector2i:
-	if movement_manager.get_movement_cost(target) != TileType.IMPASSABLE:
-		return target
-	for radius in range(1, 4):
-		for dx in range(-radius, radius + 1):
-			for dy in range(-radius, radius + 1):
-				var candidate := target + Vector2i(dx, dy)
-				if movement_manager.get_movement_cost(candidate) != TileType.IMPASSABLE:
-					return candidate
-	return target
 
 
 ## 扫描桥图层，登记所有桥面 cell。敌人刷新点必须落在桥上。
@@ -924,7 +903,7 @@ func _build_bridge_cells() -> void:
 			_bridge_cells[cell] = true
 
 
-## 从 target 螺旋搜索最近的桥面可通行 cell；找不到则回退给 _nearest_walkable。
+## 从 target 螺旋搜索最近的桥面可通行 cell；找不到则回退给 CellMath.nearest_walkable。
 func _nearest_bridge_cell(target: Vector2i) -> Vector2i:
 	if _bridge_cells.has(target) and movement_manager.get_movement_cost(target) != TileType.IMPASSABLE:
 		return target
@@ -936,41 +915,8 @@ func _nearest_bridge_cell(target: Vector2i) -> Vector2i:
 				var c := target + Vector2i(dx, dy)
 				if _bridge_cells.has(c) and movement_manager.get_movement_cost(c) != TileType.IMPASSABLE:
 					return c
-	push_warning("[Level1-3] _nearest_bridge_cell 找不到桥上可通行格，回退到 _nearest_walkable: %s" % target)
-	return _nearest_walkable(target)
-
-
-func _is_adjacent_or_same(a: Vector2i, b: Vector2i) -> bool:
-	return absi(a.x - b.x) + absi(a.y - b.y) <= 1
-
-
-func _is_adjacent_to_any(cell: Vector2i, targets: Array[Vector2i]) -> bool:
-	for target in targets:
-		if _is_adjacent_or_same(cell, target):
-			return true
-	return false
-
-
-## 2×2 判定区：anchor 为西北角，区域含 anchor / +(1,0) / +(0,1) / +(1,1) 四格。
-func _zone_cells(anchor: Vector2i) -> Array[Vector2i]:
-	return [
-		anchor,
-		anchor + Vector2i(1, 0),
-		anchor + Vector2i(0, 1),
-		anchor + Vector2i(1, 1),
-	]
-
-
-func _is_in_zone(cell: Vector2i, anchor: Vector2i) -> bool:
-	return cell.x >= anchor.x and cell.x <= anchor.x + 1 \
-		and cell.y >= anchor.y and cell.y <= anchor.y + 1
-
-
-func _is_in_any_zone(cell: Vector2i, anchors: Array[Vector2i]) -> bool:
-	for a in anchors:
-		if _is_in_zone(cell, a):
-			return true
-	return false
+	push_warning("[Level1-3] _nearest_bridge_cell 找不到桥上可通行格，回退到 CellMath.nearest_walkable: %s" % target)
+	return CellMath.nearest_walkable(movement_manager, target)
 
 
 func get_post_level_growth_options() -> Array[Dictionary]:
@@ -985,22 +931,7 @@ func get_post_level_growth_options() -> Array[Dictionary]:
 # ─────────────────────────────────────────────
 
 func _setup_status_panel() -> void:
-	_status_panel = RichTextLabel.new()
-	_status_panel.name = "Level3StatusPanel"
-	_status_panel.bbcode_enabled = true
-	_status_panel.fit_content = true
-	_status_panel.scroll_active = false
-	_status_panel.autowrap_mode = TextServer.AUTOWRAP_OFF
-	_status_panel.anchors_preset = Control.PRESET_TOP_LEFT
-	_status_panel.offset_left = 18
-	_status_panel.offset_top = 84
-	_status_panel.offset_right = 380
-	_status_panel.offset_bottom = 160
-	_status_panel.add_theme_font_size_override("normal_font_size", 16)
-	_status_panel.add_theme_color_override("default_color", Color(0.96, 0.94, 0.88))
-	_status_panel.add_theme_color_override("font_outline_color", Color(0.08, 0.08, 0.08))
-	_status_panel.add_theme_constant_override("outline_size", 3)
-	_status_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_status_panel = LevelHudFactory.create_status_panel("Level3StatusPanel", 380, 160)
 	gui.add_child(_status_panel)
 
 
@@ -1037,7 +968,7 @@ func _maybe_notify_balance_transition() -> void:
 		return
 	match new_state:
 		"均衡":
-			Notify.notify("左右回到均衡。", Notify.Position.TOP_CENTER, Notify.Style.SUCCESS, 2.5)
+			Notify.success("左右回到均衡。")
 		"偏衡":
 			Notify.notify("左右偏衡，偏载傀直接受到的伤害上限 10。", Notify.Position.TOP_CENTER, Notify.Style.WARNING, 3.0)
 		"失衡":

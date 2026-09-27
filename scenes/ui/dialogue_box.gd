@@ -12,6 +12,9 @@ extends CanvasLayer
 ## 调用方在 `await dialogue_finished` 之后读取（队列释放是 deferred，下一帧才生效）。
 signal dialogue_finished
 
+## _yield_frame 用的自信号。节点销毁时连接自动断开，协程静默死亡。
+signal _frame_woke
+
 ## 上一段（最后一行）对话的关闭原因：true=玩家按键/点击，false=auto_dismiss 计时器。
 ## 在 `dialogue_finished` 之前赋值，调用方 await 后可立即读。
 var was_skipped: bool = false
@@ -200,6 +203,18 @@ func _should_auto_advance_current_line() -> bool:
 	return _auto_dismiss or not _current_line_can_skip
 
 
+## 安全的单帧让出。把 process_frame 转发到自信号 _frame_woke：
+## 节点销毁时连接自动断开、协程静默死亡，避免在 freed 实例上恢复。
+func _yield_frame() -> void:
+	if not is_inside_tree():
+		return
+	var tree := get_tree()
+	if tree == null:
+		return
+	tree.process_frame.connect(_frame_woke.emit, CONNECT_ONE_SHOT)
+	await _frame_woke
+
+
 ## auto_dismiss / 不可跳过行模式下，等满三个条件再关：
 ##   1. 文字打完（本函数已是文字打完后才被调用，天然满足）
 ##   2. 语音结束 + VOICE_AFTERMATH_DELAY（仅当 _voice_handle 在 streaming 时生效）
@@ -210,7 +225,7 @@ func _schedule_auto_dismiss() -> void:
 		return
 	var token := _dismiss_token
 
-	# Phase 1: 等外部 TTS 语音播完（轮询避免 signal-race；is_streaming 同步可靠）
+	# Phase 1: 等外部 TTS 语音播完（逐帧重查 is_streaming() 以覆盖火山→fallback 间隙）
 	var voice_was_streaming := false
 	var voice_wait_start := Time.get_ticks_msec() / 1000.0
 	while _voice_handle != null and is_instance_valid(_voice_handle) \
@@ -221,7 +236,7 @@ func _schedule_auto_dismiss() -> void:
 		if Time.get_ticks_msec() / 1000.0 - voice_wait_start > VOICE_MAX_WAIT_SEC:
 			push_warning("dialogue_box: voice wait exceeded %.1fs, forcing dismiss" % VOICE_MAX_WAIT_SEC)
 			break
-		await get_tree().process_frame
+		await _yield_frame()
 		if _finished or token != _dismiss_token:
 			return
 

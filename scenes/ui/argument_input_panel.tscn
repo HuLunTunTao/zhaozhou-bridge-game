@@ -59,6 +59,18 @@ corner_radius_bottom_left = 4
 [node name="ArgumentInputPanel" type="CanvasLayer"]
 layer = 90
 script = ExtResource("1_script")
+color_accent_gold = Color(1, 0.85098, 0.478431, 1)
+color_goal_value = Color(0.909804, 0.87451, 0.784314, 1)
+color_info_blue = Color(0.619608, 0.764706, 1, 1)
+color_soft_text = Color(0.811765, 0.823529, 0.760784, 1)
+color_hint_green = Color(0.560784, 0.819608, 0.560784, 1)
+color_keyword = Color(1, 0.878431, 0.627451, 1)
+color_bonus_label = Color(0.847059, 0.643137, 0.360784, 1)
+color_highlight = Color(1, 0.839216, 0.627451, 1)
+color_muted = Color(0.478431, 0.501961, 0.384314, 1)
+color_faint = Color(0.603922, 0.564706, 0.470588, 1)
+color_star = Color(1, 0.823529, 0.290196, 1)
+color_player_text = Color(0.862745, 0.839216, 0.768627, 1)
 
 [node name="Blocker" type="ColorRect" parent="."]
 anchors_preset = 15
