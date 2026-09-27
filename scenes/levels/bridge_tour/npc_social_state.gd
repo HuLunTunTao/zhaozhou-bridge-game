@@ -20,6 +20,7 @@ const META_KEY := "_social_state"
 @export var qa_key_points: Array[Dictionary] = []
 @export var qa_solved: bool = false
 @export var mentor_topics: Array[String] = []
+@export var mentor_topic_keys: Array[String] = []
 @export var qa_attempt: int = 0
 @export var persuade_opening_attempt: int = 0
 @export var persuade_success_attempt: int = 0

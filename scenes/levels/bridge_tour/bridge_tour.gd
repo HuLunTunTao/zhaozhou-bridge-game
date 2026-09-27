@@ -133,6 +133,11 @@ func _on_level_ready() -> void:
 	for path in ["GUI/RoundLabel", "GUI/TurnLabel", "GUI/EndTurnButton"]:
 		var n := get_node_or_null(path)
 		if n != null: n.visible = false
+	# 调试按钮仅 debug 模式显示
+	if not Settings.debug_mode:
+		for path in ["GUI/WinButton", "GUI/AIButton"]:
+			var n := get_node_or_null(path)
+			if n != null: n.visible = false
 	_init_components()
 	# 角色位置在 tscn 中静态摆放；脚本只补运行时数据、AI 与头顶姓名牌。
 	var li_chun := _get_static_unit("Player")

@@ -88,7 +88,23 @@ func _log(npc: Unit, submission: String, result: Dictionary) -> void:
 
 
 func _reply_text(result: Dictionary) -> String:
-	return String(result.get("feedback", ""))
+	var text := String(result.get("feedback", ""))
+	if bool(result.get("is_correct", false)):
+		return text
+	var missed: Array = result.get("missed_points", [])
+	if missed.is_empty():
+		return text
+	var labels: Array[String] = []
+	for m in missed:
+		var s := String(m).strip_edges()
+		if not s.is_empty():
+			labels.append(s)
+	if labels.is_empty():
+		return text
+	var hint := "提点：%s。" % "；".join(labels)
+	if text.is_empty():
+		return hint
+	return "%s\n%s" % [text, hint]
 
 
 func _is_fallback(result: Dictionary) -> bool:

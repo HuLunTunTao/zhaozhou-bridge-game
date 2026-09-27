@@ -69,6 +69,11 @@ func spawn(spec: Dictionary) -> Unit:
 		for t in topics_raw:
 			topics.append(String(t))
 		st.mentor_topics = topics
+		var keys_raw: Array = spec.get("mentor_topic_keys", [])
+		var keys: Array[String] = []
+		for k in keys_raw:
+			keys.append(String(k))
+		st.mentor_topic_keys = keys
 	unit.set_meta(NpcSocialState.META_KEY, st)
 	# RoamingAI
 	var ai := RoamingAI.new()

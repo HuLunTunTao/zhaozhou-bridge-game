@@ -74,7 +74,8 @@ func _is_fallback(result: Dictionary) -> bool:
 # ─────────────────────────────────────────────
 
 
-## LLM 按提问挑一个 BridgeKnowledge.TOPICS 讲解；失败时给 persona 兜底且标记 is_fallback。
+## LLM 按提问挑一个 BridgeKnowledge.TOPICS 讲解；失败时按 mentor_topics 静态映射
+## topic_key 并用 body 正文作讲解，仍解锁知识；映射不到才给 persona 兜底。
 func generate_lesson(npc: Unit, query: String) -> Dictionary:
 	var result: Dictionary = await _level._get_llm_runner().run(npc, "bridge_knowledge_explain", "mentor", {
 		"query": query,
@@ -86,11 +87,30 @@ func generate_lesson(npc: Unit, query: String) -> Dictionary:
 		if not parsed.has("topic_key"):
 			parsed["topic_key"] = ""
 		return parsed
+	# LLM 失败：按 mentor_topics 静态映射 topic_key，用 body 正文作讲解
+	var topic_key := _lookup_topic_key(npc, query)
+	if not topic_key.is_empty():
+		var topic: Dictionary = _BridgeKnowledgeScript.get_topic(topic_key)
+		if not topic.is_empty():
+			return {
+				"reply": String(topic.get("body", "")),
+				"topic_key": topic_key,
+				"is_fallback": true,
+			}
 	return {
 		"reply": _PersonaFallbackScript.pick(persona, "mentor"),
 		"topic_key": "",
 		"is_fallback": true,
 	}
+
+
+## 按 mentor_topics 的问题文本查 mentor_topic_keys 的静态映射（索引对齐）。
+func _lookup_topic_key(npc: Unit, query: String) -> String:
+	var st: NpcSocialState = _level._npc_state(npc)
+	var idx := st.mentor_topics.find(query)
+	if idx < 0 or idx >= st.mentor_topic_keys.size():
+		return ""
+	return String(st.mentor_topic_keys[idx])
 
 
 ## topic_key 记入"已学"（需在 BridgeKnowledge 里能查到）。

@@ -214,6 +214,7 @@ static func get_specs() -> Array[Dictionary]:
 			"roam_mode": _RoamingAIScript.Mode.STATIONARY, "waypoints": [],
 			# 老监工偏全局：拱形 / 时代 / 旧制
 			"mentor_topics": ["扁拱与半圆拱有何不同？", "为何在隋代建此奇桥？", "和旧制多孔小拱比，胜在哪？"],
+			"mentor_topic_keys": ["flat_arch", "sui_era", "old_method"],
 		},
 		{
 			"unit_id": "bridge_old_stonemason", "unit_name": "老石匠", "role": "mentor",
@@ -223,5 +224,6 @@ static func get_specs() -> Array[Dictionary]:
 			"roam_mode": _RoamingAIScript.Mode.STATIONARY, "waypoints": [],
 			# 老石匠偏材料 / 桥券 / 桥台 / 装饰
 			"mentor_topics": ["二十八道券怎么锁住不散？", "本地青石比别处好在哪？", "桥台只埋一丈余怎么扛得住？", "栏板蛟龙也是结构？"],
+			"mentor_topic_keys": ["parallel_rings", "stone_choice", "abutment", "ornament"],
 		},
 	]
