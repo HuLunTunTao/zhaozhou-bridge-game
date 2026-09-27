@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="WaveSpawns" format=3]
+[gd_resource type="Resource" script_class="WaveSpawns" format=3 uid="uid://70mnjqrght0c"]
 
 [ext_resource type="Script" uid="uid://d26ymkx50ds12" path="res://scripts/data/wave_spawns.gd" id="1"]
 [ext_resource type="Script" uid="uid://d2hf2spjg00i4" path="res://scripts/data/wave_entry.gd" id="2"]

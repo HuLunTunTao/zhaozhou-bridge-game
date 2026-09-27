@@ -1,15 +1,13 @@
-[gd_resource type="Resource" script_class="UnitRoster" format=3]
+[gd_resource type="Resource" script_class="UnitRoster" format=3 uid="uid://d0gqakgrsupid"]
 
-[ext_resource type="Script" path="res://scripts/data/unit_roster.gd" id="1"]
-[ext_resource type="Script" path="res://scripts/data/roster_entry.gd" id="2"]
+[ext_resource type="Script" uid="uid://bockmyek2g5rt" path="res://scripts/data/unit_roster.gd" id="1"]
+[ext_resource type="Script" uid="uid://14toaiw0r3h5" path="res://scripts/data/roster_entry.gd" id="2"]
 
 [sub_resource type="Resource" id="R_LI_CHUN"]
 script = ExtResource("2")
 unit_name = "李春"
 max_hp = 130
 base_atk = 24
-ap_max = 100
-move_cost = 8
 
 [sub_resource type="Resource" id="R_CRAFT"]
 script = ExtResource("2")
@@ -24,8 +22,6 @@ script = ExtResource("2")
 unit_name = "运石工"
 max_hp = 88
 base_atk = 13
-ap_max = 100
-move_cost = 8
 
 [resource]
 script = ExtResource("1")
